@@ -6,7 +6,7 @@ namespace CoreEngine
     {
         public void StartEngine()
         {
-            Console.WriteLine("Starting CoreEngine...");
+            Console.WriteLine($"Starting CoreEngine...");
         }
     }
 }

@@ -10,7 +10,7 @@ pushd build\temp
 DEL *.pdb > NUL 2> NUL
 
 ECHO [93mCompiling CoreEngine Library...[0m
-dotnet.exe publish -r win-x64 --self-contained true -o "." "..\..\src\CoreEngine"
+dotnet.exe publish /nologo -r win-x64 -v q --self-contained true -o "." "..\..\src\CoreEngine"
 
 @IF %ERRORLEVEL% == 0 (
    GOTO Compile_Windows_Executable
@@ -33,26 +33,38 @@ dotnet.exe publish -r win-x64 --self-contained true -o "." "..\..\src\CoreEngine
     
 :Linking_Win32_Executable
    ECHO [93mLinking...[0m
-   link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO /NODEFAULTLIB libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
-   ECHO [92mSuccess: Compilation done.[0m
-   GOTO Copy_Files
+   REM link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO /NODEFAULTLIB libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
+   link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO
+   
+   @IF %ERRORLEVEL% == 0 (
+      GOTO Copy_Files
+   )
+   @IF NOT %ERRORLEVEL% == 0 (
+      GOTO CompileError
+   )
     
 :CompileError
-   ECHO Error: Build has failed!
+   ECHO [91mError: Build has failed![0m
    EXIT 1
 
 :Copy_Files
    ECHO [93mCopy files...[0m
-   COPY api-ms-win-*.dll ..\Windows
-   COPY *.pdb ..\Windows
-   COPY mscorlib.dll ..\Windows
-   COPY System.dll ..\Windows
-   COPY CoreEngine.dll ..\Windows
-   COPY CoreEngine.exe ..\Windows
-   ECHO [92mSuccess: Copy done.[0m
+   REM COPY *.dll ..\Windows
+   COPY *.pdb ..\Windows > NUL
+   COPY CoreClr.dll ..\Windows > NUL
+   COPY System.Private.CoreLib.dll ..\Windows > NUL
+   COPY clrjit.dll ..\Windows > NUL
+   COPY System.Runtime.dll ..\Windows > NUL
+   COPY System.Console.dll ..\Windows > NUL
+   COPY System.Threading.dll ..\Windows > NUL
+   COPY System.Runtime.Extensions.dll ..\Windows > NUL
+   COPY System.Text.Encoding.Extensions.dll ..\Windows > NUL
+   COPY CoreEngine.dll ..\Windows > NUL
+   COPY CoreEngine.exe ..\Windows > NUL
    GOTO End
    
 :End
+    ECHO [92mSuccess: Compilation done.[0m
     popd
     RD /S /Q build\temp
     @ECHO ON

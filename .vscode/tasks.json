@@ -10,7 +10,7 @@
                 "command": "./MacOSBuild.sh"
             },
             "windows": {
-                "command": ".\\Win32Build.cmd",
+                "command": ".\\WindowsBuild.cmd",
             },
             "group": {
                 "kind": "build",

@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "xutility": "cpp",
+        "iosfwd": "cpp",
+        "__config": "cpp",
+        "__nullptr": "cpp",
+        "xstring": "cpp"
+    },
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true
+    }
+
+}

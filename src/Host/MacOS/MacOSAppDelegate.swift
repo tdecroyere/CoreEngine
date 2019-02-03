@@ -1,17 +1,26 @@
 import Cocoa
+import Metal
+import MetalKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var newWindow: NSWindow?
-    var controller: ViewController?
+    var mainWindow: NSWindow?
+    // var controller: ViewController?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        newWindow = NSWindow(contentRect: NSMakeRect(10, 10, 300, 300), styleMask: .resizable, backing: .buffered, defer: false)
+        print("Hello World")
 
-        controller = ViewController()
-        let content = newWindow!.contentView! as NSView
-        let view = controller!.view
-        content.addSubview(view)
+        mainWindow = NSWindow(contentRect: NSMakeRect(0, 0, 1280, 720), 
+                             styleMask: [.resizable, .titled, .miniaturizable, .closable], 
+                             backing: .buffered, 
+                             defer: false)
 
-        newWindow!.makeKeyAndOrderFront(nil)
+        mainWindow!.title = "Test"
+
+        // controller = ViewController()
+        // let content = newWindow!.contentView! as NSView
+        // let view = controller!.view
+        // content.addSubview(view)
+
+        mainWindow!.makeKeyAndOrderFront(nil)
     }
 }

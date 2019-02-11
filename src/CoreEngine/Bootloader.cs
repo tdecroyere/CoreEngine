@@ -1,12 +1,28 @@
 ﻿using System;
-using System.Runtime.InteropServices;
+using System.IO;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace CoreEngine
 {
     public class Bootloader
     {
+        private static CoreEngineApp? coreEngineApp = null;
+
         public static void StartEngine(HostPlatform hostPlatform)
         {
+            var commandLineArgs = Environment.GetCommandLineArgs();
+
+            foreach (var arg in commandLineArgs)
+            {
+                Console.WriteLine($"Command Line: {arg}");
+            }
+
+            if (commandLineArgs.Length > 1)
+            {
+                coreEngineApp = LoadCoreEngineApp(commandLineArgs[1]).Result;
+            }
+
             var result = hostPlatform.AddTestHostMethod(3, 8);
             Span<byte> testBuffer = hostPlatform.GetTestBuffer();
 
@@ -16,6 +32,27 @@ namespace CoreEngine
             {
                 Console.WriteLine($"TestBuffer {testBuffer[i]}");
             }
+
+            if (coreEngineApp != null)
+            {
+                coreEngineApp.Init();
+            }
+        }
+
+        private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName)
+        {
+            var assemblyContent = await File.ReadAllBytesAsync($"{appName}.dll");
+            var assembly = Assembly.Load(assemblyContent);
+
+            foreach (var type in assembly.GetTypes())
+            {
+                if (type.IsSubclassOf(typeof(CoreEngineApp)))
+                {
+                    return (CoreEngineApp)Activator.CreateInstance(type);
+                }
+            }
+
+            return null;
         }
     }
 }

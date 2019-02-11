@@ -1,6 +1,5 @@
 @ECHO OFF
 
-IF EXIST "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64\" Call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64\vcvars64.bat" > NUL
 IF EXIST "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\" Call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat" > NUL
 
 IF NOT EXIST build\temp mkdir build\temp
@@ -10,7 +9,7 @@ pushd build\temp
 DEL *.pdb > NUL 2> NUL
 
 ECHO [93mCompiling CoreEngine Library...[0m
-dotnet.exe publish /nologo -r win-x64 -c Debug -v q --self-contained true -o "." "..\..\src\CoreEngine"
+dotnet.exe publish /nologo -r win-x64 -c Debug -v Q --self-contained true -o "." "..\..\src\CoreEngine"
 
 @IF %ERRORLEVEL% == 0 (
    GOTO Compile_Windows_Executable
@@ -49,16 +48,19 @@ dotnet.exe publish /nologo -r win-x64 -c Debug -v q --self-contained true -o "."
 
 :Copy_Files
    ECHO [93mCopy files...[0m
-   REM COPY *.dll ..\Windows
+   COPY *.dll ..\Windows > NUL
    COPY *.pdb ..\Windows > NUL
-   COPY CoreClr.dll ..\Windows > NUL
-   COPY System.Private.CoreLib.dll ..\Windows > NUL
-   COPY clrjit.dll ..\Windows > NUL
-   COPY System.Runtime.dll ..\Windows > NUL
-   COPY System.Console.dll ..\Windows > NUL
-   COPY System.Threading.dll ..\Windows > NUL
-   COPY System.Runtime.Extensions.dll ..\Windows > NUL
-   COPY System.Text.Encoding.Extensions.dll ..\Windows > NUL
+   REM COPY CoreClr.dll ..\Windows > NUL
+   REM COPY System.Private.CoreLib.dll ..\Windows > NUL
+   REM COPY clrjit.dll ..\Windows > NUL
+   REM COPY System.Runtime.dll ..\Windows > NUL
+   REM COPY System.Console.dll ..\Windows > NUL
+   REM COPY System.Threading.dll ..\Windows > NUL
+   REM COPY System.Runtime.Extensions.dll ..\Windows > NUL
+   REM COPY System.Runtime.Loader.dll ..\Windows > NUL
+   REM COPY System.Text.Encoding.Extensions.dll ..\Windows > NUL
+   REM COPY System.Threading.dll ..\Windows > NUL
+   REM COPY System.Threading.Tasks.dll ..\Windows > NUL
    COPY CoreEngine.dll ..\Windows > NUL
    COPY CoreEngine.exe ..\Windows > NUL
    GOTO End

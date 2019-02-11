@@ -1,5 +1,5 @@
 @ECHO OFF
-pushd .\Data
-START ..\build\Windows\CoreEngine.exe
+pushd .\build\Windows
+.\CoreEngine.exe %1
 popd
 @ECHO ON

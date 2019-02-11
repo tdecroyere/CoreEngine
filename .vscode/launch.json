@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "./CoreEngine.exe",
+            "args": ["EcsTest"],
+            "cwd": "${workspaceFolder}/build/Windows",
+            "stopAtEntry": false,
+            "externalConsole": true
+        },
+        {
             "name": "(MacOS) Launch",
             "type": "cppdbg",
             "request": "launch",

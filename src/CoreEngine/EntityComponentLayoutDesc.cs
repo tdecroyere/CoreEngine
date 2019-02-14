@@ -2,7 +2,7 @@ using System;
 
 namespace CoreEngine
 {
-    internal struct EntityComponentLayoutDesc
+    internal class EntityComponentLayoutDesc
     {
         public uint EntityComponentLayoutId;
         public int HashCode;

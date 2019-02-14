@@ -16,7 +16,6 @@ namespace CoreEngine
     public delegate int AddTestHostMethodDelegate(int a, int b);
     public delegate ByteSpan GetTestBufferDelegate();
 
-    [StructLayout(LayoutKind.Sequential)]
     public struct HostPlatform
     {
         public int TestParameter;

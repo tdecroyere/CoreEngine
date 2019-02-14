@@ -39,6 +39,7 @@ namespace CoreEngine
             }
         }
 
+        // TODO: Use the isolated app domain new feature to be able to do hot build of the app dll
         private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName)
         {
             var assemblyContent = await File.ReadAllBytesAsync($"{appName}.dll");

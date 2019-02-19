@@ -13,12 +13,12 @@ namespace CoreEngine.Tests.EcsTest
 
             // Test EntityManager basic functions
             var entityManager = new EntityManager();
-            var playerLayout = entityManager.CreateEntityComponentLayout(typeof(PositionComponent));
-            var wallLayout = entityManager.CreateEntityComponentLayout(typeof(PositionComponent), typeof(BlockComponent));
+            var playerLayout = entityManager.CreateEntityComponentLayout(typeof(TransformComponent));
+            var wallLayout = entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
 
             var playerEntity = entityManager.CreateEntity(playerLayout);
 
-            PositionComponent playerPositionComponent;
+            TransformComponent playerPositionComponent;
             playerPositionComponent.Position.X = 12.0f;
             playerPositionComponent.Position.Y = 20.0f;
             playerPositionComponent.Position.Z = 45.0f;
@@ -28,7 +28,7 @@ namespace CoreEngine.Tests.EcsTest
             {
                 var wallEntity = entityManager.CreateEntity(wallLayout);
 
-                PositionComponent wallPositionComponent;
+                TransformComponent wallPositionComponent;
                 wallPositionComponent.Position.X = (float)i;
                 wallPositionComponent.Position.Y = (float)i + 54.0f;
                 wallPositionComponent.Position.Z = (float)i + 22.0f;
@@ -47,7 +47,7 @@ namespace CoreEngine.Tests.EcsTest
                 var entity = entities[i];
                 Console.WriteLine($"Entity: {entity.EntityId}");
                 
-                var position = entityManager.GetComponentData<PositionComponent>(entity);
+                var position = entityManager.GetComponentData<TransformComponent>(entity);
                 Console.WriteLine($"Position (X: {position.Position.X}, Y: {position.Position.Y}, Z: {position.Position.Z})");
             
                 if (entityManager.HasComponent<BlockComponent>(entity))

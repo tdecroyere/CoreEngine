@@ -11,6 +11,9 @@ namespace CoreEngine
         // TODO: Not thread safe for the moment
         // TODO: Use something different than an array of bytes?
         // TODO: Refactor code
+        // TODO: Embed entities data into a world class or struct (with ref properties?)?
+        // TODO: How to handle open world entities? (Large open-worlds)
+        // TODO: Manage entity layouts that the same components with different orders as the same
 
         private List<EntityComponentLayoutDesc> componentLayouts;
         private Dictionary<uint, List<ComponentDataMemoryChunk>> componentStorage;
@@ -125,16 +128,86 @@ namespace CoreEngine
         {
             // TODO: Make a function for entity indexing
             // TODO: Use Index type?
-
             var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
+            var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
             var dataStorage = this.componentStorage[componentLayout.EntityComponentLayoutId];
 
+            var componentOffset = FindComponentOffset(component.GetType(), componentLayoutDesc);
+            var chunkItemSize = sizeof(uint) + componentLayoutDesc.Size;
+
+            // TODO: Throw an exception if entity not found
+            for (var i = 0; i < dataStorage.Count; i++)
+            {
+                var memoryChunk = dataStorage[i];
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
+                {
+                    var chunkIndex = chunkItemSize * j;
+                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
+
+                    if (entityId == entity.EntityId)
+                    {
+                        MemoryMarshal.Write(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset), ref component);
+                    }
+                }
+            }
+        }
+
+        public T GetComponentData<T>(Entity entity) where T : struct, IComponentData
+        {
+            // TODO: Make a function for entity indexing
+            // TODO: Use Index type?
+            var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
+            var dataStorage = this.componentStorage[componentLayout.EntityComponentLayoutId];
+
+            var componentOffset = FindComponentOffset(typeof(T), componentLayoutDesc);
+            var chunkItemSize = sizeof(uint) + componentLayoutDesc.Size;
+
+            // TODO: Throw an exception if entity not found
+            for (var i = 0; i < dataStorage.Count; i++)
+            {
+                var memoryChunk = dataStorage[i];
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
+                {
+                    var chunkIndex = chunkItemSize * j;
+                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
+
+                    if (entityId == entity.EntityId)
+                    {
+                        return MemoryMarshal.Read<T>(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset));
+                    }
+                }
+            }
+
+            // TODO: Throw exception
+            throw new InvalidOperationException("Entity has no data for the specified component.");
+        }
+
+        public bool HasComponent<T>(Entity entity) where T : IComponentData
+        {
+            var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
+            var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
+
+            for (var i = 0; i < componentLayoutDesc.ComponentCount; i++)
+            {
+                if (componentLayoutDesc.ComponentTypes[i] == typeof(T).GetHashCode())
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static int FindComponentOffset(Type componentType, EntityComponentLayoutDesc componentLayoutDesc)
+        {
             var componentIndex = -1;
 
             for (var i = 0; i < componentLayoutDesc.ComponentCount; i++)
             {
-                if (componentLayoutDesc.ComponentTypes[i] == component.GetType().GetHashCode())
+                if (componentLayoutDesc.ComponentTypes[i] == componentType.GetHashCode())
                 {
                     componentIndex = i;
                     break;
@@ -147,34 +220,7 @@ namespace CoreEngine
             }
 
             var componentOffset = componentLayoutDesc.ComponentOffsets[componentIndex];
-            var chunkItemSize = sizeof(uint) + componentLayoutDesc.Size;
-
-            // TODO: Throw an exception if entity not found
-            for (var i = 0; i < dataStorage.Count; i++)
-            {
-                var memoryChunk = dataStorage[i];
-
-                for (var j = 0; j < memoryChunk.EntityCount; j++)
-                {
-                    var chunkIndex = chunkItemSize * j + componentOffset;
-                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
-
-                    if (entityId == entity.EntityId)
-                    {
-                        MemoryMarshal.Write(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint)), ref component);
-                    }
-                }
-            }
-        }
-
-        public T GetComponentData<T>(Entity entity) where T : IComponentData
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool HasComponent<T>(Entity entity) where T : IComponentData
-        {
-            throw new NotImplementedException();
+            return componentOffset;
         }
     }
 }

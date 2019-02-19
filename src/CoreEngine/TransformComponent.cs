@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace CoreEngine
 {
-    public struct PositionComponent : IComponentData
+    public struct TransformComponent : IComponentData
     {
         public Vector3 Position;
     }

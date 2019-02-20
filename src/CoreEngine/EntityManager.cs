@@ -35,6 +35,8 @@ namespace CoreEngine
 
         public EntityComponentLayout CreateEntityComponentLayout(params Type[] componentTypes)
         {
+            // TODO: Check if the type inherit from IComponentData
+            
             var arrayHashCode = componentTypes.GetHashCode();
 
             for (int i = 0; i < this.componentLayouts.Count; i++)
@@ -155,6 +157,7 @@ namespace CoreEngine
 
         public T GetComponentData<T>(Entity entity) where T : struct, IComponentData
         {
+            // TODO: Use ref return?
             // TODO: Make a function for entity indexing
             // TODO: Use Index type?
             var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];

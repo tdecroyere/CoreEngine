@@ -40,16 +40,32 @@ namespace CoreEngine.Tests.EcsTest
                 entityManager.SetComponentData(wallEntity, wallBlockComponent);
             }
 
+            DisplayEntities(entityManager);
+
+            var entitySystemManager = new EntitySystemManager();
+            entitySystemManager.RegisterSystem(new MovementUpdateSystem());
+
+            entitySystemManager.Process(1000);
+
+            DisplayEntities(entityManager);
+        }
+
+        private static void DisplayEntities(EntityManager entityManager)
+        {
+            Console.WriteLine("----------------------------------------");
+            Console.WriteLine("Display entities");
+            Console.WriteLine("----------------------------------------");
+
             var entities = entityManager.GetEntities();
 
-            for (int i = 0; i < entities.Length; i++)
+            for (var i = 0; i < entities.Length; i++)
             {
                 var entity = entities[i];
                 Console.WriteLine($"Entity: {entity.EntityId}");
-                
+
                 var position = entityManager.GetComponentData<TransformComponent>(entity);
                 Console.WriteLine($"Position (X: {position.Position.X}, Y: {position.Position.Y}, Z: {position.Position.Z})");
-            
+
                 if (entityManager.HasComponent<BlockComponent>(entity))
                 {
                     var blockComponent = entityManager.GetComponentData<BlockComponent>(entity);
@@ -58,11 +74,6 @@ namespace CoreEngine.Tests.EcsTest
 
                 Console.WriteLine("----------------------------------------");
             }
-
-            // Test Entity Layout compatibility
-
-            // PositionUpdateSystem positionUpdateSystem = {};
-            // positionUpdateSystem.OnUpdate(nullptr);
         }
 
         public override void Update()

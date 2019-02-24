@@ -9,40 +9,46 @@ namespace CoreEngine
     {
         private static CoreEngineApp? coreEngineApp = null;
 
-        public static void StartEngine(HostPlatform hostPlatform)
+        public static void StartEngine(ref HostPlatform hostPlatform)
         {
-            var commandLineArgs = Environment.GetCommandLineArgs();
-
-            foreach (var arg in commandLineArgs)
+            Console.WriteLine($"Starting CoreEngine...");
+            Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter}");
+            
+            if (hostPlatform.AddTestHostMethod != null)
             {
-                Console.WriteLine($"Command Line: {arg}");
+                var result = hostPlatform.AddTestHostMethod(3, 8);
+                Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter} - {result}");
             }
 
-            if (commandLineArgs.Length > 1)
+            // if (hostPlatform.GetTestBuffer != null)
+            // {
+            //     Span<byte> testBuffer = hostPlatform.GetTestBuffer();
+
+            //     for (int i = 0; i < testBuffer.Length; i++)
+            //     {
+            //         Console.WriteLine($"TestBuffer {testBuffer[i]}");
+            //     }
+            // }
+
+            if (hostPlatform.AppName != null)
             {
-                coreEngineApp = LoadCoreEngineApp(commandLineArgs[1]).Result;
-            }
+                Console.WriteLine($"Loading CoreEngineApp '{hostPlatform.AppName}'...");
+                coreEngineApp = LoadCoreEngineApp(hostPlatform.AppName).Result;
 
-            var result = hostPlatform.AddTestHostMethod(3, 8);
-            Span<byte> testBuffer = hostPlatform.GetTestBuffer();
-
-            Console.WriteLine($"Starting CoreEngine (Test Parameter: {hostPlatform.TestParameter} - {result})...");
-
-            for (int i = 0; i < testBuffer.Length; i++)
-            {
-                Console.WriteLine($"TestBuffer {testBuffer[i]}");
-            }
-
-            if (coreEngineApp != null)
-            {
-                coreEngineApp.Init();
+                if (coreEngineApp != null)
+                {
+                    Console.WriteLine("CoreEngineApp loading successfull.");
+                    coreEngineApp.Init();
+                }
             }
         }
 
         // TODO: Use the isolated app domain new feature to be able to do hot build of the app dll
         private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName)
         {
-            var assemblyContent = await File.ReadAllBytesAsync($"{appName}.dll");
+            // TODO: Check if dll exists
+            var currentAssemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            var assemblyContent = await File.ReadAllBytesAsync(Path.Combine(currentAssemblyPath, $"{appName}.dll"));
             var assembly = Assembly.Load(assemblyContent);
 
             foreach (var type in assembly.GetTypes())

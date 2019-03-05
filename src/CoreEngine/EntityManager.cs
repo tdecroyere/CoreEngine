@@ -48,19 +48,11 @@ namespace CoreEngine
             }
 
             var componentLayout = new EntityComponentLayout((uint)this.componentLayouts.Count);
-            
-            var componentLayoutDesc = new EntityComponentLayoutDesc();
+            var componentLayoutDesc = new EntityComponentLayoutDesc(componentLayout.EntityComponentLayoutId, arrayHashCode, componentTypes.Length);
             this.componentLayouts.Add(componentLayoutDesc);
             this.componentStorage.Add(componentLayout.EntityComponentLayoutId, new List<ComponentDataMemoryChunk>());
 
-            componentLayoutDesc.EntityComponentLayoutId = componentLayout.EntityComponentLayoutId;
-            componentLayoutDesc.HashCode = arrayHashCode;
-            componentLayoutDesc.ComponentCount = componentTypes.Length;
-            componentLayoutDesc.ComponentTypes = new int[componentTypes.Length];
-            componentLayoutDesc.ComponentOffsets = new int[componentTypes.Length];
-            componentLayoutDesc.ComponentSizes = new int[componentTypes.Length];
-
-            for (int i = 0; i < componentTypes.Length; i++)
+            for (int i = 0; i < componentLayoutDesc.ComponentCount; i++)
             {
                 componentLayoutDesc.ComponentTypes[i] = componentTypes[i].GetHashCode();
                 componentLayoutDesc.ComponentOffsets[i] = componentLayoutDesc.Size;
@@ -186,6 +178,41 @@ namespace CoreEngine
 
             // TODO: Throw exception
             throw new InvalidOperationException("Entity has no data for the specified component.");
+        }
+
+        internal EntitySystemData GetEntitySystemData(Type[] componentTypes)
+        {
+            // Find compatible component layouts
+            var compatibleLayouts = new List<EntityComponentLayoutDesc>();
+
+            // TODO: Replace that with a faster imp
+            for (var i = 0; i < this.componentLayouts.Count; i++)
+            {
+                var componentLayout = this.componentLayouts[i];
+                var numberOfMatches = 0;
+
+                for (var j = 0; j < componentLayout.ComponentTypes.Length; j++)
+                {
+                    var componentType = componentLayout.ComponentTypes[j];
+                    
+                    for (var k = 0; k < componentTypes.Length; k++)
+                    {
+                        if (componentType.GetHashCode() == componentTypes[k].GetHashCode())
+                        {
+                            numberOfMatches++;
+                        }
+                    }
+                }
+
+                if (numberOfMatches == componentLayout.ComponentTypes.Length)
+                {
+                    compatibleLayouts.Add(componentLayout);
+                }
+            }
+
+            // TODO: Get data for each entities of the compatible layouts
+
+            throw new NotImplementedException();
         }
 
         public bool HasComponent<T>(Entity entity) where T : IComponentData

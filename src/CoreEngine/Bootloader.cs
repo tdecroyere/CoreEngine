@@ -20,15 +20,15 @@ namespace CoreEngine
                 Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter} - {result}");
             }
 
-            // if (hostPlatform.GetTestBuffer != null)
-            // {
-            //     Span<byte> testBuffer = hostPlatform.GetTestBuffer();
+            if (hostPlatform.GetTestBuffer != null)
+            {
+                Span<byte> testBuffer = hostPlatform.GetTestBuffer();
 
-            //     for (int i = 0; i < testBuffer.Length; i++)
-            //     {
-            //         Console.WriteLine($"TestBuffer {testBuffer[i]}");
-            //     }
-            // }
+                for (int i = 0; i < testBuffer.Length; i++)
+                {
+                    Console.WriteLine($"TestBuffer {testBuffer[i]}");
+                }
+            }
 
             if (hostPlatform.AppName != null)
             {

@@ -19,6 +19,7 @@ struct Span
 struct HostPlatform
 {
 	int TestParameter;
+    char* AppName;
 	void* AddTestHostMethod;
 	void* GetTestBuffer;
 };
@@ -43,7 +44,7 @@ Span GetTestBuffer()
 
 typedef int AddTestHostMethodType(int a, int b);
 typedef Span GetTestBufferType();
-typedef void StartEngine(HostPlatform hostPlatform);
+typedef void StartEngine(HostPlatform* hostPlatform);
 
 void BuildTpaList(const char* directory, const char* extension, std::string& tpaList)
 {
@@ -84,7 +85,7 @@ void BuildTpaList(const char* directory, const char* extension, std::string& tpa
     }
 }
 
-void main()
+void main(int argc, char const *argv[])
 {
 	LPCSTR appPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows";
 	LPCSTR coreClrPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows\\CoreClr.dll";
@@ -141,10 +142,11 @@ GetTestBufferType* getTestBufferMethod = GetTestBuffer;
 
 HostPlatform hostPlatform = {};
 hostPlatform.TestParameter = 5;
+hostPlatform.AppName = (char*)argv[1];
 hostPlatform.AddTestHostMethod = testMethod;
 hostPlatform.GetTestBuffer = getTestBufferMethod;
 
-managedDelegate(hostPlatform);
+managedDelegate(&hostPlatform);
 	printf("CoreEngine Windows Host\n");
 	getchar();
 }

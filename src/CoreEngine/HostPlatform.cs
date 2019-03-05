@@ -21,6 +21,6 @@ namespace CoreEngine
         public int TestParameter;
         public string? AppName;
         public AddTestHostMethodDelegate AddTestHostMethod;
-        // public GetTestBufferDelegate GetTestBuffer;
+        public GetTestBufferDelegate GetTestBuffer;
     }
 }

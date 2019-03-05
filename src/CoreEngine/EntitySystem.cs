@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace CoreEngine
 {
     public abstract class EntitySystem
     {
-        // TODO: Storing ArrayPool buffers here is a not great, we do that for the moment so the API is cleaner
-        private Entity[] entitiesArray = new Entity[0];
-        private IDictionary<int, byte[]> componentsData = new Dictionary<int, byte[]>();
+        private EntitySystemData? entitySystemData;
 
         public abstract EntitySystemDefinition BuildDefinition();
         
@@ -15,26 +14,36 @@ namespace CoreEngine
 
         protected ReadOnlySpan<Entity> GetEntityArray()
         {
-            return entitiesArray;
-        }
+            if (entitySystemData != null)
+            {
+                return this.entitySystemData.entitiesArray;
+            }
 
-        internal void SetEntityArray(Entity[] data)
-        {
-            this.entitiesArray = data;
+            throw new InvalidOperationException("Entity system data was never set.");
         }
 
         protected Span<T> GetComponentDataArray<T>() where T : struct, IComponentData
         {
             // TODO: Check system registered definitions
 
-            throw new NotImplementedException();
+            if (entitySystemData != null)
+            {
+                var componentTypeHashCode = typeof(T).GetHashCode();
+
+                if (!this.entitySystemData.componentsData.ContainsKey(componentTypeHashCode))
+                {
+                    throw new ArgumentException("The type passed is not registered by the system.");
+                }
+                    
+                return MemoryMarshal.Cast<byte, T>(this.entitySystemData.componentsData[componentTypeHashCode].AsSpan());
+            }
+
+            throw new InvalidOperationException("Entity system data was never set.");
         }
 
-        internal void SetComponentDataArray<T>(Span<T> data) where T : struct, IComponentData
+        internal void SetEntitySystemData(EntitySystemData entitySystemData)
         {
-            // TODO: Check system registered definitions
-
-            throw new NotImplementedException();
+            this.entitySystemData = entitySystemData;
         }
     }
 }

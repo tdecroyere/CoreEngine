@@ -42,7 +42,7 @@ namespace CoreEngine.Tests.EcsTest
 
             DisplayEntities(entityManager);
 
-            var entitySystemManager = new EntitySystemManager();
+            var entitySystemManager = new EntitySystemManager(entityManager);
             entitySystemManager.RegisterSystem(new MovementUpdateSystem());
 
             entitySystemManager.Process(1000);

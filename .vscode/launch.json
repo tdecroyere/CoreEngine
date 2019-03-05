@@ -8,9 +8,9 @@
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            "program": "./CoreEngine",
+            "program": "./CoreEngine.exe",
             "args": ["EcsTest"],
-            "cwd": "${workspaceFolder}/build/MacOS/CoreEngine.app/Contents/MacOS",
+            "cwd": "${workspaceFolder}/build/Windows/",
             "stopAtEntry": false,
             "externalConsole": true
         },

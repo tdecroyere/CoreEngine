@@ -1,43 +1,25 @@
 import Cocoa
 import Metal
 import MetalKit
+import CoreEngineInterop
 
-public struct Span {
-    public var Buffer: UnsafeMutablePointer<UInt8>!
-    public var Length: Int32
+func getTestBuffer() -> Span
+{
+    let bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: 5)
+    let buffer = UnsafeMutableBufferPointer(start: bufferPtr, count: 5)
+    buffer[0] = 1
+    buffer[1] = 2
+    buffer[2] = 3
+    buffer[3] = 45
+    buffer[4] = 5
 
-    public init() {
-        self.Length = 0
-    }
-}
-
-public struct HostPlatform {
-    public var testParameter: Int32
-    public var appName: UnsafePointer<Int8>?
-    //public var addTestHostMethod: UnsafeMutableRawPointer!
-    //public var GetTestBuffer: UnsafeMutableRawPointer!
-
-    public init() {
-        self.testParameter = -1
-        self.appName = nil
-        //self.addTestHostMethod = nil
-    }
-    
-    // public mutating func assignAddTestHostMethod(_ method: UnsafeMutableRawPointer!) {
-    //     self.addTestHostMethod = method
-    // }
+	return Span(Buffer: bufferPtr, Length: 5)
 }
 
 func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32
 {
-	return a + b;
+	return a + b + 40
 }
-
-public typealias coreclr_initialize_ptr = @convention(c) (UnsafePointer<Int8>?, UnsafePointer<Int8>?, Int32, UnsafeMutablePointer<UnsafePointer<Int8>?>?, UnsafeMutablePointer<UnsafePointer<Int8>?>?, UnsafeMutablePointer<UnsafeMutableRawPointer?>?, UnsafeMutablePointer<UInt32>?) -> Int32
-public typealias coreclr_create_delegate_ptr = @convention(c) (UnsafeMutableRawPointer?, UInt32, UnsafePointer<Int8>?, UnsafePointer<Int8>?, UnsafePointer<Int8>?, UnsafeMutablePointer<UnsafeMutableRawPointer?>?) -> Int32
-
-public typealias AddTestHostMethodType = @convention(c) (Int32, Int32) -> Int32;
-public typealias StartEngine_ptr = @convention(c) (UnsafeRawPointer?, UnsafeMutableRawPointer!) -> Void
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindow: NSWindow!
@@ -127,21 +109,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                                             &managedDelegate)
 
             if (result == 0) {
-                let startEngine = unsafeBitCast(managedDelegate!, to: StartEngine_ptr.self)
+                let startEngine = unsafeBitCast(managedDelegate!, to: StartEnginePtr.self)
 
-                // let s = "Test Parameter"
                 var hostPlatform = HostPlatform()
-                hostPlatform.testParameter = 5
+                hostPlatform.TestParameter = 5
 
                 if (CommandLine.arguments.count > 1) {
-                    hostPlatform.appName = UnsafePointer<Int8>?((CommandLine.arguments[1] as NSString).utf8String!)
+                    let argumentString = UnsafePointer<Int8>((CommandLine.arguments[1] as NSString).utf8String)
+                    hostPlatform.AppName = UnsafeMutablePointer<Int8>(mutating: argumentString)
                 }
 
-                //var addTestMethodPointer = addTestHostMethod
-                //let addTestMethod = unsafeBitCast(&addTestHostMethod, to: AddTestHostMethodType.self)
-                //hostPlatform.assignAddTestHostMethod(addTestHostMethod)
-                //hostPlatform.GetTestBuffer = (void*)getTestBufferMethod;
-                startEngine(&hostPlatform, &addTestHostMethod)
+                let addTestMethod: AddTestHostMethodPtr = addTestHostMethod
+                hostPlatform.AddTestHostMethod = unsafeBitCast(addTestMethod, to: UnsafeMutableRawPointer.self)
+
+                let getTestBufferMethod: GetTestBufferPtr = getTestBuffer
+                hostPlatform.GetTestBuffer = unsafeBitCast(getTestBufferMethod, to: UnsafeMutableRawPointer.self)
+
+                startEngine(&hostPlatform)
             }
         }
         

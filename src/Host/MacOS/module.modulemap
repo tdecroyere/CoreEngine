@@ -1,0 +1,4 @@
+module CoreEngineInterop {
+     header "CoreEngine.h"
+     export *
+ }

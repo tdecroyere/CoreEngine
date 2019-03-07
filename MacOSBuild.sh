@@ -44,7 +44,7 @@ if [ $? -eq 0 ]; then
 
     echo [93mCompiling MacOS Executable...[0m
     cd "../"$outputDirectory"/MacOS/"
-    swiftc "../../../../../src/Host/MacOS/"*".swift" -Onone -g -o "CoreEngine" -swift-version 4.2 -target x86_64-apple-macosx10.14 -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    swiftc "../../../../../src/Host/MacOS/"*".swift" -Onone -g -o "CoreEngine" -swift-version 4.2 -target x86_64-apple-macosx10.14 -I "../../../../../src/Host/MacOS" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     echo [92mSuccess: Compilation done.[0m
 fi

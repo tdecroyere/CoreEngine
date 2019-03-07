@@ -17,6 +17,8 @@
 		D83764DD2205D1CF00B58450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D83764DE2205D1CF00B58450 /* MacOSAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOSAppDelegate.swift; sourceTree = "<group>"; };
 		D8B8678D221DCB1100038D85 /* CoreEngine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CoreEngine.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8C39FD6223088CF000DD154 /* CoreEngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CoreEngine.h; sourceTree = "<group>"; };
+		D8C39FD7223088D6000DD154 /* module.modulemap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -33,6 +35,8 @@
 		D8F823862205D12E00EF36A5 = {
 			isa = PBXGroup;
 			children = (
+				D8C39FD7223088D6000DD154 /* module.modulemap */,
+				D8C39FD6223088CF000DD154 /* CoreEngine.h */,
 				D83764DD2205D1CF00B58450 /* Info.plist */,
 				D83764DE2205D1CF00B58450 /* MacOSAppDelegate.swift */,
 				D83764DC2205D1CF00B58450 /* main.swift */,

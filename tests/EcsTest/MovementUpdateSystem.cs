@@ -23,9 +23,9 @@ namespace CoreEngine.Tests.EcsTest
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
 
-            for (var i = 0; i < transformArray.Length; i++)
+            for (var i = 0; i < entityArray.Length; i++)
             {
-                Console.WriteLine($"Processing entity: {entityArray[i]}");
+                Console.WriteLine($"Processing entity: {entityArray[i].EntityId}");
                 transformArray[i].Position += velocity * deltaTime;
             }
 

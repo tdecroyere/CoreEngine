@@ -85,8 +85,10 @@ void BuildTpaList(const char* directory, const char* extension, std::string& tpa
     }
 }
 
-void main(int argc, char const *argv[])
+int main(int argc, char const *argv[])
 {
+    printf("CoreEngine Windows Host\n");
+
 	LPCSTR appPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows";
 	LPCSTR coreClrPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows\\CoreClr.dll";
 
@@ -137,16 +139,21 @@ hr = createManagedDelegate(
         "StartEngine",
         (void**)&managedDelegate);
 
-AddTestHostMethodType* testMethod = AddTestHostMethod;
-GetTestBufferType* getTestBufferMethod = GetTestBuffer;
+    AddTestHostMethodType* testMethod = AddTestHostMethod;
+    GetTestBufferType* getTestBufferMethod = GetTestBuffer;
 
-HostPlatform hostPlatform = {};
-hostPlatform.TestParameter = 5;
-hostPlatform.AppName = (char*)argv[1];
-hostPlatform.AddTestHostMethod = testMethod;
-hostPlatform.GetTestBuffer = getTestBufferMethod;
+    HostPlatform hostPlatform = {};
+    hostPlatform.TestParameter = 5;
+    hostPlatform.AppName = (char*)argv[1];
+    hostPlatform.AddTestHostMethod = testMethod;
+    hostPlatform.GetTestBuffer = getTestBufferMethod;
 
-managedDelegate(&hostPlatform);
-	printf("CoreEngine Windows Host\n");
+    managedDelegate(&hostPlatform);
+
+    shutdownCoreClr(hostHandle, domainId);
+
+	printf("CoreEngine Windows Host has ended.\n");
 	getchar();
+
+    return 0;
 }

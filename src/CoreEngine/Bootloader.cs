@@ -38,7 +38,9 @@ namespace CoreEngine
                 if (coreEngineApp != null)
                 {
                     Console.WriteLine("CoreEngineApp loading successfull.");
+                    Console.WriteLine("Initializing app...");
                     coreEngineApp.Init();
+                    Console.WriteLine("Initializing app done.");
                 }
             }
         }

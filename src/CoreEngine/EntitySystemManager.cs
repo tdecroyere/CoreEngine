@@ -63,6 +63,8 @@ namespace CoreEngine
 
                 entitySystem.SetEntitySystemData(entitySystemData);
                 entitySystem.Process(deltaTime);
+
+                this.entityManager.SetEntitySystemData(entitySystemData);
             }
         }
     }

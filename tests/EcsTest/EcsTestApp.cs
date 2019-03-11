@@ -35,8 +35,8 @@ namespace CoreEngine.Tests.EcsTest
                 entityManager.SetComponentData(wallEntity, wallPositionComponent);
 
                 BlockComponent wallBlockComponent;
-                wallBlockComponent.IsWall = true;
-                wallBlockComponent.IsWater = false;
+                wallBlockComponent.IsWall = (i % 2);
+                wallBlockComponent.IsWater = ((i + 1) % 2);
                 entityManager.SetComponentData(wallEntity, wallBlockComponent);
             }
 
@@ -44,8 +44,10 @@ namespace CoreEngine.Tests.EcsTest
 
             var entitySystemManager = new EntitySystemManager(entityManager);
             entitySystemManager.RegisterSystem(new MovementUpdateSystem());
+            entitySystemManager.RegisterSystem(new BlockUpdateSystem());
 
-            entitySystemManager.Process(1000);
+            entitySystemManager.Process(2);
+            entitySystemManager.Process(1);
 
             DisplayEntities(entityManager);
         }

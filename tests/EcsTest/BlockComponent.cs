@@ -1,11 +1,11 @@
 using System;
-using System.Runtime.InteropServices;
 
 namespace CoreEngine.Tests.EcsTest
 {
     public struct BlockComponent : IComponentData
     {
-        public bool IsWall;
-        public bool IsWater;
+        // TODO: Bool is not working with MemoryMarshal.Cast method (alignment problem)
+        public int IsWall;
+        public int IsWater;
     }
 }

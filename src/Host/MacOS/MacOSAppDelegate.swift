@@ -129,6 +129,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
+        // TODO: Do not forget to call the shutdownCoreClr method
+        
         //dlclose(handle)
     }
     

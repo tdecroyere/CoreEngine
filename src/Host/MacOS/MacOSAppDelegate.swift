@@ -23,7 +23,10 @@ func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindow: NSWindow!
-    // var controller: ViewController?
+    var mainController: NSViewController!
+    var metalDevice: MTLDevice!
+    var mtkView: MTKView!
+    var renderer: Renderer!
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         print("CoreEngine MacOS Host")
@@ -36,16 +39,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         self.mainWindow.title = "Core Engine"
 
-        // controller = ViewController()
-        // let content = newWindow!.contentView! as NSView
-        // let view = controller!.view
-        // content.addSubview(view)
+        self.mainController = NSViewController()
+        self.mtkView = MTKView()
+        self.mtkView.translatesAutoresizingMaskIntoConstraints = false
 
+        self.mainController.view = self.mtkView
+        
+        let content = self.mainWindow.contentView! as NSView
+        let view = self.mainController.view
+        content.addSubview(view)
+        content.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "|[mtkView]|", options: [], metrics: nil, views: ["mtkView" : mtkView]))
+        content.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[mtkView]|", options: [], metrics: nil, views: ["mtkView" : mtkView]))
 
         self.mainWindow.center()
         self.mainWindow.makeKeyAndOrderFront(nil)
-        
-        let defaultDevice = MTLCreateSystemDefaultDevice()
+
+        // Select the device to render with.  We choose the default device
+        guard let defaultDevice = MTLCreateSystemDefaultDevice() else {
+            print("Metal is not supported on this device")
+            return
+        }
+
+        print(defaultDevice.name)
+        self.mtkView.device = defaultDevice
+        self.mtkView.colorPixelFormat = .bgra8Unorm
+
+        self.renderer = Renderer(view: self.mtkView, device: defaultDevice)
+        self.mtkView.delegate = renderer
         
         self.initCoreClrSwift()
     }
@@ -115,8 +135,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 hostPlatform.TestParameter = 5
 
                 if (CommandLine.arguments.count > 1) {
-                    let argumentString = UnsafePointer<Int8>((CommandLine.arguments[1] as NSString).utf8String)
-                    hostPlatform.AppName = UnsafeMutablePointer<Int8>(mutating: argumentString)
+                    hostPlatform.AppName = strdup(CommandLine.arguments[1])
                 }
 
                 let addTestMethod: AddTestHostMethodPtr = addTestHostMethod

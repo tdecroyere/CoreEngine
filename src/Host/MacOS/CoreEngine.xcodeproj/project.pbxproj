@@ -10,12 +10,14 @@
 		D832C6AD22174B9A007A1471 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83764DC2205D1CF00B58450 /* main.swift */; };
 		D832C6AE22174B9E007A1471 /* MacOSAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83764DE2205D1CF00B58450 /* MacOSAppDelegate.swift */; };
 		D832C6B022174CBC007A1471 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = D83764DD2205D1CF00B58450 /* Info.plist */; };
+		D875625D2238EB90006FEECA /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D875625C2238EB90006FEECA /* Renderer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		D83764DC2205D1CF00B58450 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		D83764DD2205D1CF00B58450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D83764DE2205D1CF00B58450 /* MacOSAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOSAppDelegate.swift; sourceTree = "<group>"; };
+		D875625C2238EB90006FEECA /* Renderer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
 		D8B8678D221DCB1100038D85 /* CoreEngine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CoreEngine.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8C39FD6223088CF000DD154 /* CoreEngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CoreEngine.h; sourceTree = "<group>"; };
 		D8C39FD7223088D6000DD154 /* module.modulemap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
@@ -35,6 +37,7 @@
 		D8F823862205D12E00EF36A5 = {
 			isa = PBXGroup;
 			children = (
+				D875625C2238EB90006FEECA /* Renderer.swift */,
 				D8C39FD7223088D6000DD154 /* module.modulemap */,
 				D8C39FD6223088CF000DD154 /* CoreEngine.h */,
 				D83764DD2205D1CF00B58450 /* Info.plist */,
@@ -113,6 +116,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D832C6AE22174B9E007A1471 /* MacOSAppDelegate.swift in Sources */,
+				D875625D2238EB90006FEECA /* Renderer.swift in Sources */,
 				D832C6AD22174B9A007A1471 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

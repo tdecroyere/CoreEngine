@@ -37,8 +37,8 @@ echo [93mCompiling CoreEngine Library...[0m
 dotnet publish /nologo -r osx-x64 -c Debug -v q --self-contained true -o "." "../../src/CoreEngine"
 
 if [ $? -eq 0 ]; then
-    echo [93mCompiling MacOS C++ Executable...[0m
-    clang++ -Wall -O0 -g -std=c++14 "../../src/Host/MacOS/MacOSMain.cpp" -o "./CoreEngineHost"
+    #echo [93mCompiling MacOS C++ Executable...[0m
+    #clang++ -Wall -O0 -g -std=c++14 "../../src/Host/MacOS/MacOSMain.cpp" -o "./CoreEngineHost"
     
     copyFiles
 

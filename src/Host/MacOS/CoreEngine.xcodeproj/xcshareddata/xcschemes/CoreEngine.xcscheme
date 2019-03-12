@@ -28,8 +28,15 @@
       allowLocationSimulation = "YES">
       <PathRunnable
          runnableDebuggingMode = "0"
+         BundleIdentifier = "io.DoubleBuffer.CoreEngine"
          FilePath = "/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app">
       </PathRunnable>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "EcsTest"
+            isEnabled = "YES">
+         </CommandLineArgument>
+      </CommandLineArguments>
       <AdditionalOptions>
       </AdditionalOptions>
    </LaunchAction>

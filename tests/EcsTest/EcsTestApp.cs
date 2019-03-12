@@ -14,7 +14,7 @@ namespace CoreEngine.Tests.EcsTest
             // Test EntityManager basic functions
             var entityManager = new EntityManager();
             var playerLayout = entityManager.CreateEntityComponentLayout(typeof(TransformComponent));
-            var wallLayout = entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
+            var blockLayout = entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
 
             var playerEntity = entityManager.CreateEntity(playerLayout);
 
@@ -26,7 +26,7 @@ namespace CoreEngine.Tests.EcsTest
 
             for (int i = 0; i < 10; i++)
             {
-                var wallEntity = entityManager.CreateEntity(wallLayout);
+                var wallEntity = entityManager.CreateEntity(blockLayout);
 
                 TransformComponent wallPositionComponent;
                 wallPositionComponent.Position.X = (float)i;
@@ -50,6 +50,11 @@ namespace CoreEngine.Tests.EcsTest
             entitySystemManager.Process(1);
 
             DisplayEntities(entityManager);
+        }
+
+        public override void Update()
+        {
+
         }
 
         private static void DisplayEntities(EntityManager entityManager)
@@ -76,11 +81,6 @@ namespace CoreEngine.Tests.EcsTest
 
                 Console.WriteLine("----------------------------------------");
             }
-        }
-
-        public override void Update()
-        {
-
         }
     }
 }

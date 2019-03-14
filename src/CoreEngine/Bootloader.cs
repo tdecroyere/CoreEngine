@@ -45,6 +45,14 @@ namespace CoreEngine
             }
         }
 
+        public static void UpdateEngine(float deltaTime)
+        {
+            if (coreEngineApp != null)
+            {
+                coreEngineApp.Update(deltaTime);
+            }
+        }
+
         // TODO: Use the isolated app domain new feature to be able to do hot build of the app dll
         private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName)
         {

@@ -5,6 +5,9 @@ namespace CoreEngine.Tests.EcsTest
 {
     public class EcsTestApp : CoreEngineApp
     {
+        private EntityManager? entityManager;
+        private EntitySystemManager? entitySystemManager;
+
         public override string Name => "EcsTest App";
 
         public override void Init()
@@ -12,17 +15,17 @@ namespace CoreEngine.Tests.EcsTest
             Console.WriteLine("Init Ecs Test App...");
 
             // Test EntityManager basic functions
-            var entityManager = new EntityManager();
-            var playerLayout = entityManager.CreateEntityComponentLayout(typeof(TransformComponent));
-            var blockLayout = entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
+            this.entityManager = new EntityManager();
+            var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent));
+            var blockLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
 
-            var playerEntity = entityManager.CreateEntity(playerLayout);
+            var playerEntity = this.entityManager.CreateEntity(playerLayout);
 
             TransformComponent playerPositionComponent;
             playerPositionComponent.Position.X = 12.0f;
             playerPositionComponent.Position.Y = 20.0f;
             playerPositionComponent.Position.Z = 45.0f;
-            entityManager.SetComponentData(playerEntity, playerPositionComponent);
+            this.entityManager.SetComponentData(playerEntity, playerPositionComponent);
 
             for (int i = 0; i < 10; i++)
             {
@@ -32,29 +35,28 @@ namespace CoreEngine.Tests.EcsTest
                 wallPositionComponent.Position.X = (float)i;
                 wallPositionComponent.Position.Y = (float)i + 54.0f;
                 wallPositionComponent.Position.Z = (float)i + 22.0f;
-                entityManager.SetComponentData(wallEntity, wallPositionComponent);
+                this.entityManager.SetComponentData(wallEntity, wallPositionComponent);
 
                 BlockComponent wallBlockComponent;
                 wallBlockComponent.IsWall = (i % 2);
                 wallBlockComponent.IsWater = ((i + 1) % 2);
-                entityManager.SetComponentData(wallEntity, wallBlockComponent);
+                this.entityManager.SetComponentData(wallEntity, wallBlockComponent);
             }
 
-            DisplayEntities(entityManager);
+            DisplayEntities(this.entityManager);
 
-            var entitySystemManager = new EntitySystemManager(entityManager);
-            entitySystemManager.RegisterSystem(new MovementUpdateSystem());
-            entitySystemManager.RegisterSystem(new BlockUpdateSystem());
-
-            entitySystemManager.Process(2);
-            entitySystemManager.Process(1);
-
-            DisplayEntities(entityManager);
+            this.entitySystemManager = new EntitySystemManager(entityManager);
+            this.entitySystemManager.RegisterSystem(new MovementUpdateSystem());
+            this.entitySystemManager.RegisterSystem(new BlockUpdateSystem());
         }
 
-        public override void Update()
+        public override void Update(float deltaTime)
         {
-
+            if (this.entitySystemManager != null && this.entityManager != null)
+            {
+                this.entitySystemManager.Process(deltaTime);
+                DisplayEntities(this.entityManager);
+            }
         }
 
         private static void DisplayEntities(EntityManager entityManager)

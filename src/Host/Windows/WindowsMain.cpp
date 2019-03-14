@@ -44,7 +44,8 @@ Span GetTestBuffer()
 
 typedef int AddTestHostMethodType(int a, int b);
 typedef Span GetTestBufferType();
-typedef void StartEngine(HostPlatform* hostPlatform);
+typedef void StartEnginePtr(HostPlatform* hostPlatform);
+typedef void UpdateEnginePtr(float deltaTime);
 
 void BuildTpaList(const char* directory, const char* extension, std::string& tpaList)
 {
@@ -127,7 +128,8 @@ int hr = initializeCoreClr(
                 &hostHandle,        // Host handle
                 &domainId);         // AppDomain ID
 
-StartEngine* managedDelegate;    
+StartEnginePtr* StartEngine;    
+UpdateEnginePtr* UpdateEngine;    
 
 // The assembly name passed in the third parameter is a managed assembly name
 // as described at https://docs.microsoft.com/dotnet/framework/app-domains/assembly-names
@@ -137,7 +139,15 @@ hr = createManagedDelegate(
         "CoreEngine",
         "CoreEngine.Bootloader",
         "StartEngine",
-        (void**)&managedDelegate);
+        (void**)&StartEngine);
+
+        hr = createManagedDelegate(
+        hostHandle, 
+        domainId,
+        "CoreEngine",
+        "CoreEngine.Bootloader",
+        "UpdateEngine",
+        (void**)&UpdateEngine);
 
     AddTestHostMethodType* testMethod = AddTestHostMethod;
     GetTestBufferType* getTestBufferMethod = GetTestBuffer;
@@ -148,7 +158,8 @@ hr = createManagedDelegate(
     hostPlatform.AddTestHostMethod = testMethod;
     hostPlatform.GetTestBuffer = getTestBufferMethod;
 
-    managedDelegate(&hostPlatform);
+    StartEngine(&hostPlatform);
+    UpdateEngine(5);
 
     shutdownCoreClr(hostHandle, domainId);
 

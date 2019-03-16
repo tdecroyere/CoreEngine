@@ -37,14 +37,11 @@ echo [93mCompiling CoreEngine Library...[0m
 dotnet publish /nologo -r osx-x64 -c Debug -v q --self-contained true -o "." "../../src/CoreEngine"
 
 if [ $? -eq 0 ]; then
-    #echo [93mCompiling MacOS C++ Executable...[0m
-    #clang++ -Wall -O0 -g -std=c++14 "../../src/Host/MacOS/MacOSMain.cpp" -o "./CoreEngineHost"
-    
     copyFiles
 
     echo [93mCompiling MacOS Executable...[0m
     cd "../"$outputDirectory"/MacOS/"
-    swiftc "../../../../../src/Host/MacOS/"*".swift" -Onone -g -o "CoreEngine" -swift-version 4.2 -target x86_64-apple-macosx10.14 -I "../../../../../src/Host/MacOS" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    swiftc "../../../../../src/Host/MacOS/"*".swift" -Onone -g -o "CoreEngine" -swift-version 5 -target x86_64-apple-macosx10.14 -I "../../../../../src/Host/MacOS" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     echo [92mSuccess: Compilation done.[0m
 fi

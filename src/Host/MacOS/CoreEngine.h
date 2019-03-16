@@ -16,6 +16,7 @@ typedef int (*AddTestHostMethodPtr)(int a, int b);
 typedef struct Span (*GetTestBufferPtr)();
 
 typedef void (*StartEnginePtr)(struct HostPlatform* hostPlatform);
+typedef void (*UpdateEnginePtr)(float deltaTime);
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,
             const char* appDomainFriendlyName,

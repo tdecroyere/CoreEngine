@@ -2,12 +2,12 @@ import Cocoa
 import Metal
 import MetalKit
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class MacOSAppDelegate: NSObject, NSApplicationDelegate {
     var mainWindow: NSWindow!
     var mainController: NSViewController!
     var metalDevice: MTLDevice!
     var mtkView: MTKView!
-    var renderer: Renderer!
+    public var renderer: MacOSMetalRenderer!
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         self.buildMainMenu()
@@ -44,7 +44,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.mtkView.device = defaultDevice
         self.mtkView.colorPixelFormat = .bgra8Unorm
 
-        self.renderer = Renderer(view: self.mtkView, device: defaultDevice)
+        self.renderer = MacOSMetalRenderer(view: self.mtkView, device: defaultDevice)
         self.mtkView.delegate = renderer
     }
     

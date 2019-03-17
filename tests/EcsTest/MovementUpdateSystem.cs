@@ -17,19 +17,14 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Process(float deltaTime)
         {
-            Console.WriteLine("Begin Movement Update System");
-
             var velocity = new Vector3(20.0f, 50.0f, 100.0f);
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                Console.WriteLine($"Processing entity: {entityArray[i].EntityId}");
                 transformArray[i].Position += velocity * deltaTime;
             }
-
-            Console.WriteLine("End Movement Update System");
         }
     }
 }

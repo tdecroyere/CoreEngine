@@ -55,7 +55,7 @@ namespace CoreEngine.Tests.EcsTest
             if (this.entitySystemManager != null && this.entityManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
-                DisplayEntities(this.entityManager);
+                //DisplayEntities(this.entityManager);
             }
         }
 

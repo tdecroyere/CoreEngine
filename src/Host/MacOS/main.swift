@@ -4,6 +4,11 @@ import CoreEngineInterop
 var startEnginePointer: StartEnginePtr?
 var updateEnginePointer: UpdateEnginePtr?
 
+var keyLeftPressed = false
+var keyRightPressed = false
+var keyUpPressed = false
+var keyDownPressed = false
+
 func getTestBuffer() -> Span
 {
     let bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: 5)
@@ -114,8 +119,20 @@ func processPendingMessages() {
         }
         
         switch event.type {
-        // case .keyUp, .keyDown:
-        //     print("Key pressed")
+        case .keyUp, .keyDown:
+            let keyCode = event.keyCode
+            
+            if (keyCode == 123) { // Left Arrow
+                keyLeftPressed = (event.type == .keyDown)
+            } else if (keyCode == 124) { // Right Arrow
+                keyRightPressed = (event.type == .keyDown)
+            } else if (keyCode == 126) { // Up Arrow
+                keyUpPressed = (event.type == .keyDown)
+            } else if (keyCode == 125) { // Down Arrow
+                keyDownPressed = (event.type == .keyDown)
+            } else {
+                NSApplication.shared.sendEvent(event)
+            }
         default:
             NSApplication.shared.sendEvent(event)
         }
@@ -124,23 +141,8 @@ func processPendingMessages() {
 
 autoreleasepool {
     print("CoreEngine MacOS Host")
-    
-    let delegate = AppDelegate()
-    NSApplication.shared.delegate = delegate
-    NSApplication.shared.activate(ignoringOtherApps: true)
-    NSApplication.shared.finishLaunching()
 
     initCoreClrSwift()
-
-    guard let startEngine = startEnginePointer else {
-        print("CoreEngine StartEngine method is not initialized")
-        return
-    }
-
-    guard let UpdateEngine = updateEnginePointer else {
-        print("CoreEngine UpdatEngine method is not initialized")
-        return
-    }
 
     var hostPlatform = HostPlatform()
     hostPlatform.TestParameter = 5
@@ -155,10 +157,42 @@ autoreleasepool {
     let getTestBufferMethod: GetTestBufferPtr = getTestBuffer
     hostPlatform.GetTestBuffer = unsafeBitCast(getTestBufferMethod, to: UnsafeMutableRawPointer.self)
 
+    let delegate = MacOSAppDelegate()
+    NSApplication.shared.delegate = delegate
+    NSApplication.shared.activate(ignoringOtherApps: true)
+    NSApplication.shared.finishLaunching()
+
+    guard let startEngine = startEnginePointer else {
+        print("CoreEngine StartEngine method is not initialized")
+        return
+    }
+
+    guard let updateEngine = updateEnginePointer else {
+        print("CoreEngine UpdatEngine method is not initialized")
+        return
+    }
+
     startEngine(&hostPlatform)
 
     while (gameRunning) {
         processPendingMessages()
-        UpdateEngine(0)
+
+        if (keyLeftPressed) {
+            delegate.renderer.currentRotationY += 0.005
+        }
+        
+        if (keyRightPressed) {
+            delegate.renderer.currentRotationY -= 0.005
+        }
+
+        if (keyUpPressed) {
+            delegate.renderer.currentRotationX += 0.005
+        }
+        
+        if (keyDownPressed) {
+            delegate.renderer.currentRotationX -= 0.005
+        }
+
+        updateEngine(0)
     }
 }

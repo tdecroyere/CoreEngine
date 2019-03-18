@@ -14,35 +14,35 @@ namespace CoreEngine
             Console.WriteLine($"Starting CoreEngine...");
             Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter}");
             
-            if (hostPlatform.AddTestHostMethod != null)
-            {
-                var result = hostPlatform.AddTestHostMethod(3, 8);
-                Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter} - {result}");
-            }
+            // if (hostPlatform.AddTestHostMethod != null)
+            // {
+            //     var result = hostPlatform.AddTestHostMethod(3, 8);
+            //     Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter} - {result}");
+            // }
 
-            if (hostPlatform.GetTestBuffer != null)
-            {
-                Span<byte> testBuffer = hostPlatform.GetTestBuffer();
+            // if (hostPlatform.GetTestBuffer != null)
+            // {
+            //     Span<byte> testBuffer = hostPlatform.GetTestBuffer();
 
-                for (int i = 0; i < testBuffer.Length; i++)
-                {
-                    Console.WriteLine($"TestBuffer {testBuffer[i]}");
-                }
-            }
+            //     for (int i = 0; i < testBuffer.Length; i++)
+            //     {
+            //         Console.WriteLine($"TestBuffer {testBuffer[i]}");
+            //     }
+            // }
 
-            if (hostPlatform.AppName != null)
-            {
-                Console.WriteLine($"Loading CoreEngineApp '{hostPlatform.AppName}'...");
-                coreEngineApp = LoadCoreEngineApp(hostPlatform.AppName).Result;
+            // if (hostPlatform.AppName != null)
+            // {
+            //     Console.WriteLine($"Loading CoreEngineApp '{hostPlatform.AppName}'...");
+            //     coreEngineApp = LoadCoreEngineApp(hostPlatform.AppName).Result;
 
-                if (coreEngineApp != null)
-                {
-                    Console.WriteLine("CoreEngineApp loading successfull.");
-                    Console.WriteLine("Initializing app...");
-                    coreEngineApp.Init();
-                    Console.WriteLine("Initializing app done.");
-                }
-            }
+            //     if (coreEngineApp != null)
+            //     {
+            //         Console.WriteLine("CoreEngineApp loading successfull.");
+            //         Console.WriteLine("Initializing app...");
+            //         coreEngineApp.Init();
+            //         Console.WriteLine("Initializing app done.");
+            //     }
+            // }
         }
 
         public static void UpdateEngine(float deltaTime)

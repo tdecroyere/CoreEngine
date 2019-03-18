@@ -152,13 +152,22 @@ hr = createManagedDelegate(
     AddTestHostMethodType* testMethod = AddTestHostMethod;
     GetTestBufferType* getTestBufferMethod = GetTestBuffer;
 
-    HostPlatform hostPlatform = {};
-    hostPlatform.TestParameter = 5;
-    hostPlatform.AppName = (char*)argv[1];
-    hostPlatform.AddTestHostMethod = testMethod;
-    hostPlatform.GetTestBuffer = getTestBufferMethod;
+    
 
-    StartEngine(&hostPlatform);
+    HostPlatform* hostPlatform = new HostPlatform();
+    hostPlatform->TestParameter = 5;
+
+    if (argc > 1)
+    {
+        char* appName = (char*)malloc(strlen((char*)argv[1]));
+        strcpy(appName, argv[1]);
+        hostPlatform->AppName = appName;
+    }
+
+    //hostPlatform->AddTestHostMethod = testMethod;
+    //hostPlatform->GetTestBuffer = getTestBufferMethod;
+
+    StartEngine(hostPlatform);
     UpdateEngine(5);
 
     shutdownCoreClr(hostHandle, domainId);

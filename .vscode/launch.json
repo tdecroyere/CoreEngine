@@ -36,10 +36,10 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "../build/Windows/CoreEngine.exe",
-            "args": [],
+            "program": "./CoreEngine.exe",
+            "args": ["EcsTest"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/data/",
+            "cwd": "${workspaceFolder}/build/Windows/",
             "environment": [],
             "externalConsole": true
         }

@@ -144,11 +144,13 @@ autoreleasepool {
 
     initCoreClrSwift()
 
+    var appName: String = nil
+
     var hostPlatform = HostPlatform()
     hostPlatform.TestParameter = 5
 
     if (CommandLine.arguments.count > 1) {
-        hostPlatform.AppName = strdup(CommandLine.arguments[1])
+        appName = CommandLine.arguments[1]
     }
 
     let addTestMethod: AddTestHostMethodPtr = addTestHostMethod
@@ -172,7 +174,7 @@ autoreleasepool {
         return
     }
 
-    startEngine(&hostPlatform)
+    startEngine(appName, &hostPlatform)
 
     while (gameRunning) {
         processPendingMessages()

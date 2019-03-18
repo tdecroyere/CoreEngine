@@ -7,7 +7,6 @@ struct Span
 struct HostPlatform
 {
 	int TestParameter;
-    char* AppName;
 	void* AddTestHostMethod;
 	void* GetTestBuffer;
 };
@@ -15,7 +14,7 @@ struct HostPlatform
 typedef int (*AddTestHostMethodPtr)(int a, int b);
 typedef struct Span (*GetTestBufferPtr)();
 
-typedef void (*StartEnginePtr)(struct HostPlatform* hostPlatform);
+typedef void (*StartEnginePtr)(char* appName, struct HostPlatform* hostPlatform);
 typedef void (*UpdateEnginePtr)(float deltaTime);
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,

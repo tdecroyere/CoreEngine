@@ -19,7 +19,6 @@ struct Span
 struct HostPlatform
 {
 	int TestParameter;
-    char* AppName;
 	void* AddTestHostMethod;
 	void* GetTestBuffer;
 };
@@ -44,7 +43,7 @@ Span GetTestBuffer()
 
 typedef int AddTestHostMethodType(int a, int b);
 typedef Span GetTestBufferType();
-typedef void StartEnginePtr(HostPlatform* hostPlatform);
+typedef void StartEnginePtr(unsigned char* appName, HostPlatform* hostPlatform);
 typedef void UpdateEnginePtr(float deltaTime);
 
 void BuildTpaList(const char* directory, const char* extension, std::string& tpaList)
@@ -152,22 +151,21 @@ hr = createManagedDelegate(
     AddTestHostMethodType* testMethod = AddTestHostMethod;
     GetTestBufferType* getTestBufferMethod = GetTestBuffer;
 
-    
+    HostPlatform hostPlatform = {};
+    hostPlatform.TestParameter = 5;
 
-    HostPlatform* hostPlatform = new HostPlatform();
-    hostPlatform->TestParameter = 5;
+    char* appName = nullptr;
 
     if (argc > 1)
     {
-        char* appName = (char*)malloc(strlen((char*)argv[1]));
+        appName = (char*)malloc(strlen((char*)argv[1]));
         strcpy(appName, argv[1]);
-        hostPlatform->AppName = appName;
     }
 
-    //hostPlatform->AddTestHostMethod = testMethod;
-    //hostPlatform->GetTestBuffer = getTestBufferMethod;
+    hostPlatform.AddTestHostMethod = testMethod;
+    hostPlatform.GetTestBuffer = getTestBufferMethod;
 
-    StartEngine(hostPlatform);
+    StartEngine((unsigned char*)appName, &hostPlatform);
     UpdateEngine(5);
 
     shutdownCoreClr(hostHandle, domainId);

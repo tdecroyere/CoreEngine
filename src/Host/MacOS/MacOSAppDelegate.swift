@@ -6,8 +6,10 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
     var mainWindow: NSWindow!
     var mainController: NSViewController!
     var metalDevice: MTLDevice!
-    var mtkView: MTKView!
+    public var mtkView: MTKView!
     public var renderer: MacOSMetalRenderer!
+
+    // TODO: Catch activate/inactivate events to interrupt game update
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         self.buildMainMenu()
@@ -43,6 +45,7 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
         print(defaultDevice.name)
         self.mtkView.device = defaultDevice
         self.mtkView.colorPixelFormat = .bgra8Unorm
+        self.mtkView.isPaused = true
 
         self.renderer = MacOSMetalRenderer(view: self.mtkView, device: defaultDevice)
         self.mtkView.delegate = renderer

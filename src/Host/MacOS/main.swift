@@ -144,14 +144,14 @@ autoreleasepool {
 
     initCoreClrSwift()
 
-    var appName: String = nil
-
-    var hostPlatform = HostPlatform()
-    hostPlatform.TestParameter = 5
+    var appName: UnsafeMutablePointer<Int8>? = nil
 
     if (CommandLine.arguments.count > 1) {
-        appName = CommandLine.arguments[1]
+        appName = strdup(CommandLine.arguments[1])
     }
+    
+    var hostPlatform = HostPlatform()
+    hostPlatform.TestParameter = 5
 
     let addTestMethod: AddTestHostMethodPtr = addTestHostMethod
     hostPlatform.AddTestHostMethod = unsafeBitCast(addTestMethod, to: UnsafeMutableRawPointer.self)
@@ -176,25 +176,42 @@ autoreleasepool {
 
     startEngine(appName, &hostPlatform)
 
+    // var machTimebaseInfo = mach_timebase_info(numer: 0, denom: 0)
+    // mach_timebase_info(&machTimebaseInfo)
+
+    // var lastCounter = mach_absolute_time()
+    let stepTimeInSeconds = Float(1.0 / 60.0)
+
     while (gameRunning) {
+        // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
         processPendingMessages()
 
+        // let currentCounter = mach_absolute_time()
+
+        // // TODO: Precise frame time calculation is not used for the moment
+        // let elapsed = currentCounter - lastCounter
+        // let nanoSeconds = elapsed * UInt64(machTimebaseInfo.numer) / UInt64(machTimebaseInfo.denom)
+        // let milliSeconds = Double(nanoSeconds) / 1_000_000
+        // lastCounter = currentCounter
+
         if (keyLeftPressed) {
-            delegate.renderer.currentRotationY += 0.005
+            delegate.renderer.currentRotationY += 50.0 * stepTimeInSeconds
         }
         
         if (keyRightPressed) {
-            delegate.renderer.currentRotationY -= 0.005
+            delegate.renderer.currentRotationY -= 50.0 * stepTimeInSeconds
         }
 
         if (keyUpPressed) {
-            delegate.renderer.currentRotationX += 0.005
+            delegate.renderer.currentRotationX += 50.0 * stepTimeInSeconds
         }
         
         if (keyDownPressed) {
-            delegate.renderer.currentRotationX -= 0.005
+            delegate.renderer.currentRotationX -= 50.0 * stepTimeInSeconds
         }
 
-        updateEngine(0)
+        // TODO: Update at 60Hz for now
+        updateEngine(stepTimeInSeconds)
+        delegate.mtkView.draw()
     }
 }

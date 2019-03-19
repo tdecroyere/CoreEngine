@@ -75,7 +75,7 @@ namespace CoreEngine
 
             var dataStorage = this.componentStorage[componentLayout.EntityComponentLayoutId];
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
-            var chunkItemSize = sizeof(uint) + componentLayoutDesc.Size;
+            var chunkItemSize = ComputeChunkItemSize(componentLayoutDesc);
             var memoryChunk = FindMemoryChunk(dataStorage);
 
             if (memoryChunk == null)
@@ -111,7 +111,7 @@ namespace CoreEngine
             var dataStorage = this.componentStorage[componentLayout.EntityComponentLayoutId];
 
             var componentOffset = FindComponentOffset(component.GetType().GetHashCode(), componentLayoutDesc);
-            var chunkItemSize = sizeof(uint) + componentLayoutDesc.Size;
+            var chunkItemSize = ComputeChunkItemSize(componentLayoutDesc);
 
             // TODO: Throw an exception if entity not found
             for (var i = 0; i < dataStorage.Count; i++)
@@ -141,7 +141,7 @@ namespace CoreEngine
             var dataStorage = this.componentStorage[componentLayout.EntityComponentLayoutId];
 
             var componentOffset = FindComponentOffset(typeof(T).GetHashCode(), componentLayoutDesc);
-            var chunkItemSize = sizeof(uint) + componentLayoutDesc.Size;
+            var chunkItemSize = ComputeChunkItemSize(componentLayoutDesc);
 
             // TODO: Throw an exception if entity not found
             for (var i = 0; i < dataStorage.Count; i++)
@@ -224,7 +224,7 @@ namespace CoreEngine
             {
                 var compatibleLayout = compatibleLayouts[i];
                 var dataStorage = this.componentStorage[compatibleLayout.EntityComponentLayoutId];
-                var chunkItemSize = sizeof(uint) + compatibleLayout.Size;
+                var chunkItemSize = ComputeChunkItemSize(compatibleLayout);
 
                 for (var j = 0; j < dataStorage.Count; j++) 
                 {
@@ -291,7 +291,7 @@ namespace CoreEngine
             {
                 var compatibleLayout = compatibleLayouts[i];
                 var dataStorage = this.componentStorage[compatibleLayout.EntityComponentLayoutId];
-                var chunkItemSize = sizeof(uint) + compatibleLayout.Size;
+                var chunkItemSize = ComputeChunkItemSize(compatibleLayout);
 
                 for (var j = 0; j < dataStorage.Count; j++) 
                 {
@@ -323,6 +323,11 @@ namespace CoreEngine
                     }
                 }
             }
+        }
+
+        private static int ComputeChunkItemSize(EntityComponentLayoutDesc componentLayoutDesc)
+        {
+            return sizeof(uint) + componentLayoutDesc.Size;
         }
 
         private static int FindComponentOffset(int componentTypeHash, EntityComponentLayoutDesc componentLayoutDesc)

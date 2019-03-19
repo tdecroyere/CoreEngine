@@ -76,27 +76,11 @@ namespace CoreEngine
             var dataStorage = this.componentStorage[componentLayout.EntityComponentLayoutId];
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
             var chunkItemSize = sizeof(uint) + componentLayoutDesc.Size;
-            ComponentDataMemoryChunk? memoryChunk = null;
-
-            for (int i = 0; i < dataStorage.Count; i++)
-            {
-                if (dataStorage[i].EntityCount < dataStorage[i].MaxEntityCount)
-                {
-                    memoryChunk = dataStorage[i];
-                }
-            }
+            var memoryChunk = FindMemoryChunk(dataStorage);
 
             if (memoryChunk == null)
             {
-                // Store 50 entities per chunk for now
-                var entityCount = 50;
-                
-                var dataChunkSize = entityCount * chunkItemSize;
-                var memoryStorage = this.componentDataStorage.AsMemory(this.currentDataIndex, dataChunkSize);
-                this.currentDataIndex += dataChunkSize;
-
-                memoryChunk = new ComponentDataMemoryChunk(componentLayoutDesc, memoryStorage, chunkItemSize, entityCount);
-                dataStorage.Add(memoryChunk);
+                memoryChunk = CreateMemoryChunk(dataStorage, componentLayoutDesc, chunkItemSize);
             }
 
             var chunkIndex = chunkItemSize * memoryChunk.EntityCount;
@@ -178,6 +162,22 @@ namespace CoreEngine
 
             // TODO: Throw exception
             throw new InvalidOperationException("Entity has no data for the specified component.");
+        }
+
+        public bool HasComponent<T>(Entity entity) where T : IComponentData
+        {
+            var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
+            var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
+
+            for (var i = 0; i < componentLayoutDesc.ComponentCount; i++)
+            {
+                if (componentLayoutDesc.ComponentTypes[i] == typeof(T).GetHashCode())
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         internal EntitySystemData GetEntitySystemData(Type[] componentTypes)
@@ -325,22 +325,6 @@ namespace CoreEngine
             }
         }
 
-        public bool HasComponent<T>(Entity entity) where T : IComponentData
-        {
-            var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
-            var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
-
-            for (var i = 0; i < componentLayoutDesc.ComponentCount; i++)
-            {
-                if (componentLayoutDesc.ComponentTypes[i] == typeof(T).GetHashCode())
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static int FindComponentOffset(int componentTypeHash, EntityComponentLayoutDesc componentLayoutDesc)
         {
             var componentIndex = -1;
@@ -383,6 +367,36 @@ namespace CoreEngine
 
             var componentSize = componentLayoutDesc.ComponentSizes[componentIndex];
             return componentSize;
+        }
+
+        private ComponentDataMemoryChunk CreateMemoryChunk(List<ComponentDataMemoryChunk> dataStorage, EntityComponentLayoutDesc componentLayoutDesc, int chunkItemSize)
+        {
+            // Store 50 entities per chunk for now
+            var entityCount = 50;
+
+            var dataChunkSize = entityCount * chunkItemSize;
+            var memoryStorage = this.componentDataStorage.AsMemory(this.currentDataIndex, dataChunkSize);
+            this.currentDataIndex += dataChunkSize;
+
+            var memoryChunk = new ComponentDataMemoryChunk(componentLayoutDesc, memoryStorage, chunkItemSize, entityCount);
+            dataStorage.Add(memoryChunk);
+
+            return memoryChunk;
+        }
+
+        private static ComponentDataMemoryChunk? FindMemoryChunk(List<ComponentDataMemoryChunk> dataStorage)
+        {
+            ComponentDataMemoryChunk? memoryChunk = null;
+
+            for (int i = 0; i < dataStorage.Count; i++)
+            {
+                if (dataStorage[i].EntityCount < dataStorage[i].MaxEntityCount)
+                {
+                    memoryChunk = dataStorage[i];
+                }
+            }
+
+            return memoryChunk;
         }
     }
 }

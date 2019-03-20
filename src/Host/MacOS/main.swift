@@ -212,6 +212,8 @@ autoreleasepool {
 
         // TODO: Update at 60Hz for now
         updateEngine(stepTimeInSeconds)
+
+        // TODO: Implement Draw triangle debug function
         delegate.mtkView.draw()
     }
 }

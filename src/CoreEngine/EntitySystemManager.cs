@@ -22,8 +22,11 @@ namespace CoreEngine
             this.componentTypes = new List<Type[]>();
         }
 
-        public void RegisterSystem(EntitySystem entitySystem)
+        public void RegisterSystem<T>() where T : EntitySystem
         {
+            // TODO: Use manager container to create object
+            var entitySystem = ObjectContainer.CreateInstance<T>();
+
             if (this.RegisteredSystems.Contains(entitySystem))
             {
                 throw new ArgumentException("The specified entity system has already been registered.");

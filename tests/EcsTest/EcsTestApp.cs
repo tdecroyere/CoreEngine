@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using CoreEngine;
 
 namespace CoreEngine.Tests.EcsTest
@@ -16,16 +17,24 @@ namespace CoreEngine.Tests.EcsTest
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();
-            var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent));
+            var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(DebugTriangleComponent));
             var blockLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
 
             var playerEntity = this.entityManager.CreateEntity(playerLayout);
 
+            // TODO: Find a way to have default values for components
             TransformComponent playerPositionComponent;
             playerPositionComponent.Position.X = 12.0f;
             playerPositionComponent.Position.Y = 20.0f;
             playerPositionComponent.Position.Z = 45.0f;
+            playerPositionComponent.WorldMatrix = Matrix4x4.Identity;
             this.entityManager.SetComponentData(playerEntity, playerPositionComponent);
+
+            DebugTriangleComponent playerDebugTriangleComponent;
+            playerDebugTriangleComponent.Color1 = new Vector4(1, 0, 0, 1);
+            playerDebugTriangleComponent.Color2 = new Vector4(0, 1, 0, 1);
+            playerDebugTriangleComponent.Color3 = new Vector4(0, 0, 1, 1);
+            this.entityManager.SetComponentData(playerEntity, playerDebugTriangleComponent);
 
             for (int i = 0; i < 10; i++)
             {
@@ -35,6 +44,7 @@ namespace CoreEngine.Tests.EcsTest
                 wallPositionComponent.Position.X = (float)i;
                 wallPositionComponent.Position.Y = (float)i + 54.0f;
                 wallPositionComponent.Position.Z = (float)i + 22.0f;
+                wallPositionComponent.WorldMatrix = Matrix4x4.Identity; 
                 this.entityManager.SetComponentData(wallEntity, wallPositionComponent);
 
                 BlockComponent wallBlockComponent;
@@ -46,8 +56,9 @@ namespace CoreEngine.Tests.EcsTest
             DisplayEntities(this.entityManager);
 
             this.entitySystemManager = new EntitySystemManager(entityManager);
-            this.entitySystemManager.RegisterSystem(new MovementUpdateSystem());
-            this.entitySystemManager.RegisterSystem(new BlockUpdateSystem());
+            this.entitySystemManager.RegisterSystem<MovementUpdateSystem>();
+            this.entitySystemManager.RegisterSystem<BlockUpdateSystem>();
+            this.entitySystemManager.RegisterSystem<DebugTriangleSystem>();
         }
 
         public override void Update(float deltaTime)

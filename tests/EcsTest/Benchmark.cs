@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using BenchmarkDotNet.Attributes;
 
 namespace CoreEngine.Tests.EcsTest
@@ -27,6 +28,7 @@ namespace CoreEngine.Tests.EcsTest
                 wallPositionComponent.Position.X = (float)i;
                 wallPositionComponent.Position.Y = (float)i + 54.0f;
                 wallPositionComponent.Position.Z = (float)i + 22.0f;
+                wallPositionComponent.WorldMatrix = Matrix4x4.Identity;
                 entityManager.SetComponentData(wallEntity, wallPositionComponent);
 
                 BlockComponent wallBlockComponent;

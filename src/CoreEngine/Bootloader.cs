@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
+using CoreEngine.Graphics;
 
 namespace CoreEngine
 {
@@ -29,6 +30,9 @@ namespace CoreEngine
                     Console.WriteLine($"TestBuffer {testBuffer[i]}");
                 }
             }
+
+            // Register managers
+            ObjectContainer.RegisterManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService));
 
             if (appName != null)
             {

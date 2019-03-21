@@ -1,5 +1,6 @@
 import Cocoa
 import CoreEngineInterop
+import simd
 
 var startEnginePointer: StartEnginePtr?
 var updateEnginePointer: UpdateEnginePtr?
@@ -25,6 +26,12 @@ func getTestBuffer() -> Span
 func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32
 {
 	return a + b + 40
+}
+
+func DebugDrawTriangle(graphicsContext: UnsafeMutableRawPointer?, color1: Vector4, color2: Vector4, color3: Vector4, worldMatrix: Matrix4x4) {
+    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
+    print("Draw triangle \(color1)")
+    print(renderer.currentRotationX)
 }
 
 func initCoreClrSwift() {
@@ -142,6 +149,15 @@ func processPendingMessages() {
 autoreleasepool {
     print("CoreEngine MacOS Host")
 
+    let delegate = MacOSAppDelegate()
+    NSApplication.shared.delegate = delegate
+    NSApplication.shared.activate(ignoringOtherApps: true)
+    NSApplication.shared.finishLaunching()
+
+    while (delegate.renderer == nil) {
+        processPendingMessages()
+    }
+
     initCoreClrSwift()
 
     var appName: UnsafeMutablePointer<Int8>? = nil
@@ -152,17 +168,11 @@ autoreleasepool {
     
     var hostPlatform = HostPlatform()
     hostPlatform.TestParameter = 5
+    hostPlatform.AddTestHostMethod = addTestHostMethod
+    hostPlatform.GetTestBuffer = getTestBuffer
 
-    let addTestMethod: AddTestHostMethodPtr = addTestHostMethod
-    hostPlatform.AddTestHostMethod = unsafeBitCast(addTestMethod, to: UnsafeMutableRawPointer.self)
-
-    let getTestBufferMethod: GetTestBufferPtr = getTestBuffer
-    hostPlatform.GetTestBuffer = unsafeBitCast(getTestBufferMethod, to: UnsafeMutableRawPointer.self)
-
-    let delegate = MacOSAppDelegate()
-    NSApplication.shared.delegate = delegate
-    NSApplication.shared.activate(ignoringOtherApps: true)
-    NSApplication.shared.finishLaunching()
+    hostPlatform.GraphicsService.GraphicsContext = Unmanaged.passUnretained(delegate.renderer).toOpaque()
+    hostPlatform.GraphicsService.DebugDrawTriangle = DebugDrawTriangle
 
     guard let startEngine = startEnginePointer else {
         print("CoreEngine StartEngine method is not initialized")

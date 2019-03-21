@@ -24,6 +24,11 @@ namespace CoreEngine.Tests.EcsTest
             for (var i = 0; i < entityArray.Length; i++)
             {
                 transformArray[i].Position += velocity * deltaTime;
+                transformArray[i].RotationY += deltaTime * 50.0f;
+
+                // TODO: Move the world transformation matrix computation to another system
+                // TODO: Move the world matrix to its own component
+                transformArray[i].WorldMatrix = Matrix4x4.CreateRotationY((transformArray[i].RotationY * MathF.PI) / 180.0f);
             }
         }
     }

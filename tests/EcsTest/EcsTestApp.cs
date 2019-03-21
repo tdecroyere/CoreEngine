@@ -23,7 +23,7 @@ namespace CoreEngine.Tests.EcsTest
             var playerEntity = this.entityManager.CreateEntity(playerLayout);
 
             // TODO: Find a way to have default values for components
-            TransformComponent playerPositionComponent;
+            TransformComponent playerPositionComponent = new TransformComponent();
             playerPositionComponent.Position.X = 12.0f;
             playerPositionComponent.Position.Y = 20.0f;
             playerPositionComponent.Position.Z = 45.0f;
@@ -40,7 +40,7 @@ namespace CoreEngine.Tests.EcsTest
             {
                 var wallEntity = entityManager.CreateEntity(blockLayout);
 
-                TransformComponent wallPositionComponent;
+                TransformComponent wallPositionComponent = new TransformComponent();
                 wallPositionComponent.Position.X = (float)i;
                 wallPositionComponent.Position.Y = (float)i + 54.0f;
                 wallPositionComponent.Position.Z = (float)i + 22.0f;
@@ -66,7 +66,7 @@ namespace CoreEngine.Tests.EcsTest
             if (this.entitySystemManager != null && this.entityManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
-                DisplayEntities(this.entityManager);
+                //DisplayEntities(this.entityManager);
             }
         }
 

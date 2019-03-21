@@ -27,10 +27,11 @@ namespace CoreEngine
         public GraphicsService GraphicsService;
     }
 
-    public delegate void DebugDrawTriangleDelegate(Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix);
+    public delegate void DebugDrawTriangleDelegate(IntPtr graphicsContext, Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix);
 
     public struct GraphicsService
     {
+        public IntPtr GraphicsContext;
         public DebugDrawTriangleDelegate DebugDrawTriange;
     }
 }

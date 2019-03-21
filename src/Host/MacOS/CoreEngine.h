@@ -35,9 +35,12 @@ struct Matrix4x4
     float Item33;
 };
 
+typedef void (*DebugDrawTrianglePtr)(void* graphicsContext, struct Vector4 color1, struct Vector4 color2, struct Vector4 color3, struct Matrix4x4 worldMatrix);
+
 struct GraphicsService
 {
-    void* DebugDrawTriangle;
+    void* GraphicsContext;
+    DebugDrawTrianglePtr DebugDrawTriangle;
 };
 
 struct HostPlatform

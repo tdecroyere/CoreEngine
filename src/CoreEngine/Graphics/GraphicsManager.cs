@@ -20,7 +20,8 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("Method DebugDrawTriangle is not implemented by the host program");
             }
 
-            this.graphicsService.DebugDrawTriange(color1, color2, color3, worldMatrix);
+            // TODO: Find a way to test if the delegate is null, because it is a struct it is valid event not filled by the host
+            this.graphicsService.DebugDrawTriange(this.graphicsService.GraphicsContext, color1, color2, color3, worldMatrix);
         }
     }
 }

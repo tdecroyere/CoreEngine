@@ -24,7 +24,7 @@ namespace CoreEngine.Tests.EcsTest
             {
                 var wallEntity = entityManager.CreateEntity(blockLayout);
 
-                TransformComponent wallPositionComponent;
+                TransformComponent wallPositionComponent = new TransformComponent();
                 wallPositionComponent.Position.X = (float)i;
                 wallPositionComponent.Position.Y = (float)i + 54.0f;
                 wallPositionComponent.Position.Z = (float)i + 22.0f;

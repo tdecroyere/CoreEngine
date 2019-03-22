@@ -1,27 +1,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <string>
-#include "coreclrhost.h"
-
-
-struct Span
-{
-	unsigned char* Buffer;
-	int Length;
-
-	Span(unsigned char* buffer, int length)
-	{
-		this->Buffer = buffer;
-		this->Length = length;
-	}
-};
-
-struct HostPlatform
-{
-	int TestParameter;
-	void* AddTestHostMethod;
-	void* GetTestBuffer;
-};
+#include "../Common/CoreEngine.h"
 
 int AddTestHostMethod(int a, int b)
 {
@@ -38,13 +18,19 @@ Span GetTestBuffer()
 	testBuffer[3] = 4;
 	testBuffer[4] = 5;
 
-	return Span(testBuffer, 5);
+    Span span = {};
+    span.Buffer = testBuffer;
+    span.Length = 5;
+
+	return span;
 }
 
-typedef int AddTestHostMethodType(int a, int b);
-typedef Span GetTestBufferType();
-typedef void StartEnginePtr(unsigned char* appName, HostPlatform* hostPlatform);
-typedef void UpdateEnginePtr(float deltaTime);
+void DebugDrawTriangle(void* graphicsContext, Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)
+{
+    printf("DebugDrawTriangle Color1(%f, %f, %f, %f)\n", color1.X, color1.Y, color1.Z, color1.W);
+    printf("DebugDrawTriangle Color2(%f, %f, %f, %f)\n", color2.X, color2.Y, color2.Z, color2.W);
+    printf("DebugDrawTriangle Color3(%f, %f, %f, %f)\n", color3.X, color3.Y, color3.Z, color3.W);
+}
 
 void BuildTpaList(const char* directory, const char* extension, std::string& tpaList)
 {
@@ -127,8 +113,8 @@ int hr = initializeCoreClr(
                 &hostHandle,        // Host handle
                 &domainId);         // AppDomain ID
 
-StartEnginePtr* StartEngine;    
-UpdateEnginePtr* UpdateEngine;    
+StartEnginePtr StartEngine;    
+UpdateEnginePtr UpdateEngine;    
 
 // The assembly name passed in the third parameter is a managed assembly name
 // as described at https://docs.microsoft.com/dotnet/framework/app-domains/assembly-names
@@ -148,9 +134,7 @@ hr = createManagedDelegate(
         "UpdateEngine",
         (void**)&UpdateEngine);
 
-    AddTestHostMethodType* testMethod = AddTestHostMethod;
-    GetTestBufferType* getTestBufferMethod = GetTestBuffer;
-
+ 
     HostPlatform hostPlatform = {};
     hostPlatform.TestParameter = 5;
 
@@ -162,10 +146,12 @@ hr = createManagedDelegate(
         strcpy(appName, argv[1]);
     }
 
-    hostPlatform.AddTestHostMethod = testMethod;
-    hostPlatform.GetTestBuffer = getTestBufferMethod;
+    hostPlatform.AddTestHostMethod = AddTestHostMethod;
+    hostPlatform.GetTestBuffer = GetTestBuffer;
 
-    StartEngine((unsigned char*)appName, &hostPlatform);
+    hostPlatform.GraphicsService.DebugDrawTriangle = DebugDrawTriangle;
+
+    StartEngine(appName, &hostPlatform);
     UpdateEngine(5);
 
     shutdownCoreClr(hostHandle, domainId);

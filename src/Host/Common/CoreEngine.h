@@ -6,33 +6,15 @@ struct Span
 
 struct Vector4
 {
-    float X;
-    float Y;
-    float Z;
-    float W;
+    float X, Y, Z, W;
 };
 
 struct Matrix4x4
 {
-    float Item00;
-    float Item01;
-    float Item02;
-    float Item03;
-
-    float Item10;
-    float Item11;
-    float Item12;
-    float Item13;
-
-    float Item20;
-    float Item21;
-    float Item22;
-    float Item23;
-
-    float Item30;
-    float Item31;
-    float Item32;
-    float Item33;
+    float Item00, Item01, Item02, Item03;
+    float Item10, Item11, Item12, Item13;
+    float Item20, Item21, Item22, Item23;
+    float Item30, Item31, Item32, Item33;
 };
 
 typedef void (*DebugDrawTrianglePtr)(void* graphicsContext, struct Vector4 color1, struct Vector4 color2, struct Vector4 color3, struct Matrix4x4 worldMatrix);
@@ -43,23 +25,19 @@ struct GraphicsService
     DebugDrawTrianglePtr DebugDrawTriangle;
 };
 
-struct HostPlatform
-{
-	int TestParameter;
-	void* AddTestHostMethod;
-	void* GetTestBuffer;
-    struct GraphicsService GraphicsService;
-};
-
 typedef int (*AddTestHostMethodPtr)(int a, int b);
 typedef struct Span (*GetTestBufferPtr)();
 
+struct HostPlatform
+{
+	int TestParameter;
+	AddTestHostMethodPtr AddTestHostMethod;
+	GetTestBufferPtr GetTestBuffer;
+    struct GraphicsService GraphicsService;
+};
+
 typedef void (*StartEnginePtr)(char* appName, struct HostPlatform* hostPlatform);
 typedef void (*UpdateEnginePtr)(float deltaTime);
-typedef void (*DebugDrawTrianglePtr)(struct Vector4 color1, struct Vector4 color2, struct Vector4 color3, struct Matrix4x4 worldMatrix);
-
-
-
 
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,
@@ -76,3 +54,6 @@ typedef int (*coreclr_create_delegate_ptr)(void* hostHandle,
             const char* entryPointTypeName,
             const char* entryPointMethodName,
             void** delegate);
+
+typedef int (*coreclr_shutdown_ptr)(void* hostHandle,
+            unsigned int domainId);

@@ -7,7 +7,8 @@ namespace CoreEngine
 
     public class EntitySystemManager
     {
-        private EntityManager entityManager;
+        private readonly SystemManagerContainer systemManagerContainer;
+        private readonly EntityManager entityManager;
         private IList<EntitySystemDefinition> registeredSystemDefinitions;
 
         // TODO: Refactor that!
@@ -15,17 +16,18 @@ namespace CoreEngine
 
         public IList<EntitySystem> RegisteredSystems { get; } = new List<EntitySystem>();
         
-        public EntitySystemManager(EntityManager entityManager)
+        public EntitySystemManager(EntityManager entityManager, SystemManagerContainer systemManagerContainer)
         {
             this.entityManager = entityManager;
+            this.systemManagerContainer = systemManagerContainer;
             this.registeredSystemDefinitions = new List<EntitySystemDefinition>();
             this.componentTypes = new List<Type[]>();
         }
 
-        public void RegisterSystem<T>() where T : EntitySystem
+        public void RegisterEntitySystem<T>() where T : EntitySystem
         {
             // TODO: Use manager container to create object
-            var entitySystem = ObjectContainer.CreateInstance<T>();
+            var entitySystem = this.systemManagerContainer.CreateInstance<T>();
 
             if (this.RegisteredSystems.Contains(entitySystem))
             {

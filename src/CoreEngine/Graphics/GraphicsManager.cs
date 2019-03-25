@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace CoreEngine.Graphics
 {
-    public class GraphicsManager : Manager
+    public class GraphicsManager : SystemManager
     {
         private readonly GraphicsService graphicsService;
 

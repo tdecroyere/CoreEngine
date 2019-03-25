@@ -2,7 +2,7 @@ using System;
 
 namespace CoreEngine
 {
-    public abstract class Manager
+    public abstract class SystemManager
     {
         // TODO: Add Init/DeInit methods
 

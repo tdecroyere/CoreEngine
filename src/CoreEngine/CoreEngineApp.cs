@@ -4,7 +4,17 @@ namespace CoreEngine
 {
     public abstract class CoreEngineApp
     {
+        protected CoreEngineApp()
+        {
+            this.SystemManagerContainer = new SystemManagerContainer(this);
+        }
+
         public abstract string Name
+        {
+            get;
+        }
+
+        public SystemManagerContainer SystemManagerContainer
         {
             get;
         }

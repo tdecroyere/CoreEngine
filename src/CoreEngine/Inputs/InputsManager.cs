@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace CoreEngine.Inputs
 {
-    public class InputsManager : Manager
+    public class InputsManager : SystemManager
     {
         private readonly InputsService inputsService;
         private InputsState inputsState;
@@ -19,6 +19,7 @@ namespace CoreEngine.Inputs
             this.inputsState = this.inputsService.GetInputsState(this.inputsService.InputsContext);
         }
 
+        // TODO: Add an action system to process more easily the raw data from the host
         public bool IsLeftActionPressed()
         {
             Console.WriteLine($"KeyQ: {this.inputsState.Keyboard.KeyQ.Value}");

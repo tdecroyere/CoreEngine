@@ -32,10 +32,7 @@ namespace CoreEngine
                 }
             }
 
-            // Register managers
-            ObjectContainer.RegisterManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService));
-            ObjectContainer.RegisterManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
-
+            
             if (appName != null)
             {
                 Console.WriteLine($"Loading CoreEngineApp '{appName}'...");
@@ -44,6 +41,11 @@ namespace CoreEngine
                 if (coreEngineApp != null)
                 {
                     Console.WriteLine("CoreEngineApp loading successfull.");
+
+                    // Register managers
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService));
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
+
                     Console.WriteLine("Initializing app...");
                     coreEngineApp.Init();
                     Console.WriteLine("Initializing app done.");
@@ -53,10 +55,9 @@ namespace CoreEngine
 
         public static void UpdateEngine(float deltaTime)
         {
-            ObjectContainer.UpdateManagers();
-            
             if (coreEngineApp != null)
             {
+                coreEngineApp.SystemManagerContainer.UpdateSystemManagers();
                 coreEngineApp.Update(deltaTime);
             }
         }

@@ -3,22 +3,27 @@ using System.Collections.Generic;
 
 namespace CoreEngine
 {
-    // TODO: Remove static?
-    public static class ObjectContainer
+    public class SystemManagerContainer
     {
-        private static IDictionary<Type, Manager> managerList = new Dictionary<Type, Manager>();
+        private readonly CoreEngineApp coreEngineApp;
+        private IDictionary<Type, SystemManager> systemManagerList = new Dictionary<Type, SystemManager>();
 
-        public static void RegisterManager<T>(T manager) where T : Manager
+        public SystemManagerContainer(CoreEngineApp coreEngineApp)
         {
-            if (managerList.ContainsKey(typeof(T)))
-            {
-                throw new ArgumentException($"Manager with type '{typeof(T).ToString()}' has already been added.");
-            }
-
-            managerList.Add(typeof(T), manager);
+            this.coreEngineApp = coreEngineApp;
         }
 
-        public static T CreateInstance<T>()
+        public void RegisterSystemManager<T>(T systemManager) where T : SystemManager
+        {
+            if (this.systemManagerList.ContainsKey(typeof(T)))
+            {
+                throw new ArgumentException($"System manager with type '{typeof(T).ToString()}' has already been added.");
+            }
+
+            this.systemManagerList.Add(typeof(T), systemManager);
+        }
+
+        public T CreateInstance<T>()
         {
             var type = typeof(T);
             var constructorsInfo = type.GetConstructors();
@@ -36,21 +41,21 @@ namespace CoreEngine
             {
                 var parameter = parameters[i];
 
-                if (!managerList.ContainsKey(parameter.ParameterType))
+                if (!this.systemManagerList.ContainsKey(parameter.ParameterType))
                 {
                     throw new InvalidOperationException($"The parameter '{parameter.ParameterType.ToString()}' is not registered.");
                 }
 
-                resolvedParameters[i] = managerList[parameter.ParameterType];
+                resolvedParameters[i] = this.systemManagerList[parameter.ParameterType];
             }
 
             return (T)Activator.CreateInstance(typeof(T), resolvedParameters);
         }
 
-        public static void UpdateManagers()
+        public void UpdateSystemManagers()
         {
             // TODO: Performance issue here?
-            foreach (var manager in managerList)
+            foreach (var manager in this.systemManagerList)
             {
                 manager.Value.Update();
             }

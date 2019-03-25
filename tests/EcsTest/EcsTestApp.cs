@@ -60,11 +60,11 @@ namespace CoreEngine.Tests.EcsTest
 
             //DisplayEntities(this.entityManager);
 
-            this.entitySystemManager = new EntitySystemManager(entityManager);
-            this.entitySystemManager.RegisterSystem<InputsUpdateSystem>();
-            this.entitySystemManager.RegisterSystem<MovementUpdateSystem>();
-            this.entitySystemManager.RegisterSystem<BlockUpdateSystem>();
-            this.entitySystemManager.RegisterSystem<DebugTriangleSystem>();
+            this.entitySystemManager = new EntitySystemManager(entityManager, this.SystemManagerContainer);
+            this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
+            this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
+            this.entitySystemManager.RegisterEntitySystem<BlockUpdateSystem>();
+            this.entitySystemManager.RegisterEntitySystem<DebugTriangleSystem>();
         }
 
         public override void Update(float deltaTime)

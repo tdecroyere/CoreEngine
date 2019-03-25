@@ -24,7 +24,7 @@ namespace CoreEngine.Tests.EcsTest
             for (var i = 0; i < entityArray.Length; i++)
             {
                 transformArray[i].Position += velocity * deltaTime;
-                transformArray[i].RotationY += deltaTime * 50.0f;
+                transformArray[i].RotationY += deltaTime * 500.0f;
 
                 // TODO: Move the world transformation matrix computation to another system
                 // TODO: Move the world matrix to its own component

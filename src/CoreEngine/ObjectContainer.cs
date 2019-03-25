@@ -6,7 +6,7 @@ namespace CoreEngine
     // TODO: Remove static?
     public static class ObjectContainer
     {
-        private static IDictionary<Type, object> managerList = new Dictionary<Type, object>();
+        private static IDictionary<Type, Manager> managerList = new Dictionary<Type, Manager>();
 
         public static void RegisterManager<T>(T manager) where T : Manager
         {
@@ -45,6 +45,15 @@ namespace CoreEngine
             }
 
             return (T)Activator.CreateInstance(typeof(T), resolvedParameters);
+        }
+
+        public static void UpdateManagers()
+        {
+            // TODO: Performance issue here?
+            foreach (var manager in managerList)
+            {
+                manager.Value.Update();
+            }
         }
     }
 }

@@ -26,122 +26,130 @@ struct GraphicsService
 };
 
 
-enum GameInputObjectType : int
+enum InputsObjectType : int
 {
     Digital,
     Analog,
     Relative
 };
 
-struct GameInputObject
+struct InputsObject
 {
-    enum GameInputObjectType ObjectType;
+    enum InputsObjectType ObjectType;
     int TransitionCount;
     float Value;
 };
 
-struct GameInputKeyboard
+struct InputsKeyboard
 {
-    struct GameInputObject KeyA;
-    struct GameInputObject KeyB;
-    struct GameInputObject KeyC;
-    struct GameInputObject KeyD;
-    struct GameInputObject KeyE;
-    struct GameInputObject KeyF;
-    struct GameInputObject KeyG;
-    struct GameInputObject KeyH;
-    struct GameInputObject KeyI;
-    struct GameInputObject KeyJ;
-    struct GameInputObject KeyK;
-    struct GameInputObject KeyL;
-    struct GameInputObject KeyM;
-    struct GameInputObject KeyN;
-    struct GameInputObject KeyO;
-    struct GameInputObject KeyP;
-    struct GameInputObject KeyQ;
-    struct GameInputObject KeyR;
-    struct GameInputObject KeyS;
-    struct GameInputObject KeyT;
-    struct GameInputObject KeyU;
-    struct GameInputObject KeyV;
-    struct GameInputObject KeyW;
-    struct GameInputObject KeyX;
-    struct GameInputObject KeyY;
-    struct GameInputObject KeyZ;
-    struct GameInputObject Space;
-    struct GameInputObject AlternateKey;
-    struct GameInputObject Enter;
-    struct GameInputObject F1;
-    struct GameInputObject F2;
-    struct GameInputObject F3;
-    struct GameInputObject F4;
-    struct GameInputObject F5;
-    struct GameInputObject F6;
-    struct GameInputObject F7;
-    struct GameInputObject F8;
-    struct GameInputObject F9;
-    struct GameInputObject F10;
-    struct GameInputObject F11;
-    struct GameInputObject F12;
-    struct GameInputObject Shift;
+    struct InputsObject KeyA;
+    struct InputsObject KeyB;
+    struct InputsObject KeyC;
+    struct InputsObject KeyD;
+    struct InputsObject KeyE;
+    struct InputsObject KeyF;
+    struct InputsObject KeyG;
+    struct InputsObject KeyH;
+    struct InputsObject KeyI;
+    struct InputsObject KeyJ;
+    struct InputsObject KeyK;
+    struct InputsObject KeyL;
+    struct InputsObject KeyM;
+    struct InputsObject KeyN;
+    struct InputsObject KeyO;
+    struct InputsObject KeyP;
+    struct InputsObject KeyQ;
+    struct InputsObject KeyR;
+    struct InputsObject KeyS;
+    struct InputsObject KeyT;
+    struct InputsObject KeyU;
+    struct InputsObject KeyV;
+    struct InputsObject KeyW;
+    struct InputsObject KeyX;
+    struct InputsObject KeyY;
+    struct InputsObject KeyZ;
+    struct InputsObject Space;
+    struct InputsObject AlternateKey;
+    struct InputsObject Enter;
+    struct InputsObject F1;
+    struct InputsObject F2;
+    struct InputsObject F3;
+    struct InputsObject F4;
+    struct InputsObject F5;
+    struct InputsObject F6;
+    struct InputsObject F7;
+    struct InputsObject F8;
+    struct InputsObject F9;
+    struct InputsObject F10;
+    struct InputsObject F11;
+    struct InputsObject F12;
+    struct InputsObject Shift;
 };
 
-struct GameInputMouse
+struct InputsMouse
 {
     unsigned int PositionX;
     unsigned int PositionY;
 
-    struct GameInputObject DeltaX;
-    struct GameInputObject DeltaY;
-    struct GameInputObject LeftButton;
-    struct GameInputObject RightButton;
-    struct GameInputObject MiddleButton;
+    struct InputsObject DeltaX;
+    struct InputsObject DeltaY;
+    struct InputsObject LeftButton;
+    struct InputsObject RightButton;
+    struct InputsObject MiddleButton;
 
     // TODO: Handle wheel
 };
 
-struct GameInputTouch
+struct InputsTouch
 {
-    struct GameInputObject DeltaX;
-    struct GameInputObject DeltaY;
+    struct InputsObject DeltaX;
+    struct InputsObject DeltaY;
 };
 
-struct GameInputGamepad
+struct InputsGamepad
 {
     int IsConnected;
-    struct GameInputObject LeftStickUp;
-    struct GameInputObject LeftStickDown;
-    struct GameInputObject LeftStickLeft;
-    struct GameInputObject LeftStickRight;
-    struct GameInputObject RightStickUp;
-    struct GameInputObject RightStickDown;
-    struct GameInputObject RightStickLeft;
-    struct GameInputObject RightStickRight;
-    struct GameInputObject LeftTrigger;
-    struct GameInputObject RightTrigger;
-    struct GameInputObject ButtonA;
-    struct GameInputObject ButtonB;
-    struct GameInputObject ButtonX;
-    struct GameInputObject ButtonY;
-    struct GameInputObject ButtonStart;
-    struct GameInputObject ButtonBack;
-    struct GameInputObject LeftShoulder;
-    struct GameInputObject RightShoulder;
-    struct GameInputObject DPadUp;
-    struct GameInputObject DPadDown;
-    struct GameInputObject DPadLeft;
-    struct GameInputObject DPadRight;
+    struct InputsObject LeftStickUp;
+    struct InputsObject LeftStickDown;
+    struct InputsObject LeftStickLeft;
+    struct InputsObject LeftStickRight;
+    struct InputsObject RightStickUp;
+    struct InputsObject RightStickDown;
+    struct InputsObject RightStickLeft;
+    struct InputsObject RightStickRight;
+    struct InputsObject LeftTrigger;
+    struct InputsObject RightTrigger;
+    struct InputsObject ButtonA;
+    struct InputsObject ButtonB;
+    struct InputsObject ButtonX;
+    struct InputsObject ButtonY;
+    struct InputsObject ButtonStart;
+    struct InputsObject ButtonBack;
+    struct InputsObject LeftShoulder;
+    struct InputsObject RightShoulder;
+    struct InputsObject DPadUp;
+    struct InputsObject DPadDown;
+    struct InputsObject DPadLeft;
+    struct InputsObject DPadRight;
 };
+
+struct InputsState
+{
+    struct InputsKeyboard Keyboard;
+    struct InputsMouse Mouse;
+    struct InputsTouch Touch;
+    struct InputsGamepad GamePad1;
+    struct InputsGamepad GamePad2;
+    struct InputsGamepad GamePad3;
+    struct InputsGamepad GamePad4;
+};
+
+typedef InputsState (*GetInputsStatePtr)(void* inputsContext);
 
 struct InputsService
 {
-    struct GameInputKeyboard Keyboard;
-    struct GameInputMouse Mouse;
-    struct GameInputTouch Touch;
-    struct GameInputGamepad GamePad1;
-    struct GameInputGamepad GamePad2;
-    struct GameInputGamepad GamePad3;
-    struct GameInputGamepad GamePad4;
+    void* InputsContext;
+    GetInputsStatePtr GetInputsState;
 };
 
 typedef int (*AddTestHostMethodPtr)(int a, int b);

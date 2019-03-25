@@ -53,6 +53,8 @@ namespace CoreEngine
 
         public static void UpdateEngine(float deltaTime)
         {
+            ObjectContainer.UpdateManagers();
+            
             if (coreEngineApp != null)
             {
                 coreEngineApp.Update(deltaTime);

@@ -3,6 +3,9 @@
 #include <string>
 #include "../Common/CoreEngine.h"
 
+InputsState inputsState = {};
+
+
 int AddTestHostMethod(int a, int b)
 {
 	return a + b;
@@ -30,6 +33,12 @@ void DebugDrawTriangle(void* graphicsContext, Vector4 color1, Vector4 color2, Ve
     printf("DebugDrawTriangle Color1(%f, %f, %f, %f)\n", color1.X, color1.Y, color1.Z, color1.W);
     printf("DebugDrawTriangle Color2(%f, %f, %f, %f)\n", color2.X, color2.Y, color2.Z, color2.W);
     printf("DebugDrawTriangle Color3(%f, %f, %f, %f)\n", color3.X, color3.Y, color3.Z, color3.W);
+}
+
+InputsState GetInputsState(void* inputsContext)
+{
+    printf("GetInputsState\n");
+    return inputsState;
 }
 
 void BuildTpaList(const char* directory, const char* extension, std::string& tpaList)
@@ -134,6 +143,7 @@ hr = createManagedDelegate(
         "UpdateEngine",
         (void**)&UpdateEngine);
 
+    
  
     HostPlatform hostPlatform = {};
     hostPlatform.TestParameter = 5;
@@ -151,7 +161,11 @@ hr = createManagedDelegate(
 
     hostPlatform.GraphicsService.DebugDrawTriangle = DebugDrawTriangle;
 
+    hostPlatform.InputsService.GetInputsState = GetInputsState;
+
     StartEngine(appName, &hostPlatform);
+
+    inputsState.Keyboard.KeyQ.Value = 1;
     UpdateEngine(5);
 
     shutdownCoreClr(hostHandle, domainId);

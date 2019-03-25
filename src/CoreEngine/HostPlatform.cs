@@ -38,7 +38,7 @@ namespace CoreEngine
         public DebugDrawTriangleDelegate DebugDrawTriange;
     }
 
-    public enum GameInputObjectType
+    public enum InputsObjectType
     {
         Digital,
         Analog,
@@ -46,114 +46,122 @@ namespace CoreEngine
     }
 
     // TODO: Optimize the struct based on its type? (Analog or Digital)
-    public struct GameInputObject
+    public struct InputsObject
     {
-        public GameInputObjectType ObjectType;
+        public InputsObjectType ObjectType;
         public int TransitionCount;
         public float Value;
     }
 
-    public struct GameInputKeyboard
+    public struct InputsKeyboard
     {
-        public GameInputObject KeyA;
-        public GameInputObject KeyB;
-        public GameInputObject KeyC;
-        public GameInputObject KeyD;
-        public GameInputObject KeyE;
-        public GameInputObject KeyF;
-        public GameInputObject KeyG;
-        public GameInputObject KeyH;
-        public GameInputObject KeyI;
-        public GameInputObject KeyJ;
-        public GameInputObject KeyK;
-        public GameInputObject KeyL;
-        public GameInputObject KeyM;
-        public GameInputObject KeyN;
-        public GameInputObject KeyO;
-        public GameInputObject KeyP;
-        public GameInputObject KeyQ;
-        public GameInputObject KeyR;
-        public GameInputObject KeyS;
-        public GameInputObject KeyT;
-        public GameInputObject KeyU;
-        public GameInputObject KeyV;
-        public GameInputObject KeyW;
-        public GameInputObject KeyX;
-        public GameInputObject KeyY;
-        public GameInputObject KeyZ;
-        public GameInputObject Space;
-        public GameInputObject AlternateKey;
-        public GameInputObject Enter;
-        public GameInputObject F1;
-        public GameInputObject F2;
-        public GameInputObject F3;
-        public GameInputObject F4;
-        public GameInputObject F5;
-        public GameInputObject F6;
-        public GameInputObject F7;
-        public GameInputObject F8;
-        public GameInputObject F9;
-        public GameInputObject F10;
-        public GameInputObject F11;
-        public GameInputObject F12;
-        public GameInputObject Shift;
+        public InputsObject KeyA;
+        public InputsObject KeyB;
+        public InputsObject KeyC;
+        public InputsObject KeyD;
+        public InputsObject KeyE;
+        public InputsObject KeyF;
+        public InputsObject KeyG;
+        public InputsObject KeyH;
+        public InputsObject KeyI;
+        public InputsObject KeyJ;
+        public InputsObject KeyK;
+        public InputsObject KeyL;
+        public InputsObject KeyM;
+        public InputsObject KeyN;
+        public InputsObject KeyO;
+        public InputsObject KeyP;
+        public InputsObject KeyQ;
+        public InputsObject KeyR;
+        public InputsObject KeyS;
+        public InputsObject KeyT;
+        public InputsObject KeyU;
+        public InputsObject KeyV;
+        public InputsObject KeyW;
+        public InputsObject KeyX;
+        public InputsObject KeyY;
+        public InputsObject KeyZ;
+        public InputsObject Space;
+        public InputsObject AlternateKey;
+        public InputsObject Enter;
+        public InputsObject F1;
+        public InputsObject F2;
+        public InputsObject F3;
+        public InputsObject F4;
+        public InputsObject F5;
+        public InputsObject F6;
+        public InputsObject F7;
+        public InputsObject F8;
+        public InputsObject F9;
+        public InputsObject F10;
+        public InputsObject F11;
+        public InputsObject F12;
+        public InputsObject Shift;
     }
 
-    public struct GameInputMouse
+    public struct InputsMouse
     {
         public uint PositionX;
         public uint PositionY;
 
-        public GameInputObject DeltaX;
-        public GameInputObject DeltaY;
-        public GameInputObject LeftButton;
-        public GameInputObject RightButton;
-        public GameInputObject MiddleButton;
+        public InputsObject DeltaX;
+        public InputsObject DeltaY;
+        public InputsObject LeftButton;
+        public InputsObject RightButton;
+        public InputsObject MiddleButton;
 
         // TODO: Handle wheel
     }
 
-    public struct GameInputTouch
+    public struct InputsTouch
     {
-        public GameInputObject DeltaX;
-        public GameInputObject DeltaY;
+        public InputsObject DeltaX;
+        public InputsObject DeltaY;
     }
 
-    public struct GameInputGamepad
+    public struct InputsGamepad
     {
         public bool IsConnected;
-        public GameInputObject LeftStickUp;
-        public GameInputObject LeftStickDown;
-        public GameInputObject LeftStickLeft;
-        public GameInputObject LeftStickRight;
-        public GameInputObject RightStickUp;
-        public GameInputObject RightStickDown;
-        public GameInputObject RightStickLeft;
-        public GameInputObject RightStickRight;
-        public GameInputObject LeftTrigger;
-        public GameInputObject RightTrigger;
-        public GameInputObject ButtonA;
-        public GameInputObject ButtonB;
-        public GameInputObject ButtonX;
-        public GameInputObject ButtonY;
-        public GameInputObject ButtonStart;
-        public GameInputObject ButtonBack;
-        public GameInputObject LeftShoulder;
-        public GameInputObject RightShoulder;
-        public GameInputObject DPadUp;
-        public GameInputObject DPadDown;
-        public GameInputObject DPadLeft;
-        public GameInputObject DPadRight;
+        public InputsObject LeftStickUp;
+        public InputsObject LeftStickDown;
+        public InputsObject LeftStickLeft;
+        public InputsObject LeftStickRight;
+        public InputsObject RightStickUp;
+        public InputsObject RightStickDown;
+        public InputsObject RightStickLeft;
+        public InputsObject RightStickRight;
+        public InputsObject LeftTrigger;
+        public InputsObject RightTrigger;
+        public InputsObject ButtonA;
+        public InputsObject ButtonB;
+        public InputsObject ButtonX;
+        public InputsObject ButtonY;
+        public InputsObject ButtonStart;
+        public InputsObject ButtonBack;
+        public InputsObject LeftShoulder;
+        public InputsObject RightShoulder;
+        public InputsObject DPadUp;
+        public InputsObject DPadDown;
+        public InputsObject DPadLeft;
+        public InputsObject DPadRight;
     }
+
+    public struct InputsState
+    {
+        public InputsKeyboard Keyboard;
+        public InputsMouse Mouse;
+        public InputsTouch Touch;
+        public InputsGamepad GamePad1;
+        public InputsGamepad GamePad2;
+        public InputsGamepad GamePad3;
+        public InputsGamepad GamePad4;
+    }
+
+    public delegate InputsState GetInputsStateDelegate(IntPtr inputsContext);
 
     public struct InputsService
     {
-        public GameInputKeyboard Keyboard;
-        public GameInputMouse Mouse;
-        public GameInputTouch Touch;
-        public GameInputGamepad GamePad1;
-        public GameInputGamepad GamePad2;
-        public GameInputGamepad GamePad3;
-        public GameInputGamepad GamePad4;
+        public IntPtr InputsContext;
+        public GetInputsStateDelegate GetInputsState;
     }
 }

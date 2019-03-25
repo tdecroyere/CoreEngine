@@ -38,7 +38,7 @@ func DebugDrawTriangle(graphicsContext: UnsafeMutableRawPointer?, color1: Vector
 }
 
 class MacOSCoreEngineHost {
-    var hostPlatform: HostPlatform!
+    public var hostPlatform: HostPlatform!
     var renderer: MacOSMetalRenderer!
 
     var startEnginePointer: StartEnginePtr?
@@ -70,6 +70,9 @@ class MacOSCoreEngineHost {
             return
         }
 
+        //let hostPlatformPtr = Unmanaged.passUnretained(self.hostPlatform).toOpaque()
+
+        // TODO: The struct seems to be passed by value instead of this address
         startEngineInterop(appNameUnsafe, &self.hostPlatform)
     }
 

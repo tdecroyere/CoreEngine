@@ -10,6 +10,7 @@ namespace CoreEngine.Tests.EcsTest
         {
             var definition = new EntitySystemDefinition("Movement Update System");
 
+            definition.Parameters.Add(new EntitySystemParameter(typeof(PlayerComponent), true));
             definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
 
             return definition;
@@ -19,16 +20,20 @@ namespace CoreEngine.Tests.EcsTest
         {
             var velocity = new Vector3(20.0f, 50.0f, 100.0f);
             var entityArray = this.GetEntityArray();
+            var playerArray = this.GetComponentDataArray<PlayerComponent>();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                transformArray[i].Position += velocity * deltaTime;
-                transformArray[i].RotationY += deltaTime * 500.0f;
+                if (playerArray[i].InputVector.LengthSquared() > 0.0f)
+                {
+                    transformArray[i].Position += velocity * deltaTime;
+                    transformArray[i].RotationY += deltaTime * 500.0f;
 
-                // TODO: Move the world transformation matrix computation to another system
-                // TODO: Move the world matrix to its own component
-                transformArray[i].WorldMatrix = Matrix4x4.CreateRotationY((transformArray[i].RotationY * MathF.PI) / 180.0f);
+                    // TODO: Move the world transformation matrix computation to another system
+                    // TODO: Move the world matrix to its own component
+                    transformArray[i].WorldMatrix = Matrix4x4.CreateRotationY((transformArray[i].RotationY * MathF.PI) / 180.0f);
+                }
             }
         }
     }

@@ -17,20 +17,25 @@ namespace CoreEngine.Tests.EcsTest
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();
-            var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(DebugTriangleComponent));
+            var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(PlayerComponent), typeof(DebugTriangleComponent));
             var blockLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
 
             var playerEntity = this.entityManager.CreateEntity(playerLayout);
 
             // TODO: Find a way to have default values for components
-            TransformComponent playerPositionComponent = new TransformComponent();
+            var playerPositionComponent = new TransformComponent();
             playerPositionComponent.Position.X = 12.0f;
             playerPositionComponent.Position.Y = 20.0f;
             playerPositionComponent.Position.Z = 45.0f;
             playerPositionComponent.WorldMatrix = Matrix4x4.Identity;
             this.entityManager.SetComponentData(playerEntity, playerPositionComponent);
 
-            DebugTriangleComponent playerDebugTriangleComponent;
+            var playerComponent = new PlayerComponent();
+            playerComponent.InputVector = Vector3.Zero;
+            playerComponent.ChangeColorAction = 0;
+            this.entityManager.SetComponentData(playerEntity, playerComponent);
+
+            var playerDebugTriangleComponent = new DebugTriangleComponent();
             playerDebugTriangleComponent.Color1 = new Vector4(1, 0, 0, 1);
             playerDebugTriangleComponent.Color2 = new Vector4(0, 1, 0, 1);
             playerDebugTriangleComponent.Color3 = new Vector4(0, 0, 1, 1);
@@ -53,9 +58,10 @@ namespace CoreEngine.Tests.EcsTest
                 this.entityManager.SetComponentData(wallEntity, wallBlockComponent);
             }
 
-            DisplayEntities(this.entityManager);
+            //DisplayEntities(this.entityManager);
 
             this.entitySystemManager = new EntitySystemManager(entityManager);
+            this.entitySystemManager.RegisterSystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterSystem<MovementUpdateSystem>();
             this.entitySystemManager.RegisterSystem<BlockUpdateSystem>();
             this.entitySystemManager.RegisterSystem<DebugTriangleSystem>();

@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using CoreEngine.Graphics;
+using CoreEngine.Inputs;
 
 namespace CoreEngine
 {
@@ -33,6 +34,7 @@ namespace CoreEngine
 
             // Register managers
             ObjectContainer.RegisterManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService));
+            ObjectContainer.RegisterManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
             if (appName != null)
             {

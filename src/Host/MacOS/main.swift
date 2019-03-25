@@ -50,6 +50,7 @@ autoreleasepool {
         processPendingMessages()
     }
 
+    // TODO: Sometimes it seems there is a malloc error but not all the time (See MacOSCrash_20190324.txt)
     let renderer = delegate.renderer!
 
     var appName: String? = nil
@@ -81,9 +82,11 @@ autoreleasepool {
             // lastCounter = currentCounter
 
             // TODO: Build input system
-            // if (keyLeftPressed) {
-            //     delegate.renderer.currentRotationY += 50.0 * stepTimeInSeconds
-            // }
+            if (keyLeftPressed) {
+                print(coreEngineHost.hostPlatform.InputsService.Keyboard.KeyQ.Value)
+                coreEngineHost.hostPlatform.InputsService.Keyboard.KeyQ.Value = 1.0
+                print(coreEngineHost.hostPlatform.InputsService.Keyboard.KeyQ.Value)
+            }
             
             // if (keyRightPressed) {
             //     delegate.renderer.currentRotationY -= 50.0 * stepTimeInSeconds

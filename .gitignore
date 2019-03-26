@@ -13,6 +13,7 @@
 *.userprefs
 
 # Build results
+xcuserdata/
 .metals/
 build/
 [Dd]ebug/

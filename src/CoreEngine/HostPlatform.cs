@@ -97,6 +97,10 @@ namespace CoreEngine
         public InputsObject F11;
         public InputsObject F12;
         public InputsObject Shift;
+        public InputsObject LeftArrow;
+        public InputsObject RightArrow;
+        public InputsObject UpArrow;
+        public InputsObject DownArrow;
     }
 
     public struct InputsMouse

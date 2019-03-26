@@ -19,6 +19,7 @@ namespace CoreEngine.Tests.EcsTest
         public override void Process(float deltaTime)
         {
             var velocity = new Vector3(20.0f, 50.0f, 100.0f);
+            var rotationSpeed = 100.0f;
             var entityArray = this.GetEntityArray();
             var playerArray = this.GetComponentDataArray<PlayerComponent>();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
@@ -28,11 +29,13 @@ namespace CoreEngine.Tests.EcsTest
                 if (playerArray[i].InputVector.LengthSquared() > 0.0f)
                 {
                     transformArray[i].Position += velocity * deltaTime;
-                    transformArray[i].RotationY += deltaTime * 500.0f;
+                    transformArray[i].RotationY += playerArray[i].InputVector.X * deltaTime * rotationSpeed;
+                    transformArray[i].RotationX += playerArray[i].InputVector.Y * deltaTime * rotationSpeed;
 
                     // TODO: Move the world transformation matrix computation to another system
                     // TODO: Move the world matrix to its own component
-                    transformArray[i].WorldMatrix = Matrix4x4.CreateRotationY((transformArray[i].RotationY * MathF.PI) / 180.0f);
+                    transformArray[i].WorldMatrix = Matrix4x4.CreateRotationX((transformArray[i].RotationX * MathF.PI) / 180.0f);
+                    transformArray[i].WorldMatrix *= Matrix4x4.CreateRotationY((transformArray[i].RotationY * MathF.PI) / 180.0f);
                 }
             }
         }

@@ -18,35 +18,18 @@ func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32 {
 	return a + b + 40
 }
 
-func DebugDrawTriangle(graphicsContext: UnsafeMutableRawPointer?, color1: Vector4, color2: Vector4, color3: Vector4, worldMatrix: Matrix4x4) {
-    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-
-    // TODO: Write a convert implicit func
-
-    let dstColor1 = float4(color1.X, color1.Y, color1.Z, color1.W)
-    let dstColor2 = float4(color2.X, color2.Y, color2.Z, color2.W)
-    let dstColor3 = float4(color3.X, color3.Y, color3.Z, color3.W)
-
-    let row1 = float4(worldMatrix.Item00, worldMatrix.Item01, worldMatrix.Item02, worldMatrix.Item03)
-    let row2 = float4(worldMatrix.Item10, worldMatrix.Item11, worldMatrix.Item12, worldMatrix.Item13)
-    let row3 = float4(worldMatrix.Item20, worldMatrix.Item21, worldMatrix.Item22, worldMatrix.Item23)
-    let row4 = float4(worldMatrix.Item30, worldMatrix.Item31, worldMatrix.Item32, worldMatrix.Item33)
-    
-    let dstWorldMatrix = float4x4(rows: [row1, row2, row3, row4])
-
-    renderer.drawTriangle(dstColor1, dstColor2, dstColor3, dstWorldMatrix)
-}
-
 class MacOSCoreEngineHost {
     public var hostPlatform: HostPlatform!
     var renderer: MacOSMetalRenderer!
+    var inputsManager: MacOSInputsManager!
 
     var startEnginePointer: StartEnginePtr?
     var updateEnginePointer: UpdateEnginePtr?
 
-    init(renderer: MacOSMetalRenderer) {
+    init(renderer: MacOSMetalRenderer, inputsManager: MacOSInputsManager) {
         self.hostPlatform = HostPlatform()
         self.renderer = renderer
+        self.inputsManager = inputsManager
     }
 
     func startEngine(_ appName: String? = nil) {
@@ -63,7 +46,10 @@ class MacOSCoreEngineHost {
         self.hostPlatform.GetTestBuffer = getTestBuffer
 
         self.hostPlatform.GraphicsService.GraphicsContext = Unmanaged.passUnretained(self.renderer).toOpaque()
-        self.hostPlatform.GraphicsService.DebugDrawTriangle = DebugDrawTriangle
+        self.hostPlatform.GraphicsService.DebugDrawTriangle = debugDrawTriangle
+
+        self.hostPlatform.InputsService.InputsContext = Unmanaged.passUnretained(self.inputsManager).toOpaque()
+        self.hostPlatform.InputsService.GetInputsState = getInputsState
 
         guard let startEngineInterop = self.startEnginePointer else {
             print("CoreEngine StartEngine method is not initialized")

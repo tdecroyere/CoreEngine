@@ -84,6 +84,10 @@ struct InputsKeyboard
     struct InputsObject F11;
     struct InputsObject F12;
     struct InputsObject Shift;
+    struct InputsObject LeftArrow;
+    struct InputsObject RightArrow;
+    struct InputsObject UpArrow;
+    struct InputsObject DownArrow;
 };
 
 struct InputsMouse
@@ -144,7 +148,7 @@ struct InputsState
     struct InputsGamepad GamePad4;
 };
 
-typedef InputsState (*GetInputsStatePtr)(void* inputsContext);
+typedef struct InputsState (*GetInputsStatePtr)(void* inputsContext);
 
 struct InputsService
 {

@@ -30,7 +30,14 @@ namespace CoreEngine.Tests.EcsTest
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                playerArray[i].InputVector.X = (this.inputsManager.IsLeftActionPressed()) ? -1 : 0;
+                var deltaX = (this.inputsManager.IsLeftActionPressed()) ? 1 : 0;
+                deltaX += (this.inputsManager.IsRightActionPressed()) ? -1 : 0;
+
+                var deltaY = (this.inputsManager.IsDownActionPressed()) ? -1 : 0;
+                deltaY += (this.inputsManager.IsUpActionPressed()) ? 1 : 0;
+
+                playerArray[i].InputVector.X = deltaX; 
+                playerArray[i].InputVector.Y = deltaY;
             }
         }
     }

@@ -1,4 +1,5 @@
 import Cocoa
+import CoreEngineInterop
 
 var keyLeftPressed = false
 var keyRightPressed = false
@@ -7,7 +8,7 @@ var keyDownPressed = false
 
 var gameRunning = true
 
-func processPendingMessages() {
+func processPendingMessages(inputsManager: MacOSInputsManager) {
     var rawEvent: NSEvent? = nil
 
     repeat {
@@ -19,16 +20,8 @@ func processPendingMessages() {
         
         switch event.type {
         case .keyUp, .keyDown:
-            let keyCode = event.keyCode
-            
-            if (keyCode == 123) { // Left Arrow
-                keyLeftPressed = (event.type == .keyDown)
-            } else if (keyCode == 124) { // Right Arrow
-                keyRightPressed = (event.type == .keyDown)
-            } else if (keyCode == 126) { // Up Arrow
-                keyUpPressed = (event.type == .keyDown)
-            } else if (keyCode == 125) { // Down Arrow
-                keyDownPressed = (event.type == .keyDown)
+            if (!event.modifierFlags.contains(.command)) {
+                inputsManager.processKeyboardEvent(event)
             } else {
                 NSApplication.shared.sendEvent(event)
             }
@@ -46,8 +39,10 @@ autoreleasepool {
     NSApplication.shared.activate(ignoringOtherApps: true)
     NSApplication.shared.finishLaunching()
 
+    let inputsManager = MacOSInputsManager()
+
     while (delegate.renderer == nil) {
-        processPendingMessages()
+        processPendingMessages(inputsManager: inputsManager)
     }
 
     // TODO: Sometimes it seems there is a malloc error but not all the time (See MacOSCrash_20190324.txt)
@@ -59,7 +54,7 @@ autoreleasepool {
         appName = CommandLine.arguments[1]
     }
 
-    let coreEngineHost = MacOSCoreEngineHost(renderer: renderer)
+    let coreEngineHost = MacOSCoreEngineHost(renderer: renderer, inputsManager: inputsManager)
     coreEngineHost.startEngine(appName)
 
     // var machTimebaseInfo = mach_timebase_info(numer: 0, denom: 0)
@@ -71,7 +66,7 @@ autoreleasepool {
     while (gameRunning) {
         autoreleasepool {
             // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
-            processPendingMessages()
+            processPendingMessages(inputsManager: inputsManager)
 
             // let currentCounter = mach_absolute_time()
 
@@ -80,25 +75,6 @@ autoreleasepool {
             // let nanoSeconds = elapsed * UInt64(machTimebaseInfo.numer) / UInt64(machTimebaseInfo.denom)
             // let milliSeconds = Double(nanoSeconds) / 1_000_000
             // lastCounter = currentCounter
-
-            // TODO: Build input system
-            if (keyLeftPressed) {
-                print(coreEngineHost.hostPlatform.InputsService.Keyboard.KeyQ.Value)
-                coreEngineHost.hostPlatform.InputsService.Keyboard.KeyQ.Value = 1.0
-                print(coreEngineHost.hostPlatform.InputsService.Keyboard.KeyQ.Value)
-            }
-            
-            // if (keyRightPressed) {
-            //     delegate.renderer.currentRotationY -= 50.0 * stepTimeInSeconds
-            // }
-
-            // if (keyUpPressed) {
-            //     delegate.renderer.currentRotationX += 50.0 * stepTimeInSeconds
-            // }
-            
-            // if (keyDownPressed) {
-            //     delegate.renderer.currentRotationX -= 50.0 * stepTimeInSeconds
-            // }
 
             // TODO: Implement Draw triangle debug function
             renderer.beginRender()

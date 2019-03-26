@@ -2,6 +2,7 @@ import Cocoa
 import Metal
 import MetalKit
 import simd
+import CoreEngineInterop
 
 struct TriangleVertex {
     var position: float4
@@ -65,6 +66,25 @@ func makePerspectiveFovMatrix(fieldOfViewY: Float, aspectRatio: Float, minPlaneZ
     let row4 = float4(0, 0, -minPlaneZ * maxPlaneZ / (maxPlaneZ - minPlaneZ), 0)
 
     return float4x4(rows: [row1, row2, row3, row4])
+}
+
+func debugDrawTriangle(graphicsContext: UnsafeMutableRawPointer?, color1: Vector4, color2: Vector4, color3: Vector4, worldMatrix: Matrix4x4) {
+    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
+
+    // TODO: Write a convert implicit func
+
+    let dstColor1 = float4(color1.X, color1.Y, color1.Z, color1.W)
+    let dstColor2 = float4(color2.X, color2.Y, color2.Z, color2.W)
+    let dstColor3 = float4(color3.X, color3.Y, color3.Z, color3.W)
+
+    let row1 = float4(worldMatrix.Item00, worldMatrix.Item01, worldMatrix.Item02, worldMatrix.Item03)
+    let row2 = float4(worldMatrix.Item10, worldMatrix.Item11, worldMatrix.Item12, worldMatrix.Item13)
+    let row3 = float4(worldMatrix.Item20, worldMatrix.Item21, worldMatrix.Item22, worldMatrix.Item23)
+    let row4 = float4(worldMatrix.Item30, worldMatrix.Item31, worldMatrix.Item32, worldMatrix.Item33)
+    
+    let dstWorldMatrix = float4x4(rows: [row1, row2, row3, row4])
+
+    renderer.drawTriangle(dstColor1, dstColor2, dstColor3, dstWorldMatrix)
 }
 
 class MacOSMetalRenderer: NSObject, MTKViewDelegate {

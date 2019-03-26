@@ -3,7 +3,10 @@ import CoreEngineInterop
 
 func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
     let inputsManager = Unmanaged<MacOSInputsManager>.fromOpaque(inputsContext!).takeUnretainedValue()
-    return inputsManager.inputsState
+    let result = inputsManager.inputsState
+    inputsManager.inputsState.Mouse.DeltaX.Value = 0
+    inputsManager.inputsState.Mouse.DeltaY.Value = 0
+    return result
 }
 
 class MacOSInputsManager {
@@ -22,79 +25,89 @@ class MacOSInputsManager {
 
         switch (keyChar) {
             case "a":
-                self.inputsState.Keyboard.KeyA.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyA.Value = computeInputObjectValue(event)
             case "b":
-                self.inputsState.Keyboard.KeyB.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyB.Value = computeInputObjectValue(event)
             case "c":
-                self.inputsState.Keyboard.KeyC.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyC.Value = computeInputObjectValue(event)
             case "d":
-                self.inputsState.Keyboard.KeyD.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyD.Value = computeInputObjectValue(event)
             case "e":
-                self.inputsState.Keyboard.KeyE.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyE.Value = computeInputObjectValue(event)
             case "f":
-                self.inputsState.Keyboard.KeyF.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyF.Value = computeInputObjectValue(event)
             case "g":
-                self.inputsState.Keyboard.KeyG.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyG.Value = computeInputObjectValue(event)
             case "h":
-                self.inputsState.Keyboard.KeyH.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyH.Value = computeInputObjectValue(event)
             case "i":
-                self.inputsState.Keyboard.KeyI.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyI.Value = computeInputObjectValue(event)
             case "j":
-                self.inputsState.Keyboard.KeyJ.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyJ.Value = computeInputObjectValue(event)
             case "k":
-                self.inputsState.Keyboard.KeyK.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyK.Value = computeInputObjectValue(event)
             case "l":
-                self.inputsState.Keyboard.KeyL.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyL.Value = computeInputObjectValue(event)
             case "m":
-                self.inputsState.Keyboard.KeyM.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyM.Value = computeInputObjectValue(event)
             case "n":
-                self.inputsState.Keyboard.KeyN.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyN.Value = computeInputObjectValue(event)
             case "o":
-                self.inputsState.Keyboard.KeyO.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyO.Value = computeInputObjectValue(event)
             case "p":
-                self.inputsState.Keyboard.KeyP.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyP.Value = computeInputObjectValue(event)
             case "q":
-                self.inputsState.Keyboard.KeyQ.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyQ.Value = computeInputObjectValue(event)
             case "r":
-                self.inputsState.Keyboard.KeyR.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyR.Value = computeInputObjectValue(event)
             case "s":
-                self.inputsState.Keyboard.KeyS.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyS.Value = computeInputObjectValue(event)
             case "t":
-                self.inputsState.Keyboard.KeyT.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyT.Value = computeInputObjectValue(event)
             case "u":
-                self.inputsState.Keyboard.KeyU.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyU.Value = computeInputObjectValue(event)
             case "v":
-                self.inputsState.Keyboard.KeyV.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyV.Value = computeInputObjectValue(event)
             case "w":
-                self.inputsState.Keyboard.KeyW.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyW.Value = computeInputObjectValue(event)
             case "x":
-                self.inputsState.Keyboard.KeyX.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyX.Value = computeInputObjectValue(event)
             case "y":
-                self.inputsState.Keyboard.KeyY.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyY.Value = computeInputObjectValue(event)
             case "z":
-                self.inputsState.Keyboard.KeyZ.Value = computeKeyboardInputObjectValue(event)
+                self.inputsState.Keyboard.KeyZ.Value = computeInputObjectValue(event)
             default:
                 processSpecialKeyboardKeys(event)
         }
+    }
+
+    func processMouseMovedEvent(_ event: NSEvent) {
+        self.inputsState.Mouse.DeltaX.Value = -((event.deltaX != CGFloat.nan) ? Float(event.deltaX * 0.5) : 0)
+        self.inputsState.Mouse.DeltaY.Value = -((event.deltaY != CGFloat.nan) ? Float(event.deltaY * 0.5) : 0)
+    }
+
+    func processMouseLeftButtonUpEvent(_ event: NSEvent) {
+        self.inputsState.Mouse.LeftButton.Value = computeInputObjectValue(event)
+        self.inputsState.Mouse.LeftButton.TransitionCount = 1
     }
 
     private func processSpecialKeyboardKeys(_ event: NSEvent) {
         let keyCode = event.keyCode
         
         if (keyCode == 123) { // Left Arrow
-            self.inputsState.Keyboard.LeftArrow.Value = computeKeyboardInputObjectValue(event)
+            self.inputsState.Keyboard.LeftArrow.Value = computeInputObjectValue(event)
         } else if (keyCode == 124) { // Right Arrow
-            self.inputsState.Keyboard.RightArrow.Value = computeKeyboardInputObjectValue(event)
+            self.inputsState.Keyboard.RightArrow.Value = computeInputObjectValue(event)
         } else if (keyCode == 126) { // Up Arrow
-            self.inputsState.Keyboard.UpArrow.Value = computeKeyboardInputObjectValue(event)
+            self.inputsState.Keyboard.UpArrow.Value = computeInputObjectValue(event)
         } else if (keyCode == 125) { // Down Arrow
-            self.inputsState.Keyboard.DownArrow.Value = computeKeyboardInputObjectValue(event)
+            self.inputsState.Keyboard.DownArrow.Value = computeInputObjectValue(event)
         } else {
             NSApplication.shared.sendEvent(event)
         }
     }
 
-    private func computeKeyboardInputObjectValue(_ event: NSEvent) -> Float {
+    private func computeInputObjectValue(_ event: NSEvent) -> Float {
         return (event.type == .keyDown) ? 1.0 : 0.0
     }
 }

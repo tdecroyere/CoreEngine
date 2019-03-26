@@ -47,5 +47,15 @@ namespace CoreEngine.Inputs
         {
             return (this.inputsState.Keyboard.KeyS.Value > 0.0f) || (this.inputsState.Keyboard.DownArrow.Value > 0.0f);
         }
+
+        public bool IsLeftMousePressed()
+        {
+            return (this.inputsState.Mouse.LeftButton.Value == 0.0f && this.inputsState.Mouse.LeftButton.TransitionCount > 0);
+        }
+
+        public Vector2 GetMouseDelta()
+        {
+            return new Vector2(this.inputsState.Mouse.DeltaX.Value, this.inputsState.Mouse.DeltaY.Value);
+        }
     }
 }

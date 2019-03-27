@@ -33,7 +33,7 @@ dotnet.exe publish /nologo -r win-x64 -c Debug -v Q --self-contained true -o "."
 :Linking_Win32_Executable
    ECHO [93mLinking...[0m
    REM link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO /NODEFAULTLIB libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
-   link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO
+   link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:WINDOWS /NOLOGO libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
    
    @IF %ERRORLEVEL% == 0 (
       GOTO Copy_Files

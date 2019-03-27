@@ -30,7 +30,7 @@ namespace CoreEngine.Inputs
 
         public bool IsLeftActionPressed()
         {
-            return (this.inputsState.Keyboard.KeyQ.Value > 0.0f) || (this.inputsState.Keyboard.LeftArrow.Value > 0.0f);
+            return (this.inputsState.Gamepad1.ButtonA.Value > 0.0f) || (this.inputsState.Keyboard.KeyQ.Value > 0.0f) || (this.inputsState.Keyboard.LeftArrow.Value > 0.0f);
         }
 
         public bool IsRightActionPressed()

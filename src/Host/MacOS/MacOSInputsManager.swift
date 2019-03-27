@@ -1,4 +1,5 @@
 import Cocoa
+import GameController
 import CoreEngineInterop
 
 func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
@@ -14,11 +15,11 @@ class MacOSInputsManager {
 
     init() {
         self.inputsState = InputsState()
+        print(GCController.controllers().count)
     }
 
     func processKeyboardEvent(_ event: NSEvent) {
         // TODO: Fill in transition count in case a key state change multiple times per frame
-
         guard let keyChar = event.characters else {
             return
         }
@@ -89,6 +90,28 @@ class MacOSInputsManager {
     func processMouseLeftButtonEvent(_ event: NSEvent) {
         self.inputsState.Mouse.LeftButton.Value = computeInputObjectValue(event)
         self.inputsState.Mouse.LeftButton.TransitionCount = 1
+    }
+
+    func processGamepadControllers() {
+        // TODO: Process connect events
+        
+        let controllers = GCController.controllers()
+
+        if (controllers.count > 0)
+        {
+            setGamepadState(controllers[0], &self.inputsState.Gamepad1)
+        }
+
+        // TODO: Process other gamepads
+    }
+
+    private func setGamepadState(_ controller: GCController, _ gamepad: inout InputsGamepad) {
+        guard let connectedGamepad = controller.gamepad else {
+            return
+        }
+        let data = connectedGamepad.saveSnapshot().snapshotData
+        print(data)
+        gamepad.ButtonA.Value = connectedGamepad.buttonA.value
     }
 
     private func processSpecialKeyboardKeys(_ event: NSEvent) {

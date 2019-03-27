@@ -155,10 +155,10 @@ namespace CoreEngine
         public InputsKeyboard Keyboard;
         public InputsMouse Mouse;
         public InputsTouch Touch;
-        public InputsGamepad GamePad1;
-        public InputsGamepad GamePad2;
-        public InputsGamepad GamePad3;
-        public InputsGamepad GamePad4;
+        public InputsGamepad Gamepad1;
+        public InputsGamepad Gamepad2;
+        public InputsGamepad Gamepad3;
+        public InputsGamepad Gamepad4;
     }
 
     public delegate InputsState GetInputsStateDelegate(IntPtr inputsContext);

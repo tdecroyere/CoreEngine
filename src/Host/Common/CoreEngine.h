@@ -142,10 +142,10 @@ struct InputsState
     struct InputsKeyboard Keyboard;
     struct InputsMouse Mouse;
     struct InputsTouch Touch;
-    struct InputsGamepad GamePad1;
-    struct InputsGamepad GamePad2;
-    struct InputsGamepad GamePad3;
-    struct InputsGamepad GamePad4;
+    struct InputsGamepad Gamepad1;
+    struct InputsGamepad Gamepad2;
+    struct InputsGamepad Gamepad3;
+    struct InputsGamepad Gamepad4;
 };
 
 typedef struct InputsState (*GetInputsStatePtr)(void* inputsContext);

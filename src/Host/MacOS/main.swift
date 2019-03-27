@@ -73,6 +73,7 @@ autoreleasepool {
         autoreleasepool {
             // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
             processPendingMessages(inputsManager: inputsManager)
+            inputsManager.processGamepadControllers()
 
             // let currentCounter = mach_absolute_time()
 

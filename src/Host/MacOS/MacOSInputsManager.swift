@@ -86,7 +86,7 @@ class MacOSInputsManager {
         self.inputsState.Mouse.DeltaY.Value = -((event.deltaY != CGFloat.nan) ? Float(event.deltaY * 0.5) : 0)
     }
 
-    func processMouseLeftButtonUpEvent(_ event: NSEvent) {
+    func processMouseLeftButtonEvent(_ event: NSEvent) {
         self.inputsState.Mouse.LeftButton.Value = computeInputObjectValue(event)
         self.inputsState.Mouse.LeftButton.TransitionCount = 1
     }
@@ -108,6 +108,6 @@ class MacOSInputsManager {
     }
 
     private func computeInputObjectValue(_ event: NSEvent) -> Float {
-        return (event.type == .keyDown) ? 1.0 : 0.0
+        return (event.type == .keyDown || event.type == .leftMouseDown) ? 1.0 : 0.0
     }
 }

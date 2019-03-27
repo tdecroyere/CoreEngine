@@ -53,6 +53,11 @@ namespace CoreEngine.Inputs
             return (this.inputsState.Mouse.LeftButton.Value == 0.0f && this.inputsState.Mouse.LeftButton.TransitionCount > 0);
         }
 
+        public bool IsLeftMouseDown()
+        {
+            return (this.inputsState.Mouse.LeftButton.Value > 0.0f);
+        }
+
         public Vector2 GetMouseDelta()
         {
             return new Vector2(this.inputsState.Mouse.DeltaX.Value, this.inputsState.Mouse.DeltaY.Value);

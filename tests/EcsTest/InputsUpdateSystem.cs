@@ -39,13 +39,13 @@ namespace CoreEngine.Tests.EcsTest
                 playerArray[i].InputVector.X = deltaX; 
                 playerArray[i].InputVector.Y = deltaY;
 
-                if (this.inputsManager.IsLeftMousePressed())
+                if (this.inputsManager.IsLeftMouseDown())
                 {
                     var mouseVector = this.inputsManager.GetMouseDelta();
                     playerArray[i].InputVector = new Vector3(mouseVector.X, mouseVector.Y, 0.0f);
                 }
 
-                Console.WriteLine($"InputVector: {playerArray[i].InputVector}");
+                //Console.WriteLine($"InputVector: {playerArray[i].InputVector}");
             }
         }
     }

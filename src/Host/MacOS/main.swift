@@ -25,14 +25,11 @@ func processPendingMessages(inputsManager: MacOSInputsManager) {
             } else {
                 NSApplication.shared.sendEvent(event)
             }
-        case .mouseMoved:
+        case .mouseMoved, .leftMouseDragged:
             inputsManager.processMouseMovedEvent(event)
             NSApplication.shared.sendEvent(event)
-        case .leftMouseUp:
-            inputsManager.processMouseLeftButtonUpEvent(event)
-            NSApplication.shared.sendEvent(event)
-        case .leftMouseDown:
-            inputsManager.processMouseLeftButtonUpEvent(event)
+        case .leftMouseUp, .leftMouseDown:
+            inputsManager.processMouseLeftButtonEvent(event)
             NSApplication.shared.sendEvent(event)
         default:
             NSApplication.shared.sendEvent(event)

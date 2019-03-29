@@ -29,6 +29,7 @@ func processPendingMessages(inputsManager: MacOSInputsManager) {
             inputsManager.processMouseMovedEvent(event)
             NSApplication.shared.sendEvent(event)
         case .leftMouseUp, .leftMouseDown:
+            // TODO: Prevent the event to be catched when dragging the window title
             inputsManager.processMouseLeftButtonEvent(event)
             NSApplication.shared.sendEvent(event)
         default:

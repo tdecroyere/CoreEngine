@@ -14,8 +14,9 @@ class MacOSInputsManager {
     var inputsState: InputsState
 
     init() {
+        ExtendedGCController.shared.initialize()
         self.inputsState = InputsState()
-        print(GCController.controllers().count)
+        print(ExtendedGCController.controllers().count)
     }
 
     func processKeyboardEvent(_ event: NSEvent) {
@@ -94,11 +95,11 @@ class MacOSInputsManager {
 
     func processGamepadControllers() {
         // TODO: Process connect events
-        
-        let controllers = GCController.controllers()
+        let controllers = ExtendedGCController.controllers()
 
         if (controllers.count > 0)
         {
+            //print(controllers[0].vendorName)
             setGamepadState(controllers[0], &self.inputsState.Gamepad1)
         }
 
@@ -109,8 +110,7 @@ class MacOSInputsManager {
         guard let connectedGamepad = controller.gamepad else {
             return
         }
-        let data = connectedGamepad.saveSnapshot().snapshotData
-        print(data)
+        
         gamepad.ButtonA.Value = connectedGamepad.buttonA.value
     }
 

@@ -1,46 +1,11 @@
-#include <stdio.h>
+#pragma once
+
 #include <windows.h>
 #include <string>
-#include "WindowsMain.h"
+#include "WindowsCommon.h"
 #include "../Common/CoreEngine.h"
 
-InputsState inputsState = {};
-
-
-int AddTestHostMethod(int a, int b)
-{
-	return a + b;
-}
-
-Span GetTestBuffer()
-{
-	unsigned char* testBuffer = new unsigned char[5];
-
-	testBuffer[0] = 1;
-	testBuffer[1] = 2;
-	testBuffer[2] = 3;
-	testBuffer[3] = 4;
-	testBuffer[4] = 5;
-
-    Span span = {};
-    span.Buffer = testBuffer;
-    span.Length = 5;
-
-	return span;
-}
-
-void DebugDrawTriangle(void* graphicsContext, Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)
-{
-    printf("DebugDrawTriangle Color1(%f, %f, %f, %f)\n", color1.X, color1.Y, color1.Z, color1.W);
-    printf("DebugDrawTriangle Color2(%f, %f, %f, %f)\n", color2.X, color2.Y, color2.Z, color2.W);
-    printf("DebugDrawTriangle Color3(%f, %f, %f, %f)\n", color3.X, color3.Y, color3.Z, color3.W);
-}
-
-InputsState GetInputsState(void* inputsContext)
-{
-    printf("GetInputsState\n");
-    return inputsState;
-}
+using namespace std;
 
 void BuildTpaList(const char* directory, const char* extension, std::string& tpaList)
 {
@@ -180,32 +145,21 @@ internal HWND Win32InitWindow(HINSTANCE applicationInstance, LPSTR windowName, i
 
 	if (RegisterClassA(&windowClass))
 	{
-		// Setup the application to ajust its resolution based on windows scaling settings
-		// if it is available
-		HMODULE shcoreLibrary = LoadLibraryA("shcore.dll");
-
-		// TODO: Account for larger DPI screens and do something better for them. Better
-		// Asset resolution?
-
 		SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         
-		// Ajust the client area based on the style of the window
         UINT dpi = GetDpiForWindow(GetDesktopWindow());
 
-        float scaling_factor = static_cast<float>(dpi) / 96;
+        float scaling_factor = (float)dpi / 96;
 
-RECT clientRectangle;
-clientRectangle.left = 0;
-clientRectangle.top = 0;
-clientRectangle.right = static_cast<LONG>(1280 * scaling_factor);
-clientRectangle.bottom = static_cast<LONG>(720 * scaling_factor);
-
-
+		// Ajust the client area based on the style of the window
+        RECT clientRectangle;
+        clientRectangle.left = 0;
+        clientRectangle.top = 0;
+        clientRectangle.right = (long)(width * scaling_factor);
+        clientRectangle.bottom = (long)(height * scaling_factor);
 
         AdjustWindowRectExForDpi(&clientRectangle, 0, false, 0, dpi);
 
-		// RECT clientRectangle = { 0, 0, width, height };
-		// AdjustWindowRect(&clientRectangle, WS_OVERLAPPEDWINDOW, false);
 		width = clientRectangle.right - clientRectangle.left;
 		height = clientRectangle.bottom - clientRectangle.top;
 
@@ -229,9 +183,6 @@ clientRectangle.bottom = static_cast<LONG>(720 * scaling_factor);
 			applicationInstance,
 			0);
 
-        
-        RECT testRect;
-        GetClientRect(window, &testRect);
 		return window;
 	}
 
@@ -295,91 +246,20 @@ int main(int argc, char const *argv[])
 {
     printf("CoreEngine Windows Host\n");
 
-	LPCSTR appPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows";
-	LPCSTR coreClrPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows\\CoreClr.dll";
-
-	std::string tpaList;
-	BuildTpaList(appPath, "dll", tpaList);
-
-	HMODULE coreClr = LoadLibraryExA(coreClrPath, NULL, 0);
-
-	coreclr_initialize_ptr initializeCoreClr = (coreclr_initialize_ptr)GetProcAddress(coreClr, "coreclr_initialize");
-	coreclr_create_delegate_ptr createManagedDelegate = (coreclr_create_delegate_ptr)GetProcAddress(coreClr, "coreclr_create_delegate");
-	coreclr_shutdown_ptr shutdownCoreClr = (coreclr_shutdown_ptr)GetProcAddress(coreClr, "coreclr_shutdown");
-
-	// Define CoreCLR properties
-	// Other properties related to assembly loading are common here,
-	// but for this simple sample, TRUSTED_PLATFORM_ASSEMBLIES is all
-	// that is needed. Check hosting documentation for other common properties.
-	const char* propertyKeys[] = {
-		"TRUSTED_PLATFORM_ASSEMBLIES"      // Trusted assemblies
-	};
-
-	const char* propertyValues[] = {
-		tpaList.c_str()
-	};
-
-	void* hostHandle;
-unsigned int domainId;
-
-// This function both starts the .NET Core runtime and creates
-// the default (and only) AppDomain
-int hr = initializeCoreClr(
-                "C:\\Projects\\perso\\CoreEngine\\build\\Windows",        // App base path
-                "SampleHost",       // AppDomain friendly name
-                sizeof(propertyKeys) / sizeof(char*),   // Property count
-                propertyKeys,       // Property names
-                propertyValues,     // Property values
-                &hostHandle,        // Host handle
-                &domainId);         // AppDomain ID
-
-StartEnginePtr StartEngine;    
-UpdateEnginePtr UpdateEngine;    
-
-// The assembly name passed in the third parameter is a managed assembly name
-// as described at https://docs.microsoft.com/dotnet/framework/app-domains/assembly-names
-hr = createManagedDelegate(
-        hostHandle, 
-        domainId,
-        "CoreEngine",
-        "CoreEngine.Bootloader",
-        "StartEngine",
-        (void**)&StartEngine);
-
-        hr = createManagedDelegate(
-        hostHandle, 
-        domainId,
-        "CoreEngine",
-        "CoreEngine.Bootloader",
-        "UpdateEngine",
-        (void**)&UpdateEngine);
-
-    
- 
-    HostPlatform hostPlatform = {};
-    hostPlatform.TestParameter = 5;
-
-    char* appName = nullptr;
+    string appName = string();
 
     if (argc > 1)
     {
-        appName = (char*)malloc(strlen((char*)argv[1]));
-        strcpy(appName, argv[1]);
+        appName = string(argv[1]);
     }
 
-    hostPlatform.AddTestHostMethod = AddTestHostMethod;
-    hostPlatform.GetTestBuffer = GetTestBuffer;
+    WindowsCoreEngineHost* coreEngineHost = new WindowsCoreEngineHost();
+    coreEngineHost->StartEngine(appName);
 
-    hostPlatform.GraphicsService.DebugDrawTriangle = DebugDrawTriangle;
+    // TODO: To remove, this is only used for debugging with console messages
+    WinMain(GetModuleHandle(NULL), NULL, GetCommandLineA(), SW_SHOWNORMAL);
 
-    hostPlatform.InputsService.GetInputsState = GetInputsState;
-
-    StartEngine(appName, &hostPlatform);
-
-    inputsState.Keyboard.KeyQ.Value = 1;
-    UpdateEngine(5);
-
-    shutdownCoreClr(hostHandle, domainId);
+    coreEngineHost->UpdateEngine(5);
 
 	printf("CoreEngine Windows Host has ended.\n");
 	getchar();

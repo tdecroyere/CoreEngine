@@ -1,14 +1,6 @@
 #pragma once
 
-#include <ShellScalingAPI.h>
-#include <Windows.h>
-#include <Xinput.h>
 #include <stdint.h>
-#include <mmdeviceapi.h>
-#include <Audioclient.h>
-#include <stdio.h>
-#include <math.h>
-#include <intrin.h>
 
 typedef int8_t int8;
 typedef int16_t int16;
@@ -37,16 +29,3 @@ typedef double real64;
 
 #define internal static
 #define global static
-
-
-struct Win32State
-{
-	HWND Window;
-	WINDOWPLACEMENT PreviousWindowPlacement;
-};
-
-// TODO: Why we need to declare that ourselves?
-typedef unsigned long QWORD;
-
-// SetProcessDPIAwareness function pointer definition
-typedef HRESULT WINAPI Set_Process_DPI_Awareness(DPI_AWARENESS_CONTEXT value);

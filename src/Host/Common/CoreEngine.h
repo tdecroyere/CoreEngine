@@ -1,3 +1,5 @@
+#pragma once
+
 struct Span
 {
 	unsigned char* Buffer;

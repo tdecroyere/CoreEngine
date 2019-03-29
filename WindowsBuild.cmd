@@ -21,7 +21,7 @@ dotnet.exe publish /nologo -r win-x64 -c Debug -v Q --self-contained true -o "."
 :Compile_Windows_Executable
     ECHO [93mCompiling Windows Executable...[0m
     SET COMPILER_OPTIONS=/c /nologo /DCOREENGINE_INTERNAL=1 /DCOREENGINE_SLOW=1 /MTd /FC /Oi /GR- /Gm- /EHa- /Zi /wd4201 /wd4505 
-    cl.exe %COMPILER_OPTIONS% "..\..\src\Host\Windows\WindowsMain.cpp"
+    cl.exe %COMPILER_OPTIONS% "..\..\src\Host\Windows\CompilationUnit.cpp"
 
     @IF %ERRORLEVEL% == 0 (
         GOTO Linking_Win32_Executable
@@ -33,7 +33,7 @@ dotnet.exe publish /nologo -r win-x64 -c Debug -v Q --self-contained true -o "."
 :Linking_Win32_Executable
    ECHO [93mLinking...[0m
    REM link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO /NODEFAULTLIB libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
-   link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:WINDOWS /NOLOGO libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
+   link.exe "CompilationUnit.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
    
    @IF %ERRORLEVEL% == 0 (
       GOTO Copy_Files

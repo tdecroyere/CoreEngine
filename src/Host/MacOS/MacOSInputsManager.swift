@@ -95,13 +95,13 @@ class MacOSInputsManager {
 
     func processGamepadControllers() {
         // TODO: Process connect events
-        let controllers = ExtendedGCController.controllers()
+        // let controllers = ExtendedGCController.controllers()
 
-        if (controllers.count > 0)
-        {
-            //print(controllers[0].vendorName)
-            setGamepadState(controllers[0], &self.inputsState.Gamepad1)
-        }
+        // if (controllers.count > 0)
+        // {
+        //     //print(controllers[0].vendorName)
+        //     setGamepadState(controllers[0], &self.inputsState.Gamepad1)
+        // }
 
         // TODO: Process other gamepads
     }

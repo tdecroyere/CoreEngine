@@ -1,5 +1,4 @@
 import Cocoa
-import GameController
 import CoreEngineInterop
 
 func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
@@ -12,11 +11,11 @@ func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
 
 class MacOSInputsManager {
     var inputsState: InputsState
+    var gamepadManager: MacOSGamepadManager
 
     init() {
-        ExtendedGCController.shared.initialize()
         self.inputsState = InputsState()
-        print(ExtendedGCController.controllers().count)
+        self.gamepadManager = MacOSGamepadManager()
     }
 
     func processKeyboardEvent(_ event: NSEvent) {
@@ -95,23 +94,20 @@ class MacOSInputsManager {
 
     func processGamepadControllers() {
         // TODO: Process connect events
-        // let controllers = ExtendedGCController.controllers()
+        let controllers = self.gamepadManager.registeredGamepads
 
-        // if (controllers.count > 0)
-        // {
-        //     //print(controllers[0].vendorName)
-        //     setGamepadState(controllers[0], &self.inputsState.Gamepad1)
-        // }
+        if (controllers.count > 0)
+        {
+            print(controllers[0].productName)
+            setGamepadState(controllers[0], &self.inputsState.Gamepad1)
+        }
 
         // TODO: Process other gamepads
     }
 
-    private func setGamepadState(_ controller: GCController, _ gamepad: inout InputsGamepad) {
-        guard let connectedGamepad = controller.gamepad else {
-            return
-        }
-        
-        gamepad.ButtonA.Value = connectedGamepad.buttonA.value
+    private func setGamepadState(_ controller: MacOSGamepad, _ gamepad: inout InputsGamepad) {
+        //print(connectedGamepad.buttonA.value)
+        gamepad.Button1.Value = controller.button1
     }
 
     private func processSpecialKeyboardKeys(_ event: NSEvent) {

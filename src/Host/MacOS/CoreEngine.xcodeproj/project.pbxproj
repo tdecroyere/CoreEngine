@@ -7,17 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D80E2DD2224CC42300606D78 /* ExtendedGCController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80E2DD1224CC42300606D78 /* ExtendedGCController.swift */; };
 		D80EF997223E96CB00101B44 /* MacOSMetalRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80EF996223E96CB00101B44 /* MacOSMetalRenderer.swift */; };
 		D832C6AD22174B9A007A1471 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83764DC2205D1CF00B58450 /* main.swift */; };
 		D832C6AE22174B9E007A1471 /* MacOSAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83764DE2205D1CF00B58450 /* MacOSAppDelegate.swift */; };
 		D832C6B022174CBC007A1471 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = D83764DD2205D1CF00B58450 /* Info.plist */; };
 		D85FC53C2249FEE500D06AE8 /* MacOSInputsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85FC53A2249FEE500D06AE8 /* MacOSInputsManager.swift */; };
 		D85FC53D2249FEE500D06AE8 /* MacOSCoreEngineHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85FC53B2249FEE500D06AE8 /* MacOSCoreEngineHost.swift */; };
+		D8DD014F22533BEB003D1566 /* MacOSGamepadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8DD014E22533BEB003D1566 /* MacOSGamepadManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		D80E2DD1224CC42300606D78 /* ExtendedGCController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ExtendedGCController.swift; sourceTree = "<group>"; };
 		D80EF996223E96CB00101B44 /* MacOSMetalRenderer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MacOSMetalRenderer.swift; sourceTree = "<group>"; };
 		D83764DC2205D1CF00B58450 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		D83764DD2205D1CF00B58450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -27,6 +26,7 @@
 		D8B8678D221DCB1100038D85 /* CoreEngine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CoreEngine.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8B8EFD72243556700CBA8EA /* CoreEngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CoreEngine.h; path = ../Common/CoreEngine.h; sourceTree = "<group>"; };
 		D8C39FD7223088D6000DD154 /* module.modulemap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
+		D8DD014E22533BEB003D1566 /* MacOSGamepadManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MacOSGamepadManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,7 +43,7 @@
 		D8F823862205D12E00EF36A5 = {
 			isa = PBXGroup;
 			children = (
-				D80E2DD1224CC42300606D78 /* ExtendedGCController.swift */,
+				D8DD014E22533BEB003D1566 /* MacOSGamepadManager.swift */,
 				D8B8EFD72243556700CBA8EA /* CoreEngine.h */,
 				D8C39FD7223088D6000DD154 /* module.modulemap */,
 				D83764DD2205D1CF00B58450 /* Info.plist */,
@@ -125,8 +125,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D85FC53C2249FEE500D06AE8 /* MacOSInputsManager.swift in Sources */,
+				D8DD014F22533BEB003D1566 /* MacOSGamepadManager.swift in Sources */,
 				D85FC53D2249FEE500D06AE8 /* MacOSCoreEngineHost.swift in Sources */,
-				D80E2DD2224CC42300606D78 /* ExtendedGCController.swift in Sources */,
 				D80EF997223E96CB00101B44 /* MacOSMetalRenderer.swift in Sources */,
 				D832C6AE22174B9E007A1471 /* MacOSAppDelegate.swift in Sources */,
 				D832C6AD22174B9A007A1471 /* main.swift in Sources */,

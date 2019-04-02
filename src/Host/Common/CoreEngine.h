@@ -125,10 +125,10 @@ struct InputsGamepad
     struct InputsObject RightStickRight;
     struct InputsObject LeftTrigger;
     struct InputsObject RightTrigger;
-    struct InputsObject ButtonA;
-    struct InputsObject ButtonB;
-    struct InputsObject ButtonX;
-    struct InputsObject ButtonY;
+    struct InputsObject Button1;
+    struct InputsObject Button2;
+    struct InputsObject Button3;
+    struct InputsObject Button4;
     struct InputsObject ButtonStart;
     struct InputsObject ButtonBack;
     struct InputsObject LeftShoulder;

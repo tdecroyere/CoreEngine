@@ -1,6 +1,9 @@
 #pragma once
 
+#include <Windows.h>
+#include <string>
 #include <stdint.h>
+#include "../Common/CoreEngine.h"
 
 typedef int8_t int8;
 typedef int16_t int16;

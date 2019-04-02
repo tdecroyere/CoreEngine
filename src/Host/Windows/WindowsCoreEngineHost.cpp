@@ -1,9 +1,6 @@
 #pragma once
 
-#include <Windows.h>
-#include <string>
 #include "WindowsCommon.h"
-#include "../Common/CoreEngine.h"
 
 using namespace std;
 

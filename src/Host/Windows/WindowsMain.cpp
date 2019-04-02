@@ -1,50 +1,8 @@
 #pragma once
 
-#include <windows.h>
-#include <string>
 #include "WindowsCommon.h"
-#include "../Common/CoreEngine.h"
 
 using namespace std;
-
-void BuildTpaList(const char* directory, const char* extension, std::string& tpaList)
-{
-    // This will add all files with a .dll extension to the TPA list. 
-    // This will include unmanaged assemblies (coreclr.dll, for example) that don't
-    // belong on the TPA list. In a real host, only managed assemblies that the host
-    // expects to load should be included. Having extra unmanaged assemblies doesn't
-    // cause anything to fail, though, so this function just enumerates all dll's in
-    // order to keep this sample concise.
-    std::string searchPath(directory);
-    searchPath.append("\\");
-    searchPath.append("*");
-    searchPath.append(extension);
-
-    WIN32_FIND_DATAA findData;
-    HANDLE fileHandle = FindFirstFileA(searchPath.c_str(), &findData);
-
-    if (fileHandle != INVALID_HANDLE_VALUE)
-    {
-        do
-        {
-            // Append the assembly to the list
-            tpaList.append(directory);
-            tpaList.append("\\");
-            tpaList.append(findData.cFileName);
-            tpaList.append(";");
-
-            // Note that the CLR does not guarantee which assembly will be loaded if an assembly
-            // is in the TPA list multiple times (perhaps from different paths or perhaps with different NI/NI.dll
-            // extensions. Therefore, a real host should probably add items to the list in priority order and only
-            // add a file if it's not already present on the list.
-            //
-            // For this simple sample, though, and because we're only loading TPA assemblies from a single path,
-            // and have no native images, we can ignore that complication.
-        }
-        while (FindNextFileA(fileHandle, &findData));
-        FindClose(fileHandle);
-    }
-}
 
 internal LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {

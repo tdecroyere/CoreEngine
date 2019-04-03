@@ -27,25 +27,27 @@ namespace CoreEngine.Inputs
 
         // TODO: Add an action system to process more easily the raw data from the host
         // TODO: Take into account the keyboard layout when specifying the input config to map to actions
+        // TODO: Manage dead zones with circle or cubic mode for sticks
+        // TODO: Take into account for stick a normalized vector
 
-        public bool IsLeftActionPressed()
+        public float LeftActionValue()
         {
-            return (this.inputsState.Gamepad1.ButtonA.Value > 0.0f) || (this.inputsState.Keyboard.KeyQ.Value > 0.0f) || (this.inputsState.Keyboard.LeftArrow.Value > 0.0f);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickLeft.Value + this.inputsState.Gamepad1.ButtonA.Value + this.inputsState.Keyboard.KeyQ.Value + this.inputsState.Keyboard.LeftArrow.Value);
         }
 
-        public bool IsRightActionPressed()
+        public float RightActionValue()
         {
-            return (this.inputsState.Keyboard.KeyD.Value > 0.0f) || (this.inputsState.Keyboard.RightArrow.Value > 0.0f);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickRight.Value + this.inputsState.Keyboard.KeyD.Value + this.inputsState.Keyboard.RightArrow.Value);
         }
 
-        public bool IsUpActionPressed()
+        public float UpActionValue()
         {
-            return (this.inputsState.Keyboard.KeyZ.Value > 0.0f) || (this.inputsState.Keyboard.UpArrow.Value > 0.0f);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickUp.Value + this.inputsState.Keyboard.KeyZ.Value + this.inputsState.Keyboard.UpArrow.Value);
         }
 
-        public bool IsDownActionPressed()
+        public float DownActionValue()
         {
-            return (this.inputsState.Keyboard.KeyS.Value > 0.0f) || (this.inputsState.Keyboard.DownArrow.Value > 0.0f);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickDown.Value + this.inputsState.Keyboard.KeyS.Value + this.inputsState.Keyboard.DownArrow.Value);
         }
 
         public bool IsLeftMousePressed()

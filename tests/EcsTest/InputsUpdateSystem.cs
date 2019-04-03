@@ -30,11 +30,14 @@ namespace CoreEngine.Tests.EcsTest
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                var deltaX = (this.inputsManager.IsLeftActionPressed()) ? 1 : 0;
-                deltaX += (this.inputsManager.IsRightActionPressed()) ? -1 : 0;
+                // TODO: Unify the input vector calculation into the InputManager
+                // By calculating deadzones
 
-                var deltaY = (this.inputsManager.IsDownActionPressed()) ? -1 : 0;
-                deltaY += (this.inputsManager.IsUpActionPressed()) ? 1 : 0;
+                var deltaX = this.inputsManager.LeftActionValue();
+                deltaX -= this.inputsManager.RightActionValue();
+
+                var deltaY = this.inputsManager.UpActionValue();
+                deltaY -= this.inputsManager.DownActionValue();
 
                 playerArray[i].InputVector.X = deltaX; 
                 playerArray[i].InputVector.Y = deltaY;

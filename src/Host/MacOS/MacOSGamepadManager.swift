@@ -28,7 +28,6 @@ func controllerConnected(context: UnsafeMutableRawPointer?, result: IOReturn, se
 }
 
 func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender: UnsafeMutableRawPointer?, value: IOHIDValue) {
-    print("controller value")
     let device = Unmanaged<MacOSGamepad>.fromOpaque(context!).takeUnretainedValue()
 
     if (result != kIOReturnSuccess) {
@@ -40,53 +39,89 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
 
         let usagePage = IOHIDElementGetUsagePage(element)
  	    let usage = IOHIDElementGetUsage(element)
-        print("============")
-        print("UsagePage: \(usagePage) - Usage: \(usage)")
+        //print("============")
+        //print("UsagePage: \(usagePage) - Usage: \(usage)")
 
-        let state = IOHIDValueGetIntegerValue(value);
-        let analog = IOHIDValueGetScaledValue(value, IOHIDValueScaleType(kIOHIDValueScaleTypeCalibrated));
+        //let rawInputValue = Float(Int(IOHIDValueGetIntegerValue(value)));
+        let rawInputValue = Float(IOHIDValueGetScaledValue(value, IOHIDValueScaleType(kIOHIDValueScaleTypeCalibrated)))
 
-        print("State: \(state) - Analog: \(analog)")
+        //print("RawInputValue: \(rawInputValue)")
         
-        if (usage == 0x01) {
-            device.button1 = Float(state)
-            // device._snapshot.buttonA = Float(state)
-            // print(device._snapshot.buttonA)
-            //device._extendedGamepad!.snapshotData = NSDataFromGCExtendedGamepadSnapshotData(&device._snapshot)!
-            //device.extendedGamepad!.buttonA.value = Float(state)
+        switch (usage) {
+            case device.button1UsageId:
+                device.button1 = rawInputValue
+            case device.button2UsageId:
+                device.button2 = rawInputValue
+            case device.button3UsageId:
+                device.button3 = rawInputValue
+            case device.button4UsageId:
+                device.button4 = rawInputValue
+            case device.leftShoulderUsageID:
+                device.leftShoulder = rawInputValue
+            case device.rightShoulderUsageID:
+                device.rightShoulder = rawInputValue
+            case device.buttonBackUsageID:
+                device.buttonBack = rawInputValue
+            case device.buttonStartUsageID:
+                device.buttonStart = rawInputValue
+            case device.leftTriggerUsageID:
+                device.leftTrigger = rawInputValue / device.leftTriggerMaxValue
+            case device.rightTriggerUsageID:
+                device.rightTrigger = rawInputValue / device.rightTriggerMaxValue
+            case device.leftThumbXUsageID:
+                device.leftThumbX = (rawInputValue - device.leftThumbXMaxValue) / device.leftThumbXMaxValue
+            case device.leftThumbYUsageID:
+                device.leftThumbY = (rawInputValue - device.leftThumbYMaxValue) / device.leftThumbYMaxValue
+            default:
+                print("Warning: Unknown input element")
         }
 	//}
 }
 
 
 class MacOSGamepad {
-    var _lThumbXUsageID: CFIndex = 0
-	var _lThumbYUsageID: CFIndex = 0
-	var _rThumbXUsageID: CFIndex = 0
-	var _rThumbYUsageID: CFIndex = 0
-	var _lTriggerUsageID: CFIndex = 0
-	var _rTriggerUsageID: CFIndex = 0
-	
-    var _usesHatSwitch: Bool = false
-	var _dpadLUsageID: CFIndex = 0
-	var _dpadRUsageID: CFIndex = 0
-	var _dpadDUsageID: CFIndex = 0
-    var _dpadUUsageID: CFIndex = 0
-	
-	var _buttonPauseUsageID: CFIndex = 0
-	var _buttonAUsageID: CFIndex = 0
-	var _buttonBUsageID: CFIndex = 0
-	var _buttonXUsageID: CFIndex = 0
-	var _buttonYUsageID: CFIndex = 0
-	var _lShoulderUsageID: CFIndex = 0
-	var _rShoulderUsageID: CFIndex = 0
+    var button1UsageId: UInt32 = 0
+	var button2UsageId: UInt32 = 0
+	var button3UsageId: UInt32 = 0
+	var button4UsageId: UInt32 = 0
+	var leftShoulderUsageID: UInt32 = 0
+	var rightShoulderUsageID: UInt32 = 0
+    var buttonStartUsageID: UInt32 = 0
+    var buttonBackUsageID: UInt32 = 0
 
-    var deadZonePercent: Float = 0.25
+    var leftTriggerUsageID: UInt32 = 0
+    var leftTriggerMaxValue: Float = 1023.0
+	var rightTriggerUsageID: UInt32 = 0
+    var rightTriggerMaxValue: Float = 1023.0
 
+    var leftThumbXUsageID: UInt32 = 0
+    var leftThumbXMaxValue: Float = 32767.0
+	var leftThumbYUsageID: UInt32 = 0
+    var leftThumbYMaxValue: Float = 32767.0
+	var _rThumbXUsageID: UInt32 = 0
+	var _rThumbYUsageID: UInt32 = 0
+	
+	
+	var _dpadLUsageID: UInt32 = 0
+	var _dpadRUsageID: UInt32 = 0
+	var _dpadDUsageID: UInt32 = 0
+    var _dpadUUsageID: UInt32 = 0
+	
     var manufacturerName: String
     var productName: String
 
     var button1: Float = 0.0
+    var button2: Float = 0.0
+    var button3: Float = 0.0
+    var button4: Float = 0.0
+    var leftShoulder: Float = 0.0
+    var rightShoulder: Float = 0.0
+    var buttonStart: Float = 0.0
+    var buttonBack: Float = 0.0
+    var leftTrigger: Float = 0.0
+    var rightTrigger: Float = 0.0
+    var leftThumbX: Float = 0.0
+    var leftThumbY: Float = 0.0
 
     init(device: IOHIDDevice) {
         print("init device")
@@ -100,25 +135,30 @@ class MacOSGamepad {
         // TODO: PS4 Controller and other xbox controllers
         if (vendorId == .microsoft) {
             if (productId == .xboxOneWireless) {
-                self._lThumbXUsageID = 49
-				self._lThumbYUsageID = 48
+                self.button1UsageId = 1
+				self.button2UsageId = 2
+				self.button3UsageId = 4
+				self.button4UsageId = 5
+
+                self.leftShoulderUsageID = 7
+				self.rightShoulderUsageID = 8
+
+                self.leftTriggerUsageID = 197
+				self.rightTriggerUsageID = 196
+
+                self.buttonStartUsageID = 12
+                self.buttonBackUsageID = 548
+
+                self.leftThumbXUsageID = 48
+				self.leftThumbYUsageID = 49
+
 				self._rThumbXUsageID = 53
 				self._rThumbYUsageID = 50
-				self._lTriggerUsageID = 197
-				self._rTriggerUsageID = 196
 				
 				self._dpadLUsageID = 0x0E
 				self._dpadRUsageID = 0x0F
 				self._dpadDUsageID = 0x0D
 				self._dpadUUsageID = 0x0C
-				
-				self._buttonPauseUsageID = 0x09
-				self._buttonAUsageID = 0x01
-				self._buttonBUsageID = 0x02
-				self._buttonXUsageID = 0x03
-				self._buttonYUsageID = 0x04
-				self._lShoulderUsageID = 0x05
-				self._rShoulderUsageID = 0x06
             }
         }
 

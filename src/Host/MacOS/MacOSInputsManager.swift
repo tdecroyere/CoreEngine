@@ -98,7 +98,7 @@ class MacOSInputsManager {
 
         if (controllers.count > 0)
         {
-            print(controllers[0].productName)
+            //print(controllers[0].productName)
             setGamepadState(controllers[0], &self.inputsState.Gamepad1)
         }
 
@@ -106,8 +106,22 @@ class MacOSInputsManager {
     }
 
     private func setGamepadState(_ controller: MacOSGamepad, _ gamepad: inout InputsGamepad) {
-        //print(connectedGamepad.buttonA.value)
         gamepad.Button1.Value = controller.button1
+        gamepad.Button2.Value = controller.button2
+        gamepad.Button3.Value = controller.button3
+        gamepad.Button4.Value = controller.button4
+        gamepad.LeftShoulder.Value = controller.leftShoulder
+        gamepad.RightShoulder.Value = controller.rightShoulder
+        gamepad.ButtonStart.Value = controller.buttonStart
+        gamepad.ButtonBack.Value = controller.buttonBack
+        gamepad.LeftTrigger.Value = controller.leftTrigger
+        gamepad.RightTrigger.Value = controller.rightTrigger
+
+        gamepad.LeftStickLeft.Value = (controller.leftThumbX < 0.0) ? -controller.leftThumbX : 0.0
+        gamepad.LeftStickRight.Value = (controller.leftThumbX > 0.0) ? controller.leftThumbX : 0.0
+
+        gamepad.LeftStickUp.Value = (controller.leftThumbY < 0.0) ? -controller.leftThumbY : 0.0
+        gamepad.LeftStickDown.Value = (controller.leftThumbY > 0.0) ? controller.leftThumbY : 0.0
     }
 
     private func processSpecialKeyboardKeys(_ event: NSEvent) {

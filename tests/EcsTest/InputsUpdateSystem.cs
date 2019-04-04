@@ -33,14 +33,13 @@ namespace CoreEngine.Tests.EcsTest
                 // TODO: Unify the input vector calculation into the InputManager
                 // By calculating deadzones
 
-                var deltaX = this.inputsManager.LeftActionValue();
-                deltaX -= this.inputsManager.RightActionValue();
+                // var deltaX = this.inputsManager.LeftActionValue();
+                // deltaX -= this.inputsManager.RightActionValue();
 
-                var deltaY = this.inputsManager.UpActionValue();
-                deltaY -= this.inputsManager.DownActionValue();
+                // var deltaY = this.inputsManager.UpActionValue();
+                // deltaY -= this.inputsManager.DownActionValue();
 
-                playerArray[i].InputVector.X = deltaX; 
-                playerArray[i].InputVector.Y = deltaY;
+                playerArray[i].InputVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
 
                 if (this.inputsManager.IsLeftMouseDown())
                 {

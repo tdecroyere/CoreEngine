@@ -7,6 +7,7 @@ namespace CoreEngine.Inputs
     {
         private readonly InputsService inputsService;
         private InputsState inputsState;
+        private const float deadZoneSquared = 0.1f;
 
         public InputsManager(InputsService inputsService)
         {
@@ -29,6 +30,25 @@ namespace CoreEngine.Inputs
         // TODO: Take into account the keyboard layout when specifying the input config to map to actions
         // TODO: Manage dead zones with circle or cubic mode for sticks
         // TODO: Take into account for stick a normalized vector
+        public Vector2 GetMovementVector()
+        {
+            var deltaX = this.LeftActionValue();
+            deltaX -= this.RightActionValue();
+
+            var deltaY = this.UpActionValue();
+            deltaY -= this.DownActionValue();
+
+            var result = new Vector2(deltaX, deltaY);
+            //result = Vector2.Normalize(result);
+
+            // TODO: Apply a circle deadzone for now
+            if (result.LengthSquared() < deadZoneSquared)
+            {
+                return Vector2.Zero;
+            }
+
+            return result;
+        }
 
         public float LeftActionValue()
         {

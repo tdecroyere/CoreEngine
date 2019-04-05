@@ -116,12 +116,20 @@ class MacOSInputsManager {
         gamepad.ButtonBack.Value = controller.buttonBack
         gamepad.LeftTrigger.Value = controller.leftTrigger
         gamepad.RightTrigger.Value = controller.rightTrigger
+        gamepad.DPadUp.Value = controller.dpadUp
+        gamepad.DPadRight.Value = controller.dpadRight
+        gamepad.DPadDown.Value = controller.dpadDown
+        gamepad.DPadLeft.Value = controller.dpadLeft
 
         gamepad.LeftStickLeft.Value = (controller.leftThumbX < 0.0) ? -controller.leftThumbX : 0.0
         gamepad.LeftStickRight.Value = (controller.leftThumbX > 0.0) ? controller.leftThumbX : 0.0
-
         gamepad.LeftStickUp.Value = (controller.leftThumbY < 0.0) ? -controller.leftThumbY : 0.0
         gamepad.LeftStickDown.Value = (controller.leftThumbY > 0.0) ? controller.leftThumbY : 0.0
+
+        gamepad.RightStickLeft.Value = (controller.rightThumbX < 0.0) ? -controller.rightThumbX : 0.0
+        gamepad.RightStickRight.Value = (controller.rightThumbX > 0.0) ? controller.rightThumbX : 0.0
+        gamepad.RightStickUp.Value = (controller.rightThumbY < 0.0) ? -controller.rightThumbY : 0.0
+        gamepad.RightStickDown.Value = (controller.rightThumbY > 0.0) ? controller.rightThumbY : 0.0
     }
 
     private func processSpecialKeyboardKeys(_ event: NSEvent) {

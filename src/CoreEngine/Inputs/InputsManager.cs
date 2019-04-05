@@ -19,6 +19,7 @@ namespace CoreEngine.Inputs
         {
             // TODO: Implement an input action system to map the controls to actions
             // TODO: Take into account transition count
+            // TODO: For the configuration, we should have access to the controller name and vendor
 
             if (this.inputsService.GetInputsState != null)
             {
@@ -52,22 +53,22 @@ namespace CoreEngine.Inputs
 
         public float LeftActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickLeft.Value + this.inputsState.Gamepad1.ButtonA.Value + this.inputsState.Keyboard.KeyQ.Value + this.inputsState.Keyboard.LeftArrow.Value);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadLeft.Value + this.inputsState.Gamepad1.LeftStickLeft.Value + this.inputsState.Gamepad1.RightStickLeft.Value + this.inputsState.Gamepad1.ButtonA.Value + this.inputsState.Keyboard.KeyQ.Value + this.inputsState.Keyboard.LeftArrow.Value);
         }
 
         public float RightActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickRight.Value + this.inputsState.Keyboard.KeyD.Value + this.inputsState.Keyboard.RightArrow.Value);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadRight.Value + this.inputsState.Gamepad1.LeftStickRight.Value + this.inputsState.Gamepad1.RightStickRight.Value + this.inputsState.Keyboard.KeyD.Value + this.inputsState.Keyboard.RightArrow.Value);
         }
 
         public float UpActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickUp.Value + this.inputsState.Keyboard.KeyZ.Value + this.inputsState.Keyboard.UpArrow.Value);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadUp.Value + this.inputsState.Gamepad1.LeftStickUp.Value + this.inputsState.Gamepad1.RightStickUp.Value + this.inputsState.Keyboard.KeyZ.Value + this.inputsState.Keyboard.UpArrow.Value);
         }
 
         public float DownActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickDown.Value + this.inputsState.Keyboard.KeyS.Value + this.inputsState.Keyboard.DownArrow.Value);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadDown.Value + this.inputsState.Gamepad1.LeftStickDown.Value + this.inputsState.Gamepad1.RightStickDown.Value + this.inputsState.Keyboard.KeyS.Value + this.inputsState.Keyboard.DownArrow.Value);
         }
 
         public bool IsLeftMousePressed()

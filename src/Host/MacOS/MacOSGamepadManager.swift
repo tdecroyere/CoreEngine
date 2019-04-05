@@ -1,6 +1,3 @@
-// TODO: Huge bug: controllerConnected is not called anymore. The workaround is to unregister the xbox controller
-// from MacOS and register it again
-
 import Foundation
 import IOKit
 import IOKit.hid
@@ -18,12 +15,29 @@ enum GameControllerProduct: Int {
 }
 
 func controllerConnected(context: UnsafeMutableRawPointer?, result: IOReturn, sender: UnsafeMutableRawPointer?, device: IOHIDDevice) {
-    let gamepadManager = Unmanaged<MacOSGamepadManager>.fromOpaque(context!).takeUnretainedValue()
-    print("controller connected")
+    if (result != kIOReturnSuccess) {
+        return
+    }
 
-    if(result == kIOReturnSuccess) {
-		let controller = MacOSGamepad(device: device)
-        gamepadManager.registeredGamepads.append(controller)
+    print("MacOS: Gamepad controller connected")
+
+    let gamepadManager = Unmanaged<MacOSGamepadManager>.fromOpaque(context!).takeUnretainedValue()
+	let controller = MacOSGamepad(gamepadManager: gamepadManager, device: device)
+    gamepadManager.registeredGamepads.append(controller)
+}
+
+func controllerDisconnected(context: UnsafeMutableRawPointer?, result: IOReturn, sender: UnsafeMutableRawPointer?) {
+    if (result != kIOReturnSuccess) {
+        return
+    }
+
+    print("MacOS: Gamepad controller disconnected")
+    
+    let device = Unmanaged<MacOSGamepad>.fromOpaque(context!).takeUnretainedValue()
+    let gamepadManager = device.gamepadManager
+
+    if let index = gamepadManager.registeredGamepads.firstIndex(where: { $0 === device }) {
+        gamepadManager.registeredGamepads.remove(at: index)
     }
 }
 
@@ -34,17 +48,15 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
         return
     }
 
-    //autoreleasepool {
+    autoreleasepool {
         let element = IOHIDValueGetElement(value)
 
-        let usagePage = IOHIDElementGetUsagePage(element)
  	    let usage = IOHIDElementGetUsage(element)
+        let rawInputValue = Float(Int(IOHIDValueGetIntegerValue(value)));
+
+        // TODO: This code is usefull to do reverse-engineering for gamepad bindings
         //print("============")
-        //print("UsagePage: \(usagePage) - Usage: \(usage)")
-
-        //let rawInputValue = Float(Int(IOHIDValueGetIntegerValue(value)));
-        let rawInputValue = Float(IOHIDValueGetScaledValue(value, IOHIDValueScaleType(kIOHIDValueScaleTypeCalibrated)))
-
+        //print("Usage: \(usage)")
         //print("RawInputValue: \(rawInputValue)")
         
         switch (usage) {
@@ -72,12 +84,43 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
                 device.leftThumbX = (rawInputValue - device.leftThumbXMaxValue) / device.leftThumbXMaxValue
             case device.leftThumbYUsageID:
                 device.leftThumbY = (rawInputValue - device.leftThumbYMaxValue) / device.leftThumbYMaxValue
+            case device.rightThumbXUsageID:
+                device.rightThumbX = (rawInputValue - device.rightThumbXMaxValue) / device.rightThumbXMaxValue
+            case device.rightThumbYUsageID:
+                device.rightThumbY = (rawInputValue - device.rightThumbYMaxValue) / device.rightThumbYMaxValue
+            case device.dpadUsageID:
+                // TODO: Do something with the fact that Xbox One dpad return full circle angles for more precisision?
+                device.dpadUp = 0.0
+                device.dpadRight = 0.0
+                device.dpadDown = 0.0
+                device.dpadLeft = 0.0
+
+                if (rawInputValue >= 0.0 && rawInputValue < 45.0) {
+                    device.dpadUp = 1.0
+                } else if (rawInputValue >= 45.0 && rawInputValue < 90.0) {
+                    device.dpadUp = 1.0
+                    device.dpadRight = 1.0
+                } else if (rawInputValue >= 90.0 && rawInputValue < 135.0) {
+                    device.dpadRight = 1.0
+                } else if (rawInputValue >= 135.0 && rawInputValue < 180.0) {
+                    device.dpadRight = 1.0
+                    device.dpadDown = 1.0
+                } else if (rawInputValue >= 180.0 && rawInputValue < 235.0) {
+                    device.dpadDown = 1.0
+                } else if (rawInputValue >= 235.0 && rawInputValue < 270.0) {
+                    device.dpadDown = 1.0
+                    device.dpadLeft = 1.0
+                } else if (rawInputValue >= 270.0 && rawInputValue < 315.0) {
+                    device.dpadLeft = 1.0
+                } else if (rawInputValue >= 315.0 && rawInputValue < 365.0) {
+                    device.dpadLeft = 1.0
+                    device.dpadUp = 1.0
+                }
             default:
                 print("Warning: Unknown input element")
         }
-	//}
+	}
 }
-
 
 class MacOSGamepad {
     var button1UsageId: UInt32 = 0
@@ -98,15 +141,14 @@ class MacOSGamepad {
     var leftThumbXMaxValue: Float = 32767.0
 	var leftThumbYUsageID: UInt32 = 0
     var leftThumbYMaxValue: Float = 32767.0
-	var _rThumbXUsageID: UInt32 = 0
-	var _rThumbYUsageID: UInt32 = 0
+    var rightThumbXUsageID: UInt32 = 0
+    var rightThumbXMaxValue: Float = 32767.0
+	var rightThumbYUsageID: UInt32 = 0
+    var rightThumbYMaxValue: Float = 32767.0
 	
+	var dpadUsageID: UInt32 = 0
 	
-	var _dpadLUsageID: UInt32 = 0
-	var _dpadRUsageID: UInt32 = 0
-	var _dpadDUsageID: UInt32 = 0
-    var _dpadUUsageID: UInt32 = 0
-	
+    var gamepadManager: MacOSGamepadManager
     var manufacturerName: String
     var productName: String
 
@@ -122,10 +164,15 @@ class MacOSGamepad {
     var rightTrigger: Float = 0.0
     var leftThumbX: Float = 0.0
     var leftThumbY: Float = 0.0
+    var rightThumbX: Float = 0.0
+    var rightThumbY: Float = 0.0
+    var dpadUp: Float = 0.0
+    var dpadRight: Float = 0.0
+    var dpadDown: Float = 0.0
+    var dpadLeft: Float = 0.0
 
-    init(device: IOHIDDevice) {
-        print("init device")
-
+    init(gamepadManager: MacOSGamepadManager, device: IOHIDDevice) {
+        self.gamepadManager = gamepadManager
         self.manufacturerName = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString) as! String
         self.productName  = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as! String
  
@@ -152,18 +199,15 @@ class MacOSGamepad {
                 self.leftThumbXUsageID = 48
 				self.leftThumbYUsageID = 49
 
-				self._rThumbXUsageID = 53
-				self._rThumbYUsageID = 50
+				self.rightThumbXUsageID = 50
+				self.rightThumbYUsageID = 53
 				
-				self._dpadLUsageID = 0x0E
-				self._dpadRUsageID = 0x0F
-				self._dpadDUsageID = 0x0D
-				self._dpadUUsageID = 0x0C
+				self.dpadUsageID = 57
             }
         }
 
         IOHIDDeviceRegisterInputValueCallback(device, controllerInput, Unmanaged.passUnretained(self).toOpaque())	
-		//IOHIDDeviceRegisterRemovalCallback(device, ControllerDisconnected, (void *)CFBridgingRetain(controller));
+		IOHIDDeviceRegisterRemovalCallback(device, controllerDisconnected, Unmanaged.passUnretained(self).toOpaque());
     }
 }
 

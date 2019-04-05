@@ -14,6 +14,60 @@ enum GameControllerProduct: Int {
     case dualShock4 = 0x5C4
 }
 
+protocol MacOSGamepadLayout {
+    var button1UsageId: UInt32 { get }
+	var button2UsageId: UInt32 { get }
+	var button3UsageId: UInt32 { get }
+	var button4UsageId: UInt32 { get }
+    var buttonStartUsageID: UInt32 { get }
+    var buttonBackUsageID: UInt32 { get }
+	var leftShoulderUsageID: UInt32 { get }
+	var rightShoulderUsageID: UInt32 { get }
+
+    var leftTriggerUsageID: UInt32 { get }
+    var leftTriggerMaxValue: Float { get }
+	var rightTriggerUsageID: UInt32 { get }
+    var rightTriggerMaxValue: Float { get }
+
+    var leftThumbXUsageID: UInt32 { get }
+    var leftThumbXMaxValue: Float { get }
+	var leftThumbYUsageID: UInt32 { get }
+    var leftThumbYMaxValue: Float { get }
+    var rightThumbXUsageID: UInt32 { get }
+    var rightThumbXMaxValue: Float { get }
+	var rightThumbYUsageID: UInt32 { get }
+    var rightThumbYMaxValue: Float { get }
+	
+	var dpadUsageID: UInt32 { get }
+}
+
+class MacOSXboxOneWirelessGamepadLayout: MacOSGamepadLayout {
+    var button1UsageId: UInt32 { get { return 1 } }
+    var button2UsageId: UInt32 { get { return 2 } }
+    var button3UsageId: UInt32 { get { return 4 } }
+    var button4UsageId: UInt32 { get { return 5 } }
+    var buttonStartUsageID: UInt32 { get { return 12 } }
+    var buttonBackUsageID: UInt32 { get { return 548 } }
+    var leftShoulderUsageID: UInt32 { get { return 7 } }
+    var rightShoulderUsageID: UInt32 { get { return 8 } }
+    
+    var leftTriggerUsageID: UInt32 { get { return 197 } }
+    var leftTriggerMaxValue: Float { get { return 1023.0 } }
+    var rightTriggerUsageID: UInt32 { get { return 196 } }
+    var rightTriggerMaxValue: Float { get { return 1023.0 } }
+    
+    var leftThumbXUsageID: UInt32 { get { return 48 } }
+    var leftThumbXMaxValue: Float { get { return 32767.0 } }
+    var leftThumbYUsageID: UInt32 { get { return 49 } }
+    var leftThumbYMaxValue: Float { get { return 32767.0 } }
+    var rightThumbXUsageID: UInt32 { get { return 50 } }
+    var rightThumbXMaxValue: Float { get { return 32767.0 } }
+    var rightThumbYUsageID: UInt32 { get { return 53 } }
+    var rightThumbYMaxValue: Float { get { return 32767.0 } }
+    
+    var dpadUsageID: UInt32 { get { return 57 } }
+}
+
 func controllerConnected(context: UnsafeMutableRawPointer?, result: IOReturn, sender: UnsafeMutableRawPointer?, device: IOHIDDevice) {
     if (result != kIOReturnSuccess) {
         return
@@ -32,7 +86,7 @@ func controllerDisconnected(context: UnsafeMutableRawPointer?, result: IOReturn,
     }
 
     print("MacOS: Gamepad controller disconnected")
-    
+
     let device = Unmanaged<MacOSGamepad>.fromOpaque(context!).takeUnretainedValue()
     let gamepadManager = device.gamepadManager
 
@@ -60,35 +114,35 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
         //print("RawInputValue: \(rawInputValue)")
         
         switch (usage) {
-            case device.button1UsageId:
+            case device.gamepadLayout.button1UsageId:
                 device.button1 = rawInputValue
-            case device.button2UsageId:
+            case device.gamepadLayout.button2UsageId:
                 device.button2 = rawInputValue
-            case device.button3UsageId:
+            case device.gamepadLayout.button3UsageId:
                 device.button3 = rawInputValue
-            case device.button4UsageId:
+            case device.gamepadLayout.button4UsageId:
                 device.button4 = rawInputValue
-            case device.leftShoulderUsageID:
+            case device.gamepadLayout.leftShoulderUsageID:
                 device.leftShoulder = rawInputValue
-            case device.rightShoulderUsageID:
+            case device.gamepadLayout.rightShoulderUsageID:
                 device.rightShoulder = rawInputValue
-            case device.buttonBackUsageID:
+            case device.gamepadLayout.buttonBackUsageID:
                 device.buttonBack = rawInputValue
-            case device.buttonStartUsageID:
+            case device.gamepadLayout.buttonStartUsageID:
                 device.buttonStart = rawInputValue
-            case device.leftTriggerUsageID:
-                device.leftTrigger = rawInputValue / device.leftTriggerMaxValue
-            case device.rightTriggerUsageID:
-                device.rightTrigger = rawInputValue / device.rightTriggerMaxValue
-            case device.leftThumbXUsageID:
-                device.leftThumbX = (rawInputValue - device.leftThumbXMaxValue) / device.leftThumbXMaxValue
-            case device.leftThumbYUsageID:
-                device.leftThumbY = (rawInputValue - device.leftThumbYMaxValue) / device.leftThumbYMaxValue
-            case device.rightThumbXUsageID:
-                device.rightThumbX = (rawInputValue - device.rightThumbXMaxValue) / device.rightThumbXMaxValue
-            case device.rightThumbYUsageID:
-                device.rightThumbY = (rawInputValue - device.rightThumbYMaxValue) / device.rightThumbYMaxValue
-            case device.dpadUsageID:
+            case device.gamepadLayout.leftTriggerUsageID:
+                device.leftTrigger = rawInputValue / device.gamepadLayout.leftTriggerMaxValue
+            case device.gamepadLayout.rightTriggerUsageID:
+                device.rightTrigger = rawInputValue / device.gamepadLayout.rightTriggerMaxValue
+            case device.gamepadLayout.leftThumbXUsageID:
+                device.leftThumbX = (rawInputValue - device.gamepadLayout.leftThumbXMaxValue) / device.gamepadLayout.leftThumbXMaxValue
+            case device.gamepadLayout.leftThumbYUsageID:
+                device.leftThumbY = (rawInputValue - device.gamepadLayout.leftThumbYMaxValue) / device.gamepadLayout.leftThumbYMaxValue
+            case device.gamepadLayout.rightThumbXUsageID:
+                device.rightThumbX = (rawInputValue - device.gamepadLayout.rightThumbXMaxValue) / device.gamepadLayout.rightThumbXMaxValue
+            case device.gamepadLayout.rightThumbYUsageID:
+                device.rightThumbY = (rawInputValue - device.gamepadLayout.rightThumbYMaxValue) / device.gamepadLayout.rightThumbYMaxValue
+            case device.gamepadLayout.dpadUsageID:
                 // TODO: Do something with the fact that Xbox One dpad return full circle angles for more precisision?
                 device.dpadUp = 0.0
                 device.dpadRight = 0.0
@@ -123,32 +177,8 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
 }
 
 class MacOSGamepad {
-    var button1UsageId: UInt32 = 0
-	var button2UsageId: UInt32 = 0
-	var button3UsageId: UInt32 = 0
-	var button4UsageId: UInt32 = 0
-	var leftShoulderUsageID: UInt32 = 0
-	var rightShoulderUsageID: UInt32 = 0
-    var buttonStartUsageID: UInt32 = 0
-    var buttonBackUsageID: UInt32 = 0
-
-    var leftTriggerUsageID: UInt32 = 0
-    var leftTriggerMaxValue: Float = 1023.0
-	var rightTriggerUsageID: UInt32 = 0
-    var rightTriggerMaxValue: Float = 1023.0
-
-    var leftThumbXUsageID: UInt32 = 0
-    var leftThumbXMaxValue: Float = 32767.0
-	var leftThumbYUsageID: UInt32 = 0
-    var leftThumbYMaxValue: Float = 32767.0
-    var rightThumbXUsageID: UInt32 = 0
-    var rightThumbXMaxValue: Float = 32767.0
-	var rightThumbYUsageID: UInt32 = 0
-    var rightThumbYMaxValue: Float = 32767.0
-	
-	var dpadUsageID: UInt32 = 0
-	
     var gamepadManager: MacOSGamepadManager
+    var gamepadLayout: MacOSGamepadLayout!
     var manufacturerName: String
     var productName: String
 
@@ -182,27 +212,7 @@ class MacOSGamepad {
         // TODO: PS4 Controller and other xbox controllers
         if (vendorId == .microsoft) {
             if (productId == .xboxOneWireless) {
-                self.button1UsageId = 1
-				self.button2UsageId = 2
-				self.button3UsageId = 4
-				self.button4UsageId = 5
-
-                self.leftShoulderUsageID = 7
-				self.rightShoulderUsageID = 8
-
-                self.leftTriggerUsageID = 197
-				self.rightTriggerUsageID = 196
-
-                self.buttonStartUsageID = 12
-                self.buttonBackUsageID = 548
-
-                self.leftThumbXUsageID = 48
-				self.leftThumbYUsageID = 49
-
-				self.rightThumbXUsageID = 50
-				self.rightThumbYUsageID = 53
-				
-				self.dpadUsageID = 57
+                self.gamepadLayout = MacOSXboxOneWirelessGamepadLayout()
             }
         }
 

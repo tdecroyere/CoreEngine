@@ -10,6 +10,7 @@ Here is a list of documentation:
 
 ## Build Status
 
-| Platform                                     | Status                                                                                                                             |
-|----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| Win32_x64_Direct3D12                         | ![Build Status](https://doublebuffer.visualstudio.com/_apis/public/build/definitions/c0c60ae3-d95b-465b-939a-7d7a54e61b37/3/badge) |
+| Platform | Status |
+|----------|--------|
+| Windows x64 | [![Build Status](https://doublebuffer.visualstudio.com/CoreEngine/_apis/build/status/CoreEngine-CI?branchName=master&jobName=Windows%20VS%202019%20Agent)](https://doublebuffer.visualstudio.com/CoreEngine/_build/latest?definitionId=5&branchName=master) |
+| MacOS x64                       | [![Build Status](https://doublebuffer.visualstudio.com/CoreEngine/_apis/build/status/CoreEngine-CI?branchName=master&jobName=MacOS%20Agent)](https://doublebuffer.visualstudio.com/CoreEngine/_build/latest?definitionId=5&branchName=master) |

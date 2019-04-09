@@ -29,14 +29,14 @@ protocol MacOSGamepadLayout {
 	var rightTriggerUsageID: UInt32 { get }
     var rightTriggerMaxValue: Float { get }
 
-    var leftThumbXUsageID: UInt32 { get }
-    var leftThumbXMaxValue: Float { get }
-	var leftThumbYUsageID: UInt32 { get }
-    var leftThumbYMaxValue: Float { get }
-    var rightThumbXUsageID: UInt32 { get }
-    var rightThumbXMaxValue: Float { get }
-	var rightThumbYUsageID: UInt32 { get }
-    var rightThumbYMaxValue: Float { get }
+    var leftStickXUsageID: UInt32 { get }
+    var leftStickXMaxValue: Float { get }
+	var leftStickYUsageID: UInt32 { get }
+    var leftStickYMaxValue: Float { get }
+    var rightStickXUsageID: UInt32 { get }
+    var rightStickXMaxValue: Float { get }
+	var rightStickYUsageID: UInt32 { get }
+    var rightStickYMaxValue: Float { get }
 	
 	var dpadUsageID: UInt32 { get }
 }
@@ -56,14 +56,14 @@ class MacOSXboxOneWirelessGamepadLayout: MacOSGamepadLayout {
     var rightTriggerUsageID: UInt32 { get { return 196 } }
     var rightTriggerMaxValue: Float { get { return 1023.0 } }
     
-    var leftThumbXUsageID: UInt32 { get { return 48 } }
-    var leftThumbXMaxValue: Float { get { return 32767.0 } }
-    var leftThumbYUsageID: UInt32 { get { return 49 } }
-    var leftThumbYMaxValue: Float { get { return 32767.0 } }
-    var rightThumbXUsageID: UInt32 { get { return 50 } }
-    var rightThumbXMaxValue: Float { get { return 32767.0 } }
-    var rightThumbYUsageID: UInt32 { get { return 53 } }
-    var rightThumbYMaxValue: Float { get { return 32767.0 } }
+    var leftStickXUsageID: UInt32 { get { return 48 } }
+    var leftStickXMaxValue: Float { get { return 32767.0 } }
+    var leftStickYUsageID: UInt32 { get { return 49 } }
+    var leftStickYMaxValue: Float { get { return 32767.0 } }
+    var rightStickXUsageID: UInt32 { get { return 50 } }
+    var rightStickXMaxValue: Float { get { return 32767.0 } }
+    var rightStickYUsageID: UInt32 { get { return 53 } }
+    var rightStickYMaxValue: Float { get { return 32767.0 } }
     
     var dpadUsageID: UInt32 { get { return 57 } }
 }
@@ -95,6 +95,21 @@ func controllerDisconnected(context: UnsafeMutableRawPointer?, result: IOReturn,
     }
 }
 
+func getHIDElement(_ device: IOHIDDevice, _ elementId: CFIndex) -> IOHIDElement {
+    let elementCriteria = [
+        kIOHIDElementUsageKey: elementId
+    ] as CFDictionary
+	
+    let nsArray = IOHIDDeviceCopyMatchingElements(device, elementCriteria, 0)!
+    let elements: Array<IOHIDElement> = nsArray as! Array<IOHIDElement>
+
+    if (elements.count != 1) {
+        print("Warning. Oops, didn't find exactly one axis?\(elements.count)")
+    }
+
+	return elements[0];
+}
+
 func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender: UnsafeMutableRawPointer?, value: IOHIDValue) {
     let device = Unmanaged<MacOSGamepad>.fromOpaque(context!).takeUnretainedValue()
 
@@ -116,6 +131,10 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
         switch (usage) {
             case device.gamepadLayout.button1UsageId:
                 device.button1 = rawInputValue
+                let rumbleId: CFIndex = 4
+                let rumbleElement = getHIDElement(device.device, rumbleId)
+                print(rumbleElement)
+                IOHIDValueCreateWithIntegerValue(kCFAllocatorDefault, element, 0, 60)
             case device.gamepadLayout.button2UsageId:
                 device.button2 = rawInputValue
             case device.gamepadLayout.button3UsageId:
@@ -134,14 +153,14 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
                 device.leftTrigger = rawInputValue / device.gamepadLayout.leftTriggerMaxValue
             case device.gamepadLayout.rightTriggerUsageID:
                 device.rightTrigger = rawInputValue / device.gamepadLayout.rightTriggerMaxValue
-            case device.gamepadLayout.leftThumbXUsageID:
-                device.leftThumbX = (rawInputValue - device.gamepadLayout.leftThumbXMaxValue) / device.gamepadLayout.leftThumbXMaxValue
-            case device.gamepadLayout.leftThumbYUsageID:
-                device.leftThumbY = (rawInputValue - device.gamepadLayout.leftThumbYMaxValue) / device.gamepadLayout.leftThumbYMaxValue
-            case device.gamepadLayout.rightThumbXUsageID:
-                device.rightThumbX = (rawInputValue - device.gamepadLayout.rightThumbXMaxValue) / device.gamepadLayout.rightThumbXMaxValue
-            case device.gamepadLayout.rightThumbYUsageID:
-                device.rightThumbY = (rawInputValue - device.gamepadLayout.rightThumbYMaxValue) / device.gamepadLayout.rightThumbYMaxValue
+            case device.gamepadLayout.leftStickXUsageID:
+                device.leftStickX = (rawInputValue - device.gamepadLayout.leftStickXMaxValue) / device.gamepadLayout.leftStickXMaxValue
+            case device.gamepadLayout.leftStickYUsageID:
+                device.leftStickY = (rawInputValue - device.gamepadLayout.leftStickYMaxValue) / device.gamepadLayout.leftStickYMaxValue
+            case device.gamepadLayout.rightStickXUsageID:
+                device.rightStickX = (rawInputValue - device.gamepadLayout.rightStickXMaxValue) / device.gamepadLayout.rightStickXMaxValue
+            case device.gamepadLayout.rightStickYUsageID:
+                device.rightStickY = (rawInputValue - device.gamepadLayout.rightStickYMaxValue) / device.gamepadLayout.rightStickYMaxValue
             case device.gamepadLayout.dpadUsageID:
                 // TODO: Do something with the fact that Xbox One dpad return full circle angles for more precisision?
                 device.dpadUp = 0.0
@@ -181,6 +200,7 @@ class MacOSGamepad {
     var gamepadLayout: MacOSGamepadLayout!
     var manufacturerName: String
     var productName: String
+    var device: IOHIDDevice
 
     var button1: Float = 0.0
     var button2: Float = 0.0
@@ -192,10 +212,10 @@ class MacOSGamepad {
     var buttonBack: Float = 0.0
     var leftTrigger: Float = 0.0
     var rightTrigger: Float = 0.0
-    var leftThumbX: Float = 0.0
-    var leftThumbY: Float = 0.0
-    var rightThumbX: Float = 0.0
-    var rightThumbY: Float = 0.0
+    var leftStickX: Float = 0.0
+    var leftStickY: Float = 0.0
+    var rightStickX: Float = 0.0
+    var rightStickY: Float = 0.0
     var dpadUp: Float = 0.0
     var dpadRight: Float = 0.0
     var dpadDown: Float = 0.0
@@ -205,6 +225,7 @@ class MacOSGamepad {
         self.gamepadManager = gamepadManager
         self.manufacturerName = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString) as! String
         self.productName  = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as! String
+        self.device = device
  
         let vendorId = GameControllerVendor(rawValue: Int(truncating: IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as! NSNumber))!
         let productId = GameControllerProduct(rawValue: Int(truncating: IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as! NSNumber))!

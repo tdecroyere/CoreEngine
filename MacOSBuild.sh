@@ -32,16 +32,35 @@ copyFiles() {
     #rm -R $tempDirectory
 }
 
-echo [93mCompiling CoreEngine Library...[0m
+showErrorMessage() {
+    echo [91mError: Build has failed![0m
+}
 
-dotnet publish /nologo -r osx-x64 -c Debug -v q --self-contained true -o "." "../../src/CoreEngine"
+compileDotnet() {
+    echo [93mCompiling CoreEngine Library...[0m
 
-if [ $? -eq 0 ]; then
-    copyFiles
+    dotnet publish /nologo -r osx-x64 -c Debug -v q --self-contained true -o "." "../../src/CoreEngine"
 
+    if [ $? != 0 ]; then
+        showErrorMessage
+        exit 1
+    fi
+}
+
+compileSwift() {
     echo [93mCompiling MacOS Executable...[0m
     cd "../"$outputDirectory"/MacOS/"
     swiftc "../../../../../src/Host/MacOS/"*".swift" -Onone -g -o "CoreEngine" -swift-version 5 -target x86_64-apple-macosx10.14 -I "../../../../../src/Host/MacOS" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
-    echo [92mSuccess: Compilation done.[0m
-fi
+    if [ $? != 0 ]; then
+        showErrorMessage
+        exit 1
+    fi
+}
+
+compileDotnet
+copyFiles
+compileSwift
+
+echo [92mSuccess: Compilation done.[0m
+exit 0

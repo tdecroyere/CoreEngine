@@ -2,6 +2,8 @@ import Foundation
 import IOKit
 import IOKit.hid
 
+// TODO: Use HID reports to avoid internal thread loop?
+
 enum GameControllerVendor: Int {
     case microsoft = 0x045E
     case sony = 0x054C
@@ -103,11 +105,55 @@ func getHIDElement(_ device: IOHIDDevice, _ elementId: CFIndex) -> IOHIDElement 
     let nsArray = IOHIDDeviceCopyMatchingElements(device, elementCriteria, 0)!
     let elements: Array<IOHIDElement> = nsArray as! Array<IOHIDElement>
 
-    if (elements.count != 1) {
-        print("Warning. Oops, didn't find exactly one axis?\(elements.count)")
+    if (elements.count > 0) {
+        print("=====================================")
+        print("Found \(elements.count) elements")
+
+        
+        for element in elements {
+            let usagePage = IOHIDElementGetUsagePage(element)
+            let usage = IOHIDElementGetUsage(element)
+
+            print("Element (UsagePage: \(usagePage), Usage: \(usage))")
+
+            let hidValue = IOHIDValueCreateWithIntegerValue(kCFAllocatorDefault, element, mach_absolute_time(), 255)
+            IOHIDDeviceSetValue(device, element, hidValue)
+        }
+
+        print("=====================================")
     }
 
 	return elements[0];
+}
+
+protocol MacOSHIDReport {
+    var hidReportId: Int8 { get }
+}
+
+struct MacOSXboxOneWirelessVibrationReport: MacOSHIDReport {
+    var reportId: UInt8
+	var enable: UInt8
+	var leftTriggerMotor: UInt8
+	var rightTriggerMotor: UInt8
+	var leftStickMotor: UInt8
+	var rightStickMotor: UInt8
+	var duration10ms: UInt8
+	var startDelay10ms: UInt8
+	var loopCount: UInt8
+
+    init() {
+        self.reportId = 3
+        self.enable = 0
+        self.leftTriggerMotor = 0
+        self.rightTriggerMotor = 0
+        self.leftStickMotor = 0
+        self.rightStickMotor = 0
+        self.duration10ms = 0
+        self.startDelay10ms = 0
+        self.loopCount = 0
+    }
+
+	var hidReportId: Int8 { get { return Int8(self.reportId) } }
 }
 
 func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender: UnsafeMutableRawPointer?, value: IOHIDValue) {
@@ -131,10 +177,7 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
         switch (usage) {
             case device.gamepadLayout.button1UsageId:
                 device.button1 = rawInputValue
-                let rumbleId: CFIndex = 4
-                let rumbleElement = getHIDElement(device.device, rumbleId)
-                print(rumbleElement)
-                IOHIDValueCreateWithIntegerValue(kCFAllocatorDefault, element, 0, 60)
+                device.sendVibrationCommand(1.0, 0.0, 0.0, 0.0, 5)
             case device.gamepadLayout.button2UsageId:
                 device.button2 = rawInputValue
             case device.gamepadLayout.button3UsageId:
@@ -239,6 +282,26 @@ class MacOSGamepad {
 
         IOHIDDeviceRegisterInputValueCallback(device, controllerInput, Unmanaged.passUnretained(self).toOpaque())	
 		IOHIDDeviceRegisterRemovalCallback(device, controllerDisconnected, Unmanaged.passUnretained(self).toOpaque());
+    }
+
+    func sendVibrationCommand(_ leftTriggerMotor: Float, _ rightTriggerMotor: Float, _ leftStickMotor: Float, _ rightStickMotor: Float, _ duration10ms: UInt8) {
+        print("Send vibration effect (LeftTrigger: \(leftTriggerMotor), RightTrigger: \(rightTriggerMotor), LeftStick: \(leftStickMotor), RightStick: \(rightStickMotor))")
+        
+        var vibrationReport = MacOSXboxOneWirelessVibrationReport()
+        vibrationReport.enable = 255
+        vibrationReport.leftTriggerMotor = UInt8(leftTriggerMotor * 255.0)
+        vibrationReport.rightTriggerMotor = UInt8(rightTriggerMotor * 255.0)
+        vibrationReport.leftStickMotor = UInt8(leftStickMotor * 255.0)
+        vibrationReport.rightStickMotor = UInt8(rightStickMotor * 255.0)
+        vibrationReport.loopCount = 0
+        vibrationReport.duration10ms = duration10ms
+
+        let reportSize = MemoryLayout.size(ofValue: vibrationReport)
+        
+        withUnsafeBytes(of: vibrationReport) {rbp in
+            let bufferPtr = rbp.baseAddress!.assumingMemoryBound(to: UInt8.self)
+            IOHIDDeviceSetReport(self.device, kIOHIDReportTypeOutput, Int(vibrationReport.reportId), bufferPtr, reportSize)
+        }
     }
 }
 

@@ -23,6 +23,9 @@ protocol MacOSGamepadLayout {
 	var button4UsageId: UInt32 { get }
     var buttonStartUsageID: UInt32 { get }
     var buttonBackUsageID: UInt32 { get }
+    var buttonSystemUsageID: UInt32 { get }
+    var buttonLeftStickUsageID: UInt32 { get }
+    var buttonRightStickUsageID: UInt32 { get }
 	var leftShoulderUsageID: UInt32 { get }
 	var rightShoulderUsageID: UInt32 { get }
 
@@ -50,6 +53,9 @@ class MacOSXboxOneWirelessGamepadLayout: MacOSGamepadLayout {
     var button4UsageId: UInt32 { get { return 5 } }
     var buttonStartUsageID: UInt32 { get { return 12 } }
     var buttonBackUsageID: UInt32 { get { return 548 } }
+    var buttonSystemUsageID: UInt32 { get { return 547 } }
+    var buttonLeftStickUsageID: UInt32 { get { return 14 } }
+    var buttonRightStickUsageID: UInt32 { get { return 15 } }
     var leftShoulderUsageID: UInt32 { get { return 7 } }
     var rightShoulderUsageID: UInt32 { get { return 8 } }
     
@@ -97,35 +103,6 @@ func controllerDisconnected(context: UnsafeMutableRawPointer?, result: IOReturn,
     }
 }
 
-func getHIDElement(_ device: IOHIDDevice, _ elementId: CFIndex) -> IOHIDElement {
-    let elementCriteria = [
-        kIOHIDElementUsageKey: elementId
-    ] as CFDictionary
-	
-    let nsArray = IOHIDDeviceCopyMatchingElements(device, elementCriteria, 0)!
-    let elements: Array<IOHIDElement> = nsArray as! Array<IOHIDElement>
-
-    if (elements.count > 0) {
-        print("=====================================")
-        print("Found \(elements.count) elements")
-
-        
-        for element in elements {
-            let usagePage = IOHIDElementGetUsagePage(element)
-            let usage = IOHIDElementGetUsage(element)
-
-            print("Element (UsagePage: \(usagePage), Usage: \(usage))")
-
-            let hidValue = IOHIDValueCreateWithIntegerValue(kCFAllocatorDefault, element, mach_absolute_time(), 255)
-            IOHIDDeviceSetValue(device, element, hidValue)
-        }
-
-        print("=====================================")
-    }
-
-	return elements[0];
-}
-
 protocol MacOSHIDReport {
     var hidReportId: Int8 { get }
 }
@@ -170,9 +147,9 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
         let rawInputValue = Float(Int(IOHIDValueGetIntegerValue(value)));
 
         // TODO: This code is usefull to do reverse-engineering for gamepad bindings
-        //print("============")
-        //print("Usage: \(usage)")
-        //print("RawInputValue: \(rawInputValue)")
+        // print("============")
+        // print("Usage: \(usage)")
+        // print("RawInputValue: \(rawInputValue)")
         
         switch (usage) {
             case device.gamepadLayout.button1UsageId:
@@ -192,6 +169,12 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
                 device.buttonBack = rawInputValue
             case device.gamepadLayout.buttonStartUsageID:
                 device.buttonStart = rawInputValue
+            case device.gamepadLayout.buttonSystemUsageID:
+                device.buttonSystem = rawInputValue
+            case device.gamepadLayout.buttonLeftStickUsageID:
+                device.buttonLeftStick = rawInputValue
+            case device.gamepadLayout.buttonRightStickUsageID:
+                device.buttonRightStick = rawInputValue
             case device.gamepadLayout.leftTriggerUsageID:
                 device.leftTrigger = rawInputValue / device.gamepadLayout.leftTriggerMaxValue
             case device.gamepadLayout.rightTriggerUsageID:
@@ -253,6 +236,9 @@ class MacOSGamepad {
     var rightShoulder: Float = 0.0
     var buttonStart: Float = 0.0
     var buttonBack: Float = 0.0
+    var buttonSystem: Float = 0.0
+    var buttonLeftStick: Float = 0.0
+    var buttonRightStick: Float = 0.0
     var leftTrigger: Float = 0.0
     var rightTrigger: Float = 0.0
     var leftStickX: Float = 0.0
@@ -285,8 +271,6 @@ class MacOSGamepad {
     }
 
     func sendVibrationCommand(_ leftTriggerMotor: Float, _ rightTriggerMotor: Float, _ leftStickMotor: Float, _ rightStickMotor: Float, _ duration10ms: UInt8) {
-        print("Send vibration effect (LeftTrigger: \(leftTriggerMotor), RightTrigger: \(rightTriggerMotor), LeftStick: \(leftStickMotor), RightStick: \(rightStickMotor))")
-        
         var vibrationReport = MacOSXboxOneWirelessVibrationReport()
         vibrationReport.enable = 255
         vibrationReport.leftTriggerMotor = UInt8(leftTriggerMotor * 255.0)

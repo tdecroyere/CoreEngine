@@ -114,6 +114,7 @@ struct InputsTouch
 
 struct InputsGamepad
 {
+    unsigned int PlayerId;
     int IsConnected;
     struct InputsObject LeftStickUp;
     struct InputsObject LeftStickDown;
@@ -131,6 +132,9 @@ struct InputsGamepad
     struct InputsObject Button4;
     struct InputsObject ButtonStart;
     struct InputsObject ButtonBack;
+    struct InputsObject ButtonSystem;
+    struct InputsObject ButtonLeftStick;
+    struct InputsObject ButtonRightStick;
     struct InputsObject LeftShoulder;
     struct InputsObject RightShoulder;
     struct InputsObject DPadUp;
@@ -151,11 +155,13 @@ struct InputsState
 };
 
 typedef struct InputsState (*GetInputsStatePtr)(void* inputsContext);
+typedef void (*SendVibrationCommandPtr)(void* inputsContext, unsigned char playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, unsigned char duration10ms);
 
 struct InputsService
 {
     void* InputsContext;
     GetInputsStatePtr GetInputsState;
+    SendVibrationCommandPtr SendVibrationCommand;
 };
 
 typedef int (*AddTestHostMethodPtr)(int a, int b);

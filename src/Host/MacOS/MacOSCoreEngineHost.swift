@@ -50,6 +50,7 @@ class MacOSCoreEngineHost {
 
         self.hostPlatform.InputsService.InputsContext = Unmanaged.passUnretained(self.inputsManager).toOpaque()
         self.hostPlatform.InputsService.GetInputsState = getInputsState
+        self.hostPlatform.InputsService.SendVibrationCommand = sendVibrationCommand
 
         guard let startEngineInterop = self.startEnginePointer else {
             print("CoreEngine StartEngine method is not initialized")

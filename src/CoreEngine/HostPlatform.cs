@@ -5,8 +5,9 @@ using System.Runtime.InteropServices;
 
 namespace CoreEngine
 {
-    // TODO: Find a way to hide that to external assemblies
+    // TODO: Provide stubs for not implemented platform functionnalities to avoid craches
 
+    // TODO: Find a way to hide that to external assemblies
     public struct ByteSpan
     {
         public IntPtr Pointer;
@@ -125,6 +126,7 @@ namespace CoreEngine
 
     public struct InputsGamepad
     {
+        public uint PlayerId;
         public bool IsConnected;
         public InputsObject LeftStickUp;
         public InputsObject LeftStickDown;
@@ -142,6 +144,9 @@ namespace CoreEngine
         public InputsObject ButtonY;
         public InputsObject ButtonStart;
         public InputsObject ButtonBack;
+        public InputsObject ButtonSystem;
+        public InputsObject ButtonLeftStick;
+        public InputsObject ButtonRightStick;
         public InputsObject LeftShoulder;
         public InputsObject RightShoulder;
         public InputsObject DPadUp;
@@ -162,10 +167,12 @@ namespace CoreEngine
     }
 
     public delegate InputsState GetInputsStateDelegate(IntPtr inputsContext);
+    public delegate void SendVibrationCommandDelegate(IntPtr inputsContext, uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms);
 
     public struct InputsService
     {
         public IntPtr InputsContext;
         public GetInputsStateDelegate GetInputsState;
+        public SendVibrationCommandDelegate SendVibrationCommand;
     }
 }

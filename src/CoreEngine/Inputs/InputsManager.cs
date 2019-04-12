@@ -3,6 +3,8 @@ using System.Numerics;
 
 namespace CoreEngine.Inputs
 {
+    // TODO: Check if a gamepad is connected
+
     public class InputsManager : SystemManager
     {
         private readonly InputsService inputsService;
@@ -84,6 +86,12 @@ namespace CoreEngine.Inputs
         public Vector2 GetMouseDelta()
         {
             return new Vector2(this.inputsState.Mouse.DeltaX.Value, this.inputsState.Mouse.DeltaY.Value);
+        }
+
+        public void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms)
+        {
+            // TODO: Handle other players
+            this.inputsService.SendVibrationCommand(this.inputsService.InputsContext, this.inputsState.Gamepad1.PlayerId, leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms);
         }
     }
 }

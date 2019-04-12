@@ -9,6 +9,11 @@ func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
     return result
 }
 
+func sendVibrationCommand(inputsContext: UnsafeMutableRawPointer?, playerId: UInt8, leftTriggerMotor: Float, rightTriggerMotor: Float, leftStickMotor: Float, rightStickMotor: Float, duration10ms: UInt8) {
+    let inputsManager = Unmanaged<MacOSInputsManager>.fromOpaque(inputsContext!).takeUnretainedValue()
+    inputsManager.gamepadManager.registeredGamepads[Int(playerId) - 1].sendVibrationCommand(leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms)
+}
+
 class MacOSInputsManager {
     var inputsState: InputsState
     var gamepadManager: MacOSGamepadManager
@@ -106,6 +111,7 @@ class MacOSInputsManager {
     }
 
     private func setGamepadState(_ controller: MacOSGamepad, _ gamepad: inout InputsGamepad) {
+        gamepad.PlayerId = 1
         gamepad.Button1.Value = controller.button1
         gamepad.Button2.Value = controller.button2
         gamepad.Button3.Value = controller.button3
@@ -114,6 +120,9 @@ class MacOSInputsManager {
         gamepad.RightShoulder.Value = controller.rightShoulder
         gamepad.ButtonStart.Value = controller.buttonStart
         gamepad.ButtonBack.Value = controller.buttonBack
+        gamepad.ButtonSystem.Value = controller.buttonSystem
+        gamepad.ButtonLeftStick.Value = controller.buttonLeftStick
+        gamepad.ButtonRightStick.Value = controller.buttonRightStick
         gamepad.LeftTrigger.Value = controller.leftTrigger
         gamepad.RightTrigger.Value = controller.rightTrigger
         gamepad.DPadUp.Value = controller.dpadUp

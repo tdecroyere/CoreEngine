@@ -1,6 +1,8 @@
 using System;
 using System.Numerics;
+using System.IO;
 using CoreEngine;
+using CoreEngine.Resources;
 
 namespace CoreEngine.Tests.EcsTest
 {
@@ -14,6 +16,12 @@ namespace CoreEngine.Tests.EcsTest
         public override void Init()
         {
             Console.WriteLine("Init Ecs Test App...");
+
+            var resourceManager = this.SystemManagerContainer.CreateInstance<ResourcesManager>();
+            resourceManager.AddResourceStorage(new FileSystemResourceStorage("../../../../../tests/data"));
+            resourceManager.AddResourceLoader(new TestResourceLoader());
+
+            var testResource = resourceManager.LoadResourceAsync("/Test.tst").Result;
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();

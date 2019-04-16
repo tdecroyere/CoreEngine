@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using CoreEngine.Graphics;
 using CoreEngine.Inputs;
+using CoreEngine.Resources;
 
 namespace CoreEngine
 {
@@ -32,7 +33,6 @@ namespace CoreEngine
                 }
             }
 
-            
             if (appName != null)
             {
                 Console.WriteLine($"Loading CoreEngineApp '{appName}'...");
@@ -42,7 +42,13 @@ namespace CoreEngine
                 {
                     Console.WriteLine("CoreEngineApp loading successfull.");
 
+                    var resourcesManager = new ResourcesManager();
+                    
+                    // TODO: Get the config from the host using hardcoded values for the moment
+                    resourcesManager.AddResourceStorage(new FileSystemResourceStorage("."));
+
                     // Register managers
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService));
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 

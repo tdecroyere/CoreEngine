@@ -1,6 +1,7 @@
 using System;
+using System.Threading.Tasks;
 
-namespace CoreEngine
+namespace CoreEngine.Resources
 {
     public abstract class ResourceLoader
     {
@@ -13,5 +14,8 @@ namespace CoreEngine
         {
             get;
         }
+
+        public abstract Resource CreateEmptyResource(string path);
+        public abstract Task LoadResource(Resource resource);
     }
 }

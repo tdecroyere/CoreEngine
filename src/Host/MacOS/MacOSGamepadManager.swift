@@ -154,7 +154,6 @@ func controllerInput(context: UnsafeMutableRawPointer?, result: IOReturn, sender
         switch (usage) {
             case device.gamepadLayout.button1UsageId:
                 device.button1 = rawInputValue
-                device.sendVibrationCommand(1.0, 0.0, 0.0, 0.0, 5)
             case device.gamepadLayout.button2UsageId:
                 device.button2 = rawInputValue
             case device.gamepadLayout.button3UsageId:

@@ -11,7 +11,10 @@ func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
 
 func sendVibrationCommand(inputsContext: UnsafeMutableRawPointer?, playerId: UInt8, leftTriggerMotor: Float, rightTriggerMotor: Float, leftStickMotor: Float, rightStickMotor: Float, duration10ms: UInt8) {
     let inputsManager = Unmanaged<MacOSInputsManager>.fromOpaque(inputsContext!).takeUnretainedValue()
-    inputsManager.gamepadManager.registeredGamepads[Int(playerId) - 1].sendVibrationCommand(leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms)
+
+    if (inputsManager.gamepadManager.registeredGamepads.count > playerId) {
+        inputsManager.gamepadManager.registeredGamepads[Int(playerId) - 1].sendVibrationCommand(leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms)
+    }
 }
 
 class MacOSInputsManager {

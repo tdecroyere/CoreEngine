@@ -13,5 +13,11 @@ namespace CoreEngine.Resources
         {
             get;
         }
+
+        public bool IsLoaded
+        {
+            get;
+            internal set;
+        }
     }
 }

@@ -10,6 +10,7 @@ namespace CoreEngine.Tests.EcsTest
     {
         private EntityManager? entityManager;
         private EntitySystemManager? entitySystemManager;
+        private TestResource? testResource;
 
         public override string Name => "EcsTest App";
 
@@ -18,10 +19,10 @@ namespace CoreEngine.Tests.EcsTest
             Console.WriteLine("Init Ecs Test App...");
 
             var resourceManager = this.SystemManagerContainer.CreateInstance<ResourcesManager>();
-            resourceManager.AddResourceStorage(new FileSystemResourceStorage("../../../../../tests/data"));
+            resourceManager.AddResourceStorage(new FileSystemResourceStorage("../../../../../tests/data/CompilerTests"));
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
-            var testResource = resourceManager.LoadResourceAsync("/Test.tst").Result;
+            this.testResource = resourceManager.LoadResourceAsync<TestResource>("/Test.tst");
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();
@@ -80,6 +81,12 @@ namespace CoreEngine.Tests.EcsTest
             if (this.entitySystemManager != null && this.entityManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
+
+                if (this.testResource != null)
+                {
+                    Console.WriteLine($"Test Resource Content: '{this.testResource.Text}'");
+                }
+
                 //DisplayEntities(this.entityManager);
             }
         }

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
+using System.Buffers;
 
 namespace CoreEngine.Resources
 {
@@ -9,11 +11,13 @@ namespace CoreEngine.Resources
     {
         private IDictionary<string, ResourceLoader> resourceLoaders;
         private IList<ResourceStorage> resourceStorages;
+        private IList<Task<Resource>> resourceLoadingList;
 
         public ResourcesManager()
         {
             this.resourceLoaders = new Dictionary<string, ResourceLoader>();
             this.resourceStorages = new List<ResourceStorage>();
+            this.resourceLoadingList = new List<Task<Resource>>();
         }
 
         public void AddResourceLoader(ResourceLoader resourceLoader)
@@ -28,7 +32,7 @@ namespace CoreEngine.Resources
             this.resourceStorages.Add(resourceStorage);
         }
 
-        public async Task<Resource> LoadResourceAsync(string path)
+        public T LoadResourceAsync<T>(string path) where T : Resource
         {
             var resourceLoader = FindResourceLoader(Path.GetExtension(path));
 
@@ -43,15 +47,54 @@ namespace CoreEngine.Resources
             {
                 Console.WriteLine($"Warning: Resource '{path}' was not found.");
                 // TODO return a default not found resource specific to the resource type (shader, texture, etc.)
-                throw new NotImplementedException();
+                throw new NotImplementedException("Resource not found path is not yet implemented");
             }
 
-            var resourceData = await resourceStorage.ReadResourceDataAsync(path);
+            // TODO: Implement data handling with stream or just byte array
+            // TODO: Move disk data reading in the loading method impl from the update method
+
+            var resourceData = resourceStorage.ReadResourceDataAsync(path).Result;
             var resource = resourceLoader.CreateEmptyResource(path);
 
-            // TODO: Add resource real loading to the queue
+            // TODO: Add support for children hierarchical resource loading
 
-            return resource;
+            var resourceLoadingTask = resourceLoader.LoadResourceDataAsync(resource, resourceData);
+            this.resourceLoadingList.Add(resourceLoadingTask);
+
+            return (T)resource;
+        }
+
+        public override void Update()
+        {
+            // TODO: Add resource finalization for hardware dependent resources?
+            // TODO: Add notification system to parent waiting for children resources to load?
+            // TODO: Process a fixed amound of resources per frame for now
+
+            var tasksToRemove = ArrayPool<Task<Resource>>.Shared.Rent(10);
+
+            for (var i = 0; i < this.resourceLoadingList.Count; i++)
+            {
+                var resourceLoadingTask = this.resourceLoadingList[i];
+
+                if (resourceLoadingTask.Status == TaskStatus.Faulted)
+                {
+                    // TODO: Add more logging infos
+                    Console.WriteLine("Warning: Failed to load resource");
+                }
+
+                var resource = resourceLoadingTask.Result;
+                resource.IsLoaded = true;
+
+                resourceLoadingTask.Dispose();
+                tasksToRemove[i] = resourceLoadingTask;
+            }
+
+            for (var i = 0; i < tasksToRemove.Length; i++)
+            {
+                resourceLoadingList.Remove(tasksToRemove[i]);
+            }
+
+            ArrayPool<Task<Resource>>.Shared.Return(tasksToRemove);
         }
 
         private ResourceLoader? FindResourceLoader(string fileExtension)

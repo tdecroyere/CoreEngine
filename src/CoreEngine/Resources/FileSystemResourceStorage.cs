@@ -25,13 +25,15 @@ namespace CoreEngine.Resources
 
         public override bool IsResourceExists(string path)
         {
-            // TODO: Is this multi os compatible
+            // TODO: Is this multi os compatible?
             return File.Exists(this.basePath + path);
         }
 
         public override Task<byte[]> ReadResourceDataAsync(string path)
         {
-            throw new NotImplementedException();
+            // TODO: Implement a thread safe queue so that reading on the disk is sequential
+
+            return File.ReadAllBytesAsync(this.basePath + path);
         }
     }
 }

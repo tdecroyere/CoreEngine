@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using CoreEngine.Resources;
 
@@ -19,9 +20,20 @@ namespace CoreEngine.Tests.EcsTest
             return new TestResource(path);
         }
 
-        public override Task LoadResource(Resource resource)
+        public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
         {
-            throw new NotImplementedException();
+            var testResource = resource as TestResource;
+
+            if (testResource != null)
+            {
+                using var streamReader = new StreamReader(new MemoryStream(data));
+                var inputText = streamReader.ReadToEnd();
+                
+                testResource.Text = inputText;
+                return Task<Resource>.FromResult((Resource)testResource);
+            }
+
+            throw new InvalidOperationException("Cannot load test resource");
         }
     }
 }

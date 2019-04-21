@@ -7,7 +7,13 @@ namespace CoreEngine.Tests.EcsTest
     {
         public TestResource(string path) : base(path)
         {
-            
+            this.Text = "Empty Test Resource";
+        }
+
+        public string Text
+        {
+            get;
+            internal set;
         }
     }
 }

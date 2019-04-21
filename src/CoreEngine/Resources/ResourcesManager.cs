@@ -12,12 +12,14 @@ namespace CoreEngine.Resources
         private IDictionary<string, ResourceLoader> resourceLoaders;
         private IList<ResourceStorage> resourceStorages;
         private IList<Task<Resource>> resourceLoadingList;
+        private IDictionary<string, Resource> resources;
 
         public ResourcesManager()
         {
             this.resourceLoaders = new Dictionary<string, ResourceLoader>();
             this.resourceStorages = new List<ResourceStorage>();
             this.resourceLoadingList = new List<Task<Resource>>();
+            this.resources = new Dictionary<string, Resource>();
         }
 
         public void AddResourceLoader(ResourceLoader resourceLoader)
@@ -34,6 +36,12 @@ namespace CoreEngine.Resources
 
         public T LoadResourceAsync<T>(string path) where T : Resource
         {
+            if (this.resources.ContainsKey(path))
+            {
+                return (T)this.resources[path];
+            }
+
+            Console.WriteLine($"Loading resource '{path}'...");
             var resourceLoader = FindResourceLoader(Path.GetExtension(path));
 
             if (resourceLoader == null)
@@ -60,6 +68,8 @@ namespace CoreEngine.Resources
 
             var resourceLoadingTask = resourceLoader.LoadResourceDataAsync(resource, resourceData);
             this.resourceLoadingList.Add(resourceLoadingTask);
+
+            this.resources.Add(path, resource);
 
             return (T)resource;
         }

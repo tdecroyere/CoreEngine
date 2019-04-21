@@ -23,6 +23,7 @@ namespace CoreEngine.Tests.EcsTest
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
             this.testResource = resourceManager.LoadResourceAsync<TestResource>("/Test.tst");
+            this.testResource = resourceManager.LoadResourceAsync<TestResource>("/Test.tst");
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();
@@ -81,11 +82,6 @@ namespace CoreEngine.Tests.EcsTest
             if (this.entitySystemManager != null && this.entityManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
-
-                if (this.testResource != null)
-                {
-                    Console.WriteLine($"Test Resource Content: '{this.testResource.Text}'");
-                }
 
                 //DisplayEntities(this.entityManager);
             }

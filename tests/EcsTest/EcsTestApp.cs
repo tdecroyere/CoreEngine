@@ -18,7 +18,7 @@ namespace CoreEngine.Tests.EcsTest
         {
             Console.WriteLine("Init Ecs Test App...");
 
-            var resourceManager = this.SystemManagerContainer.CreateInstance<ResourcesManager>();
+            var resourceManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
             resourceManager.AddResourceStorage(new FileSystemResourceStorage("../../../../../tests/data/CompilerTests"));
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
@@ -82,6 +82,11 @@ namespace CoreEngine.Tests.EcsTest
             if (this.entitySystemManager != null && this.entityManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
+
+                if (this.testResource != null)
+                {
+                    Console.WriteLine($"Test Resource: {this.testResource.Text}");
+                }
 
                 //DisplayEntities(this.entityManager);
             }

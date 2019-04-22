@@ -63,6 +63,7 @@ namespace CoreEngine.Resources
 
             var resourceData = resourceStorage.ReadResourceDataAsync(path).Result;
             var resource = resourceLoader.CreateEmptyResource(path);
+            resource.ResourceLoader = resourceLoader;
 
             // TODO: Add support for children hierarchical resource loading
 
@@ -75,6 +76,38 @@ namespace CoreEngine.Resources
         }
 
         public override void Update()
+        {
+            CheckResourceLoadingTasks();
+            CheckForUpdatedResources();
+        }
+        
+        private void CheckForUpdatedResources()
+        {
+            // TODO: Make that a background task on another thread?
+
+            foreach (var item in this.resources)
+            {
+                var resource = item.Value;
+
+                for (var i = 0; i < this.resourceStorages.Count; i++)
+                {
+                    var lastUpdateDate = this.resourceStorages[i].CheckForUpdatedResource(resource.Path, resource.LastUpdateDateTime);
+
+                    if (lastUpdateDate != null)
+                    {
+                        Console.WriteLine($"Found update for resource '{resource.Path}'...");
+
+                        resource.LastUpdateDateTime = lastUpdateDate.Value;
+                        var resourceData = this.resourceStorages[i].ReadResourceDataAsync(resource.Path).Result;
+
+                        var resourceLoadingTask = resource.ResourceLoader.LoadResourceDataAsync(resource, resourceData);
+                        this.resourceLoadingList.Add(resourceLoadingTask);
+                    }
+                }
+            }
+        }
+
+        private void CheckResourceLoadingTasks()
         {
             // TODO: Add resource finalization for hardware dependent resources?
             // TODO: Add notification system to parent waiting for children resources to load?

@@ -23,6 +23,16 @@ namespace CoreEngine
             this.systemManagerList.Add(typeof(T), systemManager);
         }
 
+        public T GetSystemManager<T>() where T : SystemManager
+        {
+            if (!this.systemManagerList.ContainsKey(typeof(T)))
+            {
+                throw new ArgumentException($"System manager with type '{typeof(T).ToString()}' has not been registered.");
+            }
+
+            return (T)this.systemManagerList[typeof(T)];
+        }
+
         public T CreateInstance<T>()
         {
             var type = typeof(T);

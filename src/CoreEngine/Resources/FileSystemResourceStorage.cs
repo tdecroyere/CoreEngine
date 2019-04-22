@@ -29,6 +29,13 @@ namespace CoreEngine.Resources
             return File.Exists(this.basePath + path);
         }
 
+        public override DateTime? CheckForUpdatedResource(string path, DateTime lastUpdateDateTime)
+        {
+            var lastWriteTime = File.GetLastWriteTime(this.basePath + path);
+            
+            return (lastWriteTime > lastUpdateDateTime) ? (DateTime?)lastWriteTime : null;
+        }
+
         public override Task<byte[]> ReadResourceDataAsync(string path)
         {
             // TODO: Implement a thread safe queue so that reading on the disk is sequential

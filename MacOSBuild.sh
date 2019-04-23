@@ -39,7 +39,7 @@ showErrorMessage() {
 compileDotnet() {
     echo [93mCompiling CoreEngine Library...[0m
 
-    dotnet publish /nologo -r osx-x64 -c Debug -v q --self-contained true -o "." "../../src/CoreEngine"
+    dotnet publish --nologo -r osx-x64 -c Debug -v q --self-contained true -o "." "../../src/CoreEngine"
 
     if [ $? != 0 ]; then
         showErrorMessage

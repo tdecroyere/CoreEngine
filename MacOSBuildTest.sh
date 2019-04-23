@@ -9,7 +9,7 @@ cd "./build/"$outputDirectory"/CoreClr"
 
 echo [93mCompiling $1 Test Library...[0m
 
-dotnet build /nologo -c Debug -v Q -o "." "../../../../../tests/"$1
+dotnet build --nologo -c Debug -v Q -o "." "../../../../../tests/"$1
 
 if [ $? -eq 0 ]; then
     echo [92mSuccess: Compilation done.[0m

@@ -10,7 +10,7 @@ pushd build\temp
 DEL *.pdb > NUL 2> NUL
 
 ECHO [93mCompiling CoreEngine Library...[0m
-dotnet.exe publish /nologo -r win-x64 -c Debug -v Q --self-contained true -o "." "..\..\src\CoreEngine"
+dotnet.exe publish --nologo -r win-x64 -c Debug -v Q --self-contained true -o "." "..\..\src\CoreEngine"
 
 @IF %ERRORLEVEL% == 0 (
    GOTO Compile_Windows_Executable

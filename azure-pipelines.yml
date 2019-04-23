@@ -1,0 +1,32 @@
+jobs:
+  - job: WindowsBuild
+
+    pool:
+      name: Hosted Windows 2019 with VS2019
+    steps:
+    - task: DotNetCoreInstaller@0
+      displayName: 'Use .NET Core sdk 3.0.100-preview4-011223'
+      inputs:
+        version: '3.0.100-preview4-011223'
+
+    - script: '.\WindowsBuild.cmd'
+      displayName: 'Build CoreEngine'
+
+    - script: '.\WindowsBuildTest.cmd EcsTest'
+      displayName: 'Build Tests'
+
+  - job: MacOSBuild
+
+    pool:
+      name: Hosted macOS
+    steps:
+    - task: DotNetCoreInstaller@0
+      displayName: 'Use .NET Core sdk 3.0.100-preview4-011223'
+      inputs:
+        version: '3.0.100-preview4-011223'
+
+    - script: ./MacOSBuild.sh
+      displayName: 'Build CoreEngine'
+
+    - script: './MacOSBuildTest.sh EcsTest'
+      displayName: 'Build Tests'

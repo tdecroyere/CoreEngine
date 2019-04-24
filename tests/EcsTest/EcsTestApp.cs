@@ -19,7 +19,7 @@ namespace CoreEngine.Tests.EcsTest
             Console.WriteLine("Init Ecs Test App...");
 
             var resourceManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
-            resourceManager.AddResourceStorage(new FileSystemResourceStorage("../../../../../tests/data/CompilerTests"));
+            resourceManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
             this.testResource = resourceManager.LoadResourceAsync<TestResource>("/Test.tst");

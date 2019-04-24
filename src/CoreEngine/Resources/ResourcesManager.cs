@@ -97,11 +97,14 @@ namespace CoreEngine.Resources
                     {
                         Console.WriteLine($"Found update for resource '{resource.Path}'...");
 
-                        resource.LastUpdateDateTime = lastUpdateDate.Value;
-                        var resourceData = this.resourceStorages[i].ReadResourceDataAsync(resource.Path).Result;
+                        if (resource.ResourceLoader != null)
+                        {
+                            resource.LastUpdateDateTime = lastUpdateDate.Value;
+                            var resourceData = this.resourceStorages[i].ReadResourceDataAsync(resource.Path).Result;
 
-                        var resourceLoadingTask = resource.ResourceLoader.LoadResourceDataAsync(resource, resourceData);
-                        this.resourceLoadingList.Add(resourceLoadingTask);
+                            var resourceLoadingTask = resource.ResourceLoader.LoadResourceDataAsync(resource, resourceData);
+                            this.resourceLoadingList.Add(resourceLoadingTask);
+                        }
                     }
                 }
             }

@@ -5,6 +5,7 @@
     <NullableContextOptions>enable</NullableContextOptions>
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618</WarningsAsErrors>
   </PropertyGroup>
   
 </Project>

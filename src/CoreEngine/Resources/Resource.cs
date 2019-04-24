@@ -21,7 +21,7 @@ namespace CoreEngine.Resources
             internal set;
         }
 
-        public ResourceLoader ResourceLoader
+        public ResourceLoader? ResourceLoader
         {
             get;
             internal set;

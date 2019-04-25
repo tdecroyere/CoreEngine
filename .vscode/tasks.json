@@ -17,6 +17,12 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "WindowsRun",
+            "command": ".\\WindowsRun.cmd",
+            "args": ["EcsTest"],
+            "type": "shell"
         }
     ]
 }

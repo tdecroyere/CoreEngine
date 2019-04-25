@@ -20,21 +20,35 @@ dotnet.exe publish --nologo -r win-x64 -c Debug -v Q --self-contained true -o ".
 )
 
 :Compile_Windows_Executable
-    ECHO [93mCompiling Windows Executable...[0m
-    SET COMPILER_OPTIONS=/c /nologo /DCOREENGINE_INTERNAL=1 /DCOREENGINE_SLOW=1 /MTd /FC /Oi /GR- /Gm- /EHa- /Zi /wd4201 /wd4505 
-    cl.exe %COMPILER_OPTIONS% "..\..\src\Host\Windows\CompilationUnit.cpp"
 
-    @IF %ERRORLEVEL% == 0 (
-        GOTO Linking_Win32_Executable
-    )
-    @IF NOT %ERRORLEVEL% == 0 (
-        GOTO CompileError
-    )
+   COPY "..\..\src\Host\Windows\AppxManifest.xml" . > NUL
+
+   pushd "..\..\src\Host\Windows\"
+
+   IF NOT EXIST "WindowsCommon.pch" (
+      ECHO [93mCompiling Windows Pre-compiled header...[0m
+      cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /Zi /Yc /FpWindowsCommon.pch "WindowsCommon.cpp"
+   )
+   
+   ECHO [93mCompiling Windows Executable...[0m
+
+   SET COMPILER_OPTIONS=/c /DDEBUG /nologo /std:c++17 /EHsc /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH
+   cl.exe %COMPILER_OPTIONS% "CompilationUnit.cpp"
+   popd
+
+   @IF %ERRORLEVEL% == 0 (
+      GOTO Linking_Win32_Executable
+   )
+   @IF NOT %ERRORLEVEL% == 0 (
+      GOTO CompileError
+   )
     
 :Linking_Win32_Executable
    ECHO [93mLinking...[0m
-   REM link.exe "WindowsMain.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO /NODEFAULTLIB libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
-   link.exe "CompilationUnit.obj" /OUT:"CoreEngine.exe" /PDB:"CoreEngineHost.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /NOLOGO libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
+   
+   pushd "..\..\src\Host\Windows\"
+   link.exe "CompilationUnit.obj" "WindowsCommon.obj" /OUT:"..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib 
+   popd
    
    @IF %ERRORLEVEL% == 0 (
       GOTO Copy_Files
@@ -62,12 +76,18 @@ dotnet.exe publish --nologo -r win-x64 -c Debug -v Q --self-contained true -o ".
    REM COPY System.Text.Encoding.Extensions.dll ..\Windows > NUL
    REM COPY System.Threading.dll ..\Windows > NUL
    REM COPY System.Threading.Tasks.dll ..\Windows > NUL
+   COPY AppxManifest.xml ..\Windows > NUL
    COPY CoreEngine.dll ..\Windows > NUL
    COPY CoreEngine.exe ..\Windows > NUL
+   
+   pushd "..\Windows"
+   powershell "add-appxpackage -register AppxManifest.xml"
+   popd
+
    GOTO End
    
 :End
     ECHO [92mSuccess: Compilation done.[0m
     popd
-    RD /S /Q build\temp
+    REM RD /S /Q build\temp
     @ECHO ON

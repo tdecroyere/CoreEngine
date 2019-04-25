@@ -1,12 +1,8 @@
 #pragma once
 
-#include "WindowsCommon.h"
-
-using namespace std;
-
+#include "CompilationUnit.cpp"
 
 InputsState inputsState = {};
-
 
 int AddTestHostMethod(int a, int b)
 {
@@ -68,7 +64,7 @@ void DrawPrimitives(void* graphicsContext, int primitiveCount, unsigned int vert
 class WindowsCoreEngineHost
 {
 public:
-    void StartEngine(string appName) 
+    void StartEngine(hstring appName) 
     {
         InitCoreClr();
 
@@ -109,18 +105,18 @@ private:
 
     void InitCoreClr()
     {
-        string appPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows";
-        string coreClrPath = appPath + "\\CoreClr.dll";
+        hstring appPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows";
+        hstring coreClrPath = appPath + "\\CoreClr.dll";
 
-	    string tpaList = BuildTpaList(appPath);
+	    hstring tpaList = BuildTpaList(appPath);
 
-        HMODULE coreClr = LoadLibraryExA(coreClrPath.c_str(), NULL, 0);
+        HMODULE coreClr = LoadPackagedLibrary(coreClrPath.c_str(), 0);
 
 	    coreclr_initialize_ptr initializeCoreClr = (coreclr_initialize_ptr)GetProcAddress(coreClr, "coreclr_initialize");
 	    coreclr_create_delegate_ptr createManagedDelegate = (coreclr_create_delegate_ptr)GetProcAddress(coreClr, "coreclr_create_delegate");
 	    coreclr_shutdown_ptr shutdownCoreClr = (coreclr_shutdown_ptr)GetProcAddress(coreClr, "coreclr_shutdown");
 
-        const char* propertyKeys[] = {
+        const char* properLoadPackagedLibrary
             "TRUSTED_PLATFORM_ASSEMBLIES"
         };
 
@@ -171,11 +167,11 @@ private:
         // TODO: Do not forget to call the shutdownCoreClr method
     }    
 
-    string BuildTpaList(string path)
+    hstring BuildTpaList(hstring path)
     {
-        string tpaList = "";
+        hstring tpaList = "";
 
-        string searchPath = path;
+        hstring searchPath = path;
         searchPath.append("\\*.dll");
 
         WIN32_FIND_DATAA findData;

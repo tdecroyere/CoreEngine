@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10">
+  <Identity
+    Name="DoubleBuffer.CoreEngine"
+    Publisher="CN=doublebuffer"
+    Version="1.0.0.0" />
+  <Properties>
+    <DisplayName>Core Engine</DisplayName>
+    <PublisherDisplayName>Double Buffer</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.10042.0" MaxVersionTested="10.0.10042.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+  <Applications>
+    <Application Id="CoreEngineWindowsHost"
+      Executable="CoreEngine.exe"
+      EntryPoint="MainApplicationView">
+      <uap:VisualElements
+        DisplayName="Core Engine"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png"
+        Description="Core Engine Host for Windows."
+        BackgroundColor="transparent">
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="core-engine">
+            <uap:Logo>Assets\Square150x150Logo.png</uap:Logo>
+          </uap:Protocol>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>

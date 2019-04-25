@@ -1,5 +1,5 @@
 @ECHO OFF
 pushd .\build\Windows
-.\CoreEngine.exe %1
+Start core-engine:
 popd
 @ECHO ON

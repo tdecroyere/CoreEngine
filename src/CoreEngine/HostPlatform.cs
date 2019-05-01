@@ -7,36 +7,37 @@ namespace CoreEngine
 {
     // TODO: Provide stubs for not implemented platform functionnalities to avoid craches
 
-    // TODO: Find a way to hide that to external assemblies
-    public struct ByteSpan
+    public struct MemoryBuffer
     {
+        public uint Id;
         public IntPtr Pointer;
         public int Length;
 
-        public unsafe static implicit operator Span<byte>(ByteSpan value)
+        public unsafe Span<byte> AsSpan()
         {
-            return new Span<byte>(value.Pointer.ToPointer(), value.Length);
+            return new Span<byte>(this.Pointer.ToPointer(), this.Length);
         }
     }
 
-    public delegate int AddTestHostMethodDelegate(int a, int b);
-    public delegate ByteSpan GetTestBufferDelegate();
+    // TODO: Add parameters to specify global or per frame allocation
+    public delegate MemoryBuffer CreateMemoryBufferDelegate(IntPtr memoryManagerContext, int length);
+    public delegate void DestroyMemoryBufferDelegate(IntPtr memoryManagerContext, uint memoryBufferId);
 
-    public struct HostPlatform
+    public struct MemoryService
     {
-        public int TestParameter;
-        public AddTestHostMethodDelegate AddTestHostMethod;
-        public GetTestBufferDelegate GetTestBuffer;
-        public GraphicsService GraphicsService;
-        public InputsService InputsService;
+        public IntPtr MemoryManagerContext;
+        public CreateMemoryBufferDelegate CreateMemoryBuffer;
+        public DestroyMemoryBufferDelegate DestroyMemoryBuffer;
     }
 
+    public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
     public delegate void DebugDrawTriangleDelegate(IntPtr graphicsContext, Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix);
 
     public struct GraphicsService
     {
         public IntPtr GraphicsContext;
         public DebugDrawTriangleDelegate DebugDrawTriange;
+        public CreateShaderDelegate CreateShader;
     }
 
     public enum InputsObjectType
@@ -174,5 +175,20 @@ namespace CoreEngine
         public IntPtr InputsContext;
         public GetInputsStateDelegate GetInputsState;
         public SendVibrationCommandDelegate SendVibrationCommand;
+    }
+
+    
+
+    public delegate int AddTestHostMethodDelegate(int a, int b);
+    public delegate MemoryBuffer GetTestBufferDelegate();
+
+    public struct HostPlatform
+    {
+        public int TestParameter;
+        public AddTestHostMethodDelegate AddTestHostMethod;
+        public GetTestBufferDelegate GetTestBuffer;
+        public MemoryService MemoryService;
+        public GraphicsService GraphicsService;
+        public InputsService InputsService;
     }
 }

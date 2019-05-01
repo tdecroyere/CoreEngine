@@ -2,7 +2,7 @@ import Cocoa
 import CoreEngineInterop
 import simd
 
-func getTestBuffer() -> Span {
+func getTestBuffer() -> MemoryBuffer {
     let bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: 5)
     let buffer = UnsafeMutableBufferPointer(start: bufferPtr, count: 5)
     buffer[0] = 1
@@ -11,7 +11,7 @@ func getTestBuffer() -> Span {
     buffer[3] = 45
     buffer[4] = 5
 
-	return Span(Buffer: bufferPtr, Length: 5)
+	return MemoryBuffer(Id: 1, Pointer: bufferPtr, Length: 5)
 }
 
 func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32 {
@@ -20,14 +20,16 @@ func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32 {
 
 class MacOSCoreEngineHost {
     public var hostPlatform: HostPlatform!
+    var memoryManager: MacOSMemoryManager!
     var renderer: MacOSMetalRenderer!
     var inputsManager: MacOSInputsManager!
 
     var startEnginePointer: StartEnginePtr?
     var updateEnginePointer: UpdateEnginePtr?
 
-    init(renderer: MacOSMetalRenderer, inputsManager: MacOSInputsManager) {
+    init(memoryManager: MacOSMemoryManager, renderer: MacOSMetalRenderer, inputsManager: MacOSInputsManager) {
         self.hostPlatform = HostPlatform()
+        self.memoryManager = memoryManager
         self.renderer = renderer
         self.inputsManager = inputsManager
     }
@@ -45,7 +47,12 @@ class MacOSCoreEngineHost {
         self.hostPlatform.AddTestHostMethod = addTestHostMethod
         self.hostPlatform.GetTestBuffer = getTestBuffer
 
+        self.hostPlatform.MemoryService.MemoryManagerContext = Unmanaged.passUnretained(self.memoryManager).toOpaque()
+        self.hostPlatform.MemoryService.CreateMemoryBuffer = createMemoryBuffer
+        self.hostPlatform.MemoryService.DestroyMemoryBuffer = destroyMemoryBuffer
+
         self.hostPlatform.GraphicsService.GraphicsContext = Unmanaged.passUnretained(self.renderer).toOpaque()
+        self.hostPlatform.GraphicsService.CreateShader = createShader
         self.hostPlatform.GraphicsService.DebugDrawTriangle = debugDrawTriangle
 
         self.hostPlatform.InputsService.InputsContext = Unmanaged.passUnretained(self.inputsManager).toOpaque()

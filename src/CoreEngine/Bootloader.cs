@@ -25,7 +25,7 @@ namespace CoreEngine
 
             if (hostPlatform.GetTestBuffer != null)
             {
-                Span<byte> testBuffer = hostPlatform.GetTestBuffer();
+                var testBuffer = hostPlatform.GetTestBuffer().AsSpan();
 
                 for (int i = 0; i < testBuffer.Length; i++)
                 {
@@ -49,7 +49,7 @@ namespace CoreEngine
 
                     // Register managers
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService));
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService, hostPlatform.MemoryService, resourcesManager));
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
                     Console.WriteLine("Initializing app...");

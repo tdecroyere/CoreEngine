@@ -1,9 +1,20 @@
 #pragma once
 
-struct Span
+struct MemoryBuffer
 {
-	unsigned char* Buffer;
-	int Length;
+    unsigned int Id;
+    unsigned char* Pointer;
+    int Length;
+};
+
+typedef struct MemoryBuffer (*CreateMemoryBufferPtr)(void* memoryManagerContext, int length);
+typedef void (*DestroyMemoryBufferPtr)(void* memoryManagerContext, unsigned int memoryBufferId);
+
+struct MemoryService
+{
+    void* MemoryManagerContext;
+    CreateMemoryBufferPtr CreateMemoryBuffer;
+    DestroyMemoryBufferPtr DestroyMemoryBuffer;
 };
 
 struct Vector4
@@ -19,12 +30,14 @@ struct Matrix4x4
     float Item30, Item31, Item32, Item33;
 };
 
+typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuffer shaderByteCode);
 typedef void (*DebugDrawTrianglePtr)(void* graphicsContext, struct Vector4 color1, struct Vector4 color2, struct Vector4 color3, struct Matrix4x4 worldMatrix);
 
 struct GraphicsService
 {
     void* GraphicsContext;
     DebugDrawTrianglePtr DebugDrawTriangle;
+    CreateShaderPtr CreateShader;
 };
 
 
@@ -165,13 +178,14 @@ struct InputsService
 };
 
 typedef int (*AddTestHostMethodPtr)(int a, int b);
-typedef struct Span (*GetTestBufferPtr)();
+typedef struct MemoryBuffer (*GetTestBufferPtr)();
 
 struct HostPlatform
 {
 	int TestParameter;
 	AddTestHostMethodPtr AddTestHostMethod;
 	GetTestBufferPtr GetTestBuffer;
+    struct MemoryService MemoryService;
     struct GraphicsService GraphicsService;
     struct InputsService InputsService;
 };

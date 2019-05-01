@@ -46,6 +46,7 @@ autoreleasepool {
     NSApplication.shared.activate(ignoringOtherApps: true)
     NSApplication.shared.finishLaunching()
 
+    let memoryManager = MacOSMemoryManager()
     let inputsManager = MacOSInputsManager()
 
     while (delegate.renderer == nil) {
@@ -61,7 +62,7 @@ autoreleasepool {
         appName = CommandLine.arguments[1]
     }
 
-    let coreEngineHost = MacOSCoreEngineHost(renderer: renderer, inputsManager: inputsManager)
+    let coreEngineHost = MacOSCoreEngineHost(memoryManager: memoryManager, renderer: renderer, inputsManager: inputsManager)
     coreEngineHost.startEngine(appName)
 
     // var machTimebaseInfo = mach_timebase_info(numer: 0, denom: 0)

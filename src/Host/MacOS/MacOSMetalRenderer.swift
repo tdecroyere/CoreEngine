@@ -87,11 +87,18 @@ func debugDrawTriangle(graphicsContext: UnsafeMutableRawPointer?, color1: Vector
     renderer.drawTriangle(dstColor1, dstColor2, dstColor3, dstWorldMatrix)
 }
 
+func createShader(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: MemoryBuffer) -> UInt32 {
+    print("Swift create shader")
+    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
+    renderer.createShader(shaderByteCode: shaderByteCode)
+    return 0
+}
+
 class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     let device: MTLDevice
     let mtkView: MTKView
     var commandQueue: MTLCommandQueue!
-    var pipelineState: MTLRenderPipelineState!
+    var pipelineState: MTLRenderPipelineState?
     var currentCommandBuffer: MTLCommandBuffer!
     var currentRenderEncoder: MTLRenderCommandEncoder!
 
@@ -105,17 +112,21 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
         super.init()
 
-        let compileOptions = MTLCompileOptions()
-        compileOptions.fastMathEnabled = true
-        compileOptions.languageVersion = .version2_1
-   
-        // Load all the shader files with a .metal file extension in the project
-        let defaultLibrary = try! self.device.makeLibrary(source: self.getShaderSourceCode(), options: compileOptions)
+        //createShader()
 
-        // Load the vertex function from the library
+        self.commandQueue = self.device.makeCommandQueue()
+    }
+
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+        print("Renderer MTKView func")
+        self.viewportSize = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
+    }
+
+    func createShader(shaderByteCode: MemoryBuffer) {
+        let dispatchData = DispatchData(bytesNoCopy: UnsafeRawBufferPointer(start: shaderByteCode.Pointer!, count: Int(shaderByteCode.Length)))
+        let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
+
         let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")
-
-        // Load the fragment function from the library
         let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
 
         // Configure a pipeline descriptor that is used to create a pipeline state
@@ -130,28 +141,24 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         } catch {
             print("Failed to created pipeline state, \(error)")
         }
-
-        self.commandQueue = self.device.makeCommandQueue()
-    }
-
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        print("Renderer MTKView func")
-        self.viewportSize = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
     }
 
     func beginRender() {
+        self.mtkView.clearColor = MTLClearColor.init(red: 0.0, green: 0.5, blue: 1.0, alpha: 1.0)
+
         // Create a new command buffer for each render pass to the current drawable
         self.currentCommandBuffer = self.commandQueue.makeCommandBuffer()!
         self.currentCommandBuffer.label = "MyCommand"
 
-        self.mtkView.clearColor = MTLClearColor.init(red: 0.0, green: 0.0, blue: 1.0, alpha: 1.0)
+        guard let pipelineState = self.pipelineState else {
+            print("pipeline state empty")
+            return
+        }
 
         var renderPassBuffer = RenderPassConstantBuffer()
         renderPassBuffer.viewMatrix = makeLookAtMatrix(cameraPosition: float3(0, 0, -5), cameraTarget: float3(0, 0, 0), cameraUpVector: float3(0, 1, 0))
         renderPassBuffer.projectionMatrix = makePerspectiveFovMatrix(fieldOfViewY: radians(degrees: 39.375), aspectRatio: self.viewportSize.x / self.viewportSize.y, minPlaneZ: 1.0, maxPlaneZ: 10000)
         
-        self.mtkView.clearColor = MTLClearColor.init(red: 0.0, green: 0.5, blue: 1.0, alpha: 1.0)
-
         // Obtain a render pass descriptor, generated from the view's drawable
         let renderPassDescriptor = self.mtkView.currentRenderPassDescriptor!
         
@@ -160,38 +167,43 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
         // Set the region of the drawable to which we'll draw.
         self.currentRenderEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(self.viewportSize.x), height: Double(self.viewportSize.y), znear: -1.0, zfar: 1.0))
-        self.currentRenderEncoder.setRenderPipelineState(self.pipelineState)
+        self.currentRenderEncoder.setRenderPipelineState(pipelineState)
+
         self.currentRenderEncoder.setVertexBytes(&renderPassBuffer, length: MemoryLayout<RenderPassConstantBuffer>.size, index: 1)
     }
 
     func endRender() {
-        self.currentRenderEncoder.endEncoding()
+        if (self.currentRenderEncoder != nil) {
+            self.currentRenderEncoder.endEncoding()
+            
+
+            self.currentRenderEncoder = nil
+        }
+        
         self.currentCommandBuffer.present(self.mtkView.currentDrawable!)
         self.currentCommandBuffer.commit()
-
-        self.currentRenderEncoder = nil
         self.currentCommandBuffer = nil
     }
 
     func drawTriangle(_ color1: float4, _ color2: float4, _ color3: float4, _ worldMatrix: float4x4) {
-        // TODO: Change the fact that we have only one command buffer stored in a private field
-        let triangleVertices = [ 
-            TriangleVertex(position: float4(1, -1, 0, 1), color: color1), 
-            TriangleVertex(position: float4(-1, -1, 0, 1), color: color2), 
-            TriangleVertex(position: float4(0, 1, 0, 1), color: color3) 
-        ]
+        if (self.currentRenderEncoder != nil) {
+            // TODO: Change the fact that we have only one command buffer stored in a private field
+            let triangleVertices = [ 
+                TriangleVertex(position: float4(1, -1, 0, 1), color: color1), 
+                TriangleVertex(position: float4(-1, -1, 0, 1), color: color2), 
+                TriangleVertex(position: float4(0, 1, 0, 1), color: color3) 
+            ]
 
-        var objectBuffer = ObjectConstantBuffer()
-        objectBuffer.worldMatrix = worldMatrix
+            var objectBuffer = ObjectConstantBuffer()
+            objectBuffer.worldMatrix = worldMatrix
 
-        self.currentRenderEncoder.setRenderPipelineState(self.pipelineState)
+            // TODO: Switch to metal buffers
+            self.currentRenderEncoder.setVertexBytes(triangleVertices, length: triangleVertices.count * MemoryLayout<TriangleVertex>.size, index: 0)
+            self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
 
-        // TODO: Switch to metal buffers
-        self.currentRenderEncoder.setVertexBytes(triangleVertices, length: triangleVertices.count * MemoryLayout<TriangleVertex>.size, index: 0)
-        self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
-
-        // Draw the 3 vertices of our triangle
-        self.currentRenderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            // Draw the 3 vertices of our triangle
+            self.currentRenderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        }
     }
  
     func draw(in view: MTKView) {

@@ -3,6 +3,7 @@ using System.Numerics;
 using System.IO;
 using CoreEngine;
 using CoreEngine.Resources;
+using CoreEngine.Graphics;
 
 namespace CoreEngine.Tests.EcsTest
 {
@@ -10,7 +11,7 @@ namespace CoreEngine.Tests.EcsTest
     {
         private EntityManager? entityManager;
         private EntitySystemManager? entitySystemManager;
-        private TestResource? testResource;
+        private Shader? testResource;
 
         public override string Name => "EcsTest App";
 
@@ -22,8 +23,7 @@ namespace CoreEngine.Tests.EcsTest
             resourceManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
-            this.testResource = resourceManager.LoadResourceAsync<TestResource>("/Test.tst");
-            this.testResource = resourceManager.LoadResourceAsync<TestResource>("/Test.tst");
+            this.testResource = resourceManager.LoadResourceAsync<Shader>("/TestShader.shader");
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();
@@ -82,11 +82,6 @@ namespace CoreEngine.Tests.EcsTest
             if (this.entitySystemManager != null && this.entityManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
-
-                if (this.testResource != null)
-                {
-                    Console.WriteLine($"Test Resource: {this.testResource.Text}");
-                }
 
                 //DisplayEntities(this.entityManager);
             }

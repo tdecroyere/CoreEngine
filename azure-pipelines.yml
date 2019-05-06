@@ -5,9 +5,9 @@ jobs:
       name: Hosted Windows 2019 with VS2019
     steps:
     - task: DotNetCoreInstaller@0
-      displayName: 'Use .NET Core sdk 3.0.100-preview4-011223'
+      displayName: 'Use .NET Core sdk 3.0.100-preview5-011568'
       inputs:
-        version: '3.0.100-preview4-011223'
+        version: '3.0.100-preview5-011568'
 
     - script: '.\WindowsBuild.cmd'
       displayName: 'Build CoreEngine'
@@ -21,9 +21,9 @@ jobs:
       name: Hosted macOS
     steps:
     - task: DotNetCoreInstaller@0
-      displayName: 'Use .NET Core sdk 3.0.100-preview4-011223'
+      displayName: 'Use .NET Core sdk 3.0.100-preview5-011568'
       inputs:
-        version: '3.0.100-preview4-011223'
+        version: '3.0.100-preview5-011568'
 
     - script: ./MacOSBuild.sh
       displayName: 'Build CoreEngine'

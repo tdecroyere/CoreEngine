@@ -20,7 +20,7 @@ namespace CoreEngine.Tests.EcsTest
             Console.WriteLine("Init Ecs Test App...");
 
             var resourceManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
-            resourceManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
+            resourceManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
             this.testResource = resourceManager.LoadResourceAsync<Shader>("/TestShader.shader");

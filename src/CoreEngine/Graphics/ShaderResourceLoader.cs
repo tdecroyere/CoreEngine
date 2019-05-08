@@ -58,6 +58,8 @@ namespace CoreEngine.Graphics
 
             Console.WriteLine("Shader bytecode copy OK");
 
+            // TODO: Do not forget to implement hardware resource deallocation/reallocation
+            
             // TODO: Pass the id here so that the host remove replace the shader himself at the right time
             this.graphicsService.CreateShader(this.graphicsService.GraphicsContext, shaderByteCodeBuffer);
 

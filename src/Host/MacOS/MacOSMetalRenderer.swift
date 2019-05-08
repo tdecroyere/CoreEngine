@@ -102,6 +102,8 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     var currentCommandBuffer: MTLCommandBuffer!
     var currentRenderEncoder: MTLRenderCommandEncoder!
 
+    var triangleBuffer: MTLBuffer!
+
     var viewportSize: float2
     
     init(view: MTKView, device: MTLDevice) {
@@ -115,6 +117,18 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         //createShader()
 
         self.commandQueue = self.device.makeCommandQueue()
+
+        let color = float4(1, 1, 1, 1)
+
+        let triangleVertices = [ 
+            TriangleVertex(position: float4(1, -1, 0, 1), color: color), 
+            TriangleVertex(position: float4(-1, -1, 0, 1), color: color), 
+            TriangleVertex(position: float4(0, 1, 0, 1), color: color) 
+        ]
+
+        triangleVertices.withUnsafeBufferPointer {
+            self.triangleBuffer = self.device.makeBuffer(bytes: $0.baseAddress!, length: triangleVertices.count * MemoryLayout<TriangleVertex>.size, options: .storageModeManaged)
+        }
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -129,9 +143,21 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")
         let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
 
+        let vertexDescriptor = MTLVertexDescriptor()
+        vertexDescriptor.attributes[0].format = .float4
+        vertexDescriptor.attributes[0].offset = 0
+        vertexDescriptor.attributes[0].bufferIndex = 0
+
+        vertexDescriptor.attributes[1].format = .float4
+        vertexDescriptor.attributes[1].offset = 16
+        vertexDescriptor.attributes[1].bufferIndex = 0
+
+        vertexDescriptor.layouts[0].stride = MemoryLayout<float4>.stride * 2
+
         // Configure a pipeline descriptor that is used to create a pipeline state
         let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
         pipelineStateDescriptor.label = "Simple Pipeline"
+        pipelineStateDescriptor.vertexDescriptor = vertexDescriptor
         pipelineStateDescriptor.vertexFunction = vertexFunction
         pipelineStateDescriptor.fragmentFunction = fragmentFunction
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.mtkView.colorPixelFormat
@@ -169,6 +195,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.currentRenderEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(self.viewportSize.x), height: Double(self.viewportSize.y), znear: -1.0, zfar: 1.0))
         self.currentRenderEncoder.setRenderPipelineState(pipelineState)
 
+        self.currentRenderEncoder.setVertexBuffer(self.triangleBuffer, offset: 0, index: 0)
         self.currentRenderEncoder.setVertexBytes(&renderPassBuffer, length: MemoryLayout<RenderPassConstantBuffer>.size, index: 1)
     }
 
@@ -198,7 +225,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
             objectBuffer.worldMatrix = worldMatrix
 
             // TODO: Switch to metal buffers
-            self.currentRenderEncoder.setVertexBytes(triangleVertices, length: triangleVertices.count * MemoryLayout<TriangleVertex>.size, index: 0)
+            // self.currentRenderEncoder.setVertexBytes(triangleVertices, length: triangleVertices.count * MemoryLayout<TriangleVertex>.size, index: 0)
             self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
 
             // Draw the 3 vertices of our triangle

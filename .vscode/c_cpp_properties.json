@@ -9,9 +9,9 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/src/Host/Windows/**"
             ],
-            "defines": [],
+            "defines": ["DEBUG"],
             "intelliSenseMode": "msvc-x64",
             "cppStandard": "c++17"
         }

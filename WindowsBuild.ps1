@@ -5,6 +5,16 @@ $WindowsHostSourceFolder = ".\src\Host\Windows\"
 $TempFolder = ".\build\temp"
 $OutputFolder = ".\build\Windows"
 
+if (-not(Test-Path -Path $TempFolder))
+{
+    New-Item -Path $TempFolder -ItemType "directory" | Out-Null
+}
+
+if (-not(Test-Path -Path $OutputFolder))
+{
+    New-Item -Path $OutputFolder -ItemType "directory" | Out-Null
+}
+
 function RegisterVisualStudioEnvironment
 {
     $registeredVisualStudioVersion = Get-Content -Path Env:VisualStudioVersion -ErrorAction SilentlyContinue
@@ -84,7 +94,7 @@ function CompileWindowsHost
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH "CompilationUnit.cpp"
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH "CompilationUnit.cpp"
 
     if (-Not $?)
     {
@@ -101,7 +111,7 @@ function LinkWindowsHost
     Push-Location $WindowsHostSourceFolder
     Write-Output "[93mLinking Windows Executable...[0m"
    
-    link.exe "CompilationUnit.obj" "WindowsCommon.obj" /OUT:"..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib
+    link.exe "CompilationUnit.obj" "WindowsCommon.obj" /OUT:"..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
     Copy-Item "AppxManifest.xml" "..\..\..\build\temp\"
 
     if (-Not $?)

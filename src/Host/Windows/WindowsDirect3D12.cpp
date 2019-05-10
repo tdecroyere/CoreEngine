@@ -1,15 +1,11 @@
 #pragma once
 
-#include <dxgi1_4.h>
-#include <d3d12.h>
-#include <d3dcompiler.h>
-#include <wrl\client.h>
-
+using namespace Windows::UI::Core;
 
 // TODO: To Remove and to replace with the string class
-internal inline uint32 StringLength(char* string)
+int StringLength(char* string)
 {
-	uint32 length = 0;
+	int length = 0;
 
 	while (*string++)
 	{
@@ -20,25 +16,18 @@ internal inline uint32 StringLength(char* string)
 }
 
 #define ReturnIfFailed(expression) if (FAILED(expression)) { OutputDebugStringA("ERROR: DirectX12 Init error!\n"); return false; };
+#define ArrayCount(value) ((sizeof(value) / sizeof(value[0])))
 
-using namespace Microsoft::WRL;
-
-typedef HRESULT CreateDXGIFactory2Func(UINT Flags, REFIID riid, void** ppFactory);
-typedef HRESULT D3D12CreateDeviceFunc(IUnknown *pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid, void** ppDevice);
-typedef HRESULT D3D12GetDebugInterfaceFunc(REFIID riid, void **ppvDebug);
-typedef HRESULT D3D12SerializeRootSignatureFunc(const D3D12_ROOT_SIGNATURE_DESC* pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob** ppBlob, ID3DBlob** ppErrorBlob);
-typedef HRESULT D3DCompileFunc(LPCVOID pSrcData, SIZE_T SrcDataSize, LPCSTR pSourceName, D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob** ppCode, ID3DBlob** ppErrorMsgs);
-
-static const uint32 RenderBuffersCountConst = 2;
+static const int RenderBuffersCountConst = 2;
 
 struct Direct3D12Texture
 {
-	uint32 Width;
-	uint32 Height;
-	uint32 Pitch;
+	int Width;
+	int Height;
+	int Pitch;
 	DXGI_FORMAT Format;
-	ComPtr<ID3D12Resource> Resource;
-	ComPtr<ID3D12Resource> UploadHeap;
+	com_ptr<ID3D12Resource> Resource;
+	com_ptr<ID3D12Resource> UploadHeap;
 	void* UploadHeapData;
 	D3D12_RESOURCE_BARRIER PixelShaderToCopyDestBarrier;
 	D3D12_RESOURCE_BARRIER CopyDestToPixelShaderBarrier;
@@ -47,34 +36,33 @@ struct Direct3D12Texture
 
 struct Direct3D12
 {
-	bool32 IsInitialized;
-	bool32 IsFullscreen;
-	uint32 Width;
-	uint32 Height;
-	uint32 BytesPerPixel;
-	uint32 Pitch;
-	uint32 RefreshRate;
-	bool32 VSync;
+	bool IsInitialized;
+	bool IsFullscreen;
+	int Width;
+	int Height;
+	int BytesPerPixel;
+	int Pitch;
+	int RefreshRate;
+	bool VSync;
+	int RenderBuffersCount;
 
-	HMODULE DXGILibrary;
-	HMODULE Direct3D12Library;
-	HMODULE Direct3DCompilerLibrary;
-	uint32 RenderBuffersCount;
-	ComPtr<ID3D12Device> Device;
-	ComPtr<ID3D12CommandQueue> CommandQueue;
-	ComPtr<ID3D12CommandAllocator> CommandAllocator;
-	ComPtr<ID3D12GraphicsCommandList> CommandList;
-	ComPtr<IDXGISwapChain3> SwapChain;
-	ComPtr<ID3D12DescriptorHeap> RtvDescriptorHeap;
-	ComPtr<ID3D12DescriptorHeap> SrvDescriptorHeap;
-	uint32 RtvDescriptorHandleSize;
-	ComPtr<ID3D12Resource> RenderTargets[RenderBuffersCountConst];
+	com_ptr<ID3D12Device> Device;
+	com_ptr<ID3D12CommandQueue> CommandQueue;
+	com_ptr<ID3D12CommandAllocator> CommandAllocator;
+	com_ptr<ID3D12GraphicsCommandList> CommandList;
+	com_ptr<IDXGISwapChain3> SwapChain;
+
+	com_ptr<ID3D12DescriptorHeap> RtvDescriptorHeap;
+	com_ptr<ID3D12DescriptorHeap> SrvDescriptorHeap;
+	int RtvDescriptorHandleSize;
+	com_ptr<ID3D12Resource> RenderTargets[RenderBuffersCountConst];
 	D3D12_RESOURCE_BARRIER PresentToRenderTargetBarriers[RenderBuffersCountConst];
 	D3D12_RESOURCE_BARRIER RenderTargetToPresentBarriers[RenderBuffersCountConst];
-	ComPtr<ID3D12PipelineState> SpritePSO;
-	ComPtr<ID3D12RootSignature> SpriteRootSignature;
-	ComPtr<ID3D12PipelineState> CheckBoardPSO;
-	ComPtr<ID3D12RootSignature> CheckBoardRootSignature;
+
+	com_ptr<ID3D12PipelineState> SpritePSO;
+	com_ptr<ID3D12RootSignature> SpriteRootSignature;
+	com_ptr<ID3D12PipelineState> CheckBoardPSO;
+	com_ptr<ID3D12RootSignature> CheckBoardRootSignature;
 
 	Direct3D12Texture Texture;
 
@@ -82,14 +70,14 @@ struct Direct3D12
 	D3D12_RECT ScissorRect;
 
 	// Synchronization objects
-	uint32 CurrentBackBufferIndex;
+	int CurrentBackBufferIndex;
 	HANDLE FenceEvent;
-	ComPtr<ID3D12Fence> Fence;
-	uint64 FenceValue;
+	com_ptr<ID3D12Fence> Fence;
+	UINT64 FenceValue;
 };
 
 
-inline D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {
 	D3D12_RESOURCE_BARRIER resourceBarrier = {};
 
@@ -103,7 +91,7 @@ inline D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* re
 	return resourceBarrier;
 }
 
-internal Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, uint32 width, uint32 height, DXGI_FORMAT format)
+Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, int width, int height, DXGI_FORMAT format)
 {
 	Direct3D12Texture texture = {};
 	texture.Width = width;
@@ -140,8 +128,8 @@ internal Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, uint32 
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(&texture.Resource));
+		nullptr, 
+		__uuidof(texture.Resource), texture.Resource.put_void());
 
 	if (FAILED(result))
 	{
@@ -149,7 +137,7 @@ internal Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, uint32 
 		OutputDebugStringA("ERROR: Texture creation has failed!\n");
 	}
 
-	uint64 uploadBufferSize;
+	UINT64 uploadBufferSize;
 	device->GetCopyableFootprints(&textureDesc, 0, 1, 0, &texture.SubResourceFootPrint, nullptr, nullptr, &uploadBufferSize);
 
 	D3D12_RESOURCE_DESC textureResourceDesc = {};
@@ -171,8 +159,8 @@ internal Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, uint32 
 		D3D12_HEAP_FLAG_NONE,
 		&textureResourceDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&texture.UploadHeap));
+		nullptr, 
+		IID_PPV_ARGS_WINRT(texture.UploadHeap));
 
 	if (FAILED(result))
 	{
@@ -180,11 +168,11 @@ internal Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, uint32 
 		OutputDebugStringA("ERROR: Texture upload heap creation has failed!\n");
 	}
 
-	texture.CopyDestToPixelShaderBarrier = CreateTransitionResourceBarrier(texture.Resource.Get(), 
+	texture.CopyDestToPixelShaderBarrier = CreateTransitionResourceBarrier(texture.Resource.get(), 
 		D3D12_RESOURCE_STATE_COPY_DEST, 
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	texture.PixelShaderToCopyDestBarrier = CreateTransitionResourceBarrier(texture.Resource.Get(), 
+	texture.PixelShaderToCopyDestBarrier = CreateTransitionResourceBarrier(texture.Resource.get(), 
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 
 		D3D12_RESOURCE_STATE_COPY_DEST);
 
@@ -200,17 +188,17 @@ internal Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, uint32 
 	return texture;
 }
 
-internal void UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture)
+void UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture)
 {
 	commandList->ResourceBarrier(1, &texture.PixelShaderToCopyDestBarrier);
 
 	D3D12_TEXTURE_COPY_LOCATION Dst = {};
-	Dst.pResource = texture.Resource.Get();
+	Dst.pResource = texture.Resource.get();
 	Dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 	Dst.SubresourceIndex = 0;
 
 	D3D12_TEXTURE_COPY_LOCATION Src = {};
-	Src.pResource = texture.UploadHeap.Get();
+	Src.pResource = texture.UploadHeap.get();
 	Src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 	Src.PlacedFootprint = texture.SubResourceFootPrint;
 
@@ -218,7 +206,7 @@ internal void UploadTextureData(ID3D12GraphicsCommandList* commandList, const Di
 	commandList->ResourceBarrier(1, &texture.CopyDestToPixelShaderBarrier);
 }
 
-internal D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle(Direct3D12* direct3D12)
+D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle(Direct3D12* direct3D12)
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = {};
 	renderTargetViewHandle.ptr = direct3D12->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + direct3D12->CurrentBackBufferIndex * direct3D12->RtvDescriptorHandleSize;
@@ -226,30 +214,20 @@ internal D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle(Direct3D12
 	return renderTargetViewHandle;
 }
 
-internal void Direct32D2EnableDebugLayer(HMODULE direct3D12Library)
+void Direct32D2EnableDebugLayer()
 {
-	D3D12GetDebugInterfaceFunc* D3D12GetDebugInterface = (D3D12GetDebugInterfaceFunc*)GetProcAddress(direct3D12Library, "D3D12GetDebugInterface");
+	// If the project is in a debug build, enable debugging via SDK Layers.
+	com_ptr<ID3D12Debug> debugController;
+	
+	D3D12GetDebugInterface(IID_PPV_ARGS_WINRT(debugController));
 
-	if (D3D12GetDebugInterface)
+	if (debugController)
 	{
-		// If the project is in a debug build, enable debugging via SDK Layers.
-		ComPtr<ID3D12Debug> debugController;
-		D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
-
-		if (debugController)
-		{
-			debugController->EnableDebugLayer();
-		}
-	}
-
-	else
-	{
-		// TODO: Implement diagnostics
-		OutputDebugStringA("ERROR: D3D12GetDebugInterface function was not found!\n");
+		debugController->EnableDebugLayer();
 	}
 }
 
-internal void Direct32D2WaitForPreviousFrame(Direct3D12* direct3D12)
+void Direct32D2WaitForPreviousFrame(Direct3D12* direct3D12)
 {
 	// TODO:
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
@@ -257,8 +235,8 @@ internal void Direct32D2WaitForPreviousFrame(Direct3D12* direct3D12)
 	// illustrate how to use fences for efficient resource usage.
 
 	// Signal and increment the fence value
-	const uint64 fence = direct3D12->FenceValue;
-	direct3D12->CommandQueue->Signal(direct3D12->Fence.Get(), fence);
+	const UINT64 fence = direct3D12->FenceValue;
+	direct3D12->CommandQueue->Signal(direct3D12->Fence.get(), fence);
 	direct3D12->FenceValue++;
 
 	// Wait until the previous frame is finished
@@ -271,32 +249,28 @@ internal void Direct32D2WaitForPreviousFrame(Direct3D12* direct3D12)
 	direct3D12->CurrentBackBufferIndex = direct3D12->SwapChain->GetCurrentBackBufferIndex();
 }
 
-
-internal bool32 Direct3D12CreateDevice(Direct3D12* direct3D12, HWND window, uint32 width, uint32 height)
+bool Direct3D12CreateDevice(Direct3D12* direct3D12, CoreWindow& window, int width, int height)
 {
-	CreateDXGIFactory2Func* CreateDXGIFactory2 = (CreateDXGIFactory2Func*)GetProcAddress(direct3D12->DXGILibrary, "CreateDXGIFactory2");
-	D3D12CreateDeviceFunc* D3D12CreateDevice = (D3D12CreateDeviceFunc*)GetProcAddress(direct3D12->Direct3D12Library, "D3D12CreateDevice");
-
-#ifdef PROJECTGAIA_INTERNAL
-	Direct32D2EnableDebugLayer(direct3D12->Direct3D12Library);
+#ifdef DEBUG
+	Direct32D2EnableDebugLayer();
 #endif
 
 	// Get the DXGI factory used to create the swap chain
-	ComPtr<IDXGIFactory4> dxgiFactory;
-	ReturnIfFailed(CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory)));
+	com_ptr<IDXGIFactory4> dxgiFactory;
+	ReturnIfFailed(CreateDXGIFactory2(0, IID_PPV_ARGS_WINRT(dxgiFactory)));
 
 	// Created Direct3D Device
-	HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&direct3D12->Device));
+	HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(direct3D12->Device));
 
 	if (FAILED(result))
 	{
 		// If hardware initialization fail, fall back to the WARP driver
 		OutputDebugStringA("Direct3D hardware device initialization failed. Falling back to WARP driver.\n");
 
-		ComPtr<IDXGIAdapter> warpAdapter;
-		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter));
+		com_ptr<IDXGIAdapter> warpAdapter;
+		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS_WINRT(warpAdapter));
 
-		ReturnIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&direct3D12->Device)));
+		ReturnIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(direct3D12->Device)));
 	}
 
 	// Create the command queue and command allocator
@@ -304,9 +278,9 @@ internal bool32 Direct3D12CreateDevice(Direct3D12* direct3D12, HWND window, uint
 	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	ReturnIfFailed(direct3D12->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&direct3D12->CommandQueue)));
-	ReturnIfFailed(direct3D12->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&direct3D12->CommandAllocator)));
-	ReturnIfFailed(direct3D12->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, direct3D12->CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&direct3D12->CommandList)));
+	ReturnIfFailed(direct3D12->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(direct3D12->CommandQueue)));
+	ReturnIfFailed(direct3D12->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(direct3D12->CommandAllocator)));
+	ReturnIfFailed(direct3D12->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, direct3D12->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(direct3D12->CommandList)));
 
 
 	// Describe and create the swap chain.
@@ -320,7 +294,7 @@ internal bool32 Direct3D12CreateDevice(Direct3D12* direct3D12, HWND window, uint
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.SampleDesc.Count = 1;
 	
-	ReturnIfFailed(dxgiFactory->CreateSwapChainForHwnd(direct3D12->CommandQueue.Get(), window, &swapChainDesc, nullptr, nullptr, (IDXGISwapChain1**)direct3D12->SwapChain.GetAddressOf()));
+	ReturnIfFailed(dxgiFactory->CreateSwapChainForCoreWindow(direct3D12->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)direct3D12->SwapChain.put()));
 
 	// Describe and create a render target view (RTV) descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
@@ -328,7 +302,7 @@ internal bool32 Direct3D12CreateDevice(Direct3D12* direct3D12, HWND window, uint
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	
-	ReturnIfFailed(direct3D12->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&direct3D12->RtvDescriptorHeap)));
+	ReturnIfFailed(direct3D12->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS_WINRT(direct3D12->RtvDescriptorHeap)));
 
 	// Describe and create a shader resource view (SRV) heap for the texture
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -336,11 +310,11 @@ internal bool32 Direct3D12CreateDevice(Direct3D12* direct3D12, HWND window, uint
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-	ReturnIfFailed(direct3D12->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&direct3D12->SrvDescriptorHeap)));
+	ReturnIfFailed(direct3D12->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS_WINRT(direct3D12->SrvDescriptorHeap)));
 	direct3D12->RtvDescriptorHandleSize = direct3D12->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Create a fence object used to synchronize the CPU with the GPU
-	ReturnIfFailed(direct3D12->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&direct3D12->Fence)));
+	ReturnIfFailed(direct3D12->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS_WINRT(direct3D12->Fence)));
 	direct3D12->FenceValue = 1;
 
 	// Create an event handle to use for frame synchronization
@@ -354,14 +328,14 @@ internal bool32 Direct3D12CreateDevice(Direct3D12* direct3D12, HWND window, uint
 	return true;
 }
 
-internal bool32 Direct3D12InitSizeDependentResources(Direct3D12* direct3D12)
+bool Direct3D12InitSizeDependentResources(Direct3D12* direct3D12)
 {
-	uint32 width = direct3D12->Width;
-	uint32 height = direct3D12->Height;
+	int width = direct3D12->Width;
+	int height = direct3D12->Height;
 
 	for (UINT n = 0; n < direct3D12->RenderBuffersCount; n++)
 	{
-		direct3D12->RenderTargets[n].Reset();
+		direct3D12->RenderTargets[n] = nullptr;
 	}
 
 	// Resize the swap chain to the desired dimensions.
@@ -377,33 +351,31 @@ internal bool32 Direct3D12InitSizeDependentResources(Direct3D12* direct3D12)
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvDecriptorHandle = direct3D12->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	// Create a RTV for each frame.
-	for (uint32 i = 0; i < direct3D12->RenderBuffersCount; ++i)
+	for (int i = 0; i < direct3D12->RenderBuffersCount; ++i)
 	{
-		ReturnIfFailed(direct3D12->SwapChain->GetBuffer(i, IID_PPV_ARGS(&direct3D12->RenderTargets[i])));
+		ReturnIfFailed(direct3D12->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(direct3D12->RenderTargets[i])));
 
-		direct3D12->Device->CreateRenderTargetView(direct3D12->RenderTargets[i].Get(), nullptr, rtvDecriptorHandle);
+		direct3D12->Device->CreateRenderTargetView(direct3D12->RenderTargets[i].get(), nullptr, rtvDecriptorHandle);
 		rtvDecriptorHandle.ptr += direct3D12->RtvDescriptorHandleSize;
 
-		direct3D12->PresentToRenderTargetBarriers[i] = CreateTransitionResourceBarrier(direct3D12->RenderTargets[i].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		direct3D12->RenderTargetToPresentBarriers[i] = CreateTransitionResourceBarrier(direct3D12->RenderTargets[i].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		direct3D12->PresentToRenderTargetBarriers[i] = CreateTransitionResourceBarrier(direct3D12->RenderTargets[i].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		direct3D12->RenderTargetToPresentBarriers[i] = CreateTransitionResourceBarrier(direct3D12->RenderTargets[i].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	}
 
 	direct3D12->Viewport = {};
-	direct3D12->Viewport.Width = (real32)width;
-	direct3D12->Viewport.Height = (real32)height;
+	direct3D12->Viewport.Width = (float)width;
+	direct3D12->Viewport.Height = (float)height;
 	direct3D12->Viewport.MaxDepth = 1.0f;
 
 	direct3D12->ScissorRect = {};
-	direct3D12->ScissorRect.right = (uint64)width;
-	direct3D12->ScissorRect.bottom = (uint64)height;
+	direct3D12->ScissorRect.right = (long)width;
+	direct3D12->ScissorRect.bottom = (long)height;
 
 	return true;
 }
 
-internal bool32 Direct3D12CreateSpriteRootSignature(Direct3D12* direct3D12)
+bool Direct3D12CreateSpriteRootSignature(Direct3D12* direct3D12)
 {
-	D3D12SerializeRootSignatureFunc* D3D12SerializeRootSignature = (D3D12SerializeRootSignatureFunc*)GetProcAddress(direct3D12->Direct3D12Library, "D3D12SerializeRootSignature");
-
 	D3D12_DESCRIPTOR_RANGE ranges[1];
 	ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	ranges[0].NumDescriptors = 1;
@@ -439,19 +411,17 @@ internal bool32 Direct3D12CreateSpriteRootSignature(Direct3D12* direct3D12)
 	rootSignatureDesc.pStaticSamplers = &sampler;
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	ComPtr<ID3DBlob> signature;
-	ComPtr<ID3DBlob> error;
+	com_ptr<ID3DBlob> signature;
+	com_ptr<ID3DBlob> error;
 
-	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-	ReturnIfFailed((direct3D12->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&direct3D12->SpriteRootSignature))));
+	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
+	ReturnIfFailed((direct3D12->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(direct3D12->SpriteRootSignature))));
 
 	return true;
 }
 
-internal bool32 Direct3D12CreateCheckBoardRootSignature(Direct3D12* direct3D12)
+bool Direct3D12CreateCheckBoardRootSignature(Direct3D12* direct3D12)
 {
-	D3D12SerializeRootSignatureFunc* D3D12SerializeRootSignature = (D3D12SerializeRootSignatureFunc*)GetProcAddress(direct3D12->Direct3D12Library, "D3D12SerializeRootSignature");
-
 	D3D12_ROOT_PARAMETER rootParameter = {};
 	rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 	rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -466,32 +436,30 @@ internal bool32 Direct3D12CreateCheckBoardRootSignature(Direct3D12* direct3D12)
 	rootSignatureDesc.pStaticSamplers = nullptr;
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	ComPtr<ID3DBlob> signature;
-	ComPtr<ID3DBlob> error;
+	com_ptr<ID3DBlob> signature;
+	com_ptr<ID3DBlob> error;
 
-	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-	ReturnIfFailed((direct3D12->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&direct3D12->CheckBoardRootSignature))));
+	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
+	ReturnIfFailed((direct3D12->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(direct3D12->CheckBoardRootSignature))));
 
 	return true;
 }
 
-internal ComPtr<ID3D12PipelineState> Direct3D12CreatePipelineState(Direct3D12* direct3D12, ID3D12RootSignature* rootSignature, char* shaderCode)
+com_ptr<ID3D12PipelineState> Direct3D12CreatePipelineState(Direct3D12* direct3D12, ID3D12RootSignature* rootSignature, char* shaderCode)
 {
-	D3DCompileFunc* D3DCompile = (D3DCompileFunc*)GetProcAddress(direct3D12->Direct3DCompilerLibrary, "D3DCompile");
-	
 	// Create the pipeline state, which includes compiling and loading shaders
-	ComPtr<ID3DBlob> vertexShader;
-	ComPtr<ID3DBlob> pixelShader;
+	com_ptr<ID3DBlob> vertexShader;
+	com_ptr<ID3DBlob> pixelShader;
 
-#if PROJECTGAIA_SLOW
+#if DEBUG
 	// Enable better shader debugging with the graphics debugging tools.
 	UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
 	UINT compileFlags = 0;
 #endif
 
-	ReturnIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-	ReturnIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+	ReturnIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, vertexShader.put(), nullptr));
+	ReturnIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, pixelShader.put(), nullptr));
 
 	// Describe and create the graphics pipeline state object (PSO)
 	const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
@@ -506,8 +474,8 @@ internal ComPtr<ID3D12PipelineState> Direct3D12CreatePipelineState(Direct3D12* d
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	psoDesc.pRootSignature = rootSignature;
-	psoDesc.VS = { (uint8*)(vertexShader->GetBufferPointer()), vertexShader->GetBufferSize() };
-	psoDesc.PS = { (uint8*)(pixelShader->GetBufferPointer()), pixelShader->GetBufferSize() };
+	psoDesc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
+	psoDesc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
 	psoDesc.SampleMask = 0xFFFFFF;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.NumRenderTargets = 1;
@@ -529,18 +497,18 @@ internal ComPtr<ID3D12PipelineState> Direct3D12CreatePipelineState(Direct3D12* d
 	psoDesc.BlendState.AlphaToCoverageEnable = FALSE;
 	psoDesc.BlendState.IndependentBlendEnable = FALSE;
 
-	for (uint32 i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+	for (int i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 	{
 		psoDesc.BlendState.RenderTarget[i] = defaultRenderTargetBlendDesc;
 	}
 
-	ComPtr<ID3D12PipelineState> pipelineState;
-	ReturnIfFailed(direct3D12->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+	com_ptr<ID3D12PipelineState> pipelineState;
+	ReturnIfFailed(direct3D12->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(pipelineState)));
 
 	return pipelineState;
 }
 
-internal bool32 Direct3D12CreateSpritePSO(Direct3D12* direct3D12)
+bool Direct3D12CreateSpritePSO(Direct3D12* direct3D12)
 {
 	// TODO: Move the shader code to a separate file
 	char* shaderCode = "struct PSInput\
@@ -587,7 +555,7 @@ internal bool32 Direct3D12CreateSpritePSO(Direct3D12* direct3D12)
 							return g_texture.Sample(g_sampler, input.uv);\
 						}";
 
-	direct3D12->SpritePSO = Direct3D12CreatePipelineState(direct3D12, direct3D12->SpriteRootSignature.Get(), shaderCode);
+	direct3D12->SpritePSO = Direct3D12CreatePipelineState(direct3D12, direct3D12->SpriteRootSignature.get(), shaderCode);
 
 	if (direct3D12->SpritePSO == nullptr)
 	{
@@ -597,7 +565,7 @@ internal bool32 Direct3D12CreateSpritePSO(Direct3D12* direct3D12)
 	return true;
 }
 
-internal bool32 Direct3D12CreateCheckBoardPSO(Direct3D12* direct3D12)
+bool Direct3D12CreateCheckBoardPSO(Direct3D12* direct3D12)
 {
 	// TODO: Move the shader code to a separate file
 	char* shaderCode = "struct PSInput\
@@ -664,7 +632,7 @@ internal bool32 Direct3D12CreateCheckBoardPSO(Direct3D12* direct3D12)
 							}\
 						}";
 
-	direct3D12->CheckBoardPSO = Direct3D12CreatePipelineState(direct3D12, direct3D12->CheckBoardRootSignature.Get(), shaderCode);
+	direct3D12->CheckBoardPSO = Direct3D12CreatePipelineState(direct3D12, direct3D12->CheckBoardRootSignature.get(), shaderCode);
 
 	if (direct3D12->CheckBoardPSO == nullptr)
 	{
@@ -674,9 +642,9 @@ internal bool32 Direct3D12CreateCheckBoardPSO(Direct3D12* direct3D12)
 	return true;
 }
 
-internal bool32 Direct3D12CreateResources(Direct3D12* direct3D12)
+bool Direct3D12CreateResources(Direct3D12* direct3D12)
 {
-	direct3D12->Texture = Direct3D12CreateTexture(direct3D12->Device.Get(), direct3D12->Width, direct3D12->Height, DXGI_FORMAT_B8G8R8A8_UNORM);
+	direct3D12->Texture = Direct3D12CreateTexture(direct3D12->Device.get(), direct3D12->Width, direct3D12->Height, DXGI_FORMAT_B8G8R8A8_UNORM);
 	
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -685,13 +653,13 @@ internal bool32 Direct3D12CreateResources(Direct3D12* direct3D12)
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	direct3D12->Device->CreateShaderResourceView(direct3D12->Texture.Resource.Get(), &srvDesc, direct3D12->SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	direct3D12->Device->CreateShaderResourceView(direct3D12->Texture.Resource.get(), &srvDesc, direct3D12->SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 	direct3D12->CommandList->Close();
 
 	return true;
 }
 
-internal Direct3D12 Direct3D12Init(HWND window, uint32 width, uint32 height, uint32 refreshRate)
+Direct3D12 Direct3D12Init(CoreWindow& window, int width, int height, int refreshRate)
 {
 	Direct3D12 direct3D12 = {};
 	direct3D12.RenderBuffersCount = RenderBuffersCountConst;
@@ -701,20 +669,7 @@ internal Direct3D12 Direct3D12Init(HWND window, uint32 width, uint32 height, uin
 	direct3D12.RefreshRate = refreshRate;
 	direct3D12.Pitch = direct3D12.Width * direct3D12.BytesPerPixel;
 
-	direct3D12.DXGILibrary = LoadLibraryA("Dxgi.dll");
-	direct3D12.Direct3D12Library = LoadLibraryA("D3D12.dll");
-
-	// TODO: Handle all other versions of D3DCompile_XXX.dll
-	direct3D12.Direct3DCompilerLibrary = LoadLibraryA("D3DCompiler_47.dll");
-
-	if (!direct3D12.DXGILibrary || !direct3D12.Direct3D12Library || !direct3D12.Direct3DCompilerLibrary)
-	{
-		// TODO: Implement diagnostics
-		OutputDebugStringA("ERROR: DXGI or D3D12 Library or D3DCompiler could not be loaded!\n");
-		return direct3D12;
-	}
-
-	bool32 result = Direct3D12CreateDevice(&direct3D12, window, width, height);
+	bool result = Direct3D12CreateDevice(&direct3D12, window, width, height);
 
 	if (!result)
 	{
@@ -767,11 +722,11 @@ internal Direct3D12 Direct3D12Init(HWND window, uint32 width, uint32 height, uin
 	return direct3D12;
 }
 
-internal void Direct3D12BeginFrame(Direct3D12* direct3D12)
+void Direct3D12BeginFrame(Direct3D12* direct3D12)
 {
 	// TODO: Add more log on return codes
 	direct3D12->CommandAllocator->Reset();
-	direct3D12->CommandList->Reset(direct3D12->CommandAllocator.Get(), nullptr);
+	direct3D12->CommandList->Reset(direct3D12->CommandAllocator.get(), nullptr);
 
 	direct3D12->CommandList->RSSetViewports(1, &direct3D12->Viewport);
 	direct3D12->CommandList->RSSetScissorRects(1, &direct3D12->ScissorRect);
@@ -781,21 +736,21 @@ internal void Direct3D12BeginFrame(Direct3D12* direct3D12)
 	direct3D12->CommandList->ResourceBarrier(1, &direct3D12->PresentToRenderTargetBarriers[direct3D12->CurrentBackBufferIndex]);
 	direct3D12->CommandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
 
-	real32 clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+	float clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 	direct3D12->CommandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
 }
 
-internal void Direct3D12EndFrame(Direct3D12* direct3D12)
+void Direct3D12EndFrame(Direct3D12* direct3D12)
 {
-	direct3D12->CommandList->SetPipelineState(direct3D12->SpritePSO.Get());
-	direct3D12->CommandList->SetGraphicsRootSignature(direct3D12->SpriteRootSignature.Get());
+	direct3D12->CommandList->SetPipelineState(direct3D12->SpritePSO.get());
+	direct3D12->CommandList->SetGraphicsRootSignature(direct3D12->SpriteRootSignature.get());
 
-	ID3D12DescriptorHeap* ppHeaps[] = { direct3D12->SrvDescriptorHeap.Get() };
+	ID3D12DescriptorHeap* ppHeaps[] = { direct3D12->SrvDescriptorHeap.get() };
 	direct3D12->CommandList->SetDescriptorHeaps(ArrayCount(ppHeaps), ppHeaps);
 
 	direct3D12->CommandList->SetGraphicsRootDescriptorTable(0, direct3D12->SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	UploadTextureData(direct3D12->CommandList.Get(), direct3D12->Texture);
+	//UploadTextureData(direct3D12->CommandList.get(), direct3D12->Texture);
 
 	direct3D12->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	direct3D12->CommandList->DrawInstanced(4, 1, 0, 0);
@@ -803,15 +758,15 @@ internal void Direct3D12EndFrame(Direct3D12* direct3D12)
 	direct3D12->CommandList->ResourceBarrier(1, &direct3D12->RenderTargetToPresentBarriers[direct3D12->CurrentBackBufferIndex]);
 	direct3D12->CommandList->Close();
 
-	ID3D12CommandList* commandLists[] = { direct3D12->CommandList.Get() };
+	ID3D12CommandList* commandLists[] = { direct3D12->CommandList.get() };
 	direct3D12->CommandQueue->ExecuteCommandLists(1, commandLists);
 }
 
-internal void Direct3D12PresentScreenBuffer(Direct3D12* direct3D12)
+void Direct3D12PresentScreenBuffer(Direct3D12* direct3D12)
 {
 	// TODO: Take into account the refresh rate passed in init method (and compute the present delay from the real
 	// monitor refresh rate)
-	uint32 presentInterval = 1;
+	int presentInterval = 1;
 
 	if (!direct3D12->VSync)
 	{
@@ -829,7 +784,7 @@ internal void Direct3D12PresentScreenBuffer(Direct3D12* direct3D12)
 	Direct32D2WaitForPreviousFrame(direct3D12);
 }
 
-internal bool32 Direct3D12SwitchScreenMode(Direct3D12* direct3D12)
+bool Direct3D12SwitchScreenMode(Direct3D12* direct3D12)
 {
 	BOOL fullscreenState;
 	ReturnIfFailed(direct3D12->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
@@ -847,7 +802,7 @@ internal bool32 Direct3D12SwitchScreenMode(Direct3D12* direct3D12)
 	return true;
 }
 
-internal void Direct3D12Destroy(Direct3D12* direct3D12)
+void Direct3D12Destroy(Direct3D12* direct3D12)
 {
 	// Ensure that the GPU is no longer referencing resources that are about to be
 	// cleaned up by the destructor.

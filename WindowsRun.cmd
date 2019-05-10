@@ -1,5 +1,4 @@
 @ECHO OFF
-pushd .\build\Windows
-Start core-engine:
+CoreEngineHost.exe EcsTest
 popd
 @ECHO ON

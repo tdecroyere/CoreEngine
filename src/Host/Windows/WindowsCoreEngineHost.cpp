@@ -1,5 +1,8 @@
 #pragma once
 
+using namespace Windows::ApplicationModel;
+using namespace Windows::ApplicationModel::Core;
+
 InputsState inputsState = {};
 
 int AddTestHostMethod(int a, int b)
@@ -67,7 +70,7 @@ public:
 
     }
 
-    void StartEngine(hstring appName) 
+    void StartEngine(std::string appName)
     {
         InitCoreClr();
 
@@ -108,12 +111,11 @@ private:
 
     void InitCoreClr()
     {
-        hstring appPath = L"C:\\Projects\\perso\\CoreEngine\\build\\Windows";
-        hstring coreClrPath = L"CoreClr.dll";
+        std::string appPath = to_string(Package::Current().InstalledLocation().Path());
 
-	    const hstring tpaList = BuildTpaList(appPath);
+	    const std::string tpaList = BuildTpaList(appPath);
 
-        HMODULE coreClr = LoadPackagedLibrary(coreClrPath.c_str(), 0);
+        HMODULE coreClr = LoadPackagedLibrary(L"CoreClr.dll", 0);
 
 	    coreclr_initialize_ptr initializeCoreClr = (coreclr_initialize_ptr)GetProcAddress(coreClr, "coreclr_initialize");
 	    coreclr_create_delegate_ptr createManagedDelegate = (coreclr_create_delegate_ptr)GetProcAddress(coreClr, "coreclr_create_delegate");
@@ -124,13 +126,13 @@ private:
         };
 
         const char* propertyValues[1] = {
-            to_string(tpaList).c_str()
+            tpaList.c_str()
         };
 
 	    void* hostHandle;
         unsigned int domainId;
 
-        int result = initializeCoreClr(to_string(appPath).c_str(),
+        int result = initializeCoreClr(appPath.c_str(),
                                        "CoreEngineAppDomain",
                                        1,
                                        propertyKeys,
@@ -170,21 +172,21 @@ private:
         // TODO: Do not forget to call the shutdownCoreClr method
     }    
 
-    winrt::hstring BuildTpaList(hstring path)
+    std::string BuildTpaList(std::string path)
     {
-        hstring tpaList = L"";
+        std::string tpaList = "";
 
-        hstring searchPath = path;
-        searchPath = searchPath + L"\\*.dll";
+        std::string searchPath = path;
+        searchPath = searchPath + "\\*.dll";
 
         WIN32_FIND_DATAA findData;
-        HANDLE fileHandle = FindFirstFile(to_string(searchPath).c_str(), &findData);
+        HANDLE fileHandle = FindFirstFile(searchPath.c_str(), &findData);
 
         if (fileHandle != INVALID_HANDLE_VALUE)
         {
             do
             {
-                tpaList = tpaList + (path) + L"\\" + to_hstring(findData.cFileName) + L";";
+                tpaList = tpaList + (path) + "\\" + findData.cFileName + ";";
             }
             while (FindNextFileA(fileHandle, &findData));
             FindClose(fileHandle);

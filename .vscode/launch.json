@@ -36,21 +36,12 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "preLaunchTask": "WindowsRun",
-            "program": "CoreEngine.exe",
+            "program": "CoreEngineHost.exe",
             "args": ["EcsTest"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
             "environment": [],
             "externalConsole": true
-        },
-
-        {
-            "name": "(Windows) Attach",
-            "type": "cppvsdbg",
-            "request": "attach",
-            "preLaunchTask": "WindowsRun",
-            "processId": "${command:pickProcess}",
-        },
+        }
     ]
 }

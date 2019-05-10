@@ -21,6 +21,7 @@ private:
 	int logicalWidth;
 	int logicalHeight;
     WindowsCoreEngineHost* coreEngineHost;
+    Direct3D12 direct3D12;
 
     inline int ConvertDipsToPixels(float dips) const
     {
@@ -108,7 +109,11 @@ public:
 		{
             if (this->isVisible)
             {
-                // TODO: Engine Update
+                this->coreEngineHost->UpdateEngine(1);
+
+                Direct3D12BeginFrame(&this->direct3D12);
+                Direct3D12EndFrame(&this->direct3D12);
+                Direct3D12PresentScreenBuffer(&this->direct3D12);
 
                 CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
             }
@@ -121,13 +126,41 @@ public:
 
     void OnActivated(const CoreApplicationView& applicationView, const IActivatedEventArgs& args)
     {
+        hstring appName = L"EcsTest";
+
+        if (args.Kind() == ActivationKind::Launch)
+        {
+            auto launchArgs = (const LaunchActivatedEventArgs*)(&args);
+
+            if (launchArgs->PrelaunchActivated())
+            {
+                // Opt-out of Prelaunch
+                CoreApplication::Exit();
+                return;
+            }
+        }
+
+        // else if (args.Kind() == ActivationKind::CommandLineLaunch)  
+        // {  
+        //     auto& commandLine = (CommandLineActivatedEventArgs&)args;  
+        //     appName = commandLine.Operation().Arguments();
+        // }  
+
         this->systemDpi = DisplayInformation::GetForCurrentView().LogicalDpi();
         
-        this->logicalWidth = CoreWindow::GetForCurrentThread().Bounds().Width;
-		this->logicalHeight = CoreWindow::GetForCurrentThread().Bounds().Height;
+        CoreWindow window = CoreWindow::GetForCurrentThread();
+        this->logicalWidth = window.Bounds().Width;
+		this->logicalHeight = window.Bounds().Height;
+
+        int outputWidth = ConvertDipsToPixels(this->logicalWidth);
+        int outputHeight = ConvertDipsToPixels(this->logicalHeight);
+
+        this->direct3D12 = Direct3D12Init(window, outputWidth, outputHeight, 60);
+        Direct3D12CreateResources(&this->direct3D12);
 
         this->coreEngineHost = new WindowsCoreEngineHost();
-        this->coreEngineHost->StartEngine(hstring());
+        //this->coreEngineHost->StartEngine(to_string(appName));
+        this->coreEngineHost->StartEngine("");
     }
 
 	void OnSuspending(const IInspectable& sender, const SuspendingEventArgs& args)
@@ -210,17 +243,6 @@ int __stdcall wWinMain(HINSTANCE applicationInstance, HINSTANCE, PWSTR, int)
 
 	MainApplicationView mainApplicationView = MainApplicationView();
 	CoreApplication::Run(mainApplicationView);
-
-	// WindowsCoreEngineHost* coreEngineHost = new WindowsCoreEngineHost();
-    // coreEngineHost->StartEngine(appName);
-
-    // // TODO: To remove, this is only used for debugging with console messages
-
-    // coreEngineHost->UpdateEngine(5);
-
-
-    coreEngineHost->UpdateEngine(5);
-
 
 	OutputDebugString("CoreEngine Windows Host has ended.\n");
 	winrt::uninit_apartment();

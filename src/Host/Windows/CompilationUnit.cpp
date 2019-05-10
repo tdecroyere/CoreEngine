@@ -1,4 +1,5 @@
 #include "WindowsCommon.h"
-//#include "WindowsCoreEngineHost.cpp"
+#include "../Common/CoreEngine.h"
+#include "WindowsCoreEngineHost.cpp"
 //#include "WindowsDirect3D12.cpp"
 #include "WindowsMain.cpp"

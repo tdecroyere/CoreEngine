@@ -102,7 +102,8 @@ function LinkWindowsHost
     Write-Output "[93mLinking Windows Executable...[0m"
    
     link.exe "CompilationUnit.obj" "WindowsCommon.obj" /OUT:"..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib
-   
+    Copy-Item "AppxManifest.xml" "..\..\..\build\temp\"
+
     if (-Not $?)
     {
         Pop-Location
@@ -115,7 +116,15 @@ function LinkWindowsHost
 
 function CopyFiles
 {
+    Write-Output "[93mCopy files...[0m"
+    Push-Location $TempFolder
 
+    Copy-Item "*.dll" "..\Windows"
+    Copy-Item "*.pdb" "..\Windows"
+    Copy-Item "AppxManifest.xml" "..\Windows"
+    Copy-Item "CoreEngine.exe" "..\Windows"
+
+    Pop-Location
 }
 
 function RegisterApp
@@ -131,6 +140,7 @@ CompileDotnet
 PreCompileHeader
 CompileWindowsHost
 LinkWindowsHost
+CopyFiles
 RegisterApp
 
 Write-Output "[92mSuccess: Compilation done.[0m"

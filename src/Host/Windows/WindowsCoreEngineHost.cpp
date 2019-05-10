@@ -1,7 +1,5 @@
 #pragma once
 
-#include "CompilationUnit.cpp"
-
 InputsState inputsState = {};
 
 int AddTestHostMethod(int a, int b)
@@ -9,7 +7,7 @@ int AddTestHostMethod(int a, int b)
 	return a + b;
 }
 
-MemoryBuffer GetTestBuffer()
+::MemoryBuffer GetTestBuffer()
 {
 	unsigned char* testBuffer = new unsigned char[5];
 
@@ -19,7 +17,7 @@ MemoryBuffer GetTestBuffer()
 	testBuffer[3] = 4;
 	testBuffer[4] = 5;
 
-    MemoryBuffer span = {};
+    ::MemoryBuffer span = {};
     span.Pointer = testBuffer;
     span.Length = 5;
 
@@ -64,6 +62,11 @@ void DrawPrimitives(void* graphicsContext, int primitiveCount, unsigned int vert
 class WindowsCoreEngineHost
 {
 public:
+    WindowsCoreEngineHost()
+    {
+
+    }
+
     void StartEngine(hstring appName) 
     {
         InitCoreClr();
@@ -94,7 +97,7 @@ public:
         this->startEnginePointer(appNamePtr, &hostPlatform);
     }
 
-    void UpdateEngine(real32 deltaTime) 
+    void UpdateEngine(float deltaTime) 
     {
         this->updateEnginePointer(deltaTime);
     }
@@ -105,10 +108,10 @@ private:
 
     void InitCoreClr()
     {
-        hstring appPath = "C:\\Projects\\perso\\CoreEngine\\build\\Windows";
-        hstring coreClrPath = appPath + "\\CoreClr.dll";
+        hstring appPath = L"C:\\Projects\\perso\\CoreEngine\\build\\Windows";
+        hstring coreClrPath = L"CoreClr.dll";
 
-	    hstring tpaList = BuildTpaList(appPath);
+	    const hstring tpaList = BuildTpaList(appPath);
 
         HMODULE coreClr = LoadPackagedLibrary(coreClrPath.c_str(), 0);
 
@@ -116,18 +119,18 @@ private:
 	    coreclr_create_delegate_ptr createManagedDelegate = (coreclr_create_delegate_ptr)GetProcAddress(coreClr, "coreclr_create_delegate");
 	    coreclr_shutdown_ptr shutdownCoreClr = (coreclr_shutdown_ptr)GetProcAddress(coreClr, "coreclr_shutdown");
 
-        const char* properLoadPackagedLibrary
+        const char* propertyKeys[1] = {
             "TRUSTED_PLATFORM_ASSEMBLIES"
         };
 
-        const char* propertyValues[] = {
-            tpaList.c_str()
+        const char* propertyValues[1] = {
+            to_string(tpaList).c_str()
         };
 
 	    void* hostHandle;
         unsigned int domainId;
 
-        int result = initializeCoreClr(appPath.c_str(),
+        int result = initializeCoreClr(to_string(appPath).c_str(),
                                        "CoreEngineAppDomain",
                                        1,
                                        propertyKeys,
@@ -167,24 +170,21 @@ private:
         // TODO: Do not forget to call the shutdownCoreClr method
     }    
 
-    hstring BuildTpaList(hstring path)
+    winrt::hstring BuildTpaList(hstring path)
     {
-        hstring tpaList = "";
+        hstring tpaList = L"";
 
         hstring searchPath = path;
-        searchPath.append("\\*.dll");
+        searchPath = searchPath + L"\\*.dll";
 
         WIN32_FIND_DATAA findData;
-        HANDLE fileHandle = FindFirstFileA(searchPath.c_str(), &findData);
+        HANDLE fileHandle = FindFirstFile(to_string(searchPath).c_str(), &findData);
 
         if (fileHandle != INVALID_HANDLE_VALUE)
         {
             do
             {
-                tpaList.append(path);
-                tpaList.append("\\");
-                tpaList.append(findData.cFileName);
-                tpaList.append(";");
+                tpaList = tpaList + (path) + L"\\" + to_hstring(findData.cFileName) + L";";
             }
             while (FindNextFileA(fileHandle, &findData));
             FindClose(fileHandle);

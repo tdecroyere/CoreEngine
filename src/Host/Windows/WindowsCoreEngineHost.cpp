@@ -13,7 +13,7 @@ int AddTestHostMethod(int a, int b)
 	return a + b;
 }
 
-Span GetTestBuffer()
+MemoryBuffer GetTestBuffer()
 {
 	unsigned char* testBuffer = new unsigned char[5];
 
@@ -23,8 +23,8 @@ Span GetTestBuffer()
 	testBuffer[3] = 4;
 	testBuffer[4] = 5;
 
-    Span span = {};
-    span.Buffer = testBuffer;
+    MemoryBuffer span = {};
+    span.Pointer = testBuffer;
     span.Length = 5;
 
 	return span;

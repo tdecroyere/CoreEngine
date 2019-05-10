@@ -4,6 +4,7 @@ using System.IO;
 using CoreEngine;
 using CoreEngine.Resources;
 using CoreEngine.Graphics;
+using CoreEngine.Diagnostics;
 
 namespace CoreEngine.Tests.EcsTest
 {
@@ -17,7 +18,7 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Init()
         {
-            Console.WriteLine("Init Ecs Test App...");
+            Logger.WriteMessage("Init Ecs Test App...");
 
             var resourceManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
             resourceManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
@@ -89,27 +90,27 @@ namespace CoreEngine.Tests.EcsTest
 
         private static void DisplayEntities(EntityManager entityManager)
         {
-            Console.WriteLine("----------------------------------------");
-            Console.WriteLine("Display entities");
-            Console.WriteLine("----------------------------------------");
+            Logger.WriteMessage("----------------------------------------");
+            Logger.WriteMessage("Display entities");
+            Logger.WriteMessage("----------------------------------------");
 
             var entities = entityManager.GetEntities();
 
             for (var i = 0; i < entities.Length; i++)
             {
                 var entity = entities[i];
-                Console.WriteLine($"Entity: {entity.EntityId}");
+                Logger.WriteMessage($"Entity: {entity.EntityId}");
 
                 var position = entityManager.GetComponentData<TransformComponent>(entity);
-                Console.WriteLine($"Position (X: {position.Position.X}, Y: {position.Position.Y}, Z: {position.Position.Z})");
+                Logger.WriteMessage($"Position (X: {position.Position.X}, Y: {position.Position.Y}, Z: {position.Position.Z})");
 
                 if (entityManager.HasComponent<BlockComponent>(entity))
                 {
                     var blockComponent = entityManager.GetComponentData<BlockComponent>(entity);
-                    Console.WriteLine($"Block (IsWall: {blockComponent.IsWall}, IsWater: {blockComponent.IsWater})");
+                    Logger.WriteMessage($"Block (IsWall: {blockComponent.IsWall}, IsWater: {blockComponent.IsWater})");
                 }
 
-                Console.WriteLine("----------------------------------------");
+                Logger.WriteMessage("----------------------------------------");
             }
         }
     }

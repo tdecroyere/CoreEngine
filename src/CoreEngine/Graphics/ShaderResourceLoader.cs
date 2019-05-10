@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
@@ -41,22 +42,22 @@ namespace CoreEngine.Graphics
 
             if (shaderSignature.ToString() != "SHADER" && shaderVersion != 1)
             {
-                Console.WriteLine($"ERROR: Wrong shader signature or version for shader '{resource.Path}'");
+                Logger.WriteMessage($"ERROR: Wrong shader signature or version for shader '{resource.Path}'");
             }
 
             var shaderByteCodeLength = reader.ReadInt32();
             var shaderByteCode = new Span<byte>(reader.ReadBytes(shaderByteCodeLength));
 
-            Console.WriteLine("OK Shader loader");
+            Logger.WriteMessage("OK Shader loader");
 
             var shaderByteCodeBuffer = this.memoryService.CreateMemoryBuffer(this.memoryService.MemoryManagerContext, shaderByteCodeLength);
             
             if (!shaderByteCode.TryCopyTo(shaderByteCodeBuffer.AsSpan()))
             {
-                Console.WriteLine("Shader bytecode copy error");
+                Logger.WriteMessage("Shader bytecode copy error");
             }
 
-            Console.WriteLine("Shader bytecode copy OK");
+            Logger.WriteMessage("Shader bytecode copy OK");
 
             // TODO: Do not forget to implement hardware resource deallocation/reallocation
             

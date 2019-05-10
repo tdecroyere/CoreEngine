@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
+using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
 using CoreEngine.Inputs;
 using CoreEngine.Resources;
@@ -14,13 +15,13 @@ namespace CoreEngine
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
         {
-            Console.WriteLine($"Starting CoreEngine...");
-            Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter}");
-            
+            Logger.WriteMessage($"Starting CoreEngine...");
+            Logger.WriteMessage($"Test Parameter: {hostPlatform.TestParameter}");
+
             if (hostPlatform.AddTestHostMethod != null)
             {
                 var result = hostPlatform.AddTestHostMethod(3, 8);
-                Console.WriteLine($"Test Parameter: {hostPlatform.TestParameter} - {result}");
+                Logger.WriteMessage($"Test Parameter: {hostPlatform.TestParameter} - {result}");
             }
 
             if (hostPlatform.GetTestBuffer != null)
@@ -29,18 +30,18 @@ namespace CoreEngine
 
                 for (int i = 0; i < testBuffer.Length; i++)
                 {
-                    Console.WriteLine($"TestBuffer {testBuffer[i]}");
+                    Logger.WriteMessage($"TestBuffer {testBuffer[i]}");
                 }
             }
 
             if (appName != null)
             {
-                Console.WriteLine($"Loading CoreEngineApp '{appName}'...");
+                Logger.WriteMessage($"Loading CoreEngineApp '{appName}'...");
                 coreEngineApp = LoadCoreEngineApp(appName).Result;
 
                 if (coreEngineApp != null)
                 {
-                    Console.WriteLine("CoreEngineApp loading successfull.");
+                    Logger.WriteMessage("CoreEngineApp loading successfull.");
 
                     var resourcesManager = new ResourcesManager();
                     
@@ -52,9 +53,9 @@ namespace CoreEngine
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService, hostPlatform.MemoryService, resourcesManager));
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
-                    Console.WriteLine("Initializing app...");
+                    Logger.WriteMessage("Initializing app...");
                     coreEngineApp.Init();
-                    Console.WriteLine("Initializing app done.");
+                    Logger.WriteMessage("Initializing app done.");
                 }
             }
         }

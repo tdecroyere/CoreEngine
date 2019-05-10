@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
 using System.Buffers;
+using CoreEngine.Diagnostics;
 
 namespace CoreEngine.Resources
 {
@@ -24,13 +25,13 @@ namespace CoreEngine.Resources
 
         public void AddResourceLoader(ResourceLoader resourceLoader)
         {
-            Console.WriteLine($"Registering '{resourceLoader.FileExtension}' resource loader...");
+            Logger.WriteMessage($"Registering '{resourceLoader.FileExtension}' resource loader...");
             this.resourceLoaders.Add(resourceLoader.FileExtension, resourceLoader);
         }
 
         public void AddResourceStorage(ResourceStorage resourceStorage)
         {
-            Console.WriteLine($"Registering '{resourceStorage.Name}' resource storage...");
+            Logger.WriteMessage($"Registering '{resourceStorage.Name}' resource storage...");
             this.resourceStorages.Add(resourceStorage);
         }
 
@@ -41,7 +42,7 @@ namespace CoreEngine.Resources
                 return (T)this.resources[path];
             }
 
-            Console.WriteLine($"Loading resource '{path}'...");
+            Logger.WriteMessage($"Loading resource '{path}'...");
             var resourceLoader = FindResourceLoader(Path.GetExtension(path));
 
             if (resourceLoader == null)
@@ -53,7 +54,7 @@ namespace CoreEngine.Resources
 
             if (resourceStorage == null)
             {
-                Console.WriteLine($"Warning: Resource '{path}' was not found.");
+                Logger.WriteMessage($"Warning: Resource '{path}' was not found.");
                 // TODO return a default not found resource specific to the resource type (shader, texture, etc.)
                 throw new NotImplementedException("Resource not found path is not yet implemented");
             }
@@ -95,7 +96,7 @@ namespace CoreEngine.Resources
 
                     if (lastUpdateDate != null)
                     {
-                        Console.WriteLine($"Found update for resource '{resource.Path}'...");
+                        Logger.WriteMessage($"Found update for resource '{resource.Path}'...");
 
                         if (resource.ResourceLoader != null)
                         {
@@ -125,7 +126,7 @@ namespace CoreEngine.Resources
                 if (resourceLoadingTask.Status == TaskStatus.Faulted)
                 {
                     // TODO: Add more logging infos
-                    Console.WriteLine("Warning: Failed to load resource");
+                    Logger.WriteMessage("Warning: Failed to load resource");
                 }
 
                 var resource = resourceLoadingTask.Result;

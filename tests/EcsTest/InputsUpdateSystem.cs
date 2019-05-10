@@ -39,7 +39,7 @@ namespace CoreEngine.Tests.EcsTest
                     playerArray[i].InputVector = new Vector3(mouseVector.X, mouseVector.Y, 0.0f);
                 }
 
-                //Console.WriteLine($"InputVector: {playerArray[i].InputVector}");
+                //Logger.WriteMessage($"InputVector: {playerArray[i].InputVector}");
             }
         }
     }

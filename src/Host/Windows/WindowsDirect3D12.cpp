@@ -249,7 +249,7 @@ void Direct32D2WaitForPreviousFrame(Direct3D12* direct3D12)
 	direct3D12->CurrentBackBufferIndex = direct3D12->SwapChain->GetCurrentBackBufferIndex();
 }
 
-bool Direct3D12CreateDevice(Direct3D12* direct3D12, CoreWindow& window, int width, int height)
+bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, int width, int height)
 {
 #ifdef DEBUG
 	Direct32D2EnableDebugLayer();
@@ -289,9 +289,10 @@ bool Direct3D12CreateDevice(Direct3D12* direct3D12, CoreWindow& window, int widt
 	swapChainDesc.Width = width;
 	swapChainDesc.Height = height;
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//swapChainDesc.Scaling = DXGI_SCALING_NONE;
+	swapChainDesc.Scaling = DXGI_SCALING_ASPECT_RATIO_STRETCH;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 	swapChainDesc.SampleDesc.Count = 1;
 	
 	ReturnIfFailed(dxgiFactory->CreateSwapChainForCoreWindow(direct3D12->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)direct3D12->SwapChain.put()));
@@ -659,7 +660,7 @@ bool Direct3D12CreateResources(Direct3D12* direct3D12)
 	return true;
 }
 
-Direct3D12 Direct3D12Init(CoreWindow& window, int width, int height, int refreshRate)
+Direct3D12 Direct3D12Init(const CoreWindow& window, int width, int height, int refreshRate)
 {
 	Direct3D12 direct3D12 = {};
 	direct3D12.RenderBuffersCount = RenderBuffersCountConst;
@@ -736,7 +737,7 @@ void Direct3D12BeginFrame(Direct3D12* direct3D12)
 	direct3D12->CommandList->ResourceBarrier(1, &direct3D12->PresentToRenderTargetBarriers[direct3D12->CurrentBackBufferIndex]);
 	direct3D12->CommandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
 
-	float clearColor[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+	float clearColor[4] = { 0.0f, 0.5f, 1.0f, 0.0f };
 	direct3D12->CommandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
 }
 

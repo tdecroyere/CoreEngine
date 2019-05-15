@@ -5,7 +5,8 @@
   <Identity
     Name="DoubleBuffer.CoreEngine"
     Publisher="CN=doublebuffer"
-    Version="1.0.0.2" />
+    Version="1.0.0.3" 
+    ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Core Engine</DisplayName>
     <PublisherDisplayName>Double Buffer</PublisherDisplayName>

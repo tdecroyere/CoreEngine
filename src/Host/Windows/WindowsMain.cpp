@@ -96,6 +96,17 @@ public:
         currentDisplayInformation.DpiChanged({ this, &MainApplicationView::OnDpiChanged });
         DisplayInformation::DisplayContentsInvalidated({ this, &MainApplicationView::OnDisplayContentsInvalidated });
 
+
+        this->systemDpi = DisplayInformation::GetForCurrentView().LogicalDpi();
+        
+        this->logicalWidth = window.Bounds().Width;
+		this->logicalHeight = window.Bounds().Height;
+
+        int outputWidth = ConvertDipsToPixels(this->logicalWidth);
+        int outputHeight = ConvertDipsToPixels(this->logicalHeight);
+
+        this->direct3D12 = Direct3D12Init(window, outputWidth, outputHeight, 60);
+        
         //m_sample->Initialize(windowPtr, outputWidth, outputHeight, rotation);
     }
 
@@ -146,17 +157,7 @@ public:
         //     appName = commandLine.Operation().Arguments();
         // }  
 
-        this->systemDpi = DisplayInformation::GetForCurrentView().LogicalDpi();
-        
-        CoreWindow window = CoreWindow::GetForCurrentThread();
-        this->logicalWidth = window.Bounds().Width;
-		this->logicalHeight = window.Bounds().Height;
-
-        int outputWidth = ConvertDipsToPixels(this->logicalWidth);
-        int outputHeight = ConvertDipsToPixels(this->logicalHeight);
-
-        this->direct3D12 = Direct3D12Init(window, outputWidth, outputHeight, 60);
-        Direct3D12CreateResources(&this->direct3D12);
+        CoreWindow::GetForCurrentThread().Activate();
 
         this->coreEngineHost = new WindowsCoreEngineHost();
         //this->coreEngineHost->StartEngine(to_string(appName));

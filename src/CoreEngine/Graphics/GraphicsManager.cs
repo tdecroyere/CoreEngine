@@ -4,6 +4,7 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
+    // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
     public class GraphicsManager : SystemManager
     {
         private readonly GraphicsService graphicsService;
@@ -21,19 +22,13 @@ namespace CoreEngine.Graphics
 
         public void DebugDrawTriangle(Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)
         {
-            // TODO: Provide an empty implementation and just put a warning?
-            if (this.graphicsService.DebugDrawTriange == null)
-            {
-                throw new InvalidOperationException("Method DebugDrawTriangle is not implemented by the host program");
-            }
-
-            // TODO: Find a way to test if the delegate is null, because it is a struct it is valid event not filled by the host
-            this.graphicsService.DebugDrawTriange(this.graphicsService.GraphicsContext, color1, color2, color3, worldMatrix);
+            this.graphicsService.DebugDrawTriangle(color1, color2, color3, worldMatrix);
         }
 
         private void InitResourceLoaders()
         {
             this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.graphicsService, this.memoryService));
+            this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.graphicsService, this.memoryService));
         }
     }
 }

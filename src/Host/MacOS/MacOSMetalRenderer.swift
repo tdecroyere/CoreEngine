@@ -103,6 +103,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     var currentRenderEncoder: MTLRenderCommandEncoder!
 
     var triangleBuffer: MTLBuffer!
+    var indexBuffer: MTLBuffer!
 
     var viewportSize: float2
     
@@ -113,8 +114,6 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.currentCommandBuffer = nil
 
         super.init()
-
-        //createShader()
 
         self.commandQueue = self.device.makeCommandQueue()
 
@@ -129,10 +128,17 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         triangleVertices.withUnsafeBufferPointer {
             self.triangleBuffer = self.device.makeBuffer(bytes: $0.baseAddress!, length: triangleVertices.count * MemoryLayout<TriangleVertex>.size, options: .storageModeManaged)
         }
+
+        let triangleIndices = [ 
+            UInt16(0), UInt16(1), UInt16(2)
+        ]
+
+        triangleIndices.withUnsafeBufferPointer {
+            self.indexBuffer = self.device.makeBuffer(bytes: $0.baseAddress!, length: triangleIndices.count * MemoryLayout<UInt16>.size, options: .storageModeManaged)
+        }
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        print("Renderer MTKView func")
         self.viewportSize = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
     }
 
@@ -202,8 +208,6 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     func endRender() {
         if (self.currentRenderEncoder != nil) {
             self.currentRenderEncoder.endEncoding()
-            
-
             self.currentRenderEncoder = nil
         }
         
@@ -215,79 +219,18 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     func drawTriangle(_ color1: float4, _ color2: float4, _ color3: float4, _ worldMatrix: float4x4) {
         if (self.currentRenderEncoder != nil) {
             // TODO: Change the fact that we have only one command buffer stored in a private field
-            let triangleVertices = [ 
-                TriangleVertex(position: float4(1, -1, 0, 1), color: color1), 
-                TriangleVertex(position: float4(-1, -1, 0, 1), color: color2), 
-                TriangleVertex(position: float4(0, 1, 0, 1), color: color3) 
-            ]
-
             var objectBuffer = ObjectConstantBuffer()
             objectBuffer.worldMatrix = worldMatrix
 
             // TODO: Switch to metal buffers
-            // self.currentRenderEncoder.setVertexBytes(triangleVertices, length: triangleVertices.count * MemoryLayout<TriangleVertex>.size, index: 0)
             self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
 
             // Draw the 3 vertices of our triangle
-            self.currentRenderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            self.currentRenderEncoder.drawIndexedPrimitives(type: .triangle, indexCount: 3, indexType: .uint16, indexBuffer: self.indexBuffer, indexBufferOffset: 0, instanceCount: 0, baseVertex: 0, baseInstance: 0)
         }
     }
  
     func draw(in view: MTKView) {
 
-    }
-
-    func getShaderSourceCode() -> String {
-        return """
-            #include <metal_stdlib>
-            #include <simd/simd.h>
-            
-            using namespace metal;
-           
-            struct VertexInput
-            {
-                float4 Position;
-                float4 Color;
-            };
-
-            struct VertexOutput
-            {
-                float4 Position [[position]];
-                float4 Color;
-            };
-
-            struct CoreEngine_RenderPassConstantBuffer {
-                float4x4 ViewMatrix;
-                float4x4 ProjectionMatrix;
-            };
-
-            struct CoreEngine_ObjectConstantBuffer
-            {
-                float4x4 WorldMatrix;
-            };
-        
-            vertex VertexOutput VertexMain(uint vertexID [[vertex_id]], 
-                                           constant VertexInput* input [[buffer(0)]], 
-                                           constant CoreEngine_RenderPassConstantBuffer* renderPassParametersPointer [[buffer(1)]],
-                                           constant CoreEngine_ObjectConstantBuffer* objectParametersPointer [[buffer(2)]])
-            {
-                VertexOutput output;
-
-                CoreEngine_RenderPassConstantBuffer renderPassParameters = *renderPassParametersPointer;
-                CoreEngine_ObjectConstantBuffer objectParameters = *objectParametersPointer;
-                
-                float4x4 worldViewProjMatrix = objectParameters.WorldMatrix * renderPassParameters.ViewMatrix * renderPassParameters.ProjectionMatrix;
-
-                output.Position = input[vertexID].Position * worldViewProjMatrix;
-                output.Color = input[vertexID].Color;
-                
-                return output;
-            }
-            
-            fragment float4 PixelMain(VertexOutput input [[stage_in]])
-            {
-                return input.Color;
-            }
-"""
     }
 }

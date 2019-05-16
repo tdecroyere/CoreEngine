@@ -13,6 +13,7 @@ namespace CoreEngine.Tests.EcsTest
         private EntityManager? entityManager;
         private EntitySystemManager? entitySystemManager;
         private Shader? testResource;
+        private Mesh? testMesh;
 
         public override string Name => "EcsTest App";
 
@@ -25,6 +26,7 @@ namespace CoreEngine.Tests.EcsTest
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
             this.testResource = resourceManager.LoadResourceAsync<Shader>("/TestShader.shader");
+            this.testMesh = resourceManager.LoadResourceAsync<Mesh>("/teapot.mesh");
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();

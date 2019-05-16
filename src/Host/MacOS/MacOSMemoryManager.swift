@@ -9,6 +9,7 @@ func createMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, length: 
 
 func destroyMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, memoryBufferId: UInt32) {
     // TODO: Implement buffer destroy
+    print("Swift destroy memory buffer (NOT IMPLEMENTED YET)")
 }
 
 

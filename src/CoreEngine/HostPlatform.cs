@@ -5,6 +5,9 @@ using System.Runtime.InteropServices;
 
 namespace CoreEngine
 {
+    // Disable warning for private fields that are assigned by interop
+    #pragma warning disable 649
+
     // TODO: Provide stubs for not implemented platform functionnalities to avoid craches
 
     public struct MemoryBuffer
@@ -25,9 +28,19 @@ namespace CoreEngine
 
     public struct MemoryService
     {
-        public IntPtr MemoryManagerContext;
-        public CreateMemoryBufferDelegate CreateMemoryBuffer;
-        public DestroyMemoryBufferDelegate DestroyMemoryBuffer;
+        private IntPtr memoryManagerContext;
+        private CreateMemoryBufferDelegate createMemoryBufferDelegate;
+        private DestroyMemoryBufferDelegate destroyMemoryBufferDelegate;
+
+        public MemoryBuffer CreateMemoryBuffer(int length)
+        {
+            return createMemoryBufferDelegate(memoryManagerContext, length);
+        }
+
+        public void DestroyMemoryBuffer(uint memoryBufferId)
+        {
+            destroyMemoryBufferDelegate(memoryManagerContext, memoryBufferId);
+        }
     }
 
     public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
@@ -35,9 +48,19 @@ namespace CoreEngine
 
     public struct GraphicsService
     {
-        public IntPtr GraphicsContext;
-        public DebugDrawTriangleDelegate DebugDrawTriange;
-        public CreateShaderDelegate CreateShader;
+        private IntPtr graphicsContext;
+        private DebugDrawTriangleDelegate debugDrawTriangleDelegate;
+        private CreateShaderDelegate createShaderDelegate;
+
+        public uint CreateShader(MemoryBuffer shaderByteCode)
+        {
+            return createShaderDelegate(graphicsContext, shaderByteCode);
+        }
+
+        public void DebugDrawTriangle(Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)
+        {
+            debugDrawTriangleDelegate(graphicsContext, color1, color2, color3, worldMatrix);
+        }
     }
 
     public enum InputsObjectType
@@ -172,12 +195,20 @@ namespace CoreEngine
 
     public struct InputsService
     {
-        public IntPtr InputsContext;
-        public GetInputsStateDelegate GetInputsState;
-        public SendVibrationCommandDelegate SendVibrationCommand;
-    }
+        private IntPtr inputsContext;
+        private GetInputsStateDelegate getInputsStateDelegate;
+        private SendVibrationCommandDelegate sendVibrationCommandDelegate;
 
-    
+        public InputsState GetInputsState()
+        {
+            return getInputsStateDelegate(inputsContext);
+        }
+
+        public void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms)
+        {
+            sendVibrationCommandDelegate(inputsContext, playerId, leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms);
+        }
+    }
 
     public delegate int AddTestHostMethodDelegate(int a, int b);
     public delegate MemoryBuffer GetTestBufferDelegate();
@@ -191,4 +222,6 @@ namespace CoreEngine
         public GraphicsService GraphicsService;
         public InputsService InputsService;
     }
+
+    #pragma warning restore 649
 }

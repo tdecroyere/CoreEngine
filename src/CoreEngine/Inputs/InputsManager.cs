@@ -23,10 +23,7 @@ namespace CoreEngine.Inputs
             // TODO: Take into account transition count
             // TODO: For the configuration, we should have access to the controller name and vendor
 
-            if (this.inputsService.GetInputsState != null)
-            {
-                this.inputsState = this.inputsService.GetInputsState(this.inputsService.InputsContext);
-            }
+            this.inputsState = this.inputsService.GetInputsState();
         }
 
         // TODO: Add an action system to process more easily the raw data from the host
@@ -91,7 +88,7 @@ namespace CoreEngine.Inputs
         public void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms)
         {
             // TODO: Handle other players
-            this.inputsService.SendVibrationCommand(this.inputsService.InputsContext, this.inputsState.Gamepad1.PlayerId, leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms);
+            this.inputsService.SendVibrationCommand(this.inputsState.Gamepad1.PlayerId, leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms);
         }
     }
 }

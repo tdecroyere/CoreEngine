@@ -6,6 +6,8 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
+    // TODO: Add pipeline input descriptors to bind to DirectX12 and Metal
+    
     public class ShaderResourceLoader : ResourceLoader
     {
         private readonly GraphicsService graphicsService;
@@ -42,7 +44,8 @@ namespace CoreEngine.Graphics
 
             if (shaderSignature.ToString() != "SHADER" && shaderVersion != 1)
             {
-                Logger.WriteMessage($"ERROR: Wrong shader signature or version for shader '{resource.Path}'");
+                Logger.WriteMessage($"ERROR: Wrong signature or version for shader '{resource.Path}'");
+                return Task.FromResult(resource);
             }
 
             var shaderByteCodeLength = reader.ReadInt32();
@@ -50,11 +53,12 @@ namespace CoreEngine.Graphics
 
             Logger.WriteMessage("OK Shader loader");
 
-            var shaderByteCodeBuffer = this.memoryService.CreateMemoryBuffer(this.memoryService.MemoryManagerContext, shaderByteCodeLength);
+            var shaderByteCodeBuffer = this.memoryService.CreateMemoryBuffer(shaderByteCodeLength);
             
             if (!shaderByteCode.TryCopyTo(shaderByteCodeBuffer.AsSpan()))
             {
                 Logger.WriteMessage("Shader bytecode copy error");
+                return Task.FromResult(resource);
             }
 
             Logger.WriteMessage("Shader bytecode copy OK");
@@ -62,7 +66,8 @@ namespace CoreEngine.Graphics
             // TODO: Do not forget to implement hardware resource deallocation/reallocation
             
             // TODO: Pass the id here so that the host remove replace the shader himself at the right time
-            this.graphicsService.CreateShader(this.graphicsService.GraphicsContext, shaderByteCodeBuffer);
+            this.graphicsService.CreateShader(shaderByteCodeBuffer);
+            this.memoryService.DestroyMemoryBuffer(shaderByteCodeBuffer.Id);
 
             return Task.FromResult((Resource)shader);
         }

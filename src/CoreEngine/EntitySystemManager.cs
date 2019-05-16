@@ -4,6 +4,8 @@ using System.Collections.Generic;
 namespace CoreEngine
 {
     // TODO: Manage exclusive component definitions
+    // TODO: Manage entities by grid for large worlds
+    // TODO: Allow entity system manager to ask for local queries
 
     public class EntitySystemManager
     {

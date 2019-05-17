@@ -351,12 +351,17 @@ bool Direct3D12InitSizeDependentResources(Direct3D12* direct3D12)
 	// Create frame resources.
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvDecriptorHandle = direct3D12->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
+	// Change the format of the renderview target so it can be specified in SRGB
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
 	// Create a RTV for each frame.
 	for (int i = 0; i < direct3D12->RenderBuffersCount; ++i)
 	{
 		ReturnIfFailed(direct3D12->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(direct3D12->RenderTargets[i])));
 
-		direct3D12->Device->CreateRenderTargetView(direct3D12->RenderTargets[i].get(), nullptr, rtvDecriptorHandle);
+		direct3D12->Device->CreateRenderTargetView(direct3D12->RenderTargets[i].get(), &rtvDesc, rtvDecriptorHandle);
 		rtvDecriptorHandle.ptr += direct3D12->RtvDescriptorHandleSize;
 
 		direct3D12->PresentToRenderTargetBarriers[i] = CreateTransitionResourceBarrier(direct3D12->RenderTargets[i].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -737,7 +742,7 @@ void Direct3D12BeginFrame(Direct3D12* direct3D12)
 	direct3D12->CommandList->ResourceBarrier(1, &direct3D12->PresentToRenderTargetBarriers[direct3D12->CurrentBackBufferIndex]);
 	direct3D12->CommandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
 
-	float clearColor[4] = { 0.0f, 0.5f, 1.0f, 0.0f };
+	float clearColor[4] = { 0.0f, 0.215f, 1.0f, 0.0f };
 	direct3D12->CommandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
 }
 

@@ -7,12 +7,10 @@ namespace CoreEngine.Graphics
         internal GraphicsBuffer(GraphicsService graphicsService, MemoryBuffer memoryBuffer)
         {
             this.SizeInBytes = memoryBuffer.Length;
-
-            // TODO: Call graphics service create graphics buffer method
+            this.Id = graphicsService.CreateGraphicsBuffer(memoryBuffer);
         }
 
-        public int Id { get; }
-
+        public uint Id { get; }
         public int SizeInBytes { get; }
     }
 }

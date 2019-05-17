@@ -26,7 +26,6 @@ namespace CoreEngine.Tests.EcsTest
             resourceManager.AddResourceLoader(new TestResourceLoader());
 
             this.testResource = resourceManager.LoadResourceAsync<Shader>("/TestShader.shader");
-            this.testMesh = resourceManager.LoadResourceAsync<Mesh>("/teapot.mesh");
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();

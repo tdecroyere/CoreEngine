@@ -44,17 +44,32 @@ namespace CoreEngine
     }
 
     public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
+    public delegate uint CreateGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
+    public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, int primitiveCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix);
     public delegate void DebugDrawTriangleDelegate(IntPtr graphicsContext, Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix);
 
     public struct GraphicsService
     {
         private IntPtr graphicsContext;
-        private DebugDrawTriangleDelegate debugDrawTriangleDelegate;
         private CreateShaderDelegate createShaderDelegate;
+        private CreateGraphicsBufferDelegate createGraphicsBufferDelegate;
+        private DrawPrimitivesDelegate drawPrimitivesDelegate;
+        private DebugDrawTriangleDelegate debugDrawTriangleDelegate;
+
 
         public uint CreateShader(MemoryBuffer shaderByteCode)
         {
             return createShaderDelegate(graphicsContext, shaderByteCode);
+        }
+
+        public uint CreateGraphicsBuffer(MemoryBuffer data)
+        {
+            return createGraphicsBufferDelegate(graphicsContext, data);
+        }
+
+        public void DrawPrimitives(int primitiveCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix)
+        {
+            drawPrimitivesDelegate(graphicsContext, primitiveCount, vertexBufferId, indexBufferId, worldMatrix);
         }
 
         public void DebugDrawTriangle(Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)

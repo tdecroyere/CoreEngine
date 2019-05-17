@@ -58,6 +58,7 @@ namespace CoreEngine.Graphics
 
                 Logger.WriteMessage($"Vertices Count: {vertexCount}, Indices Count: {indexCount}");
 
+                // TODO: Change the calculation of the vertex size (current is fixed to Position, Normal)
                 var vertexSize = sizeof(float) * 6;
                 var vertexBufferSize = vertexCount * vertexSize;
                 var indexBufferSize = indexCount * sizeof(short);
@@ -65,7 +66,7 @@ namespace CoreEngine.Graphics
                 var vertexBufferData = reader.ReadBytes(vertexBufferSize);
                 var indexBufferData = reader.ReadBytes(indexBufferSize);
 
-                var meshSubObject = new MeshSubObject(this.graphicsService, this.memoryService, vertexBufferData.AsSpan(), indexBufferData.AsSpan());
+                var meshSubObject = new MeshSubObject(this.graphicsService, this.memoryService, vertexCount, indexCount, vertexBufferData.AsSpan(), indexBufferData.AsSpan());
                 mesh.SubObjects.Add(meshSubObject);
             }
 

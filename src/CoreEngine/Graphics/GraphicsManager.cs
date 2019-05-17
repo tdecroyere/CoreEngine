@@ -20,6 +20,17 @@ namespace CoreEngine.Graphics
             InitResourceLoaders();
         }
 
+        public void DrawMesh(Mesh mesh, Matrix4x4 worldMatrix)
+        {
+            for (var i = 0; i < mesh.SubObjects.Count; i++)
+            {
+                var meshSubObject = mesh.SubObjects[i];
+
+                // TODO: Add shader and primitive type
+                this.graphicsService.DrawPrimitives(meshSubObject.IndexCount / 3, meshSubObject.VertexBuffer.Id, meshSubObject.IndexBuffer.Id, worldMatrix);
+            }
+        }
+
         public void DebugDrawTriangle(Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)
         {
             this.graphicsService.DebugDrawTriangle(color1, color2, color3, worldMatrix);

@@ -14,5 +14,6 @@ func destroyMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, memoryB
 
 
 class MacOSMemoryManager {
-    // TODO: Implement proper memory management
+    // var memoryBuffers: [UInt32: UnsafeMutableRawPointer]
+    // var currentMemoryBufferId: UInt32
 }

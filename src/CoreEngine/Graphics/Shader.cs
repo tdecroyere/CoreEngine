@@ -5,7 +5,7 @@ namespace CoreEngine.Graphics
 {
     public class Shader : Resource
     {
-        public Shader(string path) : base(path)
+        public Shader(uint resourceId, string path) : base(resourceId, path)
         {
         }
     }

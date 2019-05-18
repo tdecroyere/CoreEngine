@@ -20,9 +20,9 @@ namespace CoreEngine.Graphics
         public override string Name => "Mesh Loader";
         public override string FileExtension => ".mesh";
 
-        public override Resource CreateEmptyResource(string path)
+        public override Resource CreateEmptyResource(uint resourceId, string path)
         {
-            return new Mesh(path);
+            return new Mesh(resourceId, path);
         }
 
         public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)

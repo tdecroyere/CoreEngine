@@ -6,7 +6,7 @@ namespace CoreEngine.Graphics
 {
     public class Mesh : Resource
     {
-        public Mesh(string path) : base(path)
+        public Mesh(uint resourceId, string path) : base(resourceId, path)
         {
         }
 

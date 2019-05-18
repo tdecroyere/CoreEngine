@@ -6,15 +6,15 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Tests.EcsTest
 {
-    public class DebugTriangleSystem : EntitySystem
+    public class RenderMeshSystem : EntitySystem
     {
         private readonly GraphicsManager graphicsManager;
-        private Mesh testMesh;
+        private readonly ResourcesManager resourcesManager;
 
-        public DebugTriangleSystem(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
+        public RenderMeshSystem(GraphicsManager graphicsManager, ResourcesManager resourceManager)
         {
             this.graphicsManager = graphicsManager;
-            this.testMesh = resourcesManager.LoadResourceAsync<Mesh>("/teapot.mesh");
+            this.resourcesManager = resourceManager;
         }
 
         public override EntitySystemDefinition BuildDefinition()
@@ -22,7 +22,7 @@ namespace CoreEngine.Tests.EcsTest
             var definition = new EntitySystemDefinition("Debug Triangle System");
 
             definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
-            definition.Parameters.Add(new EntitySystemParameter(typeof(DebugTriangleComponent)));
+            definition.Parameters.Add(new EntitySystemParameter(typeof(MeshComponent)));
 
             return definition;
         }
@@ -31,19 +31,20 @@ namespace CoreEngine.Tests.EcsTest
         {
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
-            var debugTriangleArray = this.GetComponentDataArray<DebugTriangleComponent>();
+            var meshArray = this.GetComponentDataArray<MeshComponent>();
 
             for (var i = 0; i < entityArray.Length; i++)
             {
                 var transform = transformArray[i];
-                var debugTriangle = debugTriangleArray[i];
+                var meshComponent = meshArray[i];
 
-                if (this.testMesh != null)
+                var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshId);
+
+                if (mesh != null)
                 {
                     // TODO: Move that to a component systerm
-                    graphicsManager.DrawMesh(this.testMesh, transform.WorldMatrix);
+                    graphicsManager.DrawMesh(mesh, transform.WorldMatrix);
                 }
-                //this.graphicsManager.DebugDrawTriangle(debugTriangle.Color1, debugTriangle.Color2, debugTriangle.Color3, transform.WorldMatrix);
             }
         }
     }

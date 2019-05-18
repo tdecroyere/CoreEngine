@@ -22,9 +22,9 @@ namespace CoreEngine.Graphics
         public override string Name => "Shader Loader";
         public override string FileExtension => ".shader";
 
-        public override Resource CreateEmptyResource(string path)
+        public override Resource CreateEmptyResource(uint resourceId, string path)
         {
-            return new Shader(path);
+            return new Shader(resourceId, path);
         }
 
         public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)

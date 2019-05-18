@@ -15,7 +15,7 @@ namespace CoreEngine.Resources
             get;
         }
 
-        public abstract Resource CreateEmptyResource(string path);
+        public abstract Resource CreateEmptyResource(uint resourceId, string path);
         public abstract Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data);
     }
 }

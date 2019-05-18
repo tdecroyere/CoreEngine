@@ -14,6 +14,8 @@ namespace CoreEngine.Resources
         private IList<ResourceStorage> resourceStorages;
         private IList<Task<Resource>> resourceLoadingList;
         private IDictionary<string, Resource> resources;
+        private IDictionary<uint, Resource> resourceIdList;
+        private uint currentResourceId;
 
         public ResourcesManager()
         {
@@ -21,6 +23,7 @@ namespace CoreEngine.Resources
             this.resourceStorages = new List<ResourceStorage>();
             this.resourceLoadingList = new List<Task<Resource>>();
             this.resources = new Dictionary<string, Resource>();
+            this.resourceIdList = new Dictionary<uint, Resource>();
         }
 
         public void AddResourceLoader(ResourceLoader resourceLoader)
@@ -33,6 +36,16 @@ namespace CoreEngine.Resources
         {
             Logger.WriteMessage($"Registering '{resourceStorage.Name}' resource storage...");
             this.resourceStorages.Add(resourceStorage);
+        }
+
+        public T GetResourceById<T>(uint resourceId) where T : Resource
+        {
+            if (!this.resourceIdList.ContainsKey(resourceId))
+            {
+                throw new ArgumentException($"No resource with id: '{resourceId}' exists.");
+            }
+
+            return (T)this.resourceIdList[resourceId];
         }
 
         public T LoadResourceAsync<T>(string path) where T : Resource
@@ -63,7 +76,11 @@ namespace CoreEngine.Resources
             // TODO: Move disk data reading in the loading method impl from the update method
 
             var resourceData = resourceStorage.ReadResourceDataAsync(path).Result;
-            var resource = resourceLoader.CreateEmptyResource(path);
+
+            // TODO: Current resource ID is not thread-safe
+            this.currentResourceId++;
+
+            var resource = resourceLoader.CreateEmptyResource(this.currentResourceId, path);
             resource.ResourceLoader = resourceLoader;
 
             // TODO: Add support for children hierarchical resource loading
@@ -72,6 +89,7 @@ namespace CoreEngine.Resources
             this.resourceLoadingList.Add(resourceLoadingTask);
 
             this.resources.Add(path, resource);
+            this.resourceIdList.Add(currentResourceId, resource);
 
             return (T)resource;
         }

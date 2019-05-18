@@ -12,7 +12,7 @@ namespace CoreEngine.Tests.EcsTest
     {
         private EntityManager? entityManager;
         private EntitySystemManager? entitySystemManager;
-        private Shader? testResource;
+        private Shader? testShader;
         private Mesh? testMesh;
 
         public override string Name => "EcsTest App";
@@ -21,15 +21,15 @@ namespace CoreEngine.Tests.EcsTest
         {
             Logger.WriteMessage("Init Ecs Test App...");
 
-            var resourceManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
-            resourceManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
-            resourceManager.AddResourceLoader(new TestResourceLoader());
+            var resourcesManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
+            resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
 
-            this.testResource = resourceManager.LoadResourceAsync<Shader>("/TestShader.shader");
+            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
+            this.testMesh = resourcesManager.LoadResourceAsync<Mesh>("/teapot.mesh");
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();
-            var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(PlayerComponent), typeof(DebugTriangleComponent));
+            var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(PlayerComponent), typeof(MeshComponent));
             var blockLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
 
             var playerEntity = this.entityManager.CreateEntity(playerLayout);
@@ -47,10 +47,8 @@ namespace CoreEngine.Tests.EcsTest
             playerComponent.ChangeColorAction = 0;
             this.entityManager.SetComponentData(playerEntity, playerComponent);
 
-            var playerDebugTriangleComponent = new DebugTriangleComponent();
-            playerDebugTriangleComponent.Color1 = new Vector4(1, 0, 0, 1);
-            playerDebugTriangleComponent.Color2 = new Vector4(0, 1, 0, 1);
-            playerDebugTriangleComponent.Color3 = new Vector4(0, 0, 1, 1);
+            var playerDebugTriangleComponent = new MeshComponent();
+            playerDebugTriangleComponent.MeshId = testMesh.ResourceId;
             this.entityManager.SetComponentData(playerEntity, playerDebugTriangleComponent);
 
             for (int i = 0; i < 10; i++)
@@ -76,7 +74,7 @@ namespace CoreEngine.Tests.EcsTest
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<BlockUpdateSystem>();
-            this.entitySystemManager.RegisterEntitySystem<DebugTriangleSystem>();
+            this.entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
         }
 
         public override void Update(float deltaTime)

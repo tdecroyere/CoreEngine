@@ -20,6 +20,7 @@ namespace CoreEngine.Graphics
             InitResourceLoaders();
         }
 
+        // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
         public void DrawMesh(Mesh mesh, Matrix4x4 worldMatrix)
         {
             for (var i = 0; i < mesh.SubObjects.Count; i++)
@@ -30,7 +31,7 @@ namespace CoreEngine.Graphics
                 this.graphicsService.DrawPrimitives(meshSubObject.IndexCount / 3, meshSubObject.VertexBuffer.Id, meshSubObject.IndexBuffer.Id, worldMatrix);
             }
         }
-        
+
         private void InitResourceLoaders()
         {
             this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.graphicsService, this.memoryService));

@@ -34,15 +34,12 @@ typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuff
 typedef unsigned int (*CreateGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
 typedef void (*DrawPrimitivesPtr)(void* graphicsContext, int primitiveCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix);
 
-typedef void (*DebugDrawTrianglePtr)(void* graphicsContext, struct Vector4 color1, struct Vector4 color2, struct Vector4 color3, struct Matrix4x4 worldMatrix);
-
 struct GraphicsService
 {
     void* GraphicsContext;
     CreateShaderPtr CreateShader;
     CreateGraphicsBufferPtr CreateGraphicsBuffer;
     DrawPrimitivesPtr DrawPrimitives;
-    DebugDrawTrianglePtr DebugDrawTriangle;
 };
 
 

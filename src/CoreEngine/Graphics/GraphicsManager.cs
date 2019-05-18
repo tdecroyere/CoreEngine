@@ -30,12 +30,7 @@ namespace CoreEngine.Graphics
                 this.graphicsService.DrawPrimitives(meshSubObject.IndexCount / 3, meshSubObject.VertexBuffer.Id, meshSubObject.IndexBuffer.Id, worldMatrix);
             }
         }
-
-        public void DebugDrawTriangle(Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)
-        {
-            this.graphicsService.DebugDrawTriangle(color1, color2, color3, worldMatrix);
-        }
-
+        
         private void InitResourceLoaders()
         {
             this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.graphicsService, this.memoryService));

@@ -55,7 +55,6 @@ class MacOSCoreEngineHost {
         self.hostPlatform.GraphicsService.CreateShader = createShader
         self.hostPlatform.GraphicsService.CreateGraphicsBuffer = createGraphicsBuffer
         self.hostPlatform.GraphicsService.DrawPrimitives = drawPrimitives
-        self.hostPlatform.GraphicsService.DebugDrawTriangle = debugDrawTriangle
 
         self.hostPlatform.InputsService.InputsContext = Unmanaged.passUnretained(self.inputsManager).toOpaque()
         self.hostPlatform.InputsService.GetInputsState = getInputsState

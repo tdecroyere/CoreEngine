@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using CoreEngine.Resources;
 
@@ -10,6 +11,8 @@ namespace CoreEngine.Graphics
         private readonly GraphicsService graphicsService;
         private readonly MemoryService memoryService;
         private readonly ResourcesManager resourcesManager;
+        private Dictionary<Entity, MeshInstance> meshInstances;
+        private List<Entity> meshInstancesToRemove;
 
         public GraphicsManager(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
         {
@@ -17,18 +20,81 @@ namespace CoreEngine.Graphics
             this.memoryService = memoryService;
             this.resourcesManager = resourcesManager;
 
+            this.meshInstances = new Dictionary<Entity, MeshInstance>();
+            this.meshInstancesToRemove = new List<Entity>();
+
             InitResourceLoaders();
         }
 
         // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
-        public void DrawMesh(Mesh mesh, Matrix4x4 worldMatrix)
+        public void AddOrUpdateEntity(Entity entity, Mesh mesh, Matrix4x4 worldMatrix)
         {
-            for (var i = 0; i < mesh.SubObjects.Count; i++)
+            if (this.meshInstances.ContainsKey(entity))
             {
-                var meshSubObject = mesh.SubObjects[i];
+                this.meshInstances[entity].WorldMatrix = worldMatrix;
+                this.meshInstances[entity].IsAlive = true;
+            }
 
-                // TODO: Add shader and primitive type
-                this.graphicsService.DrawPrimitives(meshSubObject.IndexCount / 3, meshSubObject.VertexBuffer.Id, meshSubObject.IndexBuffer.Id, worldMatrix);
+            else
+            {
+                this.meshInstances.Add(entity, new MeshInstance(entity, mesh, worldMatrix));
+            }
+        }
+
+        public override void Update()
+        {
+            RemoveDeadMeshInstances();
+            RunRenderPipeline();
+            UpdateMeshInstancesStatus(false);
+        }
+
+        private void RunRenderPipeline()
+        {
+            DrawMeshInstances();
+        }
+
+        private void RemoveDeadMeshInstances()
+        {
+            this.meshInstancesToRemove.Clear();
+
+            // TODO: Replace that with an hybrid dictionary/list
+            foreach(var meshInstance in this.meshInstances.Values)
+            {
+                if (!meshInstance.IsAlive)
+                {
+                    this.meshInstancesToRemove.Add(meshInstance.Entity);
+                }
+            }
+
+            for (var i = 0; i < this.meshInstancesToRemove.Count; i++)
+            {
+                this.meshInstances.Remove(this.meshInstancesToRemove[i]);
+            }
+        }
+
+        public void DrawMeshInstances()
+        {
+            // TODO: Replace that with an hybrid dictionary/list
+            foreach(var meshInstance in this.meshInstances.Values)
+            {
+                var mesh = meshInstance.Mesh;
+
+                for (var i = 0; i < mesh.SubObjects.Count; i++)
+                {
+                    var meshSubObject = mesh.SubObjects[i];
+
+                    // TODO: Add shader and primitive type
+                    this.graphicsService.DrawPrimitives(meshSubObject.IndexCount / 3, meshSubObject.VertexBuffer.Id, meshSubObject.IndexBuffer.Id, meshInstance.WorldMatrix);
+                }
+            }
+        }
+
+        private void UpdateMeshInstancesStatus(bool isAlive)
+        {
+            // TODO: Replace that with an hybrid dictionary/list
+            foreach(var meshInstance in this.meshInstances.Values)
+            {
+                meshInstance.IsAlive = isAlive;
             }
         }
 

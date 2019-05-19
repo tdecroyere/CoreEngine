@@ -7,6 +7,7 @@ namespace CoreEngine
     public struct TransformComponent : IComponentData
     {
         public Vector3 Position;
+        public Vector3 Scale;
         public float RotationX;
         public float RotationY;
         public float RotationZ;

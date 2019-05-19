@@ -19,7 +19,7 @@ namespace CoreEngine.Tests.EcsTest
 
         public override EntitySystemDefinition BuildDefinition()
         {
-            var definition = new EntitySystemDefinition("Debug Triangle System");
+            var definition = new EntitySystemDefinition("Render Mesh System");
 
             definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
             definition.Parameters.Add(new EntitySystemParameter(typeof(MeshComponent)));
@@ -35,15 +35,18 @@ namespace CoreEngine.Tests.EcsTest
 
             for (var i = 0; i < entityArray.Length; i++)
             {
+                var entity = entityArray[i];
                 var transform = transformArray[i];
                 var meshComponent = meshArray[i];
 
-                var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshId);
-
-                if (mesh != null)
+                if (meshComponent.MeshResourceId != 0)
                 {
-                    // TODO: Move that to a component systerm
-                    graphicsManager.DrawMesh(mesh, transform.WorldMatrix);
+                    var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
+
+                    if (mesh != null)
+                    {
+                        graphicsManager.AddOrUpdateEntity(entity, mesh, transform.WorldMatrix);
+                    }
                 }
             }
         }

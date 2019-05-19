@@ -61,7 +61,7 @@ namespace CoreEngine.Graphics
                 // TODO: Change the calculation of the vertex size (current is fixed to Position, Normal)
                 var vertexSize = sizeof(float) * 6;
                 var vertexBufferSize = vertexCount * vertexSize;
-                var indexBufferSize = indexCount * sizeof(short);
+                var indexBufferSize = indexCount * sizeof(uint);
 
                 var vertexBufferData = reader.ReadBytes(vertexBufferSize);
                 var indexBufferData = reader.ReadBytes(indexBufferSize);

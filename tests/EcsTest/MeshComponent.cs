@@ -5,6 +5,6 @@ namespace CoreEngine.Tests.EcsTest
 {
     public struct MeshComponent : IComponentData
     {
-        public uint MeshId;
+        public uint MeshResourceId;
     }
 }

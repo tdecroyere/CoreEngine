@@ -13,7 +13,6 @@ namespace CoreEngine.Tests.EcsTest
         private EntityManager? entityManager;
         private EntitySystemManager? entitySystemManager;
         private Shader? testShader;
-        private Mesh? testMesh;
 
         public override string Name => "EcsTest App";
 
@@ -25,20 +24,20 @@ namespace CoreEngine.Tests.EcsTest
             resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
 
             this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
-            this.testMesh = resourcesManager.LoadResourceAsync<Mesh>("/teapot.mesh");
+            var testMesh = resourcesManager.LoadResourceAsync<Mesh>("/teapot.mesh");
+            var sponzaMesh = resourcesManager.LoadResourceAsync<Mesh>("/sponza.mesh");
 
             // Test EntityManager basic functions
             this.entityManager = new EntityManager();
             var playerLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(PlayerComponent), typeof(MeshComponent));
-            var blockLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent));
+            var blockLayout = this.entityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent), typeof(MeshComponent));
 
             var playerEntity = this.entityManager.CreateEntity(playerLayout);
 
             // TODO: Find a way to have default values for components
             var playerPositionComponent = new TransformComponent();
-            playerPositionComponent.Position.X = 12.0f;
-            playerPositionComponent.Position.Y = 20.0f;
-            playerPositionComponent.Position.Z = 45.0f;
+            playerPositionComponent.Position = new Vector3(0, -15.0f, 0);
+            playerPositionComponent.Scale = new Vector3(0.05f, 0.05f, 0.05f);
             playerPositionComponent.WorldMatrix = Matrix4x4.Identity;
             this.entityManager.SetComponentData(playerEntity, playerPositionComponent);
 
@@ -48,24 +47,29 @@ namespace CoreEngine.Tests.EcsTest
             this.entityManager.SetComponentData(playerEntity, playerComponent);
 
             var playerDebugTriangleComponent = new MeshComponent();
-            playerDebugTriangleComponent.MeshId = testMesh.ResourceId;
+            playerDebugTriangleComponent.MeshResourceId = sponzaMesh.ResourceId;
             this.entityManager.SetComponentData(playerEntity, playerDebugTriangleComponent);
 
             for (int i = 0; i < 10; i++)
             {
                 var wallEntity = entityManager.CreateEntity(blockLayout);
 
-                TransformComponent wallPositionComponent = new TransformComponent();
-                wallPositionComponent.Position.X = (float)i;
-                wallPositionComponent.Position.Y = (float)i + 54.0f;
-                wallPositionComponent.Position.Z = (float)i + 22.0f;
+                var wallPositionComponent = new TransformComponent();
+                wallPositionComponent.Position.X = -140.0f + i * 30.0f;
+                wallPositionComponent.Position.Y = 0.0f;
+                wallPositionComponent.Position.Z = 200.0f;
+                wallPositionComponent.Scale = new Vector3(1.0f, 1.0f, 1.0f);
                 wallPositionComponent.WorldMatrix = Matrix4x4.Identity; 
                 this.entityManager.SetComponentData(wallEntity, wallPositionComponent);
 
-                BlockComponent wallBlockComponent;
+                var wallBlockComponent = new BlockComponent();
                 wallBlockComponent.IsWall = (i % 2);
                 wallBlockComponent.IsWater = ((i + 1) % 2);
                 this.entityManager.SetComponentData(wallEntity, wallBlockComponent);
+
+                var wallMesh = new MeshComponent();
+                wallMesh.MeshResourceId = testMesh.ResourceId;
+                this.entityManager.SetComponentData(wallEntity, wallMesh);
             }
 
             //DisplayEntities(this.entityManager);
@@ -74,6 +78,7 @@ namespace CoreEngine.Tests.EcsTest
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<BlockUpdateSystem>();
+            this.entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
             this.entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
         }
 
@@ -82,34 +87,6 @@ namespace CoreEngine.Tests.EcsTest
             if (this.entitySystemManager != null && this.entityManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
-
-                //DisplayEntities(this.entityManager);
-            }
-        }
-
-        private static void DisplayEntities(EntityManager entityManager)
-        {
-            Logger.WriteMessage("----------------------------------------");
-            Logger.WriteMessage("Display entities");
-            Logger.WriteMessage("----------------------------------------");
-
-            var entities = entityManager.GetEntities();
-
-            for (var i = 0; i < entities.Length; i++)
-            {
-                var entity = entities[i];
-                Logger.WriteMessage($"Entity: {entity.EntityId}");
-
-                var position = entityManager.GetComponentData<TransformComponent>(entity);
-                Logger.WriteMessage($"Position (X: {position.Position.X}, Y: {position.Position.Y}, Z: {position.Position.Z})");
-
-                if (entityManager.HasComponent<BlockComponent>(entity))
-                {
-                    var blockComponent = entityManager.GetComponentData<BlockComponent>(entity);
-                    Logger.WriteMessage($"Block (IsWall: {blockComponent.IsWall}, IsWater: {blockComponent.IsWater})");
-                }
-
-                Logger.WriteMessage("----------------------------------------");
             }
         }
     }

@@ -28,14 +28,8 @@ namespace CoreEngine.Tests.EcsTest
             {
                 if (playerArray[i].InputVector.LengthSquared() > 0.0f)
                 {
-                    transformArray[i].Position += velocity * deltaTime;
                     transformArray[i].RotationY += playerArray[i].InputVector.X * deltaTime * rotationSpeed;
                     transformArray[i].RotationX += playerArray[i].InputVector.Y * deltaTime * rotationSpeed;
-
-                    // TODO: Move the world transformation matrix computation to another system
-                    // TODO: Move the world matrix to its own component
-                    transformArray[i].WorldMatrix = Matrix4x4.CreateRotationX((transformArray[i].RotationX * MathF.PI) / 180.0f);
-                    transformArray[i].WorldMatrix *= Matrix4x4.CreateRotationY((transformArray[i].RotationY * MathF.PI) / 180.0f);
                 }
             }
         }

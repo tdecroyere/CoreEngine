@@ -9,7 +9,7 @@ namespace CoreEngine
     #pragma warning disable 649
 
     // TODO: Provide stubs for not implemented platform functionnalities to avoid craches
-
+    // TODO: Use MemoryHandle ?
     public struct MemoryBuffer
     {
         public uint Id;

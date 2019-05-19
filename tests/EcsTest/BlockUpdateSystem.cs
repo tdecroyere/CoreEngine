@@ -26,12 +26,12 @@ namespace CoreEngine.Tests.EcsTest
             {
                 if (blockArray[i].IsWall == 1)
                 {
-                    transformArray[i].Position.Y += 0.25f * deltaTime;
+                    transformArray[i].Position.Y += 0.5f * deltaTime;
                 }
 
                 else if (blockArray[i].IsWater == 1)
                 {
-                    transformArray[i].Position.Z += 0.25f * deltaTime;
+                    transformArray[i].Position.Z += 0.5f * deltaTime;
                 }
             }
         }

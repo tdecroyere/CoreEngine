@@ -4,11 +4,6 @@ import MetalKit
 import simd
 import CoreEngineInterop
 
-struct TriangleVertex {
-    var position: float4
-    var color: float4
-}
-
 struct RenderPassConstantBuffer {
     var viewMatrix: float4x4
     var projectionMatrix: float4x4
@@ -193,7 +188,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
             let indexComputedCount = Int(primitiveCount) * 3
 
             self.currentRenderEncoder!.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
-            self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, indexCount: indexComputedCount, indexType: .uint16, indexBuffer: indexGraphicsBuffer!, indexBufferOffset: 0, instanceCount: 1, baseVertex: 0, baseInstance: 0)
+            self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, indexCount: indexComputedCount, indexType: .uint32, indexBuffer: indexGraphicsBuffer!, indexBufferOffset: 0, instanceCount: 1, baseVertex: 0, baseInstance: 0)
         }
     }
 
@@ -220,6 +215,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.currentRenderEncoder.label = "BeginRenderEncoder"
 
         self.currentRenderEncoder.setDepthStencilState(self.depthStencilState)
+        self.currentRenderEncoder.setCullMode(.back)
 
         // Set the region of the drawable to which we'll draw.
         self.currentRenderEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(self.viewportSize.x), height: Double(self.viewportSize.y), znear: -1.0, zfar: 1.0))

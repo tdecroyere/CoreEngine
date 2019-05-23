@@ -31,7 +31,8 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "typeinfo": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "xlocale": "cpp"
     },
     "files.exclude": {
         "**/bin": true,

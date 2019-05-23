@@ -30,18 +30,39 @@ MemoryBuffer GetTestBuffer()
 	return span;
 }
 
-void DebugDrawTriangle(void* graphicsContext, Vector4 color1, Vector4 color2, Vector4 color3, Matrix4x4 worldMatrix)
-{
-    printf("DebugDrawTriangle Color1(%f, %f, %f, %f)\n", color1.X, color1.Y, color1.Z, color1.W);
-    printf("DebugDrawTriangle Color2(%f, %f, %f, %f)\n", color2.X, color2.Y, color2.Z, color2.W);
-    printf("DebugDrawTriangle Color3(%f, %f, %f, %f)\n", color3.X, color3.Y, color3.Z, color3.W);
-}
-
 InputsState GetInputsState(void* inputsContext)
 {
     printf("GetInputsState\n");
     return inputsState;
 }
+
+
+MemoryBuffer CreateMemoryBuffer(void* memoryManagerContext, int length)
+{
+    unsigned char* buffer = new unsigned char[length];
+
+    MemoryBuffer span = {};
+    span.Pointer = buffer;
+    span.Length = length;
+
+	return span;
+}
+
+void DestroyMemoryBuffer(void* memoryManagerContext, unsigned int memoryBufferId)
+{
+
+}
+
+unsigned int CreateGraphicsBuffer(void* graphicsContext, MemoryBuffer data)
+{
+    return 0;
+}
+
+void DrawPrimitives(void* graphicsContext, int primitiveCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix)
+{
+
+}
+
 
 
 class WindowsCoreEngineHost
@@ -56,10 +77,14 @@ public:
         HostPlatform hostPlatform = {};
         hostPlatform.TestParameter = 5;
 
+        hostPlatform.MemoryService.CreateMemoryBuffer = CreateMemoryBuffer;
+        hostPlatform.MemoryService.DestroyMemoryBuffer = DestroyMemoryBuffer;
+
         hostPlatform.AddTestHostMethod = AddTestHostMethod;
         hostPlatform.GetTestBuffer = GetTestBuffer;
 
-        hostPlatform.GraphicsService.DebugDrawTriangle = DebugDrawTriangle;
+        hostPlatform.GraphicsService.CreateGraphicsBuffer = CreateGraphicsBuffer;
+        hostPlatform.GraphicsService.DrawPrimitives = DrawPrimitives;
 
         hostPlatform.InputsService.GetInputsState = GetInputsState;
 

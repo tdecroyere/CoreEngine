@@ -37,7 +37,7 @@ namespace CoreEngine
         {
             // TODO: Check if the type inherit from IComponentData
             
-            var arrayHashCode = componentTypes.GetHashCode();
+            var arrayHashCode = ComputeEntityLayoutHashCodeAndSort(ref componentTypes);
 
             for (int i = 0; i < this.componentLayouts.Count; i++)
             {
@@ -62,6 +62,23 @@ namespace CoreEngine
             }
 
             return componentLayout;
+        }
+
+        private static int ComputeEntityLayoutHashCodeAndSort(ref Type[] componentTypes)
+        {
+            var result = 0;
+            var sortedList = new SortedList<int, Type>();
+
+            for (var i = 0; i < componentTypes.Length; i++)
+            {
+                var typeHashCode = componentTypes[i].GetHashCode();
+                sortedList.Add(typeHashCode, componentTypes[i]);
+                result |= typeHashCode;
+            }
+
+            sortedList.Values.CopyTo(componentTypes, 0);
+
+            return result;
         }
 
         public Entity CreateEntity(EntityComponentLayout componentLayout)

@@ -63,13 +63,23 @@ namespace CoreEngine.Resources
                 throw new InvalidOperationException($"Error: No resource loader found '{Path.GetExtension(path)}'.");
             }
 
+            var resource = resourceLoader.CreateEmptyResource(this.currentResourceId, path);
+            resource.ResourceLoader = resourceLoader;
+            this.currentResourceId++;
+            // TODO: Current resource ID is not thread-safe
+
+            this.resources.Add(path, resource);
+            this.resourceIdList.Add(currentResourceId, resource);
+
             var resourceStorage = FindResourceStorage(path);
 
             if (resourceStorage == null)
             {
-                Logger.WriteMessage($"Warning: Resource '{path}' was not found.");
+                Logger.WriteMessage($"Warning: Resource '{path}' was not found.", LogMessageType.Warning);
                 // TODO return a default not found resource specific to the resource type (shader, texture, etc.)
-                throw new NotImplementedException("Resource not found path is not yet implemented");
+                //throw new NotImplementedException("Resource not found path is not yet implemented");
+
+                return (T)resource;
             }
 
             // TODO: Implement data handling with stream or just byte array
@@ -77,19 +87,10 @@ namespace CoreEngine.Resources
 
             var resourceData = resourceStorage.ReadResourceDataAsync(path).Result;
 
-            // TODO: Current resource ID is not thread-safe
-            this.currentResourceId++;
-
-            var resource = resourceLoader.CreateEmptyResource(this.currentResourceId, path);
-            resource.ResourceLoader = resourceLoader;
-
             // TODO: Add support for children hierarchical resource loading
 
             var resourceLoadingTask = resourceLoader.LoadResourceDataAsync(resource, resourceData);
             this.resourceLoadingList.Add(resourceLoadingTask);
-
-            this.resources.Add(path, resource);
-            this.resourceIdList.Add(currentResourceId, resource);
 
             return (T)resource;
         }

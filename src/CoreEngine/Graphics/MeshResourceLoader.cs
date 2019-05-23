@@ -31,7 +31,7 @@ namespace CoreEngine.Graphics
 
             if (mesh == null)
             {
-                throw new ArgumentException("Resource is not a Shader resource.", "resource");
+                throw new ArgumentException("Resource is not a mesh resource.", "resource");
             }
 
             using var memoryStream = new MemoryStream(data);
@@ -56,7 +56,7 @@ namespace CoreEngine.Graphics
                 var vertexCount = reader.ReadInt32();
                 var indexCount = reader.ReadInt32();
 
-                Logger.WriteMessage($"Vertices Count: {vertexCount}, Indices Count: {indexCount}");
+                //Logger.WriteMessage($"Vertices Count: {vertexCount}, Indices Count: {indexCount}");
 
                 // TODO: Change the calculation of the vertex size (current is fixed to Position, Normal)
                 var vertexSize = sizeof(float) * 6;

@@ -5,12 +5,22 @@ namespace CoreEngine.Resources
 {
     public abstract class ResourceLoader
     {
+        protected ResourceLoader(ResourcesManager resourcesManager)
+        {
+            this.ResourcesManager = resourcesManager;
+        }
+        
         public abstract string Name
         {
             get;
         }
 
         public abstract string FileExtension
+        {
+            get;
+        }
+
+        protected ResourcesManager ResourcesManager
         {
             get;
         }

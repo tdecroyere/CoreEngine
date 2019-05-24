@@ -65,11 +65,12 @@ namespace CoreEngine.Resources
 
             var resource = resourceLoader.CreateEmptyResource(this.currentResourceId, path);
             resource.ResourceLoader = resourceLoader;
-            this.currentResourceId++;
-            // TODO: Current resource ID is not thread-safe
 
             this.resources.Add(path, resource);
             this.resourceIdList.Add(currentResourceId, resource);
+
+            this.currentResourceId++;
+            // TODO: Current resource ID is not thread-safe
 
             var resourceStorage = FindResourceStorage(path);
 

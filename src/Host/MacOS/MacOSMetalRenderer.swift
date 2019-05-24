@@ -64,14 +64,14 @@ func makePerspectiveFovMatrix(fieldOfViewY: Float, aspectRatio: Float, minPlaneZ
 }
 
 func createShader(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: MemoryBuffer) -> UInt32 {
-    print("Swift create shader")
+    //print("Swift create shader")
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     renderer.createShader(shaderByteCode: shaderByteCode)
     return 0
 }
 
 func createGraphicsBuffer(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) -> UInt32 {
-    print("Swift create graphics buffer")
+    //print("Swift create graphics buffer")
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.createGraphicsBuffer(data: data)
 }

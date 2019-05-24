@@ -13,7 +13,7 @@ namespace CoreEngine.Graphics
         private readonly GraphicsService graphicsService;
         private readonly MemoryService memoryService;
 
-        public ShaderResourceLoader(GraphicsService graphicsService, MemoryService memoryService)
+        public ShaderResourceLoader(ResourcesManager resourcesManager, GraphicsService graphicsService, MemoryService memoryService) : base(resourcesManager)
         {
             this.graphicsService = graphicsService;
             this.memoryService = memoryService;

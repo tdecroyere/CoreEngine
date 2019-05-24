@@ -11,7 +11,7 @@ namespace CoreEngine.Graphics
         private readonly GraphicsService graphicsService;
         private readonly MemoryService memoryService;
 
-        public MeshResourceLoader(GraphicsService graphicsService, MemoryService memoryService)
+        public MeshResourceLoader(ResourcesManager resourcesManager, GraphicsService graphicsService, MemoryService memoryService) : base(resourcesManager)
         {
             this.graphicsService = graphicsService;
             this.memoryService = memoryService;

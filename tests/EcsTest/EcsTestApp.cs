@@ -10,7 +10,6 @@ namespace CoreEngine.Tests.EcsTest
 {
     public class EcsTestApp : CoreEngineApp
     {
-        private EntityManager? entityManager;
         private EntitySystemManager? entitySystemManager;
         private Shader? testShader;
 
@@ -34,12 +33,6 @@ namespace CoreEngine.Tests.EcsTest
             var testScene = new Scene();
             var playerLayout = testScene.EntityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(PlayerComponent), typeof(MeshComponent));
             var blockLayout = testScene.EntityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(BlockComponent), typeof(MeshComponent));
-
-            var testLayout = testScene.EntityManager.CreateEntityComponentLayout(typeof(TransformComponent), typeof(MeshComponent));
-            Console.WriteLine(testLayout.EntityComponentLayoutId);
-
-            var testLayout2 = testScene.EntityManager.CreateEntityComponentLayout(typeof(MeshComponent), typeof(TransformComponent));
-            Console.WriteLine(testLayout2.EntityComponentLayoutId);
 
             var playerEntity = testScene.EntityManager.CreateEntity(playerLayout);
 
@@ -81,7 +74,7 @@ namespace CoreEngine.Tests.EcsTest
                 testScene.EntityManager.SetComponentData(wallEntity, wallMesh);
             }
 
-            this.entitySystemManager = new EntitySystemManager(testScene.EntityManager, this.SystemManagerContainer);
+            this.entitySystemManager = new EntitySystemManager(testLoadedScene.EntityManager, this.SystemManagerContainer);
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<BlockUpdateSystem>();
@@ -91,7 +84,7 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Update(float deltaTime)
         {
-            if (this.entitySystemManager != null && this.entityManager != null)
+            if (this.entitySystemManager != null)
             {
                 this.entitySystemManager.Process(deltaTime);
             }

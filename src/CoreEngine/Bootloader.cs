@@ -47,7 +47,7 @@ namespace CoreEngine
                     
                     // TODO: Get the config from the host using hardcoded values for the moment
                     resourcesManager.AddResourceStorage(new FileSystemResourceStorage("."));
-                    resourcesManager.AddResourceLoader(new SceneResourceLoader());
+                    resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
                     // Register managers
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);

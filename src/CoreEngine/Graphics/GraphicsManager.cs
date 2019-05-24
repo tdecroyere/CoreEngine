@@ -100,8 +100,8 @@ namespace CoreEngine.Graphics
 
         private void InitResourceLoaders()
         {
-            this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.graphicsService, this.memoryService));
-            this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.graphicsService, this.memoryService));
+            this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this.graphicsService, this.memoryService));
+            this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this.graphicsService, this.memoryService));
         }
     }
 }

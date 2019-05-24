@@ -10,7 +10,6 @@ namespace CoreEngine
     public class EntitySystemManager
     {
         private readonly SystemManagerContainer systemManagerContainer;
-        private readonly EntityManager entityManager;
         private IList<EntitySystemDefinition> registeredSystemDefinitions;
 
         // TODO: Refactor that!
@@ -18,9 +17,8 @@ namespace CoreEngine
 
         public IList<EntitySystem> RegisteredSystems { get; } = new List<EntitySystem>();
         
-        public EntitySystemManager(EntityManager entityManager, SystemManagerContainer systemManagerContainer)
+        public EntitySystemManager(SystemManagerContainer systemManagerContainer)
         {
-            this.entityManager = entityManager;
             this.systemManagerContainer = systemManagerContainer;
             this.registeredSystemDefinitions = new List<EntitySystemDefinition>();
             this.componentTypes = new List<Type[]>();
@@ -51,7 +49,7 @@ namespace CoreEngine
             }
         }
 
-        public void Process(float deltaTime)
+        public void Process(EntityManager entityManager, float deltaTime)
         {
             // TODO: For the moment the systems are executed sequentially
             // TODO: Add multi-thread
@@ -66,12 +64,12 @@ namespace CoreEngine
                 var entitySystem = this.RegisteredSystems[i];
                 var entitySystemDefinition = this.registeredSystemDefinitions[i];
 
-                var entitySystemData = this.entityManager.GetEntitySystemData(this.componentTypes[i]);
+                var entitySystemData = entityManager.GetEntitySystemData(this.componentTypes[i]);
 
                 entitySystem.SetEntitySystemData(entitySystemData);
                 entitySystem.Process(deltaTime);
 
-                this.entityManager.SetEntitySystemData(entitySystemData);
+                entityManager.SetEntitySystemData(entitySystemData);
             }
         }
     }

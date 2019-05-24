@@ -12,5 +12,11 @@ namespace CoreEngine
         public float RotationY;
         public float RotationZ;
         public Matrix4x4 WorldMatrix;
+
+        public void SetDefaultValues()
+        {
+            this.Scale = Vector3.One;
+            this.WorldMatrix = Matrix4x4.Identity;
+        }
     }
 }

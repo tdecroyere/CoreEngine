@@ -83,7 +83,7 @@ namespace CoreEngine
 
         public Entity CreateEntity(EntityComponentLayout componentLayout)
         {
-            // TODO: Init buffer values with component default data
+            // TODO: Init buffer values with component default data with IComponentData.SetDefaultValues()
             // TODO: Check for existing entities
             // TODO: Group data in component storage by component layouts so the memory access is linear
 
@@ -143,6 +143,35 @@ namespace CoreEngine
                     if (entityId == entity.EntityId)
                     {
                         MemoryMarshal.Write(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset), ref component);
+                    }
+                }
+            }
+        }
+
+        internal void SetComponentData(Entity entity, Type componentType, Span<byte> componentData)
+        {
+            // TODO: Make a function for entity indexing
+            // TODO: Use Index type?
+            var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
+            var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
+            var dataStorage = this.componentStorage[componentLayout.EntityComponentLayoutId];
+
+            var componentOffset = FindComponentOffset(componentType.GetHashCode(), componentLayoutDesc);
+            var chunkItemSize = ComputeChunkItemSize(componentLayoutDesc);
+
+            // TODO: Throw an exception if entity not found
+            for (var i = 0; i < dataStorage.Count; i++)
+            {
+                var memoryChunk = dataStorage[i];
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
+                {
+                    var chunkIndex = chunkItemSize * j;
+                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
+
+                    if (entityId == entity.EntityId)
+                    {
+                        componentData.CopyTo(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset));
                     }
                 }
             }

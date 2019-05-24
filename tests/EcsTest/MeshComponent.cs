@@ -6,5 +6,10 @@ namespace CoreEngine.Tests.EcsTest
     public struct MeshComponent : IComponentData
     {
         public uint MeshResourceId;
+
+        public void SetDefaultValues()
+        {
+            
+        }
     }
 }

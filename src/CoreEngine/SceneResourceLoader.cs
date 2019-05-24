@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
@@ -119,6 +120,7 @@ namespace CoreEngine
                     if (componentType != null)
                     {
                         component = (IComponentData)Activator.CreateInstance(componentType);
+                        component.SetDefaultValues();
                         Logger.WriteMessage($"Component: {component.ToString()}");
                     }
 
@@ -217,10 +219,20 @@ namespace CoreEngine
                         }
                     }
                 
-                    if (entity != null && component != null)
+                    if (entity != null && component != null && componentType != null)
                     {
-                        var valueType = (ValueType)component;
-                        scene.EntityManager.SetComponentData<ValueType>(entity.Value, valueType);
+                        var size = Marshal.SizeOf(component);
+                        // Both managed and unmanaged buffers required.
+                        var bytes = new byte[size];
+                        var ptr = Marshal.AllocHGlobal(size);
+                        // Copy object byte-to-byte to unmanaged memory.
+                        Marshal.StructureToPtr(component, ptr, false);
+                        // Copy data from unmanaged memory to managed buffer.
+                        Marshal.Copy(ptr, bytes, 0, size);
+                        // Release unmanaged memory.
+                        Marshal.FreeHGlobal(ptr);
+
+                        scene.EntityManager.SetComponentData(entity.Value, componentType, bytes);
                     }
                 }
             }

@@ -72,5 +72,17 @@ namespace CoreEngine.Graphics
 
             return Task.FromResult((Resource)mesh);
         }
+
+        public override void DestroyResource(Resource resource)
+        {
+            var mesh = resource as Mesh;
+
+            if (mesh == null)
+            {
+                throw new ArgumentException("Resource is not a mesh resource.", "resource");
+            }
+
+            Logger.WriteMessage($"Destroying mesh '{resource.Path}' (NOT IMPLEMENTED YET)...");
+        }
     }
 }

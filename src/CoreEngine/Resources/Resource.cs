@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace CoreEngine.Resources
 {
@@ -8,7 +9,9 @@ namespace CoreEngine.Resources
         {
             this.ResourceId = resourceId;
             this.Path = path;
+            this.ReferenceCount = 1;
             this.LastUpdateDateTime = DateTime.Now;
+            this.DependentResources = new List<Resource>();
         }
 
         public uint ResourceId
@@ -27,6 +30,17 @@ namespace CoreEngine.Resources
             internal set;
         }
 
+        public IList<Resource> DependentResources
+        {
+            get;
+        }
+
+        public int ReferenceCount
+        {
+            get;
+            internal set;
+        }
+
         public ResourceLoader? ResourceLoader
         {
             get;
@@ -37,6 +51,16 @@ namespace CoreEngine.Resources
         {
             get;
             internal set;
+        }
+
+        public void DecrementReferenceCount()
+        {
+            this.ReferenceCount--;
+        }
+
+        public virtual void DestroyResource()
+        {
+            
         }
     }
 }

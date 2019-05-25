@@ -52,6 +52,7 @@ namespace CoreEngine.Resources
         {
             if (this.resources.ContainsKey(path))
             {
+                this.resources[path].ReferenceCount++;
                 return (T)this.resources[path];
             }
 
@@ -100,7 +101,7 @@ namespace CoreEngine.Resources
         {
             CheckResourceLoadingTasks();
             CheckForUpdatedResources();
-
+            RemoveUnusedResources();
             // TODO: Remove unused resources
         }
         
@@ -125,6 +126,13 @@ namespace CoreEngine.Resources
 
                         if (resource.ResourceLoader != null)
                         {
+                            for (var j = 0; j < resource.DependentResources.Count; j++)
+                            {
+                                resource.DependentResources[j].DecrementReferenceCount();
+                            }
+
+                            resource.DependentResources.Clear();
+
                             resource.LastUpdateDateTime = lastUpdateDate.Value;
                             var resourceData = this.resourceStorages[i].ReadResourceDataAsync(resource.Path).Result;
 
@@ -141,10 +149,11 @@ namespace CoreEngine.Resources
             // TODO: Add resource finalization for hardware dependent resources?
             // TODO: Add notification system to parent waiting for children resources to load?
             // TODO: Process a fixed amound of resources per frame for now
+            var maxResourceLoadingTask = 10;
 
-            var tasksToRemove = ArrayPool<Task<Resource>>.Shared.Rent(10);
+            var tasksToRemove = ArrayPool<Task<Resource>>.Shared.Rent(maxResourceLoadingTask);
 
-            for (var i = 0; i < this.resourceLoadingList.Count; i++)
+            for (var i = 0; i < tasksToRemove.Length && i < this.resourceLoadingList.Count; i++)
             {
                 var resourceLoadingTask = this.resourceLoadingList[i];
 
@@ -167,6 +176,29 @@ namespace CoreEngine.Resources
             }
 
             ArrayPool<Task<Resource>>.Shared.Return(tasksToRemove);
+        }
+
+        private void RemoveUnusedResources()
+        {
+            var resourcesToRemove = ArrayPool<Resource>.Shared.Rent(10);
+
+            // TODO: Try to avoid the copy?
+            var resourcesSnapshot = new KeyValuePair<string, Resource>[this.resources.Count];
+            this.resources.CopyTo(resourcesSnapshot, 0);
+
+            foreach (var item in resourcesSnapshot)
+            {
+                if (item.Value.ReferenceCount == 0)
+                {
+                    Logger.WriteMessage($"Removing resource {item.Value.ResourceId}");
+
+                    if (item.Value.ResourceLoader != null)
+                    {
+                        item.Value.ResourceLoader!.DestroyResource(item.Value);
+                        this.resources.Remove(item.Key);
+                    }
+                }
+            }
         }
 
         private ResourceLoader? FindResourceLoader(string fileExtension)

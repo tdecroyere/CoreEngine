@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics

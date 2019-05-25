@@ -154,7 +154,9 @@ namespace CoreEngine
                                 if (resourcePathIndex != -1)
                                 {
                                     var resourcePath = stringValue.Substring(resourcePathIndex + resourcePrefix.Length);
+                                    
                                     var componentResource = this.ResourcesManager.LoadResourceAsync<Resource>(resourcePath);
+                                    resource.DependentResources.Add(componentResource);
 
                                     fieldInfo.SetValue(component, componentResource.ResourceId);
                                     Logger.WriteMessage("Set resource Id value OK");

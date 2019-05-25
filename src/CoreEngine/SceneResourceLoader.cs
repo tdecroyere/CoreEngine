@@ -35,6 +35,8 @@ namespace CoreEngine
                 throw new ArgumentException("Resource is not a Scene resource.", "resource");
             }
 
+            scene.Reset();
+
             using var memoryStream = new MemoryStream(data);
             using var reader = new BinaryReader(memoryStream);
 

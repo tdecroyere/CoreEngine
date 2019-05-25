@@ -15,6 +15,11 @@ namespace CoreEngine
             this.EntityManager = new EntityManager();
         }
 
-        public EntityManager EntityManager { get; }
+        public EntityManager EntityManager { get; internal set; }
+
+        public void Reset()
+        {
+            this.EntityManager = new EntityManager();
+        }
     }
 }

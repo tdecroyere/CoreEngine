@@ -14,7 +14,7 @@ namespace CoreEngine.Graphics
         }
 
         public Entity Entity { get; }
-        public Mesh Mesh { get; }
+        public Mesh Mesh { get; internal set; }
         public Matrix4x4 WorldMatrix { get; internal set; }
         public bool IsAlive { get; internal set; }
     }

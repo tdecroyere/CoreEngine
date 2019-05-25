@@ -100,13 +100,18 @@ namespace CoreEngine.Resources
         {
             CheckResourceLoadingTasks();
             CheckForUpdatedResources();
+
+            // TODO: Remove unused resources
         }
         
         private void CheckForUpdatedResources()
         {
             // TODO: Make that a background task on another thread?
+            // TODO: Try to avoid the copy?
+            var resourcesSnapshot = new KeyValuePair<string, Resource>[this.resources.Count];
+            this.resources.CopyTo(resourcesSnapshot, 0);
 
-            foreach (var item in this.resources)
+            foreach (var item in resourcesSnapshot)
             {
                 var resource = item.Value;
 

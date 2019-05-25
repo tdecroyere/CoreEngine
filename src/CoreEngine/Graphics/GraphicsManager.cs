@@ -31,6 +31,7 @@ namespace CoreEngine.Graphics
         {
             if (this.meshInstances.ContainsKey(entity))
             {
+                this.meshInstances[entity].Mesh = mesh;
                 this.meshInstances[entity].WorldMatrix = worldMatrix;
                 this.meshInstances[entity].IsAlive = true;
             }

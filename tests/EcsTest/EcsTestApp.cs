@@ -10,7 +10,7 @@ namespace CoreEngine.Tests.EcsTest
 {
     public class EcsTestApp : CoreEngineApp
     {
-        private EntityManager? currentEntityManager;
+        private Scene? currentScene;
         private EntitySystemManager? entitySystemManager;
         private Shader? testShader;
 
@@ -75,7 +75,7 @@ namespace CoreEngine.Tests.EcsTest
             //     testScene.EntityManager.SetComponentData(wallEntity, wallMesh);
             // }
 
-            this.currentEntityManager = testLoadedScene.EntityManager;
+            this.currentScene = testLoadedScene;
 
             this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
@@ -87,9 +87,9 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Update(float deltaTime)
         {
-            if (this.entitySystemManager != null && this.currentEntityManager != null)
+            if (this.entitySystemManager != null && this.currentScene != null)
             {
-                this.entitySystemManager.Process(this.currentEntityManager, deltaTime);
+                this.entitySystemManager.Process(this.currentScene.EntityManager, deltaTime);
             }
         }
     }

@@ -32,6 +32,7 @@ struct Matrix4x4
 
 typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuffer shaderByteCode);
 typedef unsigned int (*CreateGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
+typedef void (*SetRenderPassConstantsPtr)(void* graphicsContext, struct MemoryBuffer data);
 typedef void (*DrawPrimitivesPtr)(void* graphicsContext, int primitiveCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix);
 
 struct GraphicsService
@@ -39,6 +40,7 @@ struct GraphicsService
     void* GraphicsContext;
     CreateShaderPtr CreateShader;
     CreateGraphicsBufferPtr CreateGraphicsBuffer;
+    SetRenderPassConstantsPtr SetRenderPassConstants;
     DrawPrimitivesPtr DrawPrimitives;
 };
 

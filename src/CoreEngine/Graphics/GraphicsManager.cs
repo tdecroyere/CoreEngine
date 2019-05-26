@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
@@ -13,15 +14,27 @@ namespace CoreEngine.Graphics
         private readonly ResourcesManager resourcesManager;
         private Dictionary<Entity, MeshInstance> meshInstances;
         private List<Entity> meshInstancesToRemove;
+        private RenderPassConstants renderPassConstants;
+        private MemoryBuffer renderPassConstantsMemoryBuffer;
 
         public GraphicsManager(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
         {
+            // TODO: Gets the render size from the graphicsService
+            var renderWidth = 1280;
+            var renderHeight = 720;
+
             this.graphicsService = graphicsService;
             this.memoryService = memoryService;
             this.resourcesManager = resourcesManager;
 
             this.meshInstances = new Dictionary<Entity, MeshInstance>();
             this.meshInstancesToRemove = new List<Entity>();
+
+            this.renderPassConstantsMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
+            
+            this.renderPassConstants = new RenderPassConstants();
+            this.renderPassConstants.ViewMatrix = MathUtils.CreateLookAtMatrix(new Vector3(0, 0, -50), Vector3.Zero, new Vector3(0, 1, 0));
+            this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), (float)renderWidth / (float)renderHeight, 1.0f, 10000.0f);
 
             InitResourceLoaders();
         }
@@ -51,6 +64,7 @@ namespace CoreEngine.Graphics
 
         private void RunRenderPipeline()
         {
+            SetRenderPassConstants(this.renderPassConstants);
             DrawMeshInstances();
         }
 
@@ -71,6 +85,13 @@ namespace CoreEngine.Graphics
             {
                 this.meshInstances.Remove(this.meshInstancesToRemove[i]);
             }
+        }
+
+        public void SetRenderPassConstants(RenderPassConstants renderPassConstants)
+        {
+            // TODO: Switch to configurable render pass constants
+            MemoryMarshal.Write(this.renderPassConstantsMemoryBuffer.AsSpan(), ref renderPassConstants);
+            this.graphicsService.SetRenderPassConstants(this.renderPassConstantsMemoryBuffer);
         }
 
         public void DrawMeshInstances()

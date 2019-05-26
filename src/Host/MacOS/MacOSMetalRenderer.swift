@@ -4,63 +4,12 @@ import MetalKit
 import simd
 import CoreEngineInterop
 
-struct RenderPassConstantBuffer {
-    var viewMatrix: float4x4
-    var projectionMatrix: float4x4
-
-    init() {
-        self.viewMatrix = makeIdentityMatrix()
-        self.projectionMatrix = makeIdentityMatrix()
-    }
-}
-
 struct ObjectConstantBuffer {
     var worldMatrix: float4x4
 
-    init() {
-        self.worldMatrix = makeIdentityMatrix()
+    init(_ worldMatrix: float4x4) {
+        self.worldMatrix = worldMatrix
     }
-}
-
-public func radians<T: FloatingPoint>(degrees: T) -> T {
-    return .pi * degrees / 180
-}
-
-public func degrees<T: FloatingPoint>(radians: T) -> T {
-    return radians * 180 / .pi
-}
-
-func makeIdentityMatrix() -> float4x4 {
-    let row1 = float4(1, 0, 0, 0)
-    let row2 = float4(0, 1, 0, 0)
-    let row3 = float4(0, 0, 1, 0)
-    let row4 = float4(0, 0, 0, 1)
-    
-    return float4x4(rows: [row1, row2, row3, row4])
-}
-
-func makeLookAtMatrix(cameraPosition: float3, cameraTarget: float3, cameraUpVector: float3) -> float4x4 {
-    let zAxis = normalize(cameraTarget - cameraPosition)
-    let xAxis = normalize(cross(cameraUpVector, zAxis))
-    let yAxis = normalize(cross(zAxis, xAxis))
-
-    let row1 = float4(xAxis.x, yAxis.x, zAxis.x, 0)
-    let row2 = float4(xAxis.y, yAxis.y, zAxis.y, 0)
-    let row3 = float4(xAxis.z, yAxis.z, zAxis.z, 0)
-    let row4 = float4(-dot(xAxis, cameraPosition), -dot(yAxis, cameraPosition), -dot(zAxis, cameraPosition), 1)
-    
-    return float4x4(rows: [row1, row2, row3, row4])
-}
-
-func makePerspectiveFovMatrix(fieldOfViewY: Float, aspectRatio: Float, minPlaneZ: Float, maxPlaneZ: Float) -> float4x4 {
-    let height = 1.0 / tan(fieldOfViewY / 2.0)
-
-    let row1 = float4(height / aspectRatio, 0, 0, 0)
-    let row2 = float4(0, height, 0, 0)
-    let row3 = float4(0, 0, (maxPlaneZ / (maxPlaneZ - minPlaneZ)), 1)
-    let row4 = float4(0, 0, -minPlaneZ * maxPlaneZ / (maxPlaneZ - minPlaneZ), 0)
-
-    return float4x4(rows: [row1, row2, row3, row4])
 }
 
 func createShader(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: MemoryBuffer) -> UInt32 {
@@ -74,6 +23,11 @@ func createGraphicsBuffer(graphicsContext: UnsafeMutableRawPointer?, data: Memor
     //print("Swift create graphics buffer")
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.createGraphicsBuffer(data: data)
+}
+
+func setRenderPassConstants(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) {
+    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
+    renderer.setRenderPassConstants(data: data)
 }
 
 func drawPrimitives(graphicsContext: UnsafeMutableRawPointer?, primitiveCount: Int32, vertexBufferId: UInt32, indexBufferId: UInt32, worldMatrix: Matrix4x4) {
@@ -170,13 +124,18 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         return self.currentGraphicsBufferId
     }
 
+    func setRenderPassConstants(data: MemoryBuffer) {
+        if (self.currentRenderEncoder != nil) {
+            self.currentRenderEncoder.setVertexBytes(data.Pointer, length: Int(data.Length), index: 1)
+        }
+    }
+
     func drawPrimitives(_ primitiveCount: Int32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ worldMatrix: float4x4) {
         if (self.currentRenderEncoder != nil) {
             // TODO: Change the fact that we have only one command buffer stored in a private field
-            var objectBuffer = ObjectConstantBuffer()
-            objectBuffer.worldMatrix = worldMatrix
 
             // TODO: Switch to metal buffers
+            var objectBuffer = ObjectConstantBuffer(worldMatrix)
             self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
 
             // Draw the 3 vertices of our triangle
@@ -204,10 +163,6 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        var renderPassBuffer = RenderPassConstantBuffer()
-        renderPassBuffer.viewMatrix = makeLookAtMatrix(cameraPosition: float3(0, 0, -50), cameraTarget: float3(0, 0, 0), cameraUpVector: float3(0, 1, 0))
-        renderPassBuffer.projectionMatrix = makePerspectiveFovMatrix(fieldOfViewY: radians(degrees: 39.375), aspectRatio: self.viewportSize.x / self.viewportSize.y, minPlaneZ: 1.0, maxPlaneZ: 10000)
-        
         // Obtain a render pass descriptor, generated from the view's drawable
         let renderPassDescriptor = self.mtkView.currentRenderPassDescriptor!
         
@@ -220,8 +175,6 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         // Set the region of the drawable to which we'll draw.
         self.currentRenderEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(self.viewportSize.x), height: Double(self.viewportSize.y), znear: -1.0, zfar: 1.0))
         self.currentRenderEncoder.setRenderPipelineState(pipelineState)
-
-        self.currentRenderEncoder.setVertexBytes(&renderPassBuffer, length: MemoryLayout<RenderPassConstantBuffer>.size, index: 1)
     }
 
     func endRender() {

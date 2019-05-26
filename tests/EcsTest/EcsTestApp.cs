@@ -24,9 +24,10 @@ namespace CoreEngine.Tests.EcsTest
             resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
             resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\MacOS\CoreEngine.app\Contents\Resources"));
 
+            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
+            
             var testLoadedScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
 
-            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
             //var testMesh = resourcesManager.LoadResourceAsync<Mesh>("/teapot.mesh");
             //var sponzaMesh = resourcesManager.LoadResourceAsync<Mesh>("/sponza.mesh");
 

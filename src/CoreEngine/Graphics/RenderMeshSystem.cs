@@ -4,7 +4,7 @@ using CoreEngine;
 using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Tests.EcsTest
+namespace CoreEngine.Graphics
 {
     public class RenderMeshSystem : EntitySystem
     {

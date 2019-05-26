@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using CoreEngine;
 
-namespace CoreEngine.Tests.EcsTest
+namespace CoreEngine
 {
     public class ComputeWorldMatrixSystem : EntitySystem
     {

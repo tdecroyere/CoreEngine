@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 
-namespace CoreEngine.Tests.EcsTest
+namespace CoreEngine.Graphics
 {
     public struct MeshComponent : IComponentData
     {

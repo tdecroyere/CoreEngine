@@ -33,9 +33,8 @@ namespace CoreEngine.Graphics
             this.renderPassConstantsMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
             
             this.renderPassConstants = new RenderPassConstants();
-            this.renderPassConstants.ViewMatrix = MathUtils.CreateLookAtMatrix(new Vector3(0, 0, -50), Vector3.Zero, new Vector3(0, 1, 0));
             this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), (float)renderWidth / (float)renderHeight, 1.0f, 10000.0f);
-
+            
             InitResourceLoaders();
         }
 
@@ -53,6 +52,11 @@ namespace CoreEngine.Graphics
             {
                 this.meshInstances.Add(entity, new MeshInstance(entity, mesh, worldMatrix));
             }
+        }
+        
+        public void UpdateCamera(in Matrix4x4 viewMatrix)
+        {
+            this.renderPassConstants.ViewMatrix = viewMatrix;
         }
 
         public override void Update()

@@ -11,6 +11,7 @@ namespace CoreEngine
         public float RotationX;
         public float RotationY;
         public float RotationZ;
+        public Quaternion RotationQuaternion;
         public Matrix4x4 WorldMatrix;
 
         public void SetDefaultValues()

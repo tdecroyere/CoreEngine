@@ -24,13 +24,14 @@ namespace CoreEngine.Tests.EcsTest
             resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
             resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\MacOS\CoreEngine.app\Contents\Resources"));
 
-            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
             this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
+            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
 
             this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
+            this.entitySystemManager.RegisterEntitySystem<UpdateActiveCameraSystem>();
             this.entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
         }
 

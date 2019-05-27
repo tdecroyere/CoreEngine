@@ -32,11 +32,8 @@ namespace CoreEngine.Inputs
         // TODO: Take into account for stick a normalized vector
         public Vector2 GetMovementVector()
         {
-            var deltaX = this.LeftActionValue();
-            deltaX -= this.RightActionValue();
-
-            var deltaY = this.UpActionValue();
-            deltaY -= this.DownActionValue();
+            var deltaX = this.RightMovementActionValue() - this.LeftMovementActionValue();
+            var deltaY = this.UpMovementActionValue() - this.DownMovementActionValue();
 
             var result = new Vector2(deltaX, deltaY);
             //result = Vector2.Normalize(result);
@@ -50,24 +47,64 @@ namespace CoreEngine.Inputs
             return result;
         }
 
-        public float LeftActionValue()
+        public Vector2 GetRotationVector()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadLeft.Value + this.inputsState.Gamepad1.LeftStickLeft.Value + this.inputsState.Gamepad1.RightStickLeft.Value + this.inputsState.Gamepad1.ButtonA.Value + this.inputsState.Keyboard.KeyQ.Value + this.inputsState.Keyboard.LeftArrow.Value);
+            var deltaX = this.RightRotationActionValue();
+            deltaX -= this.LeftRotationActionValue();
+
+            var deltaY = this.DownRotationActionValue();
+            deltaY -= this.UpRotationActionValue();
+
+            var result = new Vector2(deltaX, deltaY);
+            //result = Vector2.Normalize(result);
+
+            // TODO: Apply a circle deadzone for now
+            if (result.LengthSquared() < deadZoneSquared)
+            {
+                return Vector2.Zero;
+            }
+
+            return result;
         }
 
-        public float RightActionValue()
+        public float LeftMovementActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadRight.Value + this.inputsState.Gamepad1.LeftStickRight.Value + this.inputsState.Gamepad1.RightStickRight.Value + this.inputsState.Keyboard.KeyD.Value + this.inputsState.Keyboard.RightArrow.Value);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickLeft.Value + this.inputsState.Keyboard.KeyQ.Value);
         }
 
-        public float UpActionValue()
+        public float RightMovementActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadUp.Value + this.inputsState.Gamepad1.LeftStickUp.Value + this.inputsState.Gamepad1.RightStickUp.Value + this.inputsState.Keyboard.KeyZ.Value + this.inputsState.Keyboard.UpArrow.Value);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickRight.Value + this.inputsState.Keyboard.KeyD.Value);
         }
 
-        public float DownActionValue()
+        public float UpMovementActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.DPadDown.Value + this.inputsState.Gamepad1.LeftStickDown.Value + this.inputsState.Gamepad1.RightStickDown.Value + this.inputsState.Keyboard.KeyS.Value + this.inputsState.Keyboard.DownArrow.Value);
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickUp.Value + this.inputsState.Keyboard.KeyZ.Value);
+        }
+
+        public float DownMovementActionValue()
+        {
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickDown.Value + this.inputsState.Keyboard.KeyS.Value);
+        }
+
+        public float LeftRotationActionValue()
+        {
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickLeft.Value + this.inputsState.Keyboard.LeftArrow.Value);
+        }
+
+        public float RightRotationActionValue()
+        {
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickRight.Value + this.inputsState.Keyboard.RightArrow.Value);
+        }
+
+        public float UpRotationActionValue()
+        {
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickUp.Value + this.inputsState.Keyboard.UpArrow.Value);
+        }
+
+        public float DownRotationActionValue()
+        {
+            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickDown.Value + this.inputsState.Keyboard.DownArrow.Value);
         }
 
         public bool IsLeftMousePressed()

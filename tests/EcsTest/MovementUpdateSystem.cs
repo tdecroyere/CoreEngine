@@ -18,18 +18,25 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Process(float deltaTime)
         {
-            var velocity = new Vector3(20.0f, 50.0f, 100.0f);
-            var rotationSpeed = 100.0f;
             var entityArray = this.GetEntityArray();
             var playerArray = this.GetComponentDataArray<PlayerComponent>();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                if (playerArray[i].InputVector.LengthSquared() > 0.0f)
+                if (playerArray[i].RotationVector.LengthSquared() > 0.0f)
                 {
-                    transformArray[i].RotationY += playerArray[i].InputVector.X * deltaTime * rotationSpeed;
-                    transformArray[i].RotationX += playerArray[i].InputVector.Y * deltaTime * rotationSpeed;
+                    transformArray[i].RotationY += playerArray[i].RotationVector.X * deltaTime * playerArray[i].RotationSpeed;
+                    transformArray[i].RotationX += playerArray[i].RotationVector.Y * deltaTime * playerArray[i].RotationSpeed;
+                }
+
+                if (playerArray[i].TranslationVector.LengthSquared() > 0.0f)
+                {
+                    var positionDeltaX = playerArray[i].TranslationVector.X * deltaTime * playerArray[i].MovementSpeed;
+                    var positionDeltaZ = playerArray[i].TranslationVector.Y * deltaTime * playerArray[i].MovementSpeed;
+
+                    var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(transformArray[i].RotationY, -transformArray[i].RotationX, 0.0f);
+                    transformArray[i].Position += Vector3.Transform(new Vector3(positionDeltaX, 0.0f, positionDeltaZ), -rotationQuaternion);
                 }
             }
         }

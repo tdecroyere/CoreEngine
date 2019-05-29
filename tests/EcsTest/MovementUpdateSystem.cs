@@ -10,7 +10,7 @@ namespace CoreEngine.Tests.EcsTest
         {
             var definition = new EntitySystemDefinition("Movement Update System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(PlayerComponent), true));
+            definition.Parameters.Add(new EntitySystemParameter(typeof(PlayerComponent)));
             definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
 
             return definition;
@@ -18,25 +18,45 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Process(float deltaTime)
         {
+            var friction = -80.5f;
+            var deltaTimePow2 = deltaTime * deltaTime;
+
             var entityArray = this.GetEntityArray();
             var playerArray = this.GetComponentDataArray<PlayerComponent>();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                if (playerArray[i].RotationVector.LengthSquared() > 0.0f)
+                var player = playerArray[i];
+
+	            var rotationAcceleration = player.RotationVector * player.RotationAcceleration;
+
+                // Add friction to the player
+                // TODO: It seems we need to implement ODE equations here
+                rotationAcceleration += friction * player.RotationVelocity;
+
+                var movementAcceleration = player.MovementVector * player.MovementAcceleration;
+
+                // Add friction to the player
+                // TODO: It seems we need to implement ODE equations here
+                movementAcceleration += friction * player.MovementVelocity;
+
+	            var rotationDelta = 0.5f * rotationAcceleration * deltaTimePow2 + player.RotationVelocity * deltaTime;
+	            playerArray[i].RotationVelocity = rotationAcceleration * deltaTime + player.RotationVelocity;
+
+                var movementDelta = 0.5f * movementAcceleration * deltaTimePow2 + player.MovementVelocity * deltaTime;
+	            playerArray[i].MovementVelocity = movementAcceleration * deltaTime + player.MovementVelocity;
+
+                if (rotationDelta.LengthSquared() > 0)
                 {
-                    transformArray[i].RotationY += playerArray[i].RotationVector.X * deltaTime * playerArray[i].RotationSpeed;
-                    transformArray[i].RotationX += playerArray[i].RotationVector.Y * deltaTime * playerArray[i].RotationSpeed;
+                    transformArray[i].RotationX += rotationDelta.X;
+                    transformArray[i].RotationY += rotationDelta.Y;
                 }
 
-                if (playerArray[i].TranslationVector.LengthSquared() > 0.0f)
+                if (movementDelta.LengthSquared() > 0.0f)
                 {
-                    var positionDeltaX = playerArray[i].TranslationVector.X * deltaTime * playerArray[i].MovementSpeed;
-                    var positionDeltaZ = playerArray[i].TranslationVector.Y * deltaTime * playerArray[i].MovementSpeed;
-
-                    var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(transformArray[i].RotationY, -transformArray[i].RotationX, 0.0f);
-                    transformArray[i].Position += Vector3.Transform(new Vector3(positionDeltaX, 0.0f, positionDeltaZ), -rotationQuaternion);
+                    var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(MathUtils.DegreesToRad(transformArray[i].RotationY), MathUtils.DegreesToRad(transformArray[i].RotationX), 0.0f);
+                    transformArray[i].Position += Vector3.Transform(new Vector3(movementDelta.X, 0.0f, movementDelta.Y), rotationQuaternion);
                 }
             }
         }

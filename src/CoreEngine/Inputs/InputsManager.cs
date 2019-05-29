@@ -49,11 +49,11 @@ namespace CoreEngine.Inputs
 
         public Vector2 GetRotationVector()
         {
-            var deltaX = this.RightRotationActionValue();
-            deltaX -= this.LeftRotationActionValue();
+            var deltaY = this.RightRotationActionValue();
+            deltaY -= this.LeftRotationActionValue();
 
-            var deltaY = this.DownRotationActionValue();
-            deltaY -= this.UpRotationActionValue();
+            var deltaX = this.DownRotationActionValue();
+            deltaX -= this.UpRotationActionValue();
 
             var result = new Vector2(deltaX, deltaY);
             //result = Vector2.Normalize(result);

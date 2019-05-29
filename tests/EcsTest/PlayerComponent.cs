@@ -5,15 +5,17 @@ namespace CoreEngine.Tests.EcsTest
 {
     public struct PlayerComponent : IComponentData
     {
-        public Vector3 TranslationVector;
+        public Vector3 MovementVector;
+        public Vector3 MovementVelocity;
         public Vector3 RotationVector;
-        public float MovementSpeed;
-        public float RotationSpeed;
+        public Vector3 RotationVelocity;
+        public float MovementAcceleration;
+        public float RotationAcceleration;
 
         public void SetDefaultValues()
         {
-            this.MovementSpeed = 50.0f;
-            this.RotationSpeed = 150.0f;
+            this.MovementAcceleration = 5000.0f;
+            this.RotationAcceleration = 12000.0f;
         }
     }
 }

@@ -30,7 +30,7 @@ namespace CoreEngine.Tests.EcsTest
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                playerArray[i].TranslationVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
+                playerArray[i].MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
                 playerArray[i].RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
 
                 if (this.inputsManager.IsLeftMouseDown())

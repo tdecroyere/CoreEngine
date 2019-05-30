@@ -33,7 +33,8 @@ namespace CoreEngine.Graphics
             this.renderPassConstantsMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
             
             this.renderPassConstants = new RenderPassConstants();
-            this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), (float)renderWidth / (float)renderHeight, 1.0f, 10000.0f);
+            // this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), (float)renderWidth / (float)renderHeight, 10.0f, 100000.0f);
+            this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), (float)renderWidth / (float)renderHeight, 10.0f, 100000.0f);
             
             InitResourceLoaders();
         }

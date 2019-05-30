@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using CoreEngine;
+using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
@@ -20,8 +21,8 @@ namespace CoreEngine.Graphics
         {
             var definition = new EntitySystemDefinition("Update Active Camera System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent), true));
-            definition.Parameters.Add(new EntitySystemParameter(typeof(CameraComponent), true));
+            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
+            definition.Parameters.Add(new EntitySystemParameter(typeof(CameraComponent)));
 
             return definition;
         }
@@ -35,11 +36,47 @@ namespace CoreEngine.Graphics
             for (var i = 0; i < entityArray.Length; i++)
             {
                 var entity = entityArray[i];
+
+                if (cameraArray[i].EyePosition != Vector3.Zero || cameraArray[i].LookAtPosition != Vector3.Zero)
+                {
+                    transformArray[i].Position = cameraArray[i].EyePosition;
+
+                    // var cameraDirectionVector = Vector3.Normalize(cameraArray[i].LookAtPosition - cameraArray[i].EyePosition);
+
+                    // transformArray[i].RotationX = MathUtils.RadToDegrees(MathF.Asin(-cameraDirectionVector.Y));
+                    // transformArray[i].RotationY = MathUtils.RadToDegrees(MathF.Atan2(cameraDirectionVector.X, cameraDirectionVector.Z));
+
+                    var cameraViewMatrix = MathUtils.CreateLookAtMatrix(cameraArray[i].EyePosition, cameraArray[i].LookAtPosition, new Vector3(0, 1, 0));
+                    
+                    var cameraRotationX = (float) Math.Asin( -cameraViewMatrix.M23 );
+                    var cameraRotationY = (float) Math.Atan2( -cameraViewMatrix.M13, cameraViewMatrix.M33 );
+                    
+                    transformArray[i].RotationX = MathUtils.RadToDegrees(cameraRotationX);
+                    transformArray[i].RotationY = MathUtils.RadToDegrees(cameraRotationY);
+
+                    Logger.WriteMessage($"Camera Setup: {transformArray[i].RotationX} - {transformArray[i].RotationY}");
+
+                    // TODO: Move that to an util method
+                    var scale = Matrix4x4.CreateScale(transformArray[i].Scale);
+                    var rotationX = MathUtils.DegreesToRad(transformArray[i].RotationX);
+                    var rotationY = MathUtils.DegreesToRad(transformArray[i].RotationY);
+                    var rotationZ = MathUtils.DegreesToRad(transformArray[i].RotationZ);
+                    var translation = Matrix4x4.CreateTranslation(transformArray[i].Position);
+
+                    var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
+
+                    transformArray[i].RotationQuaternion = rotationQuaternion;
+                    transformArray[i].WorldMatrix = Matrix4x4.Transform(scale, transformArray[i].RotationQuaternion) * translation;
+
+                    cameraArray[i].EyePosition = Vector3.Zero;
+                    cameraArray[i].LookAtPosition = Vector3.Zero;
+                }
+
                 var transform = transformArray[i];
                 var camera = cameraArray[i];
 
                 var cameraPosition = Vector3.Transform(Vector3.Zero, transform.WorldMatrix);
-                var target = Vector3.Transform(new Vector3(0, 0, 20), transform.RotationQuaternion) + cameraPosition;
+                var target = Vector3.Transform(new Vector3(0, 0, 1), transform.RotationQuaternion) + cameraPosition;
 
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
                 graphicsManager.UpdateCamera(viewMatrix);

@@ -92,7 +92,6 @@ autoreleasepool {
             coreEngineHost.updateEngine(stepTimeInSeconds)
 
             renderer.endRender()
-            renderer.mtkView.draw()
         }
     }
 }

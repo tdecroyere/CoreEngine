@@ -33,12 +33,12 @@ namespace CoreEngine.Tests.EcsTest
                 playerArray[i].MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
                 playerArray[i].RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
 
-                if (this.inputsManager.IsLeftMouseDown())
-                {
-                    this.inputsManager.SendVibrationCommand(1, 1.0f, 0.0f, 0.0f, 0.0f, 1);
-                    var mouseVector = this.inputsManager.GetMouseDelta();
-                    playerArray[i].RotationVector = new Vector3(mouseVector.X, mouseVector.Y, 0.0f);
-                }
+                // if (this.inputsManager.IsLeftMouseDown())
+                // {
+                //     this.inputsManager.SendVibrationCommand(1, 1.0f, 0.0f, 0.0f, 0.0f, 1);
+                //     var mouseVector = this.inputsManager.GetMouseDelta();
+                //     playerArray[i].RotationVector = new Vector3(mouseVector.X, mouseVector.Y, 0.0f);
+                // }
 
                 //Logger.WriteMessage($"InputVector: {playerArray[i].InputVector}");
             }

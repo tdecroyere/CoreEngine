@@ -19,10 +19,6 @@ namespace CoreEngine.Graphics
 
         public GraphicsManager(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
         {
-            // TODO: Gets the render size from the graphicsService
-            var renderWidth = 1280;
-            var renderHeight = 720;
-
             this.graphicsService = graphicsService;
             this.memoryService = memoryService;
             this.resourcesManager = resourcesManager;
@@ -33,8 +29,6 @@ namespace CoreEngine.Graphics
             this.renderPassConstantsMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
             
             this.renderPassConstants = new RenderPassConstants();
-            // this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), (float)renderWidth / (float)renderHeight, 10.0f, 100000.0f);
-            this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), (float)renderWidth / (float)renderHeight, 10.0f, 100000.0f);
             
             InitResourceLoaders();
         }
@@ -57,7 +51,14 @@ namespace CoreEngine.Graphics
         
         public void UpdateCamera(in Matrix4x4 viewMatrix)
         {
+            var renderSize = this.graphicsService.GetRenderSize();
+            var renderWidth = renderSize.X;
+            var renderHeight = renderSize.Y;
+
             this.renderPassConstants.ViewMatrix = viewMatrix;
+
+            // this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), renderWidth / renderHeight, 10.0f, 100000.0f);
+            this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
         }
 
         public override void Update()

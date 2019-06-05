@@ -12,25 +12,28 @@ struct ObjectConstantBuffer {
     }
 }
 
-func createShader(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: MemoryBuffer) -> UInt32 {
-    //print("Swift create shader")
+func getRenderSizeHandle(graphicsContext: UnsafeMutableRawPointer?) -> Vector2 {
+    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
+    return renderer.getRenderSize()
+}
+
+func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: MemoryBuffer) -> UInt32 {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     renderer.createShader(shaderByteCode: shaderByteCode)
     return 0
 }
 
-func createGraphicsBuffer(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) -> UInt32 {
-    //print("Swift create graphics buffer")
+func createGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) -> UInt32 {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.createGraphicsBuffer(data: data)
 }
 
-func setRenderPassConstants(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) {
+func setRenderPassConstantsHandle(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     renderer.setRenderPassConstants(data: data)
 }
 
-func drawPrimitives(graphicsContext: UnsafeMutableRawPointer?, primitiveCount: Int32, vertexBufferId: UInt32, indexBufferId: UInt32, worldMatrix: Matrix4x4) {
+func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, primitiveCount: Int32, vertexBufferId: UInt32, indexBufferId: UInt32, worldMatrix: Matrix4x4) {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
 
     // TODO: Move world matrix setup to buffers
@@ -57,18 +60,16 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     var graphicsBuffers: [UInt32: MTLBuffer]
     var currentGraphicsBufferId: UInt32
 
-    var viewportSize: float2
-    
     init(view: MTKView, device: MTLDevice) {
         self.mtkView = view
         self.device = device
-        self.viewportSize = float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
         self.currentCommandBuffer = nil
         self.graphicsBuffers = [:]
         self.currentGraphicsBufferId = 0;
 
         super.init()
 
+        self.mtkView.isPaused = true
         self.mtkView.colorPixelFormat = .bgra8Unorm_srgb
         self.mtkView.depthStencilPixelFormat = .depth32Float
 
@@ -80,8 +81,20 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.commandQueue = self.device.makeCommandQueue()
     }
 
+    func initGraphicsService(_ graphicsService: inout GraphicsService) {
+        graphicsService.GraphicsContext = Unmanaged.passUnretained(self).toOpaque()
+        graphicsService.GetRenderSize = getRenderSizeHandle
+        graphicsService.CreateShader = createShaderHandle
+        graphicsService.CreateGraphicsBuffer = createGraphicsBufferHandle
+        graphicsService.SetRenderPassConstants = setRenderPassConstantsHandle
+        graphicsService.DrawPrimitives = drawPrimitivesHandle
+    }
+
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        self.viewportSize = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
+    }
+
+    func getRenderSize() -> Vector2 {
+        return Vector2(X: Float(self.mtkView.drawableSize.width), Y: Float(self.mtkView.drawableSize.height))
     }
 
     func createShader(shaderByteCode: MemoryBuffer) {
@@ -173,7 +186,8 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.currentRenderEncoder.setCullMode(.back)
 
         // Set the region of the drawable to which we'll draw.
-        self.currentRenderEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(self.viewportSize.x), height: Double(self.viewportSize.y), znear: -1.0, zfar: 1.0))
+        let renderSize = getRenderSize()
+        self.currentRenderEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
         self.currentRenderEncoder.setRenderPipelineState(pipelineState)
     }
 
@@ -186,6 +200,8 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.currentCommandBuffer.present(self.mtkView.currentDrawable!)
         self.currentCommandBuffer.commit()
         self.currentCommandBuffer = nil
+
+        self.mtkView.draw()
     }
 
     func draw(in view: MTKView) {

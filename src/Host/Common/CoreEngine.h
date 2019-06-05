@@ -17,6 +17,11 @@ struct MemoryService
     DestroyMemoryBufferPtr DestroyMemoryBuffer;
 };
 
+struct Vector2
+{
+    float X, Y;
+};
+
 struct Vector4
 {
     float X, Y, Z, W;
@@ -30,6 +35,7 @@ struct Matrix4x4
     float Item30, Item31, Item32, Item33;
 };
 
+typedef struct Vector2 (*GetRenderSizePtr)(void* graphicsContext);
 typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuffer shaderByteCode);
 typedef unsigned int (*CreateGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
 typedef void (*SetRenderPassConstantsPtr)(void* graphicsContext, struct MemoryBuffer data);
@@ -38,6 +44,7 @@ typedef void (*DrawPrimitivesPtr)(void* graphicsContext, int primitiveCount, uns
 struct GraphicsService
 {
     void* GraphicsContext;
+    GetRenderSizePtr GetRenderSize;
     CreateShaderPtr CreateShader;
     CreateGraphicsBufferPtr CreateGraphicsBuffer;
     SetRenderPassConstantsPtr SetRenderPassConstants;

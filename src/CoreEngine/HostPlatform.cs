@@ -43,6 +43,7 @@ namespace CoreEngine
         }
     }
 
+    public delegate Vector2 GetRenderSizeDelegate(IntPtr graphicsContext);
     public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
     public delegate uint CreateGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
     public delegate void SetRenderPassConstantsDelegate(IntPtr graphicsContext, MemoryBuffer data);
@@ -51,10 +52,16 @@ namespace CoreEngine
     public struct GraphicsService
     {
         private IntPtr graphicsContext;
+        private GetRenderSizeDelegate getRenderSizeDelegate;
         private CreateShaderDelegate createShaderDelegate;
         private CreateGraphicsBufferDelegate createGraphicsBufferDelegate;
         private SetRenderPassConstantsDelegate setRenderPassConstantsDelegate;
         private DrawPrimitivesDelegate drawPrimitivesDelegate;
+
+        public Vector2 GetRenderSize()
+        {
+            return getRenderSizeDelegate(graphicsContext);
+        }
 
         public uint CreateShader(MemoryBuffer shaderByteCode)
         {

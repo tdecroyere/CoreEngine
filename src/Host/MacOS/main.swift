@@ -6,13 +6,18 @@ var keyRightPressed = false
 var keyUpPressed = false
 var keyDownPressed = false
 
-var gameRunning = true
+var isGameRunning = true
+var isGamePaused = false
 
 func processPendingMessages(inputsManager: MacOSInputsManager) {
     var rawEvent: NSEvent? = nil
 
     repeat {
-        rawEvent = NSApplication.shared.nextEvent(matching: .any, until: nil, inMode: .default, dequeue: true)
+        if (isGamePaused) {
+            rawEvent = NSApplication.shared.nextEvent(matching: .any, until: NSDate.distantFuture, inMode: .default, dequeue: true)
+        } else {
+            rawEvent = NSApplication.shared.nextEvent(matching: .any, until: nil, inMode: .default, dequeue: true)
+        }
 
         guard let event = rawEvent else {
             return
@@ -35,7 +40,7 @@ func processPendingMessages(inputsManager: MacOSInputsManager) {
         default:
             NSApplication.shared.sendEvent(event)
         }
-    } while (rawEvent != nil)
+    } while (rawEvent != nil && !isGamePaused)
 }
 
 autoreleasepool {
@@ -71,27 +76,32 @@ autoreleasepool {
     // var lastCounter = mach_absolute_time()
     let stepTimeInSeconds = Float(1.0 / 60.0)
 
-    while (gameRunning) {
+    while (isGameRunning) {
         autoreleasepool {
-            // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
             processPendingMessages(inputsManager: inputsManager)
-            inputsManager.processGamepadControllers()
 
-            // let currentCounter = mach_absolute_time()
+            isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
 
-            // // TODO: Precise frame time calculation is not used for the moment
-            // let elapsed = currentCounter - lastCounter
-            // let nanoSeconds = elapsed * UInt64(machTimebaseInfo.numer) / UInt64(machTimebaseInfo.denom)
-            // let milliSeconds = Double(nanoSeconds) / 1_000_000
-            // lastCounter = currentCounter
+            if (!isGamePaused) {
+                // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
+                inputsManager.processGamepadControllers()
 
-            // TODO: Implement Draw triangle debug function
-            renderer.beginRender()
-            
-            // TODO: Update at 60Hz for now
-            coreEngineHost.updateEngine(stepTimeInSeconds)
+                // let currentCounter = mach_absolute_time()
 
-            renderer.endRender()
+                // // TODO: Precise frame time calculation is not used for the moment
+                // let elapsed = currentCounter - lastCounter
+                // let nanoSeconds = elapsed * UInt64(machTimebaseInfo.numer) / UInt64(machTimebaseInfo.denom)
+                // let milliSeconds = Double(nanoSeconds) / 1_000_000
+                // lastCounter = currentCounter
+
+                // TODO: Implement Draw triangle debug function
+                renderer.beginRender()
+                
+                // TODO: Update at 60Hz for now
+                coreEngineHost.updateEngine(stepTimeInSeconds)
+
+                renderer.endRender()
+            }
         }
     }
 }

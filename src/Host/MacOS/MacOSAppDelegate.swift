@@ -3,7 +3,8 @@ import Metal
 import MetalKit
 
 class MacOSAppDelegate: NSObject, NSApplicationDelegate {
-    var mainWindow: NSWindow!
+    public var mainWindow: NSWindow!
+    var mainWindowDelegate: MacOSWindowDelegate!
     var mainController: NSViewController!
     var metalDevice: MTLDevice!
     public var mtkView: MTKView!
@@ -20,6 +21,9 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
                                    defer: false)
 
         self.mainWindow.title = "Core Engine"
+    
+        self.mainWindowDelegate = MacOSWindowDelegate()
+        self.mainWindow.delegate = self.mainWindowDelegate
 
         self.mainController = NSViewController()
         self.mtkView = MTKView()
@@ -63,5 +67,13 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
         subMenu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         
         NSApp.mainMenu = mainMenu
+    }
+}
+
+class MacOSWindowDelegate: NSObject, NSWindowDelegate {
+    func windowDidEnterFullScreen(_ notification: Notification) {
+        // TODO: Re-hide cursor when it is moved after 2 seconds
+        print("Swift fullscreen")
+        NSCursor.setHiddenUntilMouseMoves(true)
     }
 }

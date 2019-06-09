@@ -51,6 +51,11 @@ namespace CoreEngine
 
         public void Process(EntityManager entityManager, float deltaTime)
         {
+            if (entityManager == null)
+            {
+                throw new ArgumentNullException(nameof(entityManager));
+            }
+            
             // TODO: For the moment the systems are executed sequentially
             // TODO: Add multi-thread
 

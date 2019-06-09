@@ -31,6 +31,11 @@ namespace CoreEngine.Resources
 
         public virtual void DestroyResource(Resource resource)
         {
+            if (resource == null)
+            {
+                throw new ArgumentNullException(nameof(resource));
+            }
+            
             Logger.WriteMessage($"Warning: No destroy method for '{resource.GetType()}'...");
         }
     }

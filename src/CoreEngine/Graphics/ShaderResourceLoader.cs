@@ -33,7 +33,7 @@ namespace CoreEngine.Graphics
 
             if (shader == null)
             {
-                throw new ArgumentException("Resource is not a Shader resource.", "resource");
+                throw new ArgumentException("Resource is not a Shader resource.", nameof(resource));
             }
 
             using var memoryStream = new MemoryStream(data);

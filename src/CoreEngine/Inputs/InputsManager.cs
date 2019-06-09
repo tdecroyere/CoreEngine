@@ -125,7 +125,7 @@ namespace CoreEngine.Inputs
         public void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms)
         {
             // TODO: Handle other players
-            this.inputsService.SendVibrationCommand(this.inputsState.Gamepad1.PlayerId, leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms);
+            this.inputsService.SendVibrationCommand(playerId, leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms);
         }
     }
 }

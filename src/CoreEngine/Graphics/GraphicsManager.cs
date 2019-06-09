@@ -33,6 +33,12 @@ namespace CoreEngine.Graphics
             InitResourceLoaders();
         }
 
+        internal GraphicsBuffer CreateGraphicsBuffer(MemoryBuffer memoryBuffer)
+        {
+            var graphicsBufferId = graphicsService.CreateGraphicsBuffer(memoryBuffer);
+            return new GraphicsBuffer(graphicsBufferId, memoryBuffer.Length);
+        }
+
         // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
         public void AddOrUpdateEntity(Entity entity, Mesh mesh, Matrix4x4 worldMatrix)
         {
@@ -129,7 +135,7 @@ namespace CoreEngine.Graphics
         private void InitResourceLoaders()
         {
             this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this.graphicsService, this.memoryService));
-            this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this.graphicsService, this.memoryService));
+            this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this, this.memoryService));
         }
     }
 }

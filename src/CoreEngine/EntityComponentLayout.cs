@@ -1,12 +1,12 @@
 namespace CoreEngine
 {
-    public struct EntityComponentLayout
+    public readonly struct EntityComponentLayout
     {
         public EntityComponentLayout(uint id)
         {
             this.EntityComponentLayoutId = id;
         }
         
-        public uint EntityComponentLayoutId;
+        public readonly uint EntityComponentLayoutId { get; }
     }
 }

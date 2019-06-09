@@ -2,15 +2,15 @@ using System;
 
 namespace CoreEngine.Graphics
 {
-    public class GraphicsBuffer
+    public readonly struct GraphicsBuffer
     {
-        internal GraphicsBuffer(GraphicsService graphicsService, MemoryBuffer memoryBuffer)
+        internal GraphicsBuffer(uint id, int sizeInBytes)
         {
-            this.SizeInBytes = memoryBuffer.Length;
-            this.Id = graphicsService.CreateGraphicsBuffer(memoryBuffer);
+            this.Id = id;
+            this.SizeInBytes = sizeInBytes;
         }
 
-        public uint Id { get; }
-        public int SizeInBytes { get; }
+        public readonly uint Id { get; }
+        public readonly int SizeInBytes { get; }
     }
 }

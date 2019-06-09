@@ -101,7 +101,8 @@ namespace CoreEngine
             }
 
             var chunkIndex = chunkItemSize * memoryChunk.EntityCount;
-            MemoryMarshal.Write(memoryChunk!.Storage.Span.Slice(chunkIndex), ref entity.EntityId);
+            var entityId = entity.EntityId;
+            MemoryMarshal.Write(memoryChunk!.Storage.Span.Slice(chunkIndex), ref entityId);
             memoryChunk.EntityCount++;
 
             return entity;

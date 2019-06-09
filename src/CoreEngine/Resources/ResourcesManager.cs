@@ -28,12 +28,22 @@ namespace CoreEngine.Resources
 
         public void AddResourceLoader(ResourceLoader resourceLoader)
         {
+            if (resourceLoader == null)
+            {
+                throw new ArgumentNullException(nameof(resourceLoader));
+            }
+
             Logger.WriteMessage($"Registering '{resourceLoader.FileExtension}' resource loader...");
             this.resourceLoaders.Add(resourceLoader.FileExtension, resourceLoader);
         }
 
         public void AddResourceStorage(ResourceStorage resourceStorage)
         {
+            if (resourceStorage == null)
+            {
+                throw new ArgumentNullException(nameof(resourceStorage));
+            }
+
             Logger.WriteMessage($"Registering '{resourceStorage.Name}' resource storage...");
             this.resourceStorages.Add(resourceStorage);
         }

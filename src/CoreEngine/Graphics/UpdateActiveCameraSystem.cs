@@ -10,7 +10,6 @@ namespace CoreEngine.Graphics
     public class UpdateActiveCameraSystem : EntitySystem
     {
         private readonly GraphicsManager graphicsManager;
-        private readonly Vector3 cameraUpVector = new Vector3(0, 1, 0);
 
         public UpdateActiveCameraSystem(GraphicsManager graphicsManager)
         {
@@ -40,11 +39,6 @@ namespace CoreEngine.Graphics
                 if (cameraArray[i].EyePosition != Vector3.Zero || cameraArray[i].LookAtPosition != Vector3.Zero)
                 {
                     transformArray[i].Position = cameraArray[i].EyePosition;
-
-                    // var cameraDirectionVector = Vector3.Normalize(cameraArray[i].LookAtPosition - cameraArray[i].EyePosition);
-
-                    // transformArray[i].RotationX = MathUtils.RadToDegrees(MathF.Asin(-cameraDirectionVector.Y));
-                    // transformArray[i].RotationY = MathUtils.RadToDegrees(MathF.Atan2(cameraDirectionVector.X, cameraDirectionVector.Z));
 
                     var cameraViewMatrix = MathUtils.CreateLookAtMatrix(cameraArray[i].EyePosition, cameraArray[i].LookAtPosition, new Vector3(0, 1, 0));
                     

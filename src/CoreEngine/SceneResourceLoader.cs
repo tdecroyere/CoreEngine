@@ -32,7 +32,7 @@ namespace CoreEngine
 
             if (scene == null)
             {
-                throw new ArgumentException("Resource is not a Scene resource.", "resource");
+                throw new ArgumentException("Resource is not a Scene resource.", nameof(resource));
             }
 
             scene.Reset();
@@ -149,7 +149,7 @@ namespace CoreEngine
 
                             if (fieldInfo != null)
                             {
-                                var resourcePathIndex = stringValue.IndexOf(resourcePrefix);
+                                var resourcePathIndex = stringValue.IndexOf(resourcePrefix, StringComparison.InvariantCulture);
 
                                 if (resourcePathIndex != -1)
                                 {

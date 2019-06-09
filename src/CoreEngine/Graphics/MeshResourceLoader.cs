@@ -8,12 +8,12 @@ namespace CoreEngine.Graphics
 {
     public class MeshResourceLoader : ResourceLoader
     {
-        private readonly GraphicsService graphicsService;
+        private readonly GraphicsManager graphicsManager;
         private readonly MemoryService memoryService;
 
-        public MeshResourceLoader(ResourcesManager resourcesManager, GraphicsService graphicsService, MemoryService memoryService) : base(resourcesManager)
+        public MeshResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager, MemoryService memoryService) : base(resourcesManager)
         {
-            this.graphicsService = graphicsService;
+            this.graphicsManager = graphicsManager;
             this.memoryService = memoryService;
         }
 
@@ -31,7 +31,7 @@ namespace CoreEngine.Graphics
 
             if (mesh == null)
             {
-                throw new ArgumentException("Resource is not a mesh resource.", "resource");
+                throw new ArgumentException("Resource is not a mesh resource.", nameof(resource));
             }
 
             using var memoryStream = new MemoryStream(data);
@@ -66,7 +66,7 @@ namespace CoreEngine.Graphics
                 var vertexBufferData = reader.ReadBytes(vertexBufferSize);
                 var indexBufferData = reader.ReadBytes(indexBufferSize);
 
-                var meshSubObject = new MeshSubObject(this.graphicsService, this.memoryService, vertexCount, indexCount, vertexBufferData.AsSpan(), indexBufferData.AsSpan());
+                var meshSubObject = new MeshSubObject(this.graphicsManager, this.memoryService, vertexCount, indexCount, vertexBufferData.AsSpan(), indexBufferData.AsSpan());
                 mesh.SubObjects.Add(meshSubObject);
             }
 
@@ -79,7 +79,7 @@ namespace CoreEngine.Graphics
 
             if (mesh == null)
             {
-                throw new ArgumentException("Resource is not a mesh resource.", "resource");
+                throw new ArgumentException("Resource is not a mesh resource.", nameof(resource));
             }
 
             Logger.WriteMessage($"Destroying mesh '{resource.Path}' (NOT IMPLEMENTED YET)...");

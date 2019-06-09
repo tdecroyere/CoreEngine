@@ -9,13 +9,13 @@ using CoreEngine.Resources;
 
 namespace CoreEngine
 {
-    public class Bootloader
+    public static class Bootloader
     {
         private static CoreEngineApp? coreEngineApp = null;
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
         {
-            Logger.WriteMessage($"Starting CoreEngine...");
+            Logger.WriteMessage("Starting CoreEngine...");
             Logger.WriteMessage($"Test Parameter: {hostPlatform.TestParameter}");
 
             if (hostPlatform.AddTestHostMethod != null)

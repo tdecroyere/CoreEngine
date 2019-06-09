@@ -5,7 +5,7 @@ namespace CoreEngine.Graphics
 {
     public class MeshSubObject
     {
-        internal MeshSubObject(GraphicsService graphicsService, MemoryService memoryService, int vertexCount, int indexCount, Span<byte> vertexBufferData, Span<byte> indexBufferData)
+        internal MeshSubObject(GraphicsManager graphicsManager, MemoryService memoryService, int vertexCount, int indexCount, Span<byte> vertexBufferData, Span<byte> indexBufferData)
         {
             this.VertexCount = vertexCount;
             this.IndexCount = indexCount;
@@ -24,8 +24,8 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("Error while copying index buffer data.");
             }
 
-            this.VertexBuffer = new GraphicsBuffer(graphicsService, vertexMemoryBuffer);
-            this.IndexBuffer = new GraphicsBuffer(graphicsService, indexMemoryBuffer);
+            this.VertexBuffer = graphicsManager.CreateGraphicsBuffer(vertexMemoryBuffer);
+            this.IndexBuffer = graphicsManager.CreateGraphicsBuffer(indexMemoryBuffer);
 
             memoryService.DestroyMemoryBuffer(vertexMemoryBuffer.Id);
             memoryService.DestroyMemoryBuffer(indexMemoryBuffer.Id);

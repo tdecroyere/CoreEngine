@@ -2,13 +2,13 @@ using System;
 
 namespace CoreEngine
 {
-    public struct Entity
+    public readonly struct Entity
     {
         public Entity(uint id)
         {
             this.EntityId = id;
         }
 
-        public uint EntityId;
+        public readonly uint EntityId { get; }
     }
 }

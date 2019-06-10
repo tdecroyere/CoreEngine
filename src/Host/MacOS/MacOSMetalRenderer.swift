@@ -37,10 +37,10 @@ func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, primitiveCo
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
 
     // TODO: Move world matrix setup to buffers
-    let row1 = float4(worldMatrix.Item00, worldMatrix.Item01, worldMatrix.Item02, worldMatrix.Item03)
-    let row2 = float4(worldMatrix.Item10, worldMatrix.Item11, worldMatrix.Item12, worldMatrix.Item13)
-    let row3 = float4(worldMatrix.Item20, worldMatrix.Item21, worldMatrix.Item22, worldMatrix.Item23)
-    let row4 = float4(worldMatrix.Item30, worldMatrix.Item31, worldMatrix.Item32, worldMatrix.Item33)
+    let row1 = SIMD4<Float>(worldMatrix.Item00, worldMatrix.Item01, worldMatrix.Item02, worldMatrix.Item03)
+    let row2 = SIMD4<Float>(worldMatrix.Item10, worldMatrix.Item11, worldMatrix.Item12, worldMatrix.Item13)
+    let row3 = SIMD4<Float>(worldMatrix.Item20, worldMatrix.Item21, worldMatrix.Item22, worldMatrix.Item23)
+    let row4 = SIMD4<Float>(worldMatrix.Item30, worldMatrix.Item31, worldMatrix.Item32, worldMatrix.Item33)
     
     let dstWorldMatrix = float4x4(rows: [row1, row2, row3, row4])
 

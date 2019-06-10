@@ -56,7 +56,7 @@ namespace CoreEngine
 
             Logger.WriteMessage($"Loading {entitiesCount} entities (Layouts: {entityLayoutsCount})");
 
-            var sceneEntityLayoutsList = new List<EntityComponentLayout?>();
+            var sceneEntityLayoutsList = new List<ComponentLayout?>();
 
             for (var i = 0; i < entityLayoutsCount; i++)
             {
@@ -83,7 +83,7 @@ namespace CoreEngine
 
                 if (isLayoutComplete)
                 {
-                    var entityLayout = scene.EntityManager.CreateEntityComponentLayout(layoutTypes);
+                    var entityLayout = scene.EntityManager.CreateComponentLayout(layoutTypes);
                     sceneEntityLayoutsList.Add(entityLayout);
                 }
 
@@ -123,6 +123,7 @@ namespace CoreEngine
                     {
                         component = (IComponentData)Activator.CreateInstance(componentType);
                         component.SetDefaultValues();
+                        
                         Logger.WriteMessage($"Component: {component.ToString()}");
                     }
 
@@ -131,15 +132,15 @@ namespace CoreEngine
                         var componentKey = reader.ReadString();
                         var componentValueType = reader.ReadString();
 
-                        FieldInfo? fieldInfo = null;
+                        PropertyInfo? propertyInfo = null;
 
                         if (component != null && componentType != null)
                         {
-                            fieldInfo = componentType.GetField(componentKey);
+                            propertyInfo = componentType.GetProperty(componentKey);
 
-                            if (fieldInfo != null)
+                            if (propertyInfo != null)
                             {
-                                Logger.WriteMessage($"FieldInfo: {fieldInfo.ToString()}");
+                                Logger.WriteMessage($"PropertyInfo: {propertyInfo.ToString()}");
                             }
                         }
 
@@ -147,7 +148,7 @@ namespace CoreEngine
                         {
                             var stringValue = reader.ReadString();
 
-                            if (fieldInfo != null)
+                            if (propertyInfo != null)
                             {
                                 var resourcePathIndex = stringValue.IndexOf(resourcePrefix, StringComparison.InvariantCulture);
 
@@ -158,13 +159,13 @@ namespace CoreEngine
                                     var componentResource = this.ResourcesManager.LoadResourceAsync<Resource>(resourcePath);
                                     resource.DependentResources.Add(componentResource);
 
-                                    fieldInfo.SetValue(component, componentResource.ResourceId);
+                                    propertyInfo.SetValue(component, componentResource.ResourceId);
                                     Logger.WriteMessage("Set resource Id value OK");
                                 }
 
                                 else
                                 {
-                                    fieldInfo.SetValue(component, stringValue);
+                                    propertyInfo.SetValue(component, stringValue);
                                     Logger.WriteMessage("Set string raw value OK");
                                 }
                             }
@@ -174,9 +175,9 @@ namespace CoreEngine
                         {
                             var floatValue = reader.ReadSingle();
 
-                            if (fieldInfo != null)
+                            if (propertyInfo != null)
                             {
-                                fieldInfo.SetValue(component, floatValue);
+                                propertyInfo.SetValue(component, floatValue);
                                 Logger.WriteMessage("Set float OK");
                             }
                         }
@@ -192,26 +193,26 @@ namespace CoreEngine
                                 floatArrayValue[l] = reader.ReadSingle();
                             }
 
-                            if (fieldInfo != null)
+                            if (propertyInfo != null)
                             {
                                 if (floatArrayLength == 2)
                                 {
                                     var value = new Vector2(floatArrayValue[0], floatArrayValue[1]);
-                                    fieldInfo.SetValue(component, value);
+                                    propertyInfo.SetValue(component, value);
                                     Logger.WriteMessage("Set Vector2 OK");
                                 }
 
                                 else if (floatArrayLength == 3)
                                 {
                                     var value = new Vector3(floatArrayValue[0], floatArrayValue[1], floatArrayValue[2]);
-                                    fieldInfo.SetValue(component, value);
+                                    propertyInfo.SetValue(component, value);
                                     Logger.WriteMessage("Set Vector3 OK");
                                 }
 
                                 else if (floatArrayLength == 4)
                                 {
                                     var value = new Vector4(floatArrayValue[0], floatArrayValue[1], floatArrayValue[2], floatArrayValue[3]);
-                                    fieldInfo.SetValue(component, value);
+                                    propertyInfo.SetValue(component, value);
                                     Logger.WriteMessage("Set Vector4 OK");
                                 }
 
@@ -225,18 +226,7 @@ namespace CoreEngine
                 
                     if (entity != null && component != null && componentType != null)
                     {
-                        var size = Marshal.SizeOf(component);
-                        // Both managed and unmanaged buffers required.
-                        var bytes = new byte[size];
-                        var ptr = Marshal.AllocHGlobal(size);
-                        // Copy object byte-to-byte to unmanaged memory.
-                        Marshal.StructureToPtr(component, ptr, false);
-                        // Copy data from unmanaged memory to managed buffer.
-                        Marshal.Copy(ptr, bytes, 0, size);
-                        // Release unmanaged memory.
-                        Marshal.FreeHGlobal(ptr);
-
-                        scene.EntityManager.SetComponentData(entity.Value, componentType, bytes);
+                        scene.EntityManager.SetComponentData(entity.Value, componentType, component);
                     }
                 }
             }

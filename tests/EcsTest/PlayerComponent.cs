@@ -5,12 +5,12 @@ namespace CoreEngine.Tests.EcsTest
 {
     public struct PlayerComponent : IComponentData
     {
-        public Vector3 MovementVector;
-        public Vector3 MovementVelocity;
-        public Vector3 RotationVector;
-        public Vector3 RotationVelocity;
-        public float MovementAcceleration;
-        public float RotationAcceleration;
+        public Vector3 MovementVector { get; set; }
+        public Vector3 MovementVelocity { get; set; }
+        public Vector3 RotationVector { get; set; }
+        public Vector3 RotationVelocity { get; set; }
+        public float MovementAcceleration { get; set; }
+        public float RotationAcceleration { get; set; }
 
         public void SetDefaultValues()
         {

@@ -5,7 +5,7 @@ namespace CoreEngine.Graphics
 {
     public struct MeshComponent : IComponentData
     {
-        public uint MeshResourceId;
+        public uint MeshResourceId { get; set; }
 
         public void SetDefaultValues()
         {

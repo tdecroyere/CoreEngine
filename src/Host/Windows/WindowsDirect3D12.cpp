@@ -1,6 +1,12 @@
 #pragma once
 
+#include "WindowsCommon.h"
+#include "WindowsDirect3D12.h"
+
+using namespace winrt;
 using namespace Windows::UI::Core;
+
+#define IID_PPV_ARGS_WINRT(ppType) __uuidof(ppType), ppType.put_void()
 
 // TODO: To Remove and to replace with the string class
 int StringLength(char* string)
@@ -15,69 +21,7 @@ int StringLength(char* string)
 	return length;
 }
 
-#define ReturnIfFailed(expression) if (FAILED(expression)) { OutputDebugStringA("ERROR: DirectX12 Init error!\n"); return false; };
-#define ArrayCount(value) ((sizeof(value) / sizeof(value[0])))
-
-static const int RenderBuffersCountConst = 2;
-
-struct Direct3D12Texture
-{
-	int Width;
-	int Height;
-	int Pitch;
-	DXGI_FORMAT Format;
-	com_ptr<ID3D12Resource> Resource;
-	com_ptr<ID3D12Resource> UploadHeap;
-	void* UploadHeapData;
-	D3D12_RESOURCE_BARRIER PixelShaderToCopyDestBarrier;
-	D3D12_RESOURCE_BARRIER CopyDestToPixelShaderBarrier;
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT SubResourceFootPrint;
-};
-
-struct Direct3D12
-{
-	bool IsInitialized;
-	bool IsFullscreen;
-	int Width;
-	int Height;
-	int BytesPerPixel;
-	int Pitch;
-	int RefreshRate;
-	bool VSync;
-	int RenderBuffersCount;
-
-	com_ptr<ID3D12Device> Device;
-	com_ptr<ID3D12CommandQueue> CommandQueue;
-	com_ptr<ID3D12CommandAllocator> CommandAllocator;
-	com_ptr<ID3D12GraphicsCommandList> CommandList;
-	com_ptr<IDXGISwapChain3> SwapChain;
-
-	com_ptr<ID3D12DescriptorHeap> RtvDescriptorHeap;
-	com_ptr<ID3D12DescriptorHeap> SrvDescriptorHeap;
-	int RtvDescriptorHandleSize;
-	com_ptr<ID3D12Resource> RenderTargets[RenderBuffersCountConst];
-	D3D12_RESOURCE_BARRIER PresentToRenderTargetBarriers[RenderBuffersCountConst];
-	D3D12_RESOURCE_BARRIER RenderTargetToPresentBarriers[RenderBuffersCountConst];
-
-	com_ptr<ID3D12PipelineState> SpritePSO;
-	com_ptr<ID3D12RootSignature> SpriteRootSignature;
-	com_ptr<ID3D12PipelineState> CheckBoardPSO;
-	com_ptr<ID3D12RootSignature> CheckBoardRootSignature;
-
-	Direct3D12Texture Texture;
-
-	D3D12_VIEWPORT Viewport;
-	D3D12_RECT ScissorRect;
-
-	// Synchronization objects
-	int CurrentBackBufferIndex;
-	HANDLE FenceEvent;
-	com_ptr<ID3D12Fence> Fence;
-	UINT64 FenceValue;
-};
-
-
-D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+D3D12_RESOURCE_BARRIER Direct3D12::CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {
 	D3D12_RESOURCE_BARRIER resourceBarrier = {};
 
@@ -91,7 +35,7 @@ D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource,
 	return resourceBarrier;
 }
 
-Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, int width, int height, DXGI_FORMAT format)
+Direct3D12Texture Direct3D12::Direct3D12CreateTexture(ID3D12Device* device, int width, int height, DXGI_FORMAT format)
 {
 	Direct3D12Texture texture = {};
 	texture.Width = width;
@@ -188,7 +132,7 @@ Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, int width, int h
 	return texture;
 }
 
-void UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture)
+void Direct3D12::UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture)
 {
 	commandList->ResourceBarrier(1, &texture.PixelShaderToCopyDestBarrier);
 
@@ -206,15 +150,15 @@ void UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12T
 	commandList->ResourceBarrier(1, &texture.CopyDestToPixelShaderBarrier);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle(Direct3D12* direct3D12)
+D3D12_CPU_DESCRIPTOR_HANDLE Direct3D12::GetCurrentRenderTargetViewHandle()
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = {};
-	renderTargetViewHandle.ptr = direct3D12->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + direct3D12->CurrentBackBufferIndex * direct3D12->RtvDescriptorHandleSize;
+	renderTargetViewHandle.ptr = this->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + this->CurrentBackBufferIndex * this->RtvDescriptorHandleSize;
 
 	return renderTargetViewHandle;
 }
 
-void Direct32D2EnableDebugLayer()
+void Direct3D12::Direct32D2EnableDebugLayer()
 {
 	// If the project is in a debug build, enable debugging via SDK Layers.
 	com_ptr<ID3D12Debug> debugController;
@@ -227,7 +171,7 @@ void Direct32D2EnableDebugLayer()
 	}
 }
 
-void Direct32D2WaitForPreviousFrame(Direct3D12* direct3D12)
+void Direct3D12::Direct32D2WaitForPreviousFrame()
 {
 	// TODO:
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
@@ -235,21 +179,21 @@ void Direct32D2WaitForPreviousFrame(Direct3D12* direct3D12)
 	// illustrate how to use fences for efficient resource usage.
 
 	// Signal and increment the fence value
-	const UINT64 fence = direct3D12->FenceValue;
-	direct3D12->CommandQueue->Signal(direct3D12->Fence.get(), fence);
-	direct3D12->FenceValue++;
+	const UINT64 fence = this->FenceValue;
+	this->CommandQueue->Signal(this->Fence.get(), fence);
+	this->FenceValue++;
 
 	// Wait until the previous frame is finished
-	if (direct3D12->Fence->GetCompletedValue() < fence)
+	if (this->Fence->GetCompletedValue() < fence)
 	{
-		direct3D12->Fence->SetEventOnCompletion(fence, direct3D12->FenceEvent);
-		WaitForSingleObject(direct3D12->FenceEvent, INFINITE);
+		this->Fence->SetEventOnCompletion(fence, this->FenceEvent);
+		WaitForSingleObject(this->FenceEvent, INFINITE);
 	}
 
-	direct3D12->CurrentBackBufferIndex = direct3D12->SwapChain->GetCurrentBackBufferIndex();
+	this->CurrentBackBufferIndex = this->SwapChain->GetCurrentBackBufferIndex();
 }
 
-bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, int width, int height)
+bool Direct3D12::Direct3D12CreateDevice(const CoreWindow& window, int width, int height)
 {
 #ifdef DEBUG
 	Direct32D2EnableDebugLayer();
@@ -260,7 +204,7 @@ bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, in
 	ReturnIfFailed(CreateDXGIFactory2(0, IID_PPV_ARGS_WINRT(dxgiFactory)));
 
 	// Created Direct3D Device
-	HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(direct3D12->Device));
+	HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(this->Device));
 
 	if (FAILED(result))
 	{
@@ -270,7 +214,7 @@ bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, in
 		com_ptr<IDXGIAdapter> warpAdapter;
 		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS_WINRT(warpAdapter));
 
-		ReturnIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(direct3D12->Device)));
+		ReturnIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(this->Device)));
 	}
 
 	// Create the command queue and command allocator
@@ -278,14 +222,14 @@ bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, in
 	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	ReturnIfFailed(direct3D12->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(direct3D12->CommandQueue)));
-	ReturnIfFailed(direct3D12->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(direct3D12->CommandAllocator)));
-	ReturnIfFailed(direct3D12->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, direct3D12->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(direct3D12->CommandList)));
+	ReturnIfFailed(this->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(this->CommandQueue)));
+	ReturnIfFailed(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator)));
+	ReturnIfFailed(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
 
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-	swapChainDesc.BufferCount = direct3D12->RenderBuffersCount;
+	swapChainDesc.BufferCount = this->RenderBuffersCount;
 	swapChainDesc.Width = width;
 	swapChainDesc.Height = height;
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -295,15 +239,15 @@ bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, in
 	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 	swapChainDesc.SampleDesc.Count = 1;
 	
-	ReturnIfFailed(dxgiFactory->CreateSwapChainForCoreWindow(direct3D12->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)direct3D12->SwapChain.put()));
+	ReturnIfFailed(dxgiFactory->CreateSwapChainForCoreWindow(this->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)this->SwapChain.put()));
 
 	// Describe and create a render target view (RTV) descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-	rtvHeapDesc.NumDescriptors = direct3D12->RenderBuffersCount;
+	rtvHeapDesc.NumDescriptors = this->RenderBuffersCount;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	
-	ReturnIfFailed(direct3D12->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS_WINRT(direct3D12->RtvDescriptorHeap)));
+	ReturnIfFailed(this->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS_WINRT(this->RtvDescriptorHeap)));
 
 	// Describe and create a shader resource view (SRV) heap for the texture
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -311,17 +255,17 @@ bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, in
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-	ReturnIfFailed(direct3D12->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS_WINRT(direct3D12->SrvDescriptorHeap)));
-	direct3D12->RtvDescriptorHandleSize = direct3D12->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	ReturnIfFailed(this->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS_WINRT(this->SrvDescriptorHeap)));
+	this->RtvDescriptorHandleSize = this->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Create a fence object used to synchronize the CPU with the GPU
-	ReturnIfFailed(direct3D12->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS_WINRT(direct3D12->Fence)));
-	direct3D12->FenceValue = 1;
+	ReturnIfFailed(this->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS_WINRT(this->Fence)));
+	this->FenceValue = 1;
 
 	// Create an event handle to use for frame synchronization
-	direct3D12->FenceEvent = CreateEventA(nullptr, false, false, nullptr);
+	this->FenceEvent = CreateEventA(nullptr, false, false, nullptr);
 	
-	if (direct3D12->FenceEvent == nullptr)
+	if (this->FenceEvent == nullptr)
 	{
 		return false;
 	}
@@ -329,27 +273,27 @@ bool Direct3D12CreateDevice(Direct3D12* direct3D12, const CoreWindow& window, in
 	return true;
 }
 
-bool Direct3D12InitSizeDependentResources(Direct3D12* direct3D12)
+bool Direct3D12::Direct3D12InitSizeDependentResources()
 {
-	int width = direct3D12->Width;
-	int height = direct3D12->Height;
+	int width = this->Width;
+	int height = this->Height;
 
-	for (UINT n = 0; n < direct3D12->RenderBuffersCount; n++)
+	for (UINT n = 0; n < this->RenderBuffersCount; n++)
 	{
-		direct3D12->RenderTargets[n] = nullptr;
+		this->RenderTargets[n] = nullptr;
 	}
 
 	// Resize the swap chain to the desired dimensions.
 	DXGI_SWAP_CHAIN_DESC desc = {};
-	direct3D12->SwapChain->GetDesc(&desc);
+	this->SwapChain->GetDesc(&desc);
 
-	ReturnIfFailed(direct3D12->SwapChain->ResizeBuffers(RenderBuffersCountConst, width, height, desc.BufferDesc.Format, desc.Flags));
+	ReturnIfFailed(this->SwapChain->ResizeBuffers(RenderBuffersCountConst, width, height, desc.BufferDesc.Format, desc.Flags));
 
 	// Reset the frame index to the current back buffer index.
-	direct3D12->CurrentBackBufferIndex = direct3D12->SwapChain->GetCurrentBackBufferIndex();
+	this->CurrentBackBufferIndex = this->SwapChain->GetCurrentBackBufferIndex();
 
 	// Create frame resources.
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvDecriptorHandle = direct3D12->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvDecriptorHandle = this->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	// Change the format of the renderview target so it can be specified in SRGB
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -357,30 +301,30 @@ bool Direct3D12InitSizeDependentResources(Direct3D12* direct3D12)
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	// Create a RTV for each frame.
-	for (int i = 0; i < direct3D12->RenderBuffersCount; ++i)
+	for (int i = 0; i < this->RenderBuffersCount; ++i)
 	{
-		ReturnIfFailed(direct3D12->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(direct3D12->RenderTargets[i])));
+		ReturnIfFailed(this->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(this->RenderTargets[i])));
 
-		direct3D12->Device->CreateRenderTargetView(direct3D12->RenderTargets[i].get(), &rtvDesc, rtvDecriptorHandle);
-		rtvDecriptorHandle.ptr += direct3D12->RtvDescriptorHandleSize;
+		this->Device->CreateRenderTargetView(this->RenderTargets[i].get(), &rtvDesc, rtvDecriptorHandle);
+		rtvDecriptorHandle.ptr += this->RtvDescriptorHandleSize;
 
-		direct3D12->PresentToRenderTargetBarriers[i] = CreateTransitionResourceBarrier(direct3D12->RenderTargets[i].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		direct3D12->RenderTargetToPresentBarriers[i] = CreateTransitionResourceBarrier(direct3D12->RenderTargets[i].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		this->PresentToRenderTargetBarriers[i] = CreateTransitionResourceBarrier(this->RenderTargets[i].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		this->RenderTargetToPresentBarriers[i] = CreateTransitionResourceBarrier(this->RenderTargets[i].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	}
 
-	direct3D12->Viewport = {};
-	direct3D12->Viewport.Width = (float)width;
-	direct3D12->Viewport.Height = (float)height;
-	direct3D12->Viewport.MaxDepth = 1.0f;
+	this->Viewport = {};
+	this->Viewport.Width = (float)width;
+	this->Viewport.Height = (float)height;
+	this->Viewport.MaxDepth = 1.0f;
 
-	direct3D12->ScissorRect = {};
-	direct3D12->ScissorRect.right = (long)width;
-	direct3D12->ScissorRect.bottom = (long)height;
+	this->ScissorRect = {};
+	this->ScissorRect.right = (long)width;
+	this->ScissorRect.bottom = (long)height;
 
 	return true;
 }
 
-bool Direct3D12CreateSpriteRootSignature(Direct3D12* direct3D12)
+bool Direct3D12::Direct3D12CreateSpriteRootSignature()
 {
 	D3D12_DESCRIPTOR_RANGE ranges[1];
 	ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -421,12 +365,12 @@ bool Direct3D12CreateSpriteRootSignature(Direct3D12* direct3D12)
 	com_ptr<ID3DBlob> error;
 
 	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
-	ReturnIfFailed((direct3D12->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(direct3D12->SpriteRootSignature))));
+	ReturnIfFailed((this->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(this->SpriteRootSignature))));
 
 	return true;
 }
 
-bool Direct3D12CreateCheckBoardRootSignature(Direct3D12* direct3D12)
+bool Direct3D12::Direct3D12CreateCheckBoardRootSignature()
 {
 	D3D12_ROOT_PARAMETER rootParameter = {};
 	rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
@@ -446,12 +390,12 @@ bool Direct3D12CreateCheckBoardRootSignature(Direct3D12* direct3D12)
 	com_ptr<ID3DBlob> error;
 
 	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
-	ReturnIfFailed((direct3D12->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(direct3D12->CheckBoardRootSignature))));
+	ReturnIfFailed((this->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(this->CheckBoardRootSignature))));
 
 	return true;
 }
 
-com_ptr<ID3D12PipelineState> Direct3D12CreatePipelineState(Direct3D12* direct3D12, ID3D12RootSignature* rootSignature, char* shaderCode)
+com_ptr<ID3D12PipelineState> Direct3D12::Direct3D12CreatePipelineState(ID3D12RootSignature* rootSignature, char* shaderCode)
 {
 	// Create the pipeline state, which includes compiling and loading shaders
 	com_ptr<ID3DBlob> vertexShader;
@@ -509,12 +453,12 @@ com_ptr<ID3D12PipelineState> Direct3D12CreatePipelineState(Direct3D12* direct3D1
 	}
 
 	com_ptr<ID3D12PipelineState> pipelineState;
-	ReturnIfFailed(direct3D12->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(pipelineState)));
+	ReturnIfFailed(this->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(pipelineState)));
 
 	return pipelineState;
 }
 
-bool Direct3D12CreateSpritePSO(Direct3D12* direct3D12)
+bool Direct3D12::Direct3D12CreateSpritePSO()
 {
 	// TODO: Move the shader code to a separate file
 	char* shaderCode = "struct PSInput\
@@ -561,9 +505,9 @@ bool Direct3D12CreateSpritePSO(Direct3D12* direct3D12)
 							return g_texture.Sample(g_sampler, input.uv);\
 						}";
 
-	direct3D12->SpritePSO = Direct3D12CreatePipelineState(direct3D12, direct3D12->SpriteRootSignature.get(), shaderCode);
+	this->SpritePSO = Direct3D12CreatePipelineState(this->SpriteRootSignature.get(), shaderCode);
 
-	if (direct3D12->SpritePSO == nullptr)
+	if (this->SpritePSO == nullptr)
 	{
 		return false;
 	}
@@ -571,7 +515,7 @@ bool Direct3D12CreateSpritePSO(Direct3D12* direct3D12)
 	return true;
 }
 
-bool Direct3D12CreateCheckBoardPSO(Direct3D12* direct3D12)
+bool Direct3D12::Direct3D12CreateCheckBoardPSO()
 {
 	// TODO: Move the shader code to a separate file
 	char* shaderCode = "struct PSInput\
@@ -638,9 +582,9 @@ bool Direct3D12CreateCheckBoardPSO(Direct3D12* direct3D12)
 							}\
 						}";
 
-	direct3D12->CheckBoardPSO = Direct3D12CreatePipelineState(direct3D12, direct3D12->CheckBoardRootSignature.get(), shaderCode);
+	this->CheckBoardPSO = Direct3D12CreatePipelineState(this->CheckBoardRootSignature.get(), shaderCode);
 
-	if (direct3D12->CheckBoardPSO == nullptr)
+	if (this->CheckBoardPSO == nullptr)
 	{
 		return false;
 	}
@@ -648,154 +592,152 @@ bool Direct3D12CreateCheckBoardPSO(Direct3D12* direct3D12)
 	return true;
 }
 
-bool Direct3D12CreateResources(Direct3D12* direct3D12)
+bool Direct3D12::Direct3D12CreateResources()
 {
-	direct3D12->Texture = Direct3D12CreateTexture(direct3D12->Device.get(), direct3D12->Width, direct3D12->Height, DXGI_FORMAT_B8G8R8A8_UNORM);
+	this->Texture = Direct3D12CreateTexture(this->Device.get(), this->Width, this->Height, DXGI_FORMAT_B8G8R8A8_UNORM);
 	
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = direct3D12->Texture.Format;
+	srvDesc.Format = this->Texture.Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	direct3D12->Device->CreateShaderResourceView(direct3D12->Texture.Resource.get(), &srvDesc, direct3D12->SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-	direct3D12->CommandList->Close();
+	this->Device->CreateShaderResourceView(this->Texture.Resource.get(), &srvDesc, this->SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	this->CommandList->Close();
 
 	return true;
 }
 
-Direct3D12 Direct3D12Init(const CoreWindow& window, int width, int height, int refreshRate)
+void Direct3D12::Direct3D12Init(const CoreWindow& window, int width, int height, int refreshRate)
 {
-	Direct3D12 direct3D12 = {};
-	direct3D12.RenderBuffersCount = RenderBuffersCountConst;
-	direct3D12.Width = width;
-	direct3D12.Height = height;
-	direct3D12.BytesPerPixel = 4;
-	direct3D12.RefreshRate = refreshRate;
-	direct3D12.Pitch = direct3D12.Width * direct3D12.BytesPerPixel;
+	this->RenderBuffersCount = RenderBuffersCountConst;
+	this->Width = width;
+	this->Height = height;
+	this->BytesPerPixel = 4;
+	this->RefreshRate = refreshRate;
+	this->Pitch = this->Width * this->BytesPerPixel;
 
-	bool result = Direct3D12CreateDevice(&direct3D12, window, width, height);
-
-	if (!result)
-	{
-		return direct3D12;
-	}
-
-	result = Direct3D12InitSizeDependentResources(&direct3D12);
+	bool result = Direct3D12CreateDevice(window, width, height);
 
 	if (!result)
 	{
-		return direct3D12;
+		return;
 	}
 
-	result = Direct3D12CreateSpriteRootSignature(&direct3D12);
+	result = Direct3D12InitSizeDependentResources();
 
 	if (!result)
 	{
-		return direct3D12;
+		return;
 	}
 
-	result = Direct3D12CreateSpritePSO(&direct3D12);
+	result = Direct3D12CreateSpriteRootSignature();
 
 	if (!result)
 	{
-		return direct3D12;
+		return;
 	}
 
-	result = Direct3D12CreateCheckBoardRootSignature(&direct3D12);
+	result = Direct3D12CreateSpritePSO();
 
 	if (!result)
 	{
-		return direct3D12;
+		return;
 	}
 
-	result = Direct3D12CreateCheckBoardPSO(&direct3D12);
+	result = Direct3D12CreateCheckBoardRootSignature();
 
 	if (!result)
 	{
-		return direct3D12;
+		return;
 	}
 
-	result = Direct3D12CreateResources(&direct3D12);
+	result = Direct3D12CreateCheckBoardPSO();
+
+	if (!result)
+	{
+		return;
+	}
+
+	result = Direct3D12CreateResources();
 	
 	if (!result)
 	{
-		return direct3D12;
+		return;
 	}
 
-	direct3D12.IsInitialized = true;
-	return direct3D12;
+	this->IsInitialized = true;
 }
 
-void Direct3D12BeginFrame(Direct3D12* direct3D12)
+void Direct3D12::Direct3D12BeginFrame()
 {
 	// TODO: Add more log on return codes
-	direct3D12->CommandAllocator->Reset();
-	direct3D12->CommandList->Reset(direct3D12->CommandAllocator.get(), nullptr);
+	this->CommandAllocator->Reset();
+	this->CommandList->Reset(this->CommandAllocator.get(), nullptr);
 
-	direct3D12->CommandList->RSSetViewports(1, &direct3D12->Viewport);
-	direct3D12->CommandList->RSSetScissorRects(1, &direct3D12->ScissorRect);
+	this->CommandList->RSSetViewports(1, &this->Viewport);
+	this->CommandList->RSSetScissorRects(1, &this->ScissorRect);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle(direct3D12);
+	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
 
-	direct3D12->CommandList->ResourceBarrier(1, &direct3D12->PresentToRenderTargetBarriers[direct3D12->CurrentBackBufferIndex]);
-	direct3D12->CommandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
+	this->CommandList->ResourceBarrier(1, &this->PresentToRenderTargetBarriers[this->CurrentBackBufferIndex]);
+	this->CommandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
 
 	float clearColor[4] = { 0.0f, 0.215f, 1.0f, 0.0f };
-	direct3D12->CommandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
+	this->CommandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
 }
 
-void Direct3D12EndFrame(Direct3D12* direct3D12)
+void Direct3D12::Direct3D12EndFrame()
 {
-	direct3D12->CommandList->SetPipelineState(direct3D12->SpritePSO.get());
-	direct3D12->CommandList->SetGraphicsRootSignature(direct3D12->SpriteRootSignature.get());
+	this->CommandList->SetPipelineState(this->SpritePSO.get());
+	this->CommandList->SetGraphicsRootSignature(this->SpriteRootSignature.get());
 
-	ID3D12DescriptorHeap* ppHeaps[] = { direct3D12->SrvDescriptorHeap.get() };
-	direct3D12->CommandList->SetDescriptorHeaps(ArrayCount(ppHeaps), ppHeaps);
+	ID3D12DescriptorHeap* ppHeaps[] = { this->SrvDescriptorHeap.get() };
+	this->CommandList->SetDescriptorHeaps(ArrayCount(ppHeaps), ppHeaps);
 
-	direct3D12->CommandList->SetGraphicsRootDescriptorTable(0, direct3D12->SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	this->CommandList->SetGraphicsRootDescriptorTable(0, this->SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 	//UploadTextureData(direct3D12->CommandList.get(), direct3D12->Texture);
 
-	direct3D12->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	direct3D12->CommandList->DrawInstanced(4, 1, 0, 0);
+	this->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	this->CommandList->DrawInstanced(4, 1, 0, 0);
 
-	direct3D12->CommandList->ResourceBarrier(1, &direct3D12->RenderTargetToPresentBarriers[direct3D12->CurrentBackBufferIndex]);
-	direct3D12->CommandList->Close();
+	this->CommandList->ResourceBarrier(1, &this->RenderTargetToPresentBarriers[this->CurrentBackBufferIndex]);
+	this->CommandList->Close();
 
-	ID3D12CommandList* commandLists[] = { direct3D12->CommandList.get() };
-	direct3D12->CommandQueue->ExecuteCommandLists(1, commandLists);
+	ID3D12CommandList* commandLists[] = { this->CommandList.get() };
+	this->CommandQueue->ExecuteCommandLists(1, commandLists);
 }
 
-void Direct3D12PresentScreenBuffer(Direct3D12* direct3D12)
+void Direct3D12::Direct3D12PresentScreenBuffer()
 {
 	// TODO: Take into account the refresh rate passed in init method (and compute the present delay from the real
 	// monitor refresh rate)
 	int presentInterval = 1;
 
-	if (!direct3D12->VSync)
+	if (!this->VSync)
 	{
 		presentInterval = 0;
 	}
 
-	else if (direct3D12->RefreshRate == 30 || direct3D12->RefreshRate == 29)
+	else if (this->RefreshRate == 30 || this->RefreshRate == 29)
 	{
 		presentInterval = 2;
 	}
 
-	direct3D12->SwapChain->Present(presentInterval, 0);
+	this->SwapChain->Present(presentInterval, 0);
 
 	// TODO: Change the way the GPU sync with the CPU
-	Direct32D2WaitForPreviousFrame(direct3D12);
+	Direct32D2WaitForPreviousFrame();
 }
 
-bool Direct3D12SwitchScreenMode(Direct3D12* direct3D12)
+bool Direct3D12::Direct3D12SwitchScreenMode()
 {
 	BOOL fullscreenState;
-	ReturnIfFailed(direct3D12->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
+	ReturnIfFailed(this->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
 
-	if (FAILED(direct3D12->SwapChain->SetFullscreenState(!fullscreenState, nullptr)))
+	if (FAILED(this->SwapChain->SetFullscreenState(!fullscreenState, nullptr)))
 	{
 		// Transitions to fullscreen mode can fail when running apps over
 		// terminal services or for some other unexpected reason.  Consider
@@ -804,18 +746,18 @@ bool Direct3D12SwitchScreenMode(Direct3D12* direct3D12)
 		return false;
 	}
 
-	direct3D12->IsFullscreen = !fullscreenState;
+	this->IsFullscreen = !fullscreenState;
 	return true;
 }
 
-void Direct3D12Destroy(Direct3D12* direct3D12)
+void Direct3D12::Direct3D12Destroy()
 {
 	// Ensure that the GPU is no longer referencing resources that are about to be
 	// cleaned up by the destructor.
-	Direct32D2WaitForPreviousFrame(direct3D12);
+	Direct32D2WaitForPreviousFrame();
 
 	// Fullscreen state should always be false before exiting the app.
-	direct3D12->SwapChain->SetFullscreenState(false, nullptr);
+	this->SwapChain->SetFullscreenState(false, nullptr);
 
-	CloseHandle(direct3D12->FenceEvent);
+	CloseHandle(this->FenceEvent);
 }

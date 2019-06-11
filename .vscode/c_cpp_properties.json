@@ -9,6 +9,7 @@
         {
             "name": "Win32",
             "includePath": [
+                "${workspaceFolder}/src/Host/Windows/Generated Files/inc/**",
                 "${workspaceFolder}/src/Host/Windows/**"
             ],
             "defines": ["DEBUG"],

@@ -1,5 +1,10 @@
 #pragma once
 
+#include "WindowsCommon.h"
+#include "WindowsCoreEngineHost.h"
+#include "WindowsDirect3D12.h"
+
+using namespace winrt;
 using namespace Windows::ApplicationModel;
 using namespace Windows::ApplicationModel::Core;
 using namespace Windows::ApplicationModel::Activation;
@@ -21,7 +26,7 @@ private:
 	int logicalWidth;
 	int logicalHeight;
     WindowsCoreEngineHost* coreEngineHost;
-    Direct3D12 direct3D12;
+    Direct3D12* direct3D12;
 
     inline int ConvertDipsToPixels(float dips) const
     {
@@ -46,7 +51,7 @@ private:
 public:
     MainApplicationView()
     {
-		this->isRunning = true;
+		this->isRunning = true; 
         this->isVisible = true;
         this->systemDpi = 96.0f;
     }
@@ -105,7 +110,8 @@ public:
         int outputWidth = ConvertDipsToPixels(this->logicalWidth);
         int outputHeight = ConvertDipsToPixels(this->logicalHeight);
 
-        this->direct3D12 = Direct3D12Init(window, outputWidth, outputHeight, 60);
+        this->direct3D12 = new Direct3D12();
+        this->direct3D12->Direct3D12Init(window, outputWidth, outputHeight, 60);
         
         //m_sample->Initialize(windowPtr, outputWidth, outputHeight, rotation);
     }
@@ -122,9 +128,9 @@ public:
             {
                 this->coreEngineHost->UpdateEngine(1);
 
-                Direct3D12BeginFrame(&this->direct3D12);
-                Direct3D12EndFrame(&this->direct3D12);
-                Direct3D12PresentScreenBuffer(&this->direct3D12);
+                this->direct3D12->Direct3D12BeginFrame();
+                this->direct3D12->Direct3D12EndFrame();
+                this->direct3D12->Direct3D12PresentScreenBuffer();
 
                 CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
             }
@@ -161,7 +167,7 @@ public:
 
         this->coreEngineHost = new WindowsCoreEngineHost();
         //this->coreEngineHost->StartEngine(to_string(appName));
-        this->coreEngineHost->StartEngine("");
+        this->coreEngineHost->StartEngine(L"");
     }
 
 	void OnSuspending(const IInspectable& sender, const SuspendingEventArgs& args)
@@ -242,8 +248,7 @@ int __stdcall wWinMain(HINSTANCE applicationInstance, HINSTANCE, PWSTR, int)
     //     appName = { argv[1] };
     // }
 
-	MainApplicationView mainApplicationView = MainApplicationView();
-	CoreApplication::Run(mainApplicationView);
+	CoreApplication::Run(make<MainApplicationView>());
 
 	OutputDebugString("CoreEngine Windows Host has ended.\n");
 	winrt::uninit_apartment();

@@ -2,6 +2,7 @@ $OriginalProgressPreference = $ProgressPreference
 $ProgressPreference = "SilentlyContinue"
 
 $WindowsHostSourceFolder = ".\src\Host\Windows\"
+$GeneratedFilesFolder = ".\src\Host\Windows\Generated Files\"
 $TempFolder = ".\build\temp"
 $OutputFolder = ".\build\Windows"
 
@@ -47,6 +48,51 @@ function RegisterVisualStudioEnvironment
     }
 }
 
+function GenerateIncludeFiles
+{
+    $nuGetExe = ".\nuget.exe"
+    $packagesFile = "..\packages.config"
+    $packagesDirectory = ".\packages"
+    $includeDirectory = ".\inc"
+
+    if (-not(Test-Path $GeneratedFilesFolder)) 
+    {
+        New-Item -Path $GeneratedFilesFolder -ItemType "directory" | Out-Null
+    }
+
+    Push-Location $GeneratedFilesFolder
+
+    if (-not(Test-Path($nuGetExe))) 
+    {
+        Write-Output "Downloading nuget.exe..."
+        Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile $nuGetExe
+    }
+
+    if (-not(Test-Path($packagesDirectory))) 
+    {
+        & $nuGetExe "restore" $packagesFile "-PackagesDirectory" $packagesDirectory
+
+        if (-not $?) 
+        {
+            Write-Output "[91mError: Nuget restore has failed![0m"
+        }
+    }
+
+    if (-not(Test-Path($includeDirectory))) 
+    {
+        Write-Output "[93mGenerating C++/WinRT 2.0 include files...[0m"
+        $winrtProgram = (Get-ChildItem -Path $packagesDirectory -Filter "Microsoft.Windows.CppWinRT*" -Recurse -Directory).Fullname + "\bin\cppwinrt.exe"
+        & $winrtProgram "-input" "local" "-output" $includeDirectory
+
+        if (-not $?) 
+        {
+            Write-Output "[91mError: Winrt has failed![0m"
+        }
+    }
+
+    Pop-Location
+}
+
 function ShowErrorMessage
 {
     Write-Output "[91mError: Build has failed![0m"
@@ -75,7 +121,7 @@ function PreCompileHeader
     if (-Not(Test-Path -Path "WindowsCommon.pch"))
     {
         Write-Output "[93mCompiling Windows Pre-compiled header...[0m"
-        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /Zi /Yc /FpWindowsCommon.pch "WindowsCommon.cpp"
+        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"Generated Files\inc" /Zi /Yc /FpWindowsCommon.pch /DWINRT_NO_MAKE_DETECTION "WindowsCommon.cpp"
 
         if(-Not $?)
         {
@@ -94,7 +140,7 @@ function CompileWindowsHost
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH "CompilationUnit.cpp"
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"Generated Files\inc" /Zi /Yu"WindowsCommon.h" /DWINRT_NO_MAKE_DETECTION /FpWindowsCommon.PCH /Tpmain.compilationunit
 
     if (-Not $?)
     {
@@ -111,7 +157,7 @@ function LinkWindowsHost
     Push-Location $WindowsHostSourceFolder
     Write-Output "[93mLinking Windows Executable...[0m"
    
-    link.exe "CompilationUnit.obj" "WindowsCommon.obj" /OUT:"..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
+    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
     Copy-Item "AppxManifest.xml" "..\..\..\build\temp\"
 
     if (-Not $?)
@@ -146,6 +192,7 @@ function RegisterApp
 }
 
 RegisterVisualStudioEnvironment
+GenerateIncludeFiles
 CompileDotnet
 PreCompileHeader
 CompileWindowsHost

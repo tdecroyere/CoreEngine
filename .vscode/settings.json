@@ -36,12 +36,14 @@
     },
     "files.exclude": {
         "**/bin": true,
-        "**/obj": true
+        "**/obj": true,
+        "**/CompilationUnit.cpp": true
     },
     "omnisharp.enableRoslynAnalyzers": false,
     "omnisharp.path": "latest",
     "sde.sourcekit.compilerOptions": [
         "-target", "x86_64-apple-macosx10.15",
         "-sdk", "/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
-    ]
+    ],
+    "C_Cpp.default.cppStandard": "c++17"
 }

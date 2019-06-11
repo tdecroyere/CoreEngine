@@ -21,7 +21,3 @@
 #else
 #include <dxgi1_5.h>
 #endif
-
-#define IID_PPV_ARGS_WINRT(ppType) __uuidof(ppType), ppType.put_void()
-
-using namespace winrt;

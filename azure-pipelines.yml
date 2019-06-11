@@ -9,7 +9,7 @@ jobs:
       inputs:
         version: '3.0.100-preview6-012264'
 
-    - script: '.\WindowsBuild.cmd'
+    - script: '.\WindowsBuild.ps1'
       displayName: 'Build CoreEngine'
 
     - script: '.\WindowsBuildTest.cmd EcsTest'

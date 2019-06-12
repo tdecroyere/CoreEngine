@@ -17,4 +17,5 @@ private:
     void InitCoreClr();
 
     winrt::hstring BuildTpaList(winrt::hstring path);
+    char* ConvertHStringToCharPtr(winrt::hstring value);
 };

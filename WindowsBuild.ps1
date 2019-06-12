@@ -3,12 +3,18 @@ $ProgressPreference = "SilentlyContinue"
 
 $WindowsHostSourceFolder = ".\src\Host\Windows\"
 $GeneratedFilesFolder = ".\src\Host\Windows\Generated Files\"
+$ObjFolder = ".\src\Host\Windows\Generated Files\obj"
 $TempFolder = ".\build\temp"
 $OutputFolder = ".\build\Windows"
 
 if (-not(Test-Path -Path $TempFolder))
 {
     New-Item -Path $TempFolder -ItemType "directory" | Out-Null
+}
+
+if (-not(Test-Path -Path $ObjFolder))
+{
+    New-Item -Path $ObjFolder -ItemType "directory" | Out-Null
 }
 
 if (-not(Test-Path -Path $OutputFolder))
@@ -116,12 +122,12 @@ function CompileDotnet
 
 function PreCompileHeader
 {
-    Push-Location $WindowsHostSourceFolder
+    Push-Location $ObjFolder
 
     if (-Not(Test-Path -Path "WindowsCommon.pch"))
     {
         Write-Output "[93mCompiling Windows Pre-compiled header...[0m"
-        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"Generated Files\inc" /Zi /Yc /FpWindowsCommon.pch /DWINRT_NO_MAKE_DETECTION "WindowsCommon.cpp"
+        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\inc" /Zi /Yc /FpWindowsCommon.pch /DWINRT_NO_MAKE_DETECTION "..\..\WindowsCommon.cpp"
 
         if(-Not $?)
         {
@@ -136,11 +142,11 @@ function PreCompileHeader
 
 function CompileWindowsHost
 {
-    Push-Location $WindowsHostSourceFolder
+    Push-Location $ObjFolder
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"Generated Files\inc" /Zi /Yu"WindowsCommon.h" /DWINRT_NO_MAKE_DETECTION /FpWindowsCommon.PCH /Tpmain.compilationunit
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\inc" /Zi /Yu"WindowsCommon.h" /DWINRT_NO_MAKE_DETECTION /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
 
     if (-Not $?)
     {
@@ -154,11 +160,11 @@ function CompileWindowsHost
 
 function LinkWindowsHost
 {
-    Push-Location $WindowsHostSourceFolder
+    Push-Location $ObjFolder
     Write-Output "[93mLinking Windows Executable...[0m"
    
-    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
-    Copy-Item "AppxManifest.xml" "..\..\..\build\temp\"
+    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
+    Copy-Item "..\..\AppxManifest.xml" "..\..\..\..\..\build\temp\"
 
     if (-Not $?)
     {

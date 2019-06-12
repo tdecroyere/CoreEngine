@@ -37,6 +37,11 @@ InputsState GetInputsState(void* inputsContext)
     return inputsState;
 }
 
+void SendVibrationCommand(void* inputsContext, unsigned char playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, unsigned char duration10ms)
+{
+
+}
+
 
 ::MemoryBuffer CreateMemoryBuffer(void* memoryManagerContext, int length)
 {
@@ -54,16 +59,30 @@ void DestroyMemoryBuffer(void* memoryManagerContext, unsigned int memoryBufferId
 
 }
 
+Vector2 GetRenderSize(void* graphicsContext)
+{
+    return Vector2();
+}
+
+unsigned int CreateShader(void* graphicsContext, struct MemoryBuffer shaderByteCode)
+{
+    return 0;
+}
+
 unsigned int CreateGraphicsBuffer(void* graphicsContext, ::MemoryBuffer data)
 {
     return 0;
 }
 
-void DrawPrimitives(void* graphicsContext, int primitiveCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix)
+void SetRenderPassConstants(void* graphicsContext, struct MemoryBuffer data)
 {
 
 }
 
+void DrawPrimitives(void* graphicsContext, int primitiveCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix)
+{
+    OutputDebugString("Draw Primitives\n");
+}
 
 WindowsCoreEngineHost::WindowsCoreEngineHost()
 {
@@ -78,25 +97,23 @@ void WindowsCoreEngineHost::StartEngine(hstring appName)
 
     HostPlatform hostPlatform = {};
     hostPlatform.TestParameter = 5;
+    hostPlatform.AddTestHostMethod = AddTestHostMethod;
+    hostPlatform.GetTestBuffer = GetTestBuffer;
 
     hostPlatform.MemoryService.CreateMemoryBuffer = CreateMemoryBuffer;
     hostPlatform.MemoryService.DestroyMemoryBuffer = DestroyMemoryBuffer;
 
-    hostPlatform.AddTestHostMethod = AddTestHostMethod;
-    hostPlatform.GetTestBuffer = GetTestBuffer;
-
+    hostPlatform.GraphicsService.GetRenderSize = GetRenderSize;
+    hostPlatform.GraphicsService.CreateShader = CreateShader;
     hostPlatform.GraphicsService.CreateGraphicsBuffer = CreateGraphicsBuffer;
+    hostPlatform.GraphicsService.SetRenderPassConstants = SetRenderPassConstants;
     hostPlatform.GraphicsService.DrawPrimitives = DrawPrimitives;
 
     hostPlatform.InputsService.GetInputsState = GetInputsState;
+    hostPlatform.InputsService.SendVibrationCommand = SendVibrationCommand;
 
-    char* appNamePtr = nullptr;
-    
-    if (!appName.empty())
-    {
-        appNamePtr = (char*)appName.c_str();
-    }
-
+    // TODO: Delete temp memory
+    char* appNamePtr = ConvertHStringToCharPtr(appName);
     this->startEnginePointer(appNamePtr, &hostPlatform);
 }
 
@@ -120,14 +137,18 @@ void WindowsCoreEngineHost::InitCoreClr()
         "TRUSTED_PLATFORM_ASSEMBLIES"
     };
 
+    // TODO: Delete temp memory
+    char* tpaListPtr = ConvertHStringToCharPtr(tpaList);
+    char* appPathPtr = ConvertHStringToCharPtr(appPath);
+
     const char* propertyValues[1] = {
-        to_string(tpaList).c_str()
+        tpaListPtr
     };
 
     void* hostHandle;
     unsigned int domainId;
 
-    int result = initializeCoreClr(to_string(appPath).c_str(),
+    int result = initializeCoreClr(appPathPtr,
                                     "CoreEngineAppDomain",
                                     1,
                                     propertyKeys,
@@ -188,4 +209,13 @@ hstring WindowsCoreEngineHost::BuildTpaList(hstring path)
     }
 
     return tpaList;
+}
+
+char* WindowsCoreEngineHost::ConvertHStringToCharPtr(hstring value)
+{
+    char* resultPtr = new char[value.size() + 1];
+    to_string(value).copy(resultPtr, value.size());
+	resultPtr[value.size()] = '\0';
+
+    return resultPtr;
 }

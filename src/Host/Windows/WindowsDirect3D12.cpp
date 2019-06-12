@@ -429,7 +429,7 @@ com_ptr<ID3D12PipelineState> Direct3D12::Direct3D12CreatePipelineState(ID3D12Roo
 	psoDesc.SampleMask = 0xFFFFFF;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	psoDesc.SampleDesc.Count = 1;
 	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;

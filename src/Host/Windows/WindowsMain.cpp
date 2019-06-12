@@ -112,8 +112,6 @@ public:
 
         this->direct3D12 = new Direct3D12();
         this->direct3D12->Direct3D12Init(window, outputWidth, outputHeight, 60);
-        
-        //m_sample->Initialize(windowPtr, outputWidth, outputHeight, rotation);
     }
 
     void Load(const hstring& entryPoint)
@@ -166,8 +164,7 @@ public:
         CoreWindow::GetForCurrentThread().Activate();
 
         this->coreEngineHost = new WindowsCoreEngineHost();
-        //this->coreEngineHost->StartEngine(to_string(appName));
-        this->coreEngineHost->StartEngine(L"");
+        this->coreEngineHost->StartEngine(appName);
     }
 
 	void OnSuspending(const IInspectable& sender, const SuspendingEventArgs& args)
@@ -237,21 +234,13 @@ public:
 
 int __stdcall wWinMain(HINSTANCE applicationInstance, HINSTANCE, PWSTR, int)
 {
-	winrt::init_apartment();
-
+	init_apartment();
 	OutputDebugString("CoreEngine Windows Host\n");
-
-	// hstring appName = {};
-
-    // if (argc > 1)
-    // {
-    //     appName = { argv[1] };
-    // }
 
 	CoreApplication::Run(make<MainApplicationView>());
 
 	OutputDebugString("CoreEngine Windows Host has ended.\n");
-	winrt::uninit_apartment();
+	uninit_apartment();
 
 	return 0;
 }

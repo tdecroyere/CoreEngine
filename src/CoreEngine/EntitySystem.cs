@@ -12,17 +12,17 @@ namespace CoreEngine
         
         public abstract void Process(float deltaTime);
 
-        protected ReadOnlySpan<Entity> GetEntityArray()
+        protected EntitySystemArray<Entity> GetEntityArray()
         {
             if (entitySystemData != null)
             {
-                return this.entitySystemData.entitiesArray;
+                return entitySystemData.EntityArray;
             }
 
             throw new InvalidOperationException("Entity system data was never set.");
         }
 
-        protected Span<T> GetComponentDataArray<T>() where T : struct, IComponentData
+        protected EntitySystemArray<T> GetComponentDataArray<T>() where T : struct, IComponentData
         {
             // TODO: Check system registered definitions
 
@@ -30,12 +30,12 @@ namespace CoreEngine
             {
                 var componentTypeHashCode = typeof(T).GetHashCode();
 
-                if (!this.entitySystemData.componentsData.ContainsKey(componentTypeHashCode))
+                if (!this.entitySystemData.ComponentsData.ContainsKey(componentTypeHashCode))
                 {
                     throw new ArgumentException("The type passed is not registered by the system.");
                 }
-                    
-                return MemoryMarshal.Cast<byte, T>(this.entitySystemData.componentsData[componentTypeHashCode].AsSpan());
+
+                return new EntitySystemArray<T>(this.entitySystemData.ComponentsData[componentTypeHashCode]);
             }
 
             throw new InvalidOperationException("Entity system data was never set.");

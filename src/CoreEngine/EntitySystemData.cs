@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace CoreEngine
 {
     internal class EntitySystemData
     {
-        // TODO: Storing ArrayPool buffers here is a not great, we do that for the moment so the API is cleaner
-        public Entity[] entitiesArray = new Entity[0];
-        public IDictionary<int, byte[]> componentsData = new Dictionary<int, byte[]>();
+        // TODO: Use array pool to reuse memory?
+        public EntitySystemArray<Entity> EntityArray { get; } = new EntitySystemArray<Entity>(Marshal.SizeOf<Entity>());
+        public IDictionary<int, EntitySystemArray<byte>> ComponentsData { get; } = new Dictionary<int, EntitySystemArray<byte>>();
     }
 }

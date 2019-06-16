@@ -62,7 +62,6 @@ namespace CoreEngine
 
         public Entity CreateEntity(ComponentLayout componentLayout)
         {
-            // TODO: Init buffer values with component default data with IComponentData.SetDefaultValues()
             // TODO: Check for existing entities
             // TODO: Group data in component storage by component layouts so the memory access is linear
 
@@ -79,7 +78,7 @@ namespace CoreEngine
                 memoryChunk = CreateMemoryChunk(dataStorage, componentLayoutDesc, chunkItemSize);
             }
 
-            var chunkIndex = chunkItemSize * memoryChunk.EntityCount;
+            var chunkIndex = sizeof(uint) * memoryChunk.EntityCount;
             var entityId = entity.EntityId;
             MemoryMarshal.Write(memoryChunk!.Storage.Span.Slice(chunkIndex), ref entityId);
             memoryChunk.EntityCount++;
@@ -107,14 +106,12 @@ namespace CoreEngine
 
         public void SetComponentData<T>(Entity entity, T component) where T : struct, IComponentData
         {
-            // TODO: Make a function for entity indexing
-            // TODO: Use Index type?
             var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
             var dataStorage = this.componentStorage[componentLayout];
 
-            var componentOffset = componentLayoutDesc.FindComponentOffset(component.GetType().GetHashCode());
-            var chunkItemSize = ComputeChunkItemSize(componentLayoutDesc);
+            var componentOffset = componentLayoutDesc.FindComponentOffset(typeof(T).GetHashCode());
+            var componentSize = componentLayoutDesc.FindComponentSize(typeof(T).GetHashCode());
 
             // TODO: Throw an exception if entity not found
             for (var i = 0; i < dataStorage.Count; i++)
@@ -123,12 +120,14 @@ namespace CoreEngine
 
                 for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    var chunkIndex = chunkItemSize * j;
-                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
+                    var entityOffset = sizeof(uint) * j;
+                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(entityOffset));
 
                     if (entityId == entity.EntityId)
                     {
-                        MemoryMarshal.Write(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset), ref component);
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, j);
+                        MemoryMarshal.Write(memoryChunk.Storage.Span.Slice(storageComponentOffet), ref component);
+                        break;
                     }
                 }
             }
@@ -136,14 +135,12 @@ namespace CoreEngine
 
         internal void SetComponentData(Entity entity, Type componentType, IComponentData componentData)
         {
-            // TODO: Make a function for entity indexing
-            // TODO: Use Index type?
             var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
             var dataStorage = this.componentStorage[componentLayout];
 
             var componentOffset = componentLayoutDesc.FindComponentOffset(componentType.GetHashCode());
-            var chunkItemSize = ComputeChunkItemSize(componentLayoutDesc);
+            var componentSize = componentLayoutDesc.FindComponentSize(componentType.GetHashCode());
 
             // TODO: Throw an exception if entity not found
             for (var i = 0; i < dataStorage.Count; i++)
@@ -152,8 +149,8 @@ namespace CoreEngine
 
                 for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    var chunkIndex = chunkItemSize * j;
-                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
+                    var entityOffset = sizeof(uint) * j;
+                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(entityOffset));
 
                     if (entityId == entity.EntityId)
                     {
@@ -168,7 +165,9 @@ namespace CoreEngine
                         // Release unmanaged memory.
                         Marshal.FreeHGlobal(ptr);
 
-                        bytes.CopyTo(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset));
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, j);
+                        bytes.CopyTo(memoryChunk.Storage.Span.Slice(storageComponentOffet));
+                        break;
                     }
                 }
             }
@@ -184,7 +183,7 @@ namespace CoreEngine
             var dataStorage = this.componentStorage[componentLayout];
 
             var componentOffset = componentLayoutDesc.FindComponentOffset(typeof(T).GetHashCode());
-            var chunkItemSize = ComputeChunkItemSize(componentLayoutDesc);
+            var componentSize = componentLayoutDesc.FindComponentSize(typeof(T).GetHashCode());
 
             // TODO: Throw an exception if entity not found
             for (var i = 0; i < dataStorage.Count; i++)
@@ -193,18 +192,23 @@ namespace CoreEngine
 
                 for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    var chunkIndex = chunkItemSize * j;
-                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
+                    var entityOffset = sizeof(uint) * j;
+                    var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(entityOffset));
 
                     if (entityId == entity.EntityId)
                     {
-                        return MemoryMarshal.Read<T>(memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset));
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, j);
+                        return MemoryMarshal.Read<T>(memoryChunk.Storage.Span.Slice(storageComponentOffet));
                     }
                 }
             }
 
-            // TODO: Throw exception
             throw new InvalidOperationException("Entity has no data for the specified component.");
+        }
+
+        private static int ComputeDataChunkComponentOffset(ComponentDataMemoryChunk memoryChunk, int componentOffset, int componentSize, int entityLocalIndex)
+        {
+            return memoryChunk.MaxEntityCount * sizeof(uint) + memoryChunk.MaxEntityCount * componentOffset + entityLocalIndex * componentSize;
         }
 
         public bool HasComponent<T>(Entity entity) where T : IComponentData
@@ -225,6 +229,17 @@ namespace CoreEngine
 
         internal EntitySystemData GetEntitySystemData(Type[] componentTypes)
         {
+            var componentSizes = new int[componentTypes.Length];
+            var componentHashCodes = new int[componentTypes.Length];
+
+            for (var i = 0; i < componentTypes.Length; i++)
+            {
+                componentHashCodes[i] = componentTypes[i].GetHashCode();
+            }
+
+            // TODO: Re-use entity system data?
+            var entitySystemData = new EntitySystemData();
+
             // Find compatible component layouts
             var compatibleLayouts = new List<ComponentLayoutDesc>();
 
@@ -240,8 +255,9 @@ namespace CoreEngine
                     
                     for (var k = 0; k < componentTypes.Length; k++)
                     {
-                        if (componentType.GetHashCode() == componentTypes[k].GetHashCode())
+                        if (componentType == componentHashCodes[k])
                         {
+                            componentSizes[k] = componentLayout.ComponentSizes[j];
                             numberOfMatches++;
                         }
                     }
@@ -254,12 +270,9 @@ namespace CoreEngine
             }
 
             // Create list to fill entity system data
-            var entityList = new List<Entity>();
-            var componentDatas = new Dictionary<int, List<byte>>();
-
             for (var i = 0; i < componentTypes.Length; i++)
             {
-                componentDatas.Add(componentTypes[i].GetHashCode(), new List<byte>());
+                entitySystemData.ComponentsData.Add(componentHashCodes[i], new EntitySystemArray<byte>(componentSizes[i]));
             }
 
             // Fill in the data from the component storage
@@ -267,105 +280,29 @@ namespace CoreEngine
             {
                 var compatibleLayout = compatibleLayouts[i];
                 var dataStorage = this.componentStorage[compatibleLayout.ComponentLayout];
-                var chunkItemSize = ComputeChunkItemSize(compatibleLayout);
 
                 for (var j = 0; j < dataStorage.Count; j++) 
                 {
                     var memoryChunk = dataStorage[j];
 
-                    for (var k = 0; k < memoryChunk.EntityCount; k++)
+                    var entityListMemory = memoryChunk.Storage.Slice(0, memoryChunk.EntityCount * Marshal.SizeOf<Entity>());
+                    entitySystemData.EntityArray.AddMemorySlot(entityListMemory, memoryChunk.EntityCount);
+
+                    for (var k = 0; k < componentTypes.Length; k++)
                     {
-                        var chunkIndex = chunkItemSize * k;
-                        var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
+                        var componentHashCode = componentHashCodes[k];
+                        var componentOffset = compatibleLayout.FindComponentOffset(componentHashCode);
+                        var componentSize = compatibleLayout.FindComponentSize(componentHashCode);
 
-                        entityList.Add(new Entity(entityId));
-
-                        for (var l = 0; l < componentTypes.Length; l++)
-                        {
-                            // TODO: Big performance issues here (mutliple copies of arrays)
-                            var componentType = componentTypes[l];
-                            var componentOffset = compatibleLayout.FindComponentOffset(componentType.GetHashCode());
-
-                            var componentData = memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset, Marshal.SizeOf(componentType));
-                            componentDatas[componentType.GetHashCode()].AddRange(componentData.ToArray());
-                        }
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, 0);
+                        var componentDataListMemory = memoryChunk.Storage.Slice(storageComponentOffet, memoryChunk.EntityCount * componentSize);
+                        
+                        entitySystemData.ComponentsData[componentHashCode].AddMemorySlot(componentDataListMemory, memoryChunk.EntityCount);
                     }
                 }
-            }
-
-            var entitySystemData = new EntitySystemData();
-            entitySystemData.entitiesArray = entityList.ToArray();
-            entitySystemData.componentsData = new Dictionary<int, byte[]>();
-
-            foreach (var entry in componentDatas)
-            {
-                entitySystemData.componentsData.Add(entry.Key, entry.Value.ToArray());
             }
 
             return entitySystemData;
-        }
-
-        internal void SetEntitySystemData(EntitySystemData entitySystemData)
-        {
-            var entityList = new List<Entity>(entitySystemData.entitiesArray);
-            var compatibleLayouts = new List<ComponentLayoutDesc>();
-            var componentTypeHashList = new List<int>();
-
-            foreach (var key in entitySystemData.componentsData.Keys)
-            {
-                componentTypeHashList.Add(key);
-            }
-
-            // Get the layouts of the entities
-            for (var i = 0; i < entitySystemData.entitiesArray.Length; i++)
-            {
-                // TODO: Perf issues
-                var layout = this.entityComponentLayouts[(int)entitySystemData.entitiesArray[i].EntityId - 1];
-                var layoutDesc = this.componentLayouts[(int)layout.EntityComponentLayoutId];
-
-                if (!compatibleLayouts.Contains(layoutDesc))
-                {
-                    compatibleLayouts.Add(layoutDesc);
-                }
-            }
-
-            // Fill in the data from the component storage
-            for (var i = 0; i < compatibleLayouts.Count; i++)
-            {
-                var compatibleLayout = compatibleLayouts[i];
-                var dataStorage = this.componentStorage[compatibleLayout.ComponentLayout];
-                var chunkItemSize = ComputeChunkItemSize(compatibleLayout);
-
-                for (var j = 0; j < dataStorage.Count; j++) 
-                {
-                    var memoryChunk = dataStorage[j];
-
-                    for (var k = 0; k < memoryChunk.EntityCount; k++)
-                    {
-                        var chunkIndex = chunkItemSize * k;
-                        var entityId = MemoryMarshal.Read<uint>(memoryChunk.Storage.Span.Slice(chunkIndex));
-                        var entity = new Entity(entityId);
-                        var entityIndex = entityList.IndexOf(entity);
-
-                        if (entityIndex != -1)
-                        {
-                            for (var l = 0; l < componentTypeHashList.Count; l++)
-                            {
-                                // TODO: Skip readonly components here
-                                // TODO: Big performance issues here (mutliple copies of arrays, multiple finds of type info)
-                                var componentTypeHash = componentTypeHashList[l];
-                                var componentOffset = compatibleLayout.FindComponentOffset(componentTypeHash);
-                                var componentSize = compatibleLayout.FindComponentSize(componentTypeHash);
-
-                                var sourceData = new Span<byte>(entitySystemData.componentsData[componentTypeHash], entityIndex * componentSize, componentSize);
-                                var destinationData = memoryChunk.Storage.Span.Slice(chunkIndex + sizeof(uint) + componentOffset);
-
-                                sourceData.TryCopyTo(destinationData);
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         private static int ComputeComponentLayoutHashCodeAndSort(ref Type[] componentTypes)

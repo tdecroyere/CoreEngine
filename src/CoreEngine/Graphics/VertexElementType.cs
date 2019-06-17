@@ -1,8 +1,8 @@
 namespace CoreEngine.Graphics
 {
-    public enum VertexElementType : byte
+    public enum VertexElementType
     {
-        Float = 0,
+        Float1 = 0,
         Float2 = 1,
         Float3 = 2,
         Float4 = 3,

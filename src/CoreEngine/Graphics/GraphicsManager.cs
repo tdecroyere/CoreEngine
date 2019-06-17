@@ -33,10 +33,19 @@ namespace CoreEngine.Graphics
             InitResourceLoaders();
         }
 
-        internal GraphicsBuffer CreateGraphicsBuffer(MemoryBuffer memoryBuffer)
+        internal GraphicsBuffer CreateGraphicsBuffer(ReadOnlySpan<byte> data)
         {
-            var graphicsBufferId = graphicsService.CreateGraphicsBuffer(memoryBuffer);
-            return new GraphicsBuffer(graphicsBufferId, memoryBuffer.Length);
+            var dataMemoryBuffer = this.memoryService.CreateMemoryBuffer(data.Length);
+
+            if (!data.TryCopyTo(dataMemoryBuffer.AsSpan()))
+            {
+                throw new InvalidOperationException("Error while copying graphics buffer data.");
+            }
+
+            var graphicsBufferId = graphicsService.CreateGraphicsBuffer(dataMemoryBuffer);
+            this.memoryService.DestroyMemoryBuffer(dataMemoryBuffer.Id);
+
+            return new GraphicsBuffer(graphicsBufferId, dataMemoryBuffer.Length);
         }
 
         // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
@@ -113,12 +122,12 @@ namespace CoreEngine.Graphics
             {
                 var mesh = meshInstance.Mesh;
 
-                for (var i = 0; i < mesh.SubObjects.Count; i++)
+                for (var i = 0; i < mesh.GeometryInstances.Count; i++)
                 {
-                    var meshSubObject = mesh.SubObjects[i];
+                    var geometryInstance = mesh.GeometryInstances[i];
 
                     // TODO: Add shader and primitive type
-                    this.graphicsService.DrawPrimitives(meshSubObject.IndexCount / 3, meshSubObject.VertexBuffer.Id, meshSubObject.IndexBuffer.Id, meshInstance.WorldMatrix);
+                    this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, meshInstance.WorldMatrix);
                 }
             }
         }
@@ -135,6 +144,7 @@ namespace CoreEngine.Graphics
         private void InitResourceLoaders()
         {
             this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this.graphicsService, this.memoryService));
+            this.resourcesManager.AddResourceLoader(new MaterialResourceLoader(this.resourcesManager, this, this.memoryService));
             this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this, this.memoryService));
         }
     }

@@ -48,26 +48,41 @@ namespace CoreEngine.Graphics
 
             Logger.WriteMessage("Mesh Loading");
 
-            var subObjectsCount = reader.ReadInt32();
-            Logger.WriteMessage($"SubObjects Count: {subObjectsCount}");
+            // TODO: Read the vertex format from the mesh file
+            var vertexLayout = new VertexLayout(VertexElementType.Float3, VertexElementType.Float3);
 
-            for (var i = 0; i < subObjectsCount; i++)
+            var geometryPacketVertexCount = reader.ReadInt32();
+            var geometryPacketIndexCount = reader.ReadInt32();
+
+            //Logger.WriteMessage($"Vertices Count: {vertexCount}, Indices Count: {indexCount}");
+
+            // TODO: Change the calculation of the vertex size (current is fixed to Position, Normal)
+            var vertexSize = sizeof(float) * 6;
+            var vertexBufferSize = geometryPacketVertexCount * vertexSize;
+            var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
+
+            var vertexBufferData = reader.ReadBytes(vertexBufferSize);
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer(vertexBufferData.AsSpan());
+
+            var indexBufferData = reader.ReadBytes(indexBufferSize);
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer(indexBufferData.AsSpan());
+            
+            var geometryPacket = new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
+
+            var geometryInstancesCount = reader.ReadInt32();
+            Logger.WriteMessage($"GeometryInstances Count: {geometryInstancesCount}");
+
+            for (var i = 0; i < geometryInstancesCount; i++)
             {
-                var vertexCount = reader.ReadInt32();
-                var indexCount = reader.ReadInt32();
+                var materialPath = reader.ReadString();
+                var startIndex = reader.ReadUInt32();
+                var indexCount = reader.ReadUInt32();
 
-                //Logger.WriteMessage($"Vertices Count: {vertexCount}, Indices Count: {indexCount}");
+                var material = this.ResourcesManager.LoadResourceAsync<Material>(materialPath);
+                resource.DependentResources.Add(material);
 
-                // TODO: Change the calculation of the vertex size (current is fixed to Position, Normal)
-                var vertexSize = sizeof(float) * 6;
-                var vertexBufferSize = vertexCount * vertexSize;
-                var indexBufferSize = indexCount * sizeof(uint);
-
-                var vertexBufferData = reader.ReadBytes(vertexBufferSize);
-                var indexBufferData = reader.ReadBytes(indexBufferSize);
-
-                var meshSubObject = new MeshSubObject(this.graphicsManager, this.memoryService, vertexCount, indexCount, vertexBufferData.AsSpan(), indexBufferData.AsSpan());
-                mesh.SubObjects.Add(meshSubObject);
+                var geometryInstance = new GeometryInstance(geometryPacket, material, startIndex, indexCount);
+                mesh.GeometryInstances.Add(geometryInstance);
             }
 
             return Task.FromResult((Resource)mesh);

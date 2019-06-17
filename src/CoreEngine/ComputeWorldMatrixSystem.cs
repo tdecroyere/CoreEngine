@@ -22,16 +22,18 @@ namespace CoreEngine
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                var scale = Matrix4x4.CreateScale(transformArray[i].Scale);
-                var rotationX = MathUtils.DegreesToRad(transformArray[i].RotationX);
-                var rotationY = MathUtils.DegreesToRad(transformArray[i].RotationY);
-                var rotationZ = MathUtils.DegreesToRad(transformArray[i].RotationZ);
-                var translation = Matrix4x4.CreateTranslation(transformArray[i].Position);
+                ref var tranform = ref transformArray[i];
+
+                var scale = Matrix4x4.CreateScale(tranform.Scale);
+                var rotationX = MathUtils .DegreesToRad(tranform.RotationX);
+                var rotationY = MathUtils.DegreesToRad(tranform.RotationY);
+                var rotationZ = MathUtils.DegreesToRad(tranform.RotationZ);
+                var translation = Matrix4x4.CreateTranslation(tranform.Position);
 
                 var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
 
-                transformArray[i].RotationQuaternion = rotationQuaternion;
-                transformArray[i].WorldMatrix = Matrix4x4.Transform(scale, transformArray[i].RotationQuaternion) * translation;
+                tranform.RotationQuaternion = rotationQuaternion;
+                tranform.WorldMatrix = Matrix4x4.Transform(scale, tranform.RotationQuaternion) * translation;
             }
         }
     }

@@ -40,40 +40,45 @@ namespace CoreEngine.Graphics
 
                 if (cameraArray[i].EyePosition != Vector3.Zero || cameraArray[i].LookAtPosition != Vector3.Zero)
                 {
-                    transform.Position = cameraArray[i].EyePosition;
-
-                    var cameraViewMatrix = MathUtils.CreateLookAtMatrix(cameraArray[i].EyePosition, cameraArray[i].LookAtPosition, new Vector3(0, 1, 0));
-                    
-                    var cameraRotationX = (float) Math.Asin( -cameraViewMatrix.M23 );
-                    var cameraRotationY = (float) Math.Atan2( -cameraViewMatrix.M13, cameraViewMatrix.M33 );
-                    
-                    transform.RotationX = MathUtils.RadToDegrees(cameraRotationX);
-                    transform.RotationY = MathUtils.RadToDegrees(cameraRotationY);
-
-                    Logger.WriteMessage($"Camera Setup: {transform.RotationX} - {transform.RotationY}");
-
-                    // TODO: Move that to an util method
-                    var scale = Matrix4x4.CreateScale(transform.Scale);
-                    var rotationX = MathUtils.DegreesToRad(transform.RotationX);
-                    var rotationY = MathUtils.DegreesToRad(transform.RotationY);
-                    var rotationZ = MathUtils.DegreesToRad(transform.RotationZ);
-                    var translation = Matrix4x4.CreateTranslation(transform.Position);
-
-                    var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
-
-                    transform.RotationQuaternion = rotationQuaternion;
-                    transform.WorldMatrix = Matrix4x4.Transform(scale, transform.RotationQuaternion) * translation;
-
-                    camera.EyePosition = Vector3.Zero;
-                    camera.LookAtPosition = Vector3.Zero;
+                    SetupCamera(ref camera, ref transform);
                 }
 
-                var cameraPosition = Vector3.Transform(Vector3.Zero, transform.WorldMatrix);
+                var cameraPosition = transform.Position;
                 var target = Vector3.Transform(new Vector3(0, 0, 1), transform.RotationQuaternion) + cameraPosition;
 
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
                 graphicsManager.UpdateCamera(viewMatrix);
             }
+        }
+
+        private static void SetupCamera(ref CameraComponent camera, ref TransformComponent transform)
+        {
+            transform.Position = camera.EyePosition;
+
+            var cameraViewMatrix = MathUtils.CreateLookAtMatrix(camera.EyePosition, camera.LookAtPosition, new Vector3(0, 1, 0));
+
+            var cameraRotationX = (float)Math.Asin(-cameraViewMatrix.M23);
+            var cameraRotationY = (float)Math.Atan2(-cameraViewMatrix.M13, cameraViewMatrix.M33);
+
+            transform.RotationX = MathUtils.RadToDegrees(cameraRotationX);
+            transform.RotationY = MathUtils.RadToDegrees(cameraRotationY);
+
+            Logger.WriteMessage($"Camera Setup: {transform.RotationX} - {transform.RotationY}");
+
+            // TODO: Move that to an util method
+            var scale = Matrix4x4.CreateScale(transform.Scale);
+            var rotationX = MathUtils.DegreesToRad(transform.RotationX);
+            var rotationY = MathUtils.DegreesToRad(transform.RotationY);
+            var rotationZ = MathUtils.DegreesToRad(transform.RotationZ);
+            var translation = Matrix4x4.CreateTranslation(transform.Position);
+
+            var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
+
+            transform.RotationQuaternion = rotationQuaternion;
+            transform.WorldMatrix = Matrix4x4.Transform(scale, transform.RotationQuaternion) * translation;
+
+            camera.EyePosition = Vector3.Zero;
+            camera.LookAtPosition = Vector3.Zero;
         }
     }
 }

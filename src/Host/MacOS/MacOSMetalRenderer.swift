@@ -33,7 +33,7 @@ func setRenderPassConstantsHandle(graphicsContext: UnsafeMutableRawPointer?, dat
     renderer.setRenderPassConstants(data: data)
 }
 
-func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, primitiveCount: Int32, vertexBufferId: UInt32, indexBufferId: UInt32, worldMatrix: Matrix4x4) {
+func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, startIndex: UInt32, indexCount: UInt32, vertexBufferId: UInt32, indexBufferId: UInt32, worldMatrix: Matrix4x4) {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
 
     // TODO: Move world matrix setup to buffers
@@ -44,7 +44,7 @@ func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, primitiveCo
     
     let dstWorldMatrix = float4x4(rows: [row1, row2, row3, row4])
 
-    renderer.drawPrimitives(primitiveCount, vertexBufferId, indexBufferId, dstWorldMatrix)
+    renderer.drawPrimitives(startIndex, indexCount, vertexBufferId, indexBufferId, dstWorldMatrix)
 }
 
 
@@ -143,7 +143,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    func drawPrimitives(_ primitiveCount: Int32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ worldMatrix: float4x4) {
+    func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ worldMatrix: float4x4) {
         if (self.currentRenderEncoder != nil) {
             // TODO: Change the fact that we have only one command buffer stored in a private field
 
@@ -156,11 +156,11 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
             let indexGraphicsBuffer = self.graphicsBuffers[indexBufferId]
 
             // TODO: Check for nullable buffers
-
-            let indexComputedCount = Int(primitiveCount) * 3
+            let startIndexOffset = Int(startIndex * 4)
+            let indexCount = Int(indexCount)
 
             self.currentRenderEncoder!.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
-            self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, indexCount: indexComputedCount, indexType: .uint32, indexBuffer: indexGraphicsBuffer!, indexBufferOffset: 0, instanceCount: 1, baseVertex: 0, baseInstance: 0)
+            self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, indexCount: indexCount, indexType: .uint32, indexBuffer: indexGraphicsBuffer!, indexBufferOffset: startIndexOffset, instanceCount: 1, baseVertex: 0, baseInstance: 0)
         }
     }
 

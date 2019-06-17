@@ -43,7 +43,7 @@ namespace CoreEngine
     public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
     public delegate uint CreateGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
     public delegate void SetRenderPassConstantsDelegate(IntPtr graphicsContext, MemoryBuffer data);
-    public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, int primitiveCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix);
+    public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix);
 
     public readonly struct GraphicsService
     {
@@ -74,9 +74,9 @@ namespace CoreEngine
             setRenderPassConstantsDelegate(graphicsContext, data);
         }
 
-        public void DrawPrimitives(int primitiveCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix)
+        public void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix)
         {
-            drawPrimitivesDelegate(graphicsContext, primitiveCount, vertexBufferId, indexBufferId, worldMatrix);
+            drawPrimitivesDelegate(graphicsContext, startIndex, indexCount, vertexBufferId, indexBufferId, worldMatrix);
         }
     }
 

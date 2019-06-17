@@ -9,8 +9,10 @@ namespace CoreEngine.Graphics
     {
         internal Mesh(uint resourceId, string path) : base(resourceId, path)
         {
+
         }
 
-        public IList<MeshSubObject> SubObjects { get; } = new List<MeshSubObject>();
+        public GeometryPacket GeometryPacket { get; internal set; }
+        public IList<GeometryInstance> GeometryInstances { get; } = new List<GeometryInstance>();
     }
 }

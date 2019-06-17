@@ -7,13 +7,10 @@ namespace CoreEngine
     public class EntityManager
     {
         // TODO: Switch to memory manager
-        // TODO: For now, just a naive implementation
         // TODO: Not thread safe for the moment
         // TODO: Use something different than an array of bytes?
-        // TODO: Refactor code
         // TODO: Embed entities data into a world class or struct (with ref properties?)?
-        // TODO: How to handle open world entities? (Large open-worlds)
-        // TODO: Manage entity layouts that the same components with different orders as the same
+        // TODO: How to handle open world entities? (Large open-worlds, use Grid?)
 
         private List<ComponentLayoutDesc> componentLayouts;
         private List<ComponentLayout> entityComponentLayouts;

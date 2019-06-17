@@ -39,7 +39,7 @@ typedef struct Vector2 (*GetRenderSizePtr)(void* graphicsContext);
 typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuffer shaderByteCode);
 typedef unsigned int (*CreateGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
 typedef void (*SetRenderPassConstantsPtr)(void* graphicsContext, struct MemoryBuffer data);
-typedef void (*DrawPrimitivesPtr)(void* graphicsContext, int primitiveCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix);
+typedef void (*DrawPrimitivesPtr)(void* graphicsContext, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix);
 
 struct GraphicsService
 {

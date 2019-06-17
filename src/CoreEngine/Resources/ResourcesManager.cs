@@ -112,7 +112,6 @@ namespace CoreEngine.Resources
             CheckResourceLoadingTasks();
             CheckForUpdatedResources();
             RemoveUnusedResources();
-            // TODO: Remove unused resources
         }
         
         private void CheckForUpdatedResources()

@@ -79,7 +79,7 @@ void SetRenderPassConstants(void* graphicsContext, struct MemoryBuffer data)
 
 }
 
-void DrawPrimitives(void* graphicsContext, int primitiveCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix)
+void DrawPrimitives(void* graphicsContext, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix)
 {
     OutputDebugString("Draw Primitives\n");
 }

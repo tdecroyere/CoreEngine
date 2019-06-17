@@ -158,6 +158,25 @@ function CompileWindowsHost
     Pop-Location
 }
 
+function CompileWindowsHostConsole
+{
+    Push-Location $ObjFolder
+
+    Write-Output "[93mCompiling Windows Console Executable...[0m"
+
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\inc" /Zi /Yu"WindowsCommon.h" /DWINRT_NO_MAKE_DETECTION /FpWindowsCommon.PCH /TP /Tp"..\..\ConsoleMain.cpp" /Tp"..\..\WindowsCoreEngineHost.cpp"
+    link.exe "ConsoleMain.obj" "WindowsCommon.obj" "WindowsCoreEngineHost.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngineConsole.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineConsole.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
+
+    if (-Not $?)
+    {
+        Pop-Location
+        ShowErrorMessage
+        Exit 1
+    }
+
+    Pop-Location
+}
+
 function LinkWindowsHost
 {
     Push-Location $ObjFolder
@@ -185,6 +204,7 @@ function CopyFiles
     Copy-Item "*.pdb" "..\Windows"
     Copy-Item "AppxManifest.xml" "..\Windows"
     Copy-Item "CoreEngine.exe" "..\Windows"
+    Copy-Item "CoreEngineConsole.exe" "..\Windows"
 
     Pop-Location
 }

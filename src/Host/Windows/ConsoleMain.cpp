@@ -1,6 +1,7 @@
 #pragma once
 
 #include "WindowsCommon.h"
+#include "WindowsCoreEngineHost.h"
 
 using namespace std;
 
@@ -16,7 +17,7 @@ int main(int argc, char const *argv[])
     }
 
     WindowsCoreEngineHost* coreEngineHost = new WindowsCoreEngineHost();
-    coreEngineHost->StartEngine(appName);
+    coreEngineHost->StartEngine(L"EcsTest");
 
     coreEngineHost->UpdateEngine(5);
 

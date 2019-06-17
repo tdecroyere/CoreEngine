@@ -29,7 +29,7 @@
             },
             "windows": {
                 "cwd": "${workspaceFolder}/build/Windows/",
-                "program": "./CoreEngine.exe"
+                "program": "./CoreEngineConsole.exe"
             }
         },
         {
@@ -48,8 +48,8 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "C:/Program Files (x86)/Windows Kits/10/App Certification Kit/microsoft.windows.softwarelogo.appxlauncher.exe",
-            "args": ["DoubleBuffer.CoreEngine_vr4j8qpnv1nej!CoreEngineWindowsHost"],
+            "program": "./CoreEngineConsole.exe",
+            "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
             "environment": [],

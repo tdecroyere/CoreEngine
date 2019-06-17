@@ -31,9 +31,13 @@ namespace CoreEngine.Resources
 
         public override DateTime? CheckForUpdatedResource(string path, DateTime lastUpdateDateTime)
         {
-            var lastWriteTime = File.GetLastWriteTime(this.basePath + path);
+            if (File.Exists(path))
+            {
+                var lastWriteTime = File.GetLastWriteTime(this.basePath + path);
+                return (lastWriteTime > lastUpdateDateTime) ? (DateTime?)lastWriteTime : null;
+            }
             
-            return (lastWriteTime > lastUpdateDateTime) ? (DateTime?)lastWriteTime : null;
+            return null;
         }
 
         public override Task<byte[]> ReadResourceDataAsync(string path)

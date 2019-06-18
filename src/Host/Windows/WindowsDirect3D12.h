@@ -46,7 +46,7 @@ namespace impl
 
         void Direct32D2EnableDebugLayer();
         void Direct32D2WaitForPreviousFrame();
-        bool Direct3D12CreateDevice(const CoreWindow& window, int width, int height);
+        bool Direct3D12CreateDevice(const com_ptr<IDXGIFactory4> dxgiFactory, const com_ptr<IDXGIAdapter4> graphicsAdapter, const CoreWindow& window, int width, int height);
         bool Direct3D12InitSizeDependentResources();
 
         bool Direct3D12CreateSpriteRootSignature();
@@ -65,6 +65,8 @@ namespace impl
         bool Direct3D12SwitchScreenMode();
 
     private:
+        com_ptr<IDXGIAdapter4> FindGraphicsAdapter(const com_ptr<IDXGIFactory4> dxgiFactory);
+
         bool IsInitialized;
         bool IsFullscreen;
         int Width;
@@ -77,7 +79,7 @@ namespace impl
 
         com_ptr<ID3D12Device> Device;
         com_ptr<ID3D12CommandQueue> CommandQueue;
-        com_ptr<ID3D12CommandAllocator> CommandAllocator;
+        com_ptr<ID3D12CommandAllocator> CommandAllocator; // TODO: We need one allocator per frame;
         com_ptr<ID3D12GraphicsCommandList> CommandList;
         com_ptr<IDXGISwapChain3> SwapChain;
 
@@ -98,11 +100,13 @@ namespace impl
         D3D12_VIEWPORT Viewport;
         D3D12_RECT ScissorRect;
 
-        // Synchronization objects
         int CurrentBackBufferIndex;
-        HANDLE FenceEvent;
+
+        // Synchronization objects
         com_ptr<ID3D12Fence> Fence;
-        UINT64 FenceValue;
+        uint64_t FrameFenceValues[RenderBuffersCountConst] = {};
+        uint64_t FenceValue;
+        HANDLE FenceEvent;
     };
 };
 

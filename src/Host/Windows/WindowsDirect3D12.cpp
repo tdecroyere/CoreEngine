@@ -193,18 +193,10 @@ void Direct3D12::Direct32D2WaitForPreviousFrame()
 	this->CurrentBackBufferIndex = this->SwapChain->GetCurrentBackBufferIndex();
 }
 
-bool Direct3D12::Direct3D12CreateDevice(const CoreWindow& window, int width, int height)
+bool Direct3D12::Direct3D12CreateDevice(const com_ptr<IDXGIFactory4> dxgiFactory, const com_ptr<IDXGIAdapter4> graphicsAdapter, const CoreWindow& window, int width, int height)
 {
-#ifdef DEBUG
-	Direct32D2EnableDebugLayer();
-#endif
-
-	// Get the DXGI factory used to create the swap chain
-	com_ptr<IDXGIFactory4> dxgiFactory;
-	ReturnIfFailed(CreateDXGIFactory2(0, IID_PPV_ARGS_WINRT(dxgiFactory)));
-
 	// Created Direct3D Device
-	HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(this->Device));
+	HRESULT result = D3D12CreateDevice(graphicsAdapter.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(this->Device));
 
 	if (FAILED(result))
 	{
@@ -214,7 +206,7 @@ bool Direct3D12::Direct3D12CreateDevice(const CoreWindow& window, int width, int
 		com_ptr<IDXGIAdapter> warpAdapter;
 		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS_WINRT(warpAdapter));
 
-		ReturnIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS_WINRT(this->Device)));
+		ReturnIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(this->Device)));
 	}
 
 	// Create the command queue and command allocator
@@ -618,7 +610,23 @@ void Direct3D12::Direct3D12Init(const CoreWindow& window, int width, int height,
 	this->RefreshRate = refreshRate;
 	this->Pitch = this->Width * this->BytesPerPixel;
 
-	bool result = Direct3D12CreateDevice(window, width, height);
+    UINT createFactoryFlags = 0;
+
+#ifdef DEBUG
+	Direct32D2EnableDebugLayer();
+    createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+	com_ptr<IDXGIFactory4> dxgiFactory;
+	HRESULT hresult = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory));
+
+	if (FAILED(hresult))
+	{
+		return;
+	}
+
+	com_ptr<IDXGIAdapter4> graphicsAdapter = FindGraphicsAdapter(dxgiFactory);
+	bool result = Direct3D12CreateDevice(dxgiFactory, graphicsAdapter, window, width, height);
 
 	if (!result)
 	{
@@ -760,4 +768,26 @@ void Direct3D12::Direct3D12Destroy()
 	this->SwapChain->SetFullscreenState(false, nullptr);
 
 	CloseHandle(this->FenceEvent);
+}
+
+com_ptr<IDXGIAdapter4> Direct3D12::FindGraphicsAdapter(const com_ptr<IDXGIFactory4> dxgiFactory)
+{	
+    com_ptr<IDXGIAdapter1> dxgiAdapter1;
+	com_ptr<IDXGIAdapter4> dxgiAdapter4;
+
+	SIZE_T maxDedicatedVideoMemory = 0;
+
+	for (int i = 0; dxgiFactory->EnumAdapters1(i, dxgiAdapter1.put()) != DXGI_ERROR_NOT_FOUND; i++)
+	{
+		DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
+		dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
+
+		if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+		{
+			maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
+			dxgiAdapter1.as(dxgiAdapter4);
+		}
+	}
+
+	return dxgiAdapter4;
 }

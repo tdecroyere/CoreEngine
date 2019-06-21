@@ -26,7 +26,8 @@ namespace CoreEngine.Tests.EcsTest
 
             this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
-            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
+            //this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
+            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShaderArguments.shader");
 
             this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();

@@ -27,7 +27,6 @@ namespace CoreEngine.Graphics
             this.meshInstancesToRemove = new List<Entity>();
 
             this.renderPassConstantsMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
-            
             this.renderPassConstants = new RenderPassConstants();
             
             InitResourceLoaders();

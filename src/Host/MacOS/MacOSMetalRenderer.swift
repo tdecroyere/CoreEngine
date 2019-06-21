@@ -57,6 +57,10 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     var currentCommandBuffer: MTLCommandBuffer!
     var currentRenderEncoder: MTLRenderCommandEncoder!
 
+    var argumentBuffer: MTLBuffer!
+    var renderPassParametersBuffer: MTLBuffer!
+    var objectParametersBuffer: MTLBuffer!
+
     var graphicsBuffers: [UInt32: MTLBuffer]
     var currentGraphicsBufferId: UInt32
 
@@ -79,6 +83,12 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.depthStencilState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         self.commandQueue = self.device.makeCommandQueue()
+
+        // TODO: Temporary, to remove
+        self.renderPassParametersBuffer = self.device.makeBuffer(length: MemoryLayout<float4x4>.size * 2, options: .storageModeShared)
+        self.renderPassParametersBuffer.label = "RenderPassParameter Indirect Buffer"
+        self.objectParametersBuffer = self.device.makeBuffer(length: MemoryLayout<float4x4>.size * 256, options: .storageModeShared)
+        self.objectParametersBuffer.label = "ObjectParameters Indirect Buffer"
     }
 
     func initGraphicsService(_ graphicsService: inout GraphicsService) {
@@ -104,6 +114,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")
         let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
 
+        // Init vertex layout
         let vertexDescriptor = MTLVertexDescriptor()
         vertexDescriptor.attributes[0].format = .float3
         vertexDescriptor.attributes[0].offset = 0
@@ -114,6 +125,16 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         vertexDescriptor.attributes[1].bufferIndex = 0
 
         vertexDescriptor.layouts[0].stride = 24
+
+        // Create vertex shader argument buffers
+        let argumentEncoder = vertexFunction!.makeArgumentEncoder(bufferIndex: 1)
+        self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
+        self.argumentBuffer.label = "argument buffer"
+
+        argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
+
+        argumentEncoder.setBuffer(self.renderPassParametersBuffer, offset: 0, index: 0)
+        argumentEncoder.setBuffer(self.objectParametersBuffer, offset: 0, index: 1)
 
         // Configure a pipeline descriptor that is used to create a pipeline state
         let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
@@ -139,7 +160,9 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
     func setRenderPassConstants(data: MemoryBuffer) {
         if (self.currentRenderEncoder != nil) {
-            self.currentRenderEncoder.setVertexBytes(data.Pointer, length: Int(data.Length), index: 1)
+            let bufferContents = self.renderPassParametersBuffer.contents()
+            bufferContents.copyMemory(from: data.Pointer, byteCount: Int(data.Length))
+            //self.currentRenderEncoder.setVertexBytes(data.Pointer, length: Int(data.Length), index: 1)
         }
     }
 
@@ -149,18 +172,32 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
             // TODO: Switch to metal buffers
             var objectBuffer = ObjectConstantBuffer(worldMatrix)
-            self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
+
+            let bufferContents = self.objectParametersBuffer.contents()
+            bufferContents.copyMemory(from: &objectBuffer, byteCount: MemoryLayout<ObjectConstantBuffer>.size)
+            //self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
 
             // Draw the 3 vertices of our triangle
             let vertexGraphicsBuffer = self.graphicsBuffers[vertexBufferId]
             let indexGraphicsBuffer = self.graphicsBuffers[indexBufferId]
 
+            self.currentRenderEncoder!.useResource(self.renderPassParametersBuffer, usage: .read)
+            self.currentRenderEncoder!.useResource(self.objectParametersBuffer, usage: .read)
+
             // TODO: Check for nullable buffers
             let startIndexOffset = Int(startIndex * 4)
-            let indexCount = Int(indexCount)
 
             self.currentRenderEncoder!.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
-            self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, indexCount: indexCount, indexType: .uint32, indexBuffer: indexGraphicsBuffer!, indexBufferOffset: startIndexOffset, instanceCount: 1, baseVertex: 0, baseInstance: 0)
+            self.currentRenderEncoder!.setVertexBuffer(self.argumentBuffer, offset: 0, index: 1)
+            
+            self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, 
+                                                             indexCount: Int(indexCount), 
+                                                             indexType: .uint32, 
+                                                             indexBuffer: indexGraphicsBuffer!, 
+                                                             indexBufferOffset: startIndexOffset, 
+                                                             instanceCount: 1, 
+                                                             baseVertex: 0, 
+                                                             baseInstance: 0)
         }
     }
 

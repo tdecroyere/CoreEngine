@@ -41,8 +41,10 @@ namespace CoreEngine
 
     public delegate Vector2 GetRenderSizeDelegate(IntPtr graphicsContext);
     public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
+    public delegate uint CreateShaderParametersDelegate(IntPtr graphicsContext, uint graphicsBuffer1, uint graphicsBuffer2); 
+
     public delegate uint CreateGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
-    public delegate void SetRenderPassConstantsDelegate(IntPtr graphicsContext, MemoryBuffer data);
+    public delegate void UploadDataToGraphicsBufferDelegate(IntPtr graphicsContext, uint graphicsBufferId,  MemoryBuffer data);
     public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix);
 
     public readonly struct GraphicsService
@@ -50,8 +52,9 @@ namespace CoreEngine
         private IntPtr graphicsContext { get; } 
         private GetRenderSizeDelegate getRenderSizeDelegate { get; } 
         private CreateShaderDelegate createShaderDelegate { get; } 
+        private CreateShaderParametersDelegate createShaderParametersDelegate { get; } 
         private CreateGraphicsBufferDelegate createGraphicsBufferDelegate { get; } 
-        private SetRenderPassConstantsDelegate setRenderPassConstantsDelegate { get; } 
+        private UploadDataToGraphicsBufferDelegate uploadDataToGraphicsBuffer { get; } 
         private DrawPrimitivesDelegate drawPrimitivesDelegate { get; } 
 
         public Vector2 GetRenderSize()
@@ -64,14 +67,19 @@ namespace CoreEngine
             return createShaderDelegate(graphicsContext, shaderByteCode);
         }
 
+        public uint CreateShaderParameters(uint graphicsBuffer1, uint graphicsBuffer2)
+        {
+            return createShaderParametersDelegate(graphicsContext, graphicsBuffer1, graphicsBuffer2);
+        }
+
         public uint CreateGraphicsBuffer(MemoryBuffer data)
         {
             return createGraphicsBufferDelegate(graphicsContext, data);
         }
 
-        public void SetRenderPassConstants(MemoryBuffer data)
+        public void UploadDataToGraphicsBuffer(uint graphicsBufferId, MemoryBuffer data)
         {
-            setRenderPassConstantsDelegate(graphicsContext, data);
+            uploadDataToGraphicsBuffer(graphicsContext, graphicsBufferId, data);
         }
 
         public void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix)

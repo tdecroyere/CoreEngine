@@ -37,8 +37,9 @@ struct Matrix4x4
 
 typedef struct Vector2 (*GetRenderSizePtr)(void* graphicsContext);
 typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuffer shaderByteCode);
+typedef unsigned int (*CreateShaderParametersPtr)(void* graphicsContext, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2); 
 typedef unsigned int (*CreateGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
-typedef void (*SetRenderPassConstantsPtr)(void* graphicsContext, struct MemoryBuffer data);
+typedef void (*UploadDataToGraphicsBufferPtr)(void* graphicsContext, unsigned int graphicsBufferId,  struct MemoryBuffer data);
 typedef void (*DrawPrimitivesPtr)(void* graphicsContext, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix);
 
 struct GraphicsService
@@ -46,8 +47,9 @@ struct GraphicsService
     void* GraphicsContext;
     GetRenderSizePtr GetRenderSize;
     CreateShaderPtr CreateShader;
+    CreateShaderParametersPtr CreateShaderParameters;
     CreateGraphicsBufferPtr CreateGraphicsBuffer;
-    SetRenderPassConstantsPtr SetRenderPassConstants;
+    UploadDataToGraphicsBufferPtr UploadDataToGraphicsBuffer;
     DrawPrimitivesPtr DrawPrimitives;
 };
 

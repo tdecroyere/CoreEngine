@@ -23,14 +23,19 @@ func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCod
     return 0
 }
 
+func createShaderParametersHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBuffer1: UInt32, graphicsBuffer2: UInt32) -> UInt32 {
+    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
+    return renderer.createShaderParameters([graphicsBuffer1, graphicsBuffer2])
+}
+
 func createGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) -> UInt32 {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.createGraphicsBuffer(data: data)
 }
 
-func setRenderPassConstantsHandle(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) {
+func uploadDataToGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBufferId: UInt32, data: MemoryBuffer) {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    renderer.setRenderPassConstants(data: data)
+    renderer.uploadDataToGraphicsBuffer(graphicsBufferId, data)
 }
 
 func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, startIndex: UInt32, indexCount: UInt32, vertexBufferId: UInt32, indexBufferId: UInt32, worldMatrix: Matrix4x4) {
@@ -56,6 +61,9 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     var depthStencilState: MTLDepthStencilState!
     var currentCommandBuffer: MTLCommandBuffer!
     var currentRenderEncoder: MTLRenderCommandEncoder!
+
+    var vertexFunction: MTLFunction!
+    var fragmentFunction: MTLFunction!
 
     var argumentBuffer: MTLBuffer!
     var renderPassParametersBuffer: MTLBuffer!
@@ -83,20 +91,15 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.depthStencilState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         self.commandQueue = self.device.makeCommandQueue()
-
-        // TODO: Temporary, to remove
-        self.renderPassParametersBuffer = self.device.makeBuffer(length: MemoryLayout<float4x4>.size * 2, options: .storageModeShared)
-        self.renderPassParametersBuffer.label = "RenderPassParameter Indirect Buffer"
-        self.objectParametersBuffer = self.device.makeBuffer(length: MemoryLayout<float4x4>.size * 256, options: .storageModeShared)
-        self.objectParametersBuffer.label = "ObjectParameters Indirect Buffer"
     }
 
     func initGraphicsService(_ graphicsService: inout GraphicsService) {
         graphicsService.GraphicsContext = Unmanaged.passUnretained(self).toOpaque()
         graphicsService.GetRenderSize = getRenderSizeHandle
         graphicsService.CreateShader = createShaderHandle
+        graphicsService.CreateShaderParameters = createShaderParametersHandle
         graphicsService.CreateGraphicsBuffer = createGraphicsBufferHandle
-        graphicsService.SetRenderPassConstants = setRenderPassConstantsHandle
+        graphicsService.UploadDataToGraphicsBuffer = uploadDataToGraphicsBufferHandle
         graphicsService.DrawPrimitives = drawPrimitivesHandle
     }
 
@@ -111,8 +114,8 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         let dispatchData = DispatchData(bytesNoCopy: UnsafeRawBufferPointer(start: shaderByteCode.Pointer!, count: Int(shaderByteCode.Length)))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
-        let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")
-        let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
+        self.vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")
+        self.fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
 
         // Init vertex layout
         let vertexDescriptor = MTLVertexDescriptor()
@@ -127,14 +130,14 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         vertexDescriptor.layouts[0].stride = 24
 
         // Create vertex shader argument buffers
-        let argumentEncoder = vertexFunction!.makeArgumentEncoder(bufferIndex: 1)
-        self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
-        self.argumentBuffer.label = "argument buffer"
+        // let argumentEncoder = vertexFunction!.makeArgumentEncoder(bufferIndex: 1)
+        // self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
+        // self.argumentBuffer.label = "argument buffer"
 
-        argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
+        // argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
 
-        argumentEncoder.setBuffer(self.renderPassParametersBuffer, offset: 0, index: 0)
-        argumentEncoder.setBuffer(self.objectParametersBuffer, offset: 0, index: 1)
+        // argumentEncoder.setBuffer(self.renderPassParametersBuffer, offset: 0, index: 0)
+        // argumentEncoder.setBuffer(self.objectParametersBuffer, offset: 0, index: 1)
 
         // Configure a pipeline descriptor that is used to create a pipeline state
         let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
@@ -152,18 +155,48 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         }
     }
 
+    // TODO: Use a more precise structure to define buffer layouts
+    func createShaderParameters(_ graphicsBufferIdList: [UInt32]) -> UInt32 {
+        let argumentEncoder = self.vertexFunction!.makeArgumentEncoder(bufferIndex: 1)
+        self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
+        self.argumentBuffer.label = "argument buffer"
+
+        argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
+
+        for var i in 0...graphicsBufferIdList.count - 1 {
+            let graphicsBuffer = self.graphicsBuffers[graphicsBufferIdList[i]]
+            argumentEncoder.setBuffer(graphicsBuffer, offset: 0, index: i)
+        }
+
+        self.renderPassParametersBuffer = self.graphicsBuffers[graphicsBufferIdList[0]]
+        self.renderPassParametersBuffer.label = "RenderPassBuffer"
+        self.objectParametersBuffer = self.graphicsBuffers[graphicsBufferIdList[1]]
+        self.objectParametersBuffer.label = "ObjectParametersBuffer"
+
+        return 0
+
+        // self.currentGraphicsBufferId += 1
+        // self.graphicsBuffers[self.currentGraphicsBufferId] = self.device.makeBuffer(bytes: data.Pointer, length: Int(data.Length), options: .storageModeManaged)
+        // return self.currentGraphicsBufferId
+    }
+
     func createGraphicsBuffer(data: MemoryBuffer) -> UInt32 {
         self.currentGraphicsBufferId += 1
-        self.graphicsBuffers[self.currentGraphicsBufferId] = self.device.makeBuffer(bytes: data.Pointer, length: Int(data.Length), options: .storageModeManaged)
+        self.graphicsBuffers[self.currentGraphicsBufferId] = self.device.makeBuffer(bytes: data.Pointer, length: Int(data.Length), options: .storageModeShared)
         return self.currentGraphicsBufferId
     }
 
-    func setRenderPassConstants(data: MemoryBuffer) {
-        if (self.currentRenderEncoder != nil) {
-            let bufferContents = self.renderPassParametersBuffer.contents()
-            bufferContents.copyMemory(from: data.Pointer, byteCount: Int(data.Length))
-            //self.currentRenderEncoder.setVertexBytes(data.Pointer, length: Int(data.Length), index: 1)
+    func uploadDataToGraphicsBuffer(_ graphicsBufferId: UInt32, _ data: MemoryBuffer) {
+        guard let graphicsBuffer = self.graphicsBuffers[graphicsBufferId] else {
+            print("ERROR: Graphics buffer was not found")
+            return
         }
+
+        print("upload graphics buffer")
+
+        let bufferContents = graphicsBuffer.contents()
+        print(bufferContents)
+        bufferContents.copyMemory(from: data.Pointer, byteCount: Int(data.Length))
     }
 
     func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ worldMatrix: float4x4) {
@@ -173,6 +206,15 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
             // TODO: Switch to metal buffers
             var objectBuffer = ObjectConstantBuffer(worldMatrix)
 
+            if (self.objectParametersBuffer == nil)
+            {
+                return
+            }
+
+            if (self.renderPassParametersBuffer == nil)
+            {
+                return
+            }
             let bufferContents = self.objectParametersBuffer.contents()
             bufferContents.copyMemory(from: &objectBuffer, byteCount: MemoryLayout<ObjectConstantBuffer>.size)
             //self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)

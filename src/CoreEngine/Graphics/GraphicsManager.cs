@@ -16,6 +16,10 @@ namespace CoreEngine.Graphics
         private List<Entity> meshInstancesToRemove;
         private RenderPassConstants renderPassConstants;
         private MemoryBuffer renderPassConstantsMemoryBuffer;
+        private List<GeometryInstance> meshGeometryInstances;
+        private GraphicsBuffer renderPassParametersGraphicsBuffer;
+        private MemoryBuffer objectParametersMemoryBuffer;
+        private GraphicsBuffer objectParametersGraphicsBuffer;
 
         public GraphicsManager(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
         {
@@ -28,6 +32,12 @@ namespace CoreEngine.Graphics
 
             this.renderPassConstantsMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
             this.renderPassConstants = new RenderPassConstants();
+            this.renderPassParametersGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.renderPassConstantsMemoryBuffer.AsSpan());
+
+            this.objectParametersMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(Matrix4x4)));
+            this.objectParametersGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.objectParametersMemoryBuffer.AsSpan());
+
+            this.meshGeometryInstances = new List<GeometryInstance>();
             
             InitResourceLoaders();
         }
@@ -77,7 +87,7 @@ namespace CoreEngine.Graphics
 
         public override void Update()
         {
-            RemoveDeadMeshInstances();
+            ProcessActiveMeshInstances();
             RunRenderPipeline();
             UpdateMeshInstancesStatus(false);
         }
@@ -85,12 +95,13 @@ namespace CoreEngine.Graphics
         private void RunRenderPipeline()
         {
             SetRenderPassConstants(this.renderPassConstants);
-            DrawMeshInstances();
+            DrawGeometryInstances();
         }
 
-        private void RemoveDeadMeshInstances()
+        private void ProcessActiveMeshInstances()
         {
             this.meshInstancesToRemove.Clear();
+            this.meshGeometryInstances.Clear();
 
             // TODO: Replace that with an hybrid dictionary/list
             foreach(var meshInstance in this.meshInstances.Values)
@@ -99,6 +110,17 @@ namespace CoreEngine.Graphics
                 {
                     this.meshInstancesToRemove.Add(meshInstance.Entity);
                 }
+
+                else
+                {
+                    var mesh = meshInstance.Mesh;
+
+                    for (var i = 0; i < mesh.GeometryInstances.Count; i++)
+                    {
+                        var geometryInstance = mesh.GeometryInstances[i];
+                        this.meshGeometryInstances.Add(geometryInstance);
+                    }
+                }
             }
 
             for (var i = 0; i < this.meshInstancesToRemove.Count; i++)
@@ -106,28 +128,31 @@ namespace CoreEngine.Graphics
                 this.meshInstances.Remove(this.meshInstancesToRemove[i]);
             }
         }
-
+bool shaderParametersCreated = false;
         public void SetRenderPassConstants(RenderPassConstants renderPassConstants)
         {
+            if (!shaderParametersCreated)
+            {
+                this.graphicsService.CreateShaderParameters(this.renderPassParametersGraphicsBuffer.Id, this.objectParametersGraphicsBuffer.Id);
+                shaderParametersCreated = true;
+            }
+
             // TODO: Switch to configurable render pass constants
             MemoryMarshal.Write(this.renderPassConstantsMemoryBuffer.AsSpan(), ref renderPassConstants);
-            this.graphicsService.SetRenderPassConstants(this.renderPassConstantsMemoryBuffer);
+            this.graphicsService.UploadDataToGraphicsBuffer(this.renderPassParametersGraphicsBuffer.Id, this.renderPassConstantsMemoryBuffer);
         }
 
-        public void DrawMeshInstances()
+        public void DrawGeometryInstances()
         {
-            // TODO: Replace that with an hybrid dictionary/list
-            foreach(var meshInstance in this.meshInstances.Values)
+            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
             {
-                var mesh = meshInstance.Mesh;
+                // TODO: Switch to configurable render pass constants
+                // MemoryMarshal.Write(this.objectParametersMemoryBuffer.AsSpan(), ref this.meshGeometryInstances[i]);
+                // this.graphicsService.UploadDataToGraphicsBuffer(this.objectParametersGraphicsBuffer.Id, this.objectParametersMemoryBuffer);
 
-                for (var i = 0; i < mesh.GeometryInstances.Count; i++)
-                {
-                    var geometryInstance = mesh.GeometryInstances[i];
-
-                    // TODO: Add shader and primitive type
-                    this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, meshInstance.WorldMatrix);
-                }
+                // TODO: Process object parameters
+                var geometryInstance = this.meshGeometryInstances[i];
+                this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, Matrix4x4.Identity);
             }
         }
 

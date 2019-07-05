@@ -59,34 +59,9 @@ void DestroyMemoryBuffer(void* memoryManagerContext, unsigned int memoryBufferId
 
 }
 
-Vector2 GetRenderSize(void* graphicsContext)
+WindowsCoreEngineHost::WindowsCoreEngineHost(WindowsDirect3D12Renderer* renderer)
 {
-    return Vector2();
-}
-
-unsigned int CreateShader(void* graphicsContext, struct MemoryBuffer shaderByteCode)
-{
-    return 0;
-}
-
-unsigned int CreateGraphicsBuffer(void* graphicsContext, ::MemoryBuffer data)
-{
-    return 0;
-}
-
-void SetRenderPassConstants(void* graphicsContext, struct MemoryBuffer data)
-{
-
-}
-
-void DrawPrimitives(void* graphicsContext, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, struct Matrix4x4 worldMatrix)
-{
-    OutputDebugString("Draw Primitives\n");
-}
-
-WindowsCoreEngineHost::WindowsCoreEngineHost()
-{
-
+    this->renderer = renderer;
 }
 
 void WindowsCoreEngineHost::StartEngine(hstring appName)
@@ -103,11 +78,7 @@ void WindowsCoreEngineHost::StartEngine(hstring appName)
     hostPlatform.MemoryService.CreateMemoryBuffer = CreateMemoryBuffer;
     hostPlatform.MemoryService.DestroyMemoryBuffer = DestroyMemoryBuffer;
 
-    hostPlatform.GraphicsService.GetRenderSize = GetRenderSize;
-    hostPlatform.GraphicsService.CreateShader = CreateShader;
-    hostPlatform.GraphicsService.CreateGraphicsBuffer = CreateGraphicsBuffer;
-    hostPlatform.GraphicsService.SetRenderPassConstants = SetRenderPassConstants;
-    hostPlatform.GraphicsService.DrawPrimitives = DrawPrimitives;
+    this->renderer->InitGraphicsService(&hostPlatform.GraphicsService);
 
     hostPlatform.InputsService.GetInputsState = GetInputsState;
     hostPlatform.InputsService.SendVibrationCommand = SendVibrationCommand;

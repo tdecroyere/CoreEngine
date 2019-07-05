@@ -204,7 +204,6 @@ function CopyFiles
     Copy-Item "*.pdb" "..\Windows"
     Copy-Item "AppxManifest.xml" "..\Windows"
     Copy-Item "CoreEngine.exe" "..\Windows"
-    Copy-Item "CoreEngineConsole.exe" "..\Windows"
 
     Pop-Location
 }

@@ -10,6 +10,8 @@
 #include <dxgi1_5.h>
 #endif
 
+#include "../Common/CoreEngine.h"
+
 #define ReturnIfFailed(expression) if (FAILED(expression)) { OutputDebugStringA("ERROR: DirectX12 Init error!\n"); return false; };
 #define ArrayCount(value) ((sizeof(value) / sizeof(value[0])))
 
@@ -35,38 +37,27 @@ namespace impl
         D3D12_PLACED_SUBRESOURCE_FOOTPRINT SubResourceFootPrint;
     };
 
-    class Direct3D12
+    class WindowsDirect3D12Renderer
     {
     public:
-        Direct3D12() {}
-        D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
-        Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, int width, int height, DXGI_FORMAT format);
-        void UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture);
-        D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
+        WindowsDirect3D12Renderer(const CoreWindow& window, int width, int height, int refreshRate);
+        ~WindowsDirect3D12Renderer();
 
-        void Direct32D2EnableDebugLayer();
-        void Direct32D2WaitForPreviousFrame();
-        bool Direct3D12CreateDevice(const com_ptr<IDXGIFactory4> dxgiFactory, const com_ptr<IDXGIAdapter4> graphicsAdapter, const CoreWindow& window, int width, int height);
-        bool Direct3D12InitSizeDependentResources();
+        void InitGraphicsService(GraphicsService* graphicsService);
 
-        bool Direct3D12CreateSpriteRootSignature();
-        bool Direct3D12CreateCheckBoardRootSignature();
-        com_ptr<ID3D12PipelineState> Direct3D12CreatePipelineState(ID3D12RootSignature* rootSignature, char* shaderCode);
-        bool Direct3D12CreateSpritePSO();
-        bool Direct3D12CreateCheckBoardPSO();
-        bool Direct3D12CreateResources();
+        Vector2 GetRenderSize();
+        unsigned int CreateShader(::MemoryBuffer shaderByteCode);
+        unsigned int CreateGraphicsBuffer(::MemoryBuffer data);
+        unsigned int CreateShaderParameters(unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
+        void UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, ::MemoryBuffer data);
+        void DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, int objectPropertyIndex);
 
-        void Direct3D12Init(const CoreWindow& window, int width, int height, int refreshRate);
-        void Direct3D12Destroy();
-
-        void Direct3D12BeginFrame();
-        void Direct3D12EndFrame();
-        void Direct3D12PresentScreenBuffer();
-        bool Direct3D12SwitchScreenMode();
+        void BeginFrame();
+        void EndFrame();
+        void PresentScreenBuffer();
+        bool SwitchScreenMode();
 
     private:
-        com_ptr<IDXGIAdapter4> FindGraphicsAdapter(const com_ptr<IDXGIFactory4> dxgiFactory);
-
         bool IsInitialized;
         bool IsFullscreen;
         int Width;
@@ -90,10 +81,11 @@ namespace impl
         D3D12_RESOURCE_BARRIER PresentToRenderTargetBarriers[RenderBuffersCountConst];
         D3D12_RESOURCE_BARRIER RenderTargetToPresentBarriers[RenderBuffersCountConst];
 
+        com_ptr<ID3D12PipelineState> pipelineState;
+        com_ptr<ID3D12RootSignature> rootSignature;
+
         com_ptr<ID3D12PipelineState> SpritePSO;
         com_ptr<ID3D12RootSignature> SpriteRootSignature;
-        com_ptr<ID3D12PipelineState> CheckBoardPSO;
-        com_ptr<ID3D12RootSignature> CheckBoardRootSignature;
 
         Direct3D12Texture Texture;
 
@@ -107,8 +99,23 @@ namespace impl
         uint64_t FrameFenceValues[RenderBuffersCountConst] = {};
         uint64_t FenceValue;
         HANDLE FenceEvent;
+
+        com_ptr<IDXGIAdapter4> FindGraphicsAdapter(const com_ptr<IDXGIFactory4> dxgiFactory);
+        Direct3D12Texture Direct3D12CreateTexture(ID3D12Device* device, int width, int height, DXGI_FORMAT format);
+        void UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture);
+        D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
+
+        void Direct32D2EnableDebugLayer();
+        void Direct32D2WaitForPreviousFrame();
+        bool Direct3D12CreateDevice(const com_ptr<IDXGIFactory4> dxgiFactory, const com_ptr<IDXGIAdapter4> graphicsAdapter, const CoreWindow& window, int width, int height);
+        bool Direct3D12InitSizeDependentResources();
+
+        bool Direct3D12CreateSpriteRootSignature();
+        com_ptr<ID3D12PipelineState> Direct3D12CreatePipelineState(ID3D12RootSignature* rootSignature, char* shaderCode);
+        bool Direct3D12CreateSpritePSO();
+        bool Direct3D12CreateResources();
     };
 };
 
 using ::impl::Direct3D12Texture;
-using ::impl::Direct3D12;
+using ::impl::WindowsDirect3D12Renderer;

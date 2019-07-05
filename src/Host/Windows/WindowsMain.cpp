@@ -2,7 +2,7 @@
 
 #include "WindowsCommon.h"
 #include "WindowsCoreEngineHost.h"
-#include "WindowsDirect3D12.h"
+#include "WindowsDirect3D12Renderer.h"
 
 using namespace winrt;
 using namespace Windows::ApplicationModel;
@@ -26,7 +26,7 @@ private:
 	int logicalWidth;
 	int logicalHeight;
     WindowsCoreEngineHost* coreEngineHost;
-    Direct3D12* direct3D12;
+    WindowsDirect3D12Renderer* renderer;
 
     inline int ConvertDipsToPixels(float dips) const
     {
@@ -72,7 +72,11 @@ public:
 
     void Uninitialize()
     {
-
+        if (this->renderer != nullptr)
+        {
+            delete this->renderer;
+            this->renderer = nullptr;
+        }
     }
 
 	void SetWindow(const CoreWindow& window)
@@ -101,7 +105,6 @@ public:
         currentDisplayInformation.DpiChanged({ this, &MainApplicationView::OnDpiChanged });
         DisplayInformation::DisplayContentsInvalidated({ this, &MainApplicationView::OnDisplayContentsInvalidated });
 
-
         this->systemDpi = DisplayInformation::GetForCurrentView().LogicalDpi();
         
         this->logicalWidth = window.Bounds().Width;
@@ -110,8 +113,7 @@ public:
         int outputWidth = ConvertDipsToPixels(this->logicalWidth);
         int outputHeight = ConvertDipsToPixels(this->logicalHeight);
 
-        this->direct3D12 = new Direct3D12();
-        this->direct3D12->Direct3D12Init(window, outputWidth, outputHeight, 60);
+        this->renderer = new WindowsDirect3D12Renderer(window, outputWidth, outputHeight, 60);
     }
 
     void Load(const hstring& entryPoint)
@@ -126,9 +128,9 @@ public:
             {
                 this->coreEngineHost->UpdateEngine(1);
 
-                this->direct3D12->Direct3D12BeginFrame();
-                this->direct3D12->Direct3D12EndFrame();
-                this->direct3D12->Direct3D12PresentScreenBuffer();
+                this->renderer->BeginFrame();
+                this->renderer->EndFrame();
+                this->renderer->PresentScreenBuffer();
 
                 CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
             }
@@ -163,7 +165,7 @@ public:
 
         CoreWindow::GetForCurrentThread().Activate();
 
-        this->coreEngineHost = new WindowsCoreEngineHost();
+        this->coreEngineHost = new WindowsCoreEngineHost(this->renderer);
         this->coreEngineHost->StartEngine(appName);
     }
 

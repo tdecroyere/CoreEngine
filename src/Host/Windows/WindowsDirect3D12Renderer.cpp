@@ -1,7 +1,9 @@
 #pragma once
 
 #include "WindowsCommon.h"
-#include "WindowsDirect3D12.h"
+#include "WindowsDirect3D12Renderer.h"
+#include "WindowsDirect3D12RendererInterop.h"
+#include "WindowsDirect3D12RendererUtils.h"
 
 using namespace winrt;
 using namespace Windows::UI::Core;
@@ -21,21 +23,264 @@ int StringLength(char* string)
 	return length;
 }
 
-D3D12_RESOURCE_BARRIER Direct3D12::CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+WindowsDirect3D12Renderer::WindowsDirect3D12Renderer(const CoreWindow& window, int width, int height, int refreshRate)
 {
-	D3D12_RESOURCE_BARRIER resourceBarrier = {};
+	this->RenderBuffersCount = RenderBuffersCountConst;
+	this->Width = width;
+	this->Height = height;
+	this->BytesPerPixel = 4;
+	this->RefreshRate = refreshRate;
+	this->Pitch = this->Width * this->BytesPerPixel;
 
-	resourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	resourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	resourceBarrier.Transition.pResource = resource;
-	resourceBarrier.Transition.StateBefore = stateBefore;
-	resourceBarrier.Transition.StateAfter = stateAfter;
-	resourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    UINT createFactoryFlags = 0;
 
-	return resourceBarrier;
+#ifdef DEBUG
+	Direct32D2EnableDebugLayer();
+    createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+	com_ptr<IDXGIFactory4> dxgiFactory;
+	auto hresult = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS_WINRT(dxgiFactory));
+
+	if (FAILED(hresult))
+	{
+		return;
+	}
+
+	auto graphicsAdapter = FindGraphicsAdapter(dxgiFactory);
+	
+	if (!Direct3D12CreateDevice(dxgiFactory, graphicsAdapter, window, width, height))
+	{
+		return;
+	}
+
+	if (!Direct3D12InitSizeDependentResources())
+	{
+		return;
+	}
+
+	if (!Direct3D12CreateSpriteRootSignature())
+	{
+		return;
+	}
+
+	if (!Direct3D12CreateSpritePSO())
+	{
+		return;
+	}
+
+	if (!Direct3D12CreateResources())
+	{
+		return;
+	}
+
+	this->IsInitialized = true;
 }
 
-Direct3D12Texture Direct3D12::Direct3D12CreateTexture(ID3D12Device* device, int width, int height, DXGI_FORMAT format)
+WindowsDirect3D12Renderer::~WindowsDirect3D12Renderer()
+{
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
+	Direct32D2WaitForPreviousFrame();
+
+	// Fullscreen state should always be false before exiting the app.
+	this->SwapChain->SetFullscreenState(false, nullptr);
+
+	CloseHandle(this->FenceEvent);
+}
+
+void WindowsDirect3D12Renderer::InitGraphicsService(GraphicsService* graphicsService) 
+{
+	graphicsService->GraphicsContext = this;
+	graphicsService->GetRenderSize = GetRenderSizeHandle;
+	graphicsService->CreateShader = CreateShaderHandle;
+	graphicsService->CreateShaderParameters = CreateShaderParametersHandle;
+	graphicsService->CreateGraphicsBuffer = CreateGraphicsBufferHandle;
+	graphicsService->UploadDataToGraphicsBuffer = UploadDataToGraphicsBufferHandle;
+	graphicsService->DrawPrimitives = DrawPrimitivesHandle;
+}
+
+Vector2 WindowsDirect3D12Renderer::GetRenderSize()
+{
+	return Vector2() = { (float)this->Width, (float)this->Height };
+}
+
+unsigned int WindowsDirect3D12Renderer::CreateShader(::MemoryBuffer shaderByteCode)
+{
+	auto currentDataPtr = shaderByteCode.Pointer;
+	
+	auto vertexShaderByteCodeLength = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+
+	auto vertexShaderBlob = CreateShaderBlob(currentDataPtr, vertexShaderByteCodeLength);
+	currentDataPtr += vertexShaderByteCodeLength;
+
+	auto pixelShaderByteCodeLength = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+
+	auto pixelShaderBlob = CreateShaderBlob(currentDataPtr, pixelShaderByteCodeLength);
+	currentDataPtr += pixelShaderByteCodeLength;
+
+	auto rootSignatureByteCodeLength = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+
+	auto rootSignatureBlob = CreateShaderBlob(currentDataPtr, rootSignatureByteCodeLength);
+	auto result = this->Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS_WINRT(this->rootSignature));
+
+
+	// Describe and create the graphics pipeline state object (PSO)
+	const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
+	{
+		true,
+		false,
+		D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
+		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+		D3D12_LOGIC_OP_NOOP,
+		D3D12_COLOR_WRITE_ENABLE_ALL,
+	};
+
+	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TexCoord", 0, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.pRootSignature = this->rootSignature.get();
+	psoDesc.InputLayout.NumElements = 2;
+	psoDesc.InputLayout.pInputElementDescs = inputLayout;
+	psoDesc.VS = { vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() };
+	psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
+	psoDesc.SampleMask = 0xFFFFFF;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	psoDesc.SampleDesc.Count = 1;
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	psoDesc.RasterizerState.FrontCounterClockwise = false;
+	psoDesc.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	psoDesc.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	psoDesc.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	psoDesc.RasterizerState.DepthClipEnable = true;
+	psoDesc.RasterizerState.MultisampleEnable = false;
+	psoDesc.RasterizerState.AntialiasedLineEnable = false;
+	psoDesc.RasterizerState.ForcedSampleCount = 0;
+	psoDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	psoDesc.DepthStencilState.DepthEnable = false;
+	psoDesc.DepthStencilState.StencilEnable = false;
+	psoDesc.BlendState.AlphaToCoverageEnable = false;
+	psoDesc.BlendState.IndependentBlendEnable = false;
+
+	for (int i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+	{
+		psoDesc.BlendState.RenderTarget[i] = defaultRenderTargetBlendDesc;
+	}
+
+	result = this->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(this->pipelineState));
+
+	return 0;
+}
+
+unsigned int WindowsDirect3D12Renderer::CreateShaderParameters(unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3)
+{
+	return 0;
+}
+
+unsigned int WindowsDirect3D12Renderer::CreateGraphicsBuffer(::MemoryBuffer data)
+{
+	return 0;
+}
+
+void WindowsDirect3D12Renderer::UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, ::MemoryBuffer data)
+{
+
+}
+
+void WindowsDirect3D12Renderer::DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, int objectPropertyIndex)
+{
+
+}
+
+void WindowsDirect3D12Renderer::BeginFrame()
+{
+	// TODO: Add more log on return codes
+	this->CommandAllocator->Reset();
+	this->CommandList->Reset(this->CommandAllocator.get(), nullptr);
+
+	this->CommandList->RSSetViewports(1, &this->Viewport);
+	this->CommandList->RSSetScissorRects(1, &this->ScissorRect);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
+
+	this->CommandList->ResourceBarrier(1, &this->PresentToRenderTargetBarriers[this->CurrentBackBufferIndex]);
+	this->CommandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
+
+	float clearColor[4] = { 0.0f, 0.215f, 1.0f, 0.0f };
+	this->CommandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
+
+	this->CommandList->SetPipelineState(this->pipelineState.get());
+	this->CommandList->SetGraphicsRootSignature(this->rootSignature.get());
+}
+
+void WindowsDirect3D12Renderer::EndFrame()
+{
+	// ID3D12DescriptorHeap* ppHeaps[] = { this->SrvDescriptorHeap.get() };
+	// this->CommandList->SetDescriptorHeaps(ArrayCount(ppHeaps), ppHeaps);
+
+	/*this->CommandList->SetGraphicsRootDescriptorTable(0, this->SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());*/
+
+	/*this->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	this->CommandList->DrawInstanced(3, 1, 0, 0);*/
+
+	this->CommandList->ResourceBarrier(1, &this->RenderTargetToPresentBarriers[this->CurrentBackBufferIndex]);
+	this->CommandList->Close();
+
+	ID3D12CommandList* commandLists[] = { this->CommandList.get() };
+	this->CommandQueue->ExecuteCommandLists(1, commandLists);
+}
+
+void WindowsDirect3D12Renderer::PresentScreenBuffer()
+{
+	// TODO: Take into account the refresh rate passed in init method (and compute the present delay from the real
+	// monitor refresh rate)
+	int presentInterval = 1;
+
+	if (!this->VSync)
+	{
+		presentInterval = 0;
+	}
+
+	else if (this->RefreshRate == 30 || this->RefreshRate == 29)
+	{
+		presentInterval = 2;
+	}
+
+	this->SwapChain->Present(presentInterval, 0);
+
+	// TODO: Change the way the GPU sync with the CPU
+	Direct32D2WaitForPreviousFrame();
+}
+
+bool WindowsDirect3D12Renderer::SwitchScreenMode()
+{
+	BOOL fullscreenState;
+	ReturnIfFailed(this->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
+
+	if (FAILED(this->SwapChain->SetFullscreenState(!fullscreenState, nullptr)))
+	{
+		// Transitions to fullscreen mode can fail when running apps over
+		// terminal services or for some other unexpected reason.  Consider
+		// notifying the user in some way when this happens.
+		OutputDebugStringA("Fullscreen transition failed");
+		return false;
+	}
+
+	this->IsFullscreen = !fullscreenState;
+	return true;
+}
+
+Direct3D12Texture WindowsDirect3D12Renderer::Direct3D12CreateTexture(ID3D12Device* device, int width, int height, DXGI_FORMAT format)
 {
 	Direct3D12Texture texture = {};
 	texture.Width = width;
@@ -132,7 +377,7 @@ Direct3D12Texture Direct3D12::Direct3D12CreateTexture(ID3D12Device* device, int 
 	return texture;
 }
 
-void Direct3D12::UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture)
+void WindowsDirect3D12Renderer::UploadTextureData(ID3D12GraphicsCommandList* commandList, const Direct3D12Texture& texture)
 {
 	commandList->ResourceBarrier(1, &texture.PixelShaderToCopyDestBarrier);
 
@@ -150,7 +395,7 @@ void Direct3D12::UploadTextureData(ID3D12GraphicsCommandList* commandList, const
 	commandList->ResourceBarrier(1, &texture.CopyDestToPixelShaderBarrier);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Direct3D12::GetCurrentRenderTargetViewHandle()
+D3D12_CPU_DESCRIPTOR_HANDLE WindowsDirect3D12Renderer::GetCurrentRenderTargetViewHandle()
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = {};
 	renderTargetViewHandle.ptr = this->RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + this->CurrentBackBufferIndex * this->RtvDescriptorHandleSize;
@@ -158,7 +403,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE Direct3D12::GetCurrentRenderTargetViewHandle()
 	return renderTargetViewHandle;
 }
 
-void Direct3D12::Direct32D2EnableDebugLayer()
+void WindowsDirect3D12Renderer::Direct32D2EnableDebugLayer()
 {
 	// If the project is in a debug build, enable debugging via SDK Layers.
 	com_ptr<ID3D12Debug> debugController;
@@ -171,7 +416,7 @@ void Direct3D12::Direct32D2EnableDebugLayer()
 	}
 }
 
-void Direct3D12::Direct32D2WaitForPreviousFrame()
+void WindowsDirect3D12Renderer::Direct32D2WaitForPreviousFrame()
 {
 	// TODO:
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
@@ -193,7 +438,7 @@ void Direct3D12::Direct32D2WaitForPreviousFrame()
 	this->CurrentBackBufferIndex = this->SwapChain->GetCurrentBackBufferIndex();
 }
 
-bool Direct3D12::Direct3D12CreateDevice(const com_ptr<IDXGIFactory4> dxgiFactory, const com_ptr<IDXGIAdapter4> graphicsAdapter, const CoreWindow& window, int width, int height)
+bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactory4> dxgiFactory, const com_ptr<IDXGIAdapter4> graphicsAdapter, const CoreWindow& window, int width, int height)
 {
 	// Created Direct3D Device
 	HRESULT result = D3D12CreateDevice(graphicsAdapter.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(this->Device));
@@ -265,7 +510,7 @@ bool Direct3D12::Direct3D12CreateDevice(const com_ptr<IDXGIFactory4> dxgiFactory
 	return true;
 }
 
-bool Direct3D12::Direct3D12InitSizeDependentResources()
+bool WindowsDirect3D12Renderer::Direct3D12InitSizeDependentResources()
 {
 	int width = this->Width;
 	int height = this->Height;
@@ -316,7 +561,7 @@ bool Direct3D12::Direct3D12InitSizeDependentResources()
 	return true;
 }
 
-bool Direct3D12::Direct3D12CreateSpriteRootSignature()
+bool WindowsDirect3D12Renderer::Direct3D12CreateSpriteRootSignature()
 {
 	D3D12_DESCRIPTOR_RANGE ranges[1];
 	ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -362,32 +607,7 @@ bool Direct3D12::Direct3D12CreateSpriteRootSignature()
 	return true;
 }
 
-bool Direct3D12::Direct3D12CreateCheckBoardRootSignature()
-{
-	D3D12_ROOT_PARAMETER rootParameter = {};
-	rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-	rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParameter.Constants.RegisterSpace = 0;
-	rootParameter.Constants.ShaderRegister = 0;
-	rootParameter.Constants.Num32BitValues = 12;
-
-	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-	rootSignatureDesc.NumParameters = 1;
-	rootSignatureDesc.pParameters = &rootParameter;
-	rootSignatureDesc.NumStaticSamplers = 0;
-	rootSignatureDesc.pStaticSamplers = nullptr;
-	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	com_ptr<ID3DBlob> signature;
-	com_ptr<ID3DBlob> error;
-
-	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
-	ReturnIfFailed((this->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(this->CheckBoardRootSignature))));
-
-	return true;
-}
-
-com_ptr<ID3D12PipelineState> Direct3D12::Direct3D12CreatePipelineState(ID3D12RootSignature* rootSignature, char* shaderCode)
+com_ptr<ID3D12PipelineState> WindowsDirect3D12Renderer::Direct3D12CreatePipelineState(ID3D12RootSignature* rootSignature, char* shaderCode)
 {
 	// Create the pipeline state, which includes compiling and loading shaders
 	com_ptr<ID3DBlob> vertexShader;
@@ -450,17 +670,13 @@ com_ptr<ID3D12PipelineState> Direct3D12::Direct3D12CreatePipelineState(ID3D12Roo
 	return pipelineState;
 }
 
-bool Direct3D12::Direct3D12CreateSpritePSO()
+bool WindowsDirect3D12Renderer::Direct3D12CreateSpritePSO()
 {
 	// TODO: Move the shader code to a separate file
 	char* shaderCode = "struct PSInput\
 						{\
 								float4 position : SV_POSITION;\
-							float2 uv : TEXCOORD;\
 						};\
-						\
-						Texture2D g_texture : register(t0);\
-						SamplerState g_sampler : register(s0);\
 						\
 						PSInput VSMain(uint vertexId : SV_VertexID)\
 						{\
@@ -468,33 +684,24 @@ bool Direct3D12::Direct3D12CreateSpritePSO()
 						\
 							if(vertexId == 0)\
 							{\
-								result.position = float4(-1.0, -1.0f, 0.0f, 1.0f);\
-								result.uv = float2(0.0, 1.0);\
+								result.position = float4(-0.5, -0.5f, 0.0f, 1.0f);\
 							}\
 					\
 							else if (vertexId == 1)\
 							{\
-								result.position = float4(-1.0, 1.0f, 0.0f, 1.0f); \
-								result.uv = float2(0.0, 0.0); \
+								result.position = float4(0.0, 0.5f, 0.0f, 1.0f); \
 							}\
 \
 							else if (vertexId == 2)\
 							{\
-								result.position = float4(1.0, -1.0f, 0.0f, 1.0f); \
-								result.uv = float2(1.0, 1.0); \
-							}\
-\
-							else if (vertexId == 3)\
-							{\
-								result.position = float4(1.0, 1.0f, 0.0f, 1.0f); \
-								result.uv = float2(1.0, 0.0); \
+								result.position = float4(0.5, -0.5, 0.0f, 1.0f); \
 							}\
 							return result;\
 						}\
 						\
 						float4 PSMain(PSInput input) : SV_TARGET\
 						{\
-							return g_texture.Sample(g_sampler, input.uv);\
+							return float4(0, 1.0, 0, 1.0);\
 						}";
 
 	this->SpritePSO = Direct3D12CreatePipelineState(this->SpriteRootSignature.get(), shaderCode);
@@ -507,84 +714,7 @@ bool Direct3D12::Direct3D12CreateSpritePSO()
 	return true;
 }
 
-bool Direct3D12::Direct3D12CreateCheckBoardPSO()
-{
-	// TODO: Move the shader code to a separate file
-	char* shaderCode = "struct PSInput\
-						{\
-								float4 position : SV_POSITION;\
-								float2 uv : TEXCOORD;\
-						};\
-						\
-						cbuffer RootConstants : register(b0)\
-						{\
-							float2 Offset;\
-							float2 Size;\
-							float4 Color1;\
-							float4 Color2;\
-						}\
-						PSInput VSMain(uint vertexId : SV_VertexID)\
-						{\
-							PSInput result;\
-						\
-							if(vertexId == 0)\
-							{\
-								result.position = float4(-1.0, -1.0f, 0.0f, 1.0f);\
-								result.uv = float2(0.0, 1.0);\
-							}\
-					\
-							else if (vertexId == 1)\
-							{\
-								result.position = float4(-1.0, 1.0f, 0.0f, 1.0f); \
-								result.uv = float2(0.0, 0.0); \
-							}\
-\
-							else if (vertexId == 2)\
-							{\
-								result.position = float4(1.0, -1.0f, 0.0f, 1.0f); \
-								result.uv = float2(1.0, 1.0); \
-							}\
-\
-							else if (vertexId == 3)\
-							{\
-								result.position = float4(1.0, 1.0f, 0.0f, 1.0f); \
-								result.uv = float2(1.0, 0.0); \
-							}\
-							return result;\
-						}\
-						\
-						float mod(float x, float y)\
-						{\
-							return x - y * floor(x / y); \
-						}\
-						\
-						float4 PSMain(PSInput input) : SV_TARGET\
-						{\
-							float i = floor((input.uv.y * Size.y + Offset.y) / 32);\
-							float j = floor((input.uv.x * Size.x + Offset.x) / 32);\
-							\
-							if(mod(i, 2) == mod(j, 2))\
-							{\
-								return Color1;\
-							}\
-							\
-							else\
-							{\
-								return Color2;\
-							}\
-						}";
-
-	this->CheckBoardPSO = Direct3D12CreatePipelineState(this->CheckBoardRootSignature.get(), shaderCode);
-
-	if (this->CheckBoardPSO == nullptr)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-bool Direct3D12::Direct3D12CreateResources()
+bool WindowsDirect3D12Renderer::Direct3D12CreateResources()
 {
 	this->Texture = Direct3D12CreateTexture(this->Device.get(), this->Width, this->Height, DXGI_FORMAT_B8G8R8A8_UNORM);
 	
@@ -601,176 +731,7 @@ bool Direct3D12::Direct3D12CreateResources()
 	return true;
 }
 
-void Direct3D12::Direct3D12Init(const CoreWindow& window, int width, int height, int refreshRate)
-{
-	this->RenderBuffersCount = RenderBuffersCountConst;
-	this->Width = width;
-	this->Height = height;
-	this->BytesPerPixel = 4;
-	this->RefreshRate = refreshRate;
-	this->Pitch = this->Width * this->BytesPerPixel;
-
-    UINT createFactoryFlags = 0;
-
-#ifdef DEBUG
-	Direct32D2EnableDebugLayer();
-    createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-	com_ptr<IDXGIFactory4> dxgiFactory;
-	HRESULT hresult = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory));
-
-	if (FAILED(hresult))
-	{
-		return;
-	}
-
-	com_ptr<IDXGIAdapter4> graphicsAdapter = FindGraphicsAdapter(dxgiFactory);
-	bool result = Direct3D12CreateDevice(dxgiFactory, graphicsAdapter, window, width, height);
-
-	if (!result)
-	{
-		return;
-	}
-
-	result = Direct3D12InitSizeDependentResources();
-
-	if (!result)
-	{
-		return;
-	}
-
-	result = Direct3D12CreateSpriteRootSignature();
-
-	if (!result)
-	{
-		return;
-	}
-
-	result = Direct3D12CreateSpritePSO();
-
-	if (!result)
-	{
-		return;
-	}
-
-	result = Direct3D12CreateCheckBoardRootSignature();
-
-	if (!result)
-	{
-		return;
-	}
-
-	result = Direct3D12CreateCheckBoardPSO();
-
-	if (!result)
-	{
-		return;
-	}
-
-	result = Direct3D12CreateResources();
-	
-	if (!result)
-	{
-		return;
-	}
-
-	this->IsInitialized = true;
-}
-
-void Direct3D12::Direct3D12BeginFrame()
-{
-	// TODO: Add more log on return codes
-	this->CommandAllocator->Reset();
-	this->CommandList->Reset(this->CommandAllocator.get(), nullptr);
-
-	this->CommandList->RSSetViewports(1, &this->Viewport);
-	this->CommandList->RSSetScissorRects(1, &this->ScissorRect);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
-
-	this->CommandList->ResourceBarrier(1, &this->PresentToRenderTargetBarriers[this->CurrentBackBufferIndex]);
-	this->CommandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
-
-	float clearColor[4] = { 0.0f, 0.215f, 1.0f, 0.0f };
-	this->CommandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
-}
-
-void Direct3D12::Direct3D12EndFrame()
-{
-	this->CommandList->SetPipelineState(this->SpritePSO.get());
-	this->CommandList->SetGraphicsRootSignature(this->SpriteRootSignature.get());
-
-	ID3D12DescriptorHeap* ppHeaps[] = { this->SrvDescriptorHeap.get() };
-	this->CommandList->SetDescriptorHeaps(ArrayCount(ppHeaps), ppHeaps);
-
-	this->CommandList->SetGraphicsRootDescriptorTable(0, this->SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-	//UploadTextureData(direct3D12->CommandList.get(), direct3D12->Texture);
-
-	this->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	this->CommandList->DrawInstanced(4, 1, 0, 0);
-
-	this->CommandList->ResourceBarrier(1, &this->RenderTargetToPresentBarriers[this->CurrentBackBufferIndex]);
-	this->CommandList->Close();
-
-	ID3D12CommandList* commandLists[] = { this->CommandList.get() };
-	this->CommandQueue->ExecuteCommandLists(1, commandLists);
-}
-
-void Direct3D12::Direct3D12PresentScreenBuffer()
-{
-	// TODO: Take into account the refresh rate passed in init method (and compute the present delay from the real
-	// monitor refresh rate)
-	int presentInterval = 1;
-
-	if (!this->VSync)
-	{
-		presentInterval = 0;
-	}
-
-	else if (this->RefreshRate == 30 || this->RefreshRate == 29)
-	{
-		presentInterval = 2;
-	}
-
-	this->SwapChain->Present(presentInterval, 0);
-
-	// TODO: Change the way the GPU sync with the CPU
-	Direct32D2WaitForPreviousFrame();
-}
-
-bool Direct3D12::Direct3D12SwitchScreenMode()
-{
-	BOOL fullscreenState;
-	ReturnIfFailed(this->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
-
-	if (FAILED(this->SwapChain->SetFullscreenState(!fullscreenState, nullptr)))
-	{
-		// Transitions to fullscreen mode can fail when running apps over
-		// terminal services or for some other unexpected reason.  Consider
-		// notifying the user in some way when this happens.
-		OutputDebugStringA("Fullscreen transition failed");
-		return false;
-	}
-
-	this->IsFullscreen = !fullscreenState;
-	return true;
-}
-
-void Direct3D12::Direct3D12Destroy()
-{
-	// Ensure that the GPU is no longer referencing resources that are about to be
-	// cleaned up by the destructor.
-	Direct32D2WaitForPreviousFrame();
-
-	// Fullscreen state should always be false before exiting the app.
-	this->SwapChain->SetFullscreenState(false, nullptr);
-
-	CloseHandle(this->FenceEvent);
-}
-
-com_ptr<IDXGIAdapter4> Direct3D12::FindGraphicsAdapter(const com_ptr<IDXGIFactory4> dxgiFactory)
+com_ptr<IDXGIAdapter4> WindowsDirect3D12Renderer::FindGraphicsAdapter(const com_ptr<IDXGIFactory4> dxgiFactory)
 {	
     com_ptr<IDXGIAdapter1> dxgiAdapter1;
 	com_ptr<IDXGIAdapter4> dxgiAdapter4;

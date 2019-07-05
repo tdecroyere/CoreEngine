@@ -28,7 +28,7 @@ namespace CoreEngine
                 var rotationX = MathUtils .DegreesToRad(tranform.RotationX);
                 var rotationY = MathUtils.DegreesToRad(tranform.RotationY);
                 var rotationZ = MathUtils.DegreesToRad(tranform.RotationZ);
-                var translation = Matrix4x4.CreateTranslation(tranform.Position);
+                var translation = MathUtils.CreateTranslation(tranform.Position);
 
                 var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
 

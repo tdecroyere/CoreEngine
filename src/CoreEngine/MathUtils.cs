@@ -46,5 +46,18 @@ namespace CoreEngine
                                  row1.Z, row2.Z, row3.Z, row4.Z,
                                  row1.W, row2.W, row3.W, row4.W);
         }
+
+        public static Matrix4x4 CreateTranslation(Vector3 translationVector)
+		{
+            var row1 = new Vector4(1, 0, 0, 0);
+            var row2 = new Vector4(0, 1, 0, 0);
+            var row3 = new Vector4(0, 0, 1, 0);
+            var row4 = new Vector4(translationVector.X, translationVector.Y, translationVector.Z, 1);
+
+			return new Matrix4x4(row1.X, row2.X, row3.X, row4.X,
+                                 row1.Y, row2.Y, row3.Y, row4.Y,
+                                 row1.Z, row2.Z, row3.Z, row4.Z,
+                                 row1.W, row2.W, row3.W, row4.W);
+		}
     }
 }

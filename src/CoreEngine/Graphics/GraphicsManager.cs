@@ -6,6 +6,11 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
+    public struct ObjectProperties
+    {
+        public Matrix4x4 WorldMatrix { get; set; }
+    }
+
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
     public class GraphicsManager : SystemManager
     {
@@ -15,11 +20,16 @@ namespace CoreEngine.Graphics
         private Dictionary<Entity, MeshInstance> meshInstances;
         private List<Entity> meshInstancesToRemove;
         private RenderPassConstants renderPassConstants;
-        private MemoryBuffer renderPassConstantsMemoryBuffer;
         private List<GeometryInstance> meshGeometryInstances;
+        private List<int> meshGeometryInstancesParamIdList;
+        private MemoryBuffer renderPassConstantsMemoryBuffer;
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
-        private MemoryBuffer objectParametersMemoryBuffer;
-        private GraphicsBuffer objectParametersGraphicsBuffer;
+        private MemoryBuffer vertexShaderParametersMemoryBuffer;
+        private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
+
+        private MemoryBuffer objectPropertiesMemoryBuffer;
+        private GraphicsBuffer objectPropertiesGraphicsBuffer;
+        private int currentObjectPropertyIndex = 0;
 
         public GraphicsManager(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
         {
@@ -34,10 +44,14 @@ namespace CoreEngine.Graphics
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.renderPassConstantsMemoryBuffer.AsSpan());
 
-            this.objectParametersMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(Matrix4x4)));
-            this.objectParametersGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.objectParametersMemoryBuffer.AsSpan());
+            this.vertexShaderParametersMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(int)) * 1024);
+            this.vertexShaderParametersGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.vertexShaderParametersMemoryBuffer.AsSpan());
+
+            this.objectPropertiesMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 256);
+            this.objectPropertiesGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.objectPropertiesMemoryBuffer.AsSpan());
 
             this.meshGeometryInstances = new List<GeometryInstance>();
+            this.meshGeometryInstancesParamIdList = new List<int>();
             
             InitResourceLoaders();
         }
@@ -63,21 +77,45 @@ namespace CoreEngine.Graphics
             if (this.meshInstances.ContainsKey(entity))
             {
                 this.meshInstances[entity].Mesh = mesh;
-                this.meshInstances[entity].WorldMatrix = worldMatrix;
                 this.meshInstances[entity].IsAlive = true;
+
+                if (this.meshInstances[entity].WorldMatrix != worldMatrix)
+                {
+                    this.meshInstances[entity].WorldMatrix = worldMatrix;
+                    this.meshInstances[entity].IsDirty = true;
+
+                    
+                }
+
+                else
+                {
+                    this.meshInstances[entity].IsDirty = false;
+                }
+
+                // TODO: Move that to a proper update function
+                // TODO: IsDirty is not taken into account for the moment
+                var objectProperties = new ObjectProperties() { WorldMatrix = worldMatrix };
+                var objectPropertiesIndex = this.meshInstances[entity].ObjectPropertiesIndex;
+                var objectPropertiesOffset = objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
+
+                var objectBufferSpan = this.objectPropertiesMemoryBuffer.AsSpan().Slice(objectPropertiesOffset);
+                MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
             }
 
             else
             {
-                this.meshInstances.Add(entity, new MeshInstance(entity, mesh, worldMatrix));
+                this.meshInstances.Add(entity, new MeshInstance(entity, mesh, worldMatrix, this.currentObjectPropertyIndex));
+                this.currentObjectPropertyIndex++;
             }
         }
         
-        public void UpdateCamera(in Matrix4x4 viewMatrix)
+        public void UpdateCamera(Matrix4x4 viewMatrix)
         {
             var renderSize = this.graphicsService.GetRenderSize();
             var renderWidth = renderSize.X;
             var renderHeight = renderSize.Y;
+
+            // TODO: Try to update directly the host memory buffer
 
             this.renderPassConstants.ViewMatrix = viewMatrix;
 
@@ -102,6 +140,7 @@ namespace CoreEngine.Graphics
         {
             this.meshInstancesToRemove.Clear();
             this.meshGeometryInstances.Clear();
+            this.meshGeometryInstancesParamIdList.Clear();
 
             // TODO: Replace that with an hybrid dictionary/list
             foreach(var meshInstance in this.meshInstances.Values)
@@ -119,6 +158,7 @@ namespace CoreEngine.Graphics
                     {
                         var geometryInstance = mesh.GeometryInstances[i];
                         this.meshGeometryInstances.Add(geometryInstance);
+                        this.meshGeometryInstancesParamIdList.Add(meshInstance.ObjectPropertiesIndex);
                     }
                 }
             }
@@ -133,26 +173,37 @@ bool shaderParametersCreated = false;
         {
             if (!shaderParametersCreated)
             {
-                this.graphicsService.CreateShaderParameters(this.renderPassParametersGraphicsBuffer.Id, this.objectParametersGraphicsBuffer.Id);
+                this.graphicsService.CreateShaderParameters(this.renderPassParametersGraphicsBuffer.Id, this.objectPropertiesGraphicsBuffer.Id, this.vertexShaderParametersGraphicsBuffer.Id);
                 shaderParametersCreated = true;
             }
 
             // TODO: Switch to configurable render pass constants
             MemoryMarshal.Write(this.renderPassConstantsMemoryBuffer.AsSpan(), ref renderPassConstants);
             this.graphicsService.UploadDataToGraphicsBuffer(this.renderPassParametersGraphicsBuffer.Id, this.renderPassConstantsMemoryBuffer);
+
+            // TODO: Only update partially the buffer?
+            this.graphicsService.UploadDataToGraphicsBuffer(this.objectPropertiesGraphicsBuffer.Id, this.objectPropertiesMemoryBuffer);
         }
 
         public void DrawGeometryInstances()
         {
+            var vertexShaderParametersSpan = this.vertexShaderParametersMemoryBuffer.AsSpan();
+            vertexShaderParametersSpan.Clear();
+
             for (var i = 0; i < this.meshGeometryInstances.Count; i++)
             {
-                // TODO: Switch to configurable render pass constants
-                // MemoryMarshal.Write(this.objectParametersMemoryBuffer.AsSpan(), ref this.meshGeometryInstances[i]);
-                // this.graphicsService.UploadDataToGraphicsBuffer(this.objectParametersGraphicsBuffer.Id, this.objectParametersMemoryBuffer);
+                var objectPropertiesIndex = this.meshGeometryInstancesParamIdList[i];
+                MemoryMarshal.Write(vertexShaderParametersSpan.Slice(i * 4), ref objectPropertiesIndex);
+            }
 
-                // TODO: Process object parameters
+            this.graphicsService.UploadDataToGraphicsBuffer(this.vertexShaderParametersGraphicsBuffer.Id, this.vertexShaderParametersMemoryBuffer);
+
+            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
+            {
+                // TODO: Calculate base instanceid based on the previous batch size
+
                 var geometryInstance = this.meshGeometryInstances[i];
-                this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, Matrix4x4.Identity);
+                this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, i);
             }
         }
 

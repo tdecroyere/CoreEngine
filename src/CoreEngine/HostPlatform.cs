@@ -41,11 +41,11 @@ namespace CoreEngine
 
     public delegate Vector2 GetRenderSizeDelegate(IntPtr graphicsContext);
     public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
-    public delegate uint CreateShaderParametersDelegate(IntPtr graphicsContext, uint graphicsBuffer1, uint graphicsBuffer2); 
+    public delegate uint CreateShaderParametersDelegate(IntPtr graphicsContext, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3); 
 
     public delegate uint CreateGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
     public delegate void UploadDataToGraphicsBufferDelegate(IntPtr graphicsContext, uint graphicsBufferId,  MemoryBuffer data);
-    public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix);
+    public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, int objectPropertyIndex);
 
     public readonly struct GraphicsService
     {
@@ -67,9 +67,9 @@ namespace CoreEngine
             return createShaderDelegate(graphicsContext, shaderByteCode);
         }
 
-        public uint CreateShaderParameters(uint graphicsBuffer1, uint graphicsBuffer2)
+        public uint CreateShaderParameters(uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3)
         {
-            return createShaderParametersDelegate(graphicsContext, graphicsBuffer1, graphicsBuffer2);
+            return createShaderParametersDelegate(graphicsContext, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
         }
 
         public uint CreateGraphicsBuffer(MemoryBuffer data)
@@ -82,9 +82,9 @@ namespace CoreEngine
             uploadDataToGraphicsBuffer(graphicsContext, graphicsBufferId, data);
         }
 
-        public void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, Matrix4x4 worldMatrix)
+        public void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, int objectPropertyIndex)
         {
-            drawPrimitivesDelegate(graphicsContext, startIndex, indexCount, vertexBufferId, indexBufferId, worldMatrix);
+            drawPrimitivesDelegate(graphicsContext, startIndex, indexCount, vertexBufferId, indexBufferId, objectPropertyIndex);
         }
     }
 

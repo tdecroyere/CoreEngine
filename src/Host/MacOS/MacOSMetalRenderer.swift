@@ -4,14 +4,6 @@ import MetalKit
 import simd
 import CoreEngineInterop
 
-struct ObjectConstantBuffer {
-    var worldMatrix: float4x4
-
-    init(_ worldMatrix: float4x4) {
-        self.worldMatrix = worldMatrix
-    }
-}
-
 func getRenderSizeHandle(graphicsContext: UnsafeMutableRawPointer?) -> Vector2 {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.getRenderSize()
@@ -23,9 +15,9 @@ func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCod
     return 0
 }
 
-func createShaderParametersHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBuffer1: UInt32, graphicsBuffer2: UInt32) -> UInt32 {
+func createShaderParametersHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBuffer1: UInt32, graphicsBuffer2: UInt32, graphicsBuffer3: UInt32) -> UInt32 {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    return renderer.createShaderParameters([graphicsBuffer1, graphicsBuffer2])
+    return renderer.createShaderParameters([graphicsBuffer1, graphicsBuffer2, graphicsBuffer3])
 }
 
 func createGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) -> UInt32 {
@@ -38,18 +30,9 @@ func uploadDataToGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?,
     renderer.uploadDataToGraphicsBuffer(graphicsBufferId, data)
 }
 
-func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, startIndex: UInt32, indexCount: UInt32, vertexBufferId: UInt32, indexBufferId: UInt32, worldMatrix: Matrix4x4) {
+func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, startIndex: UInt32, indexCount: UInt32, vertexBufferId: UInt32, indexBufferId: UInt32, objectPropertyIndex: Int32) {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-
-    // TODO: Move world matrix setup to buffers
-    let row1 = SIMD4<Float>(worldMatrix.Item00, worldMatrix.Item01, worldMatrix.Item02, worldMatrix.Item03)
-    let row2 = SIMD4<Float>(worldMatrix.Item10, worldMatrix.Item11, worldMatrix.Item12, worldMatrix.Item13)
-    let row3 = SIMD4<Float>(worldMatrix.Item20, worldMatrix.Item21, worldMatrix.Item22, worldMatrix.Item23)
-    let row4 = SIMD4<Float>(worldMatrix.Item30, worldMatrix.Item31, worldMatrix.Item32, worldMatrix.Item33)
-    
-    let dstWorldMatrix = float4x4(rows: [row1, row2, row3, row4])
-
-    renderer.drawPrimitives(startIndex, indexCount, vertexBufferId, indexBufferId, dstWorldMatrix)
+    renderer.drawPrimitives(startIndex, indexCount, vertexBufferId, indexBufferId, objectPropertyIndex)
 }
 
 
@@ -67,7 +50,8 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
     var argumentBuffer: MTLBuffer!
     var renderPassParametersBuffer: MTLBuffer!
-    var objectParametersBuffer: MTLBuffer!
+    var vertexShaderParametersBuffer: MTLBuffer!
+    var objectPropertiesBuffer: MTLBuffer!
 
     var graphicsBuffers: [UInt32: MTLBuffer]
     var currentGraphicsBufferId: UInt32
@@ -129,22 +113,13 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
         vertexDescriptor.layouts[0].stride = 24
 
-        // Create vertex shader argument buffers
-        // let argumentEncoder = vertexFunction!.makeArgumentEncoder(bufferIndex: 1)
-        // self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
-        // self.argumentBuffer.label = "argument buffer"
-
-        // argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
-
-        // argumentEncoder.setBuffer(self.renderPassParametersBuffer, offset: 0, index: 0)
-        // argumentEncoder.setBuffer(self.objectParametersBuffer, offset: 0, index: 1)
-
         // Configure a pipeline descriptor that is used to create a pipeline state
         let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
         pipelineStateDescriptor.label = "Simple Pipeline"
         pipelineStateDescriptor.vertexDescriptor = vertexDescriptor
         pipelineStateDescriptor.vertexFunction = vertexFunction
         pipelineStateDescriptor.fragmentFunction = fragmentFunction
+        pipelineStateDescriptor.vertexBuffers[0].mutability = .immutable
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.mtkView.colorPixelFormat
         pipelineStateDescriptor.depthAttachmentPixelFormat = self.mtkView.depthStencilPixelFormat
 
@@ -163,21 +138,21 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
         argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
 
-        for var i in 0...graphicsBufferIdList.count - 1 {
+        for i in 0...graphicsBufferIdList.count - 1 {
             let graphicsBuffer = self.graphicsBuffers[graphicsBufferIdList[i]]
             argumentEncoder.setBuffer(graphicsBuffer, offset: 0, index: i)
         }
 
         self.renderPassParametersBuffer = self.graphicsBuffers[graphicsBufferIdList[0]]
         self.renderPassParametersBuffer.label = "RenderPassBuffer"
-        self.objectParametersBuffer = self.graphicsBuffers[graphicsBufferIdList[1]]
-        self.objectParametersBuffer.label = "ObjectParametersBuffer"
+        
+        self.objectPropertiesBuffer = self.graphicsBuffers[graphicsBufferIdList[1]]
+        self.objectPropertiesBuffer.label = "ObjectPropertiesBuffer"
+
+        self.vertexShaderParametersBuffer = self.graphicsBuffers[graphicsBufferIdList[2]]
+        self.vertexShaderParametersBuffer.label = "VertexShaderParametersBuffer"
 
         return 0
-
-        // self.currentGraphicsBufferId += 1
-        // self.graphicsBuffers[self.currentGraphicsBufferId] = self.device.makeBuffer(bytes: data.Pointer, length: Int(data.Length), options: .storageModeManaged)
-        // return self.currentGraphicsBufferId
     }
 
     func createGraphicsBuffer(data: MemoryBuffer) -> UInt32 {
@@ -192,46 +167,31 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        print("upload graphics buffer")
-
         let bufferContents = graphicsBuffer.contents()
-        print(bufferContents)
         bufferContents.copyMemory(from: data.Pointer, byteCount: Int(data.Length))
     }
 
-    func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ worldMatrix: float4x4) {
+    func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ objectPropertyIndex: Int32) {
         if (self.currentRenderEncoder != nil) {
             // TODO: Change the fact that we have only one command buffer stored in a private field
-
-            // TODO: Switch to metal buffers
-            var objectBuffer = ObjectConstantBuffer(worldMatrix)
-
-            if (self.objectParametersBuffer == nil)
-            {
-                return
-            }
-
+            
             if (self.renderPassParametersBuffer == nil)
             {
                 return
             }
-            let bufferContents = self.objectParametersBuffer.contents()
-            bufferContents.copyMemory(from: &objectBuffer, byteCount: MemoryLayout<ObjectConstantBuffer>.size)
-            //self.currentRenderEncoder.setVertexBytes(&objectBuffer, length: MemoryLayout<ObjectConstantBuffer>.size, index: 2)
 
-            // Draw the 3 vertices of our triangle
             let vertexGraphicsBuffer = self.graphicsBuffers[vertexBufferId]
             let indexGraphicsBuffer = self.graphicsBuffers[indexBufferId]
 
             self.currentRenderEncoder!.useResource(self.renderPassParametersBuffer, usage: .read)
-            self.currentRenderEncoder!.useResource(self.objectParametersBuffer, usage: .read)
+            self.currentRenderEncoder!.useResource(self.vertexShaderParametersBuffer, usage: .read)
+            self.currentRenderEncoder!.useResource(self.objectPropertiesBuffer, usage: .read)
 
-            // TODO: Check for nullable buffers
             let startIndexOffset = Int(startIndex * 4)
 
             self.currentRenderEncoder!.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
             self.currentRenderEncoder!.setVertexBuffer(self.argumentBuffer, offset: 0, index: 1)
-            
+
             self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, 
                                                              indexCount: Int(indexCount), 
                                                              indexType: .uint32, 
@@ -239,7 +199,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
                                                              indexBufferOffset: startIndexOffset, 
                                                              instanceCount: 1, 
                                                              baseVertex: 0, 
-                                                             baseInstance: 0)
+                                                             baseInstance: Int(objectPropertyIndex))
         }
     }
 

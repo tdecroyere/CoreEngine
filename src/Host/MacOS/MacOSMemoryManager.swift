@@ -4,6 +4,7 @@ import CoreEngineInterop
 func createMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, length: Int32) -> MemoryBuffer {
     //print("Swift create memory buffer")
     let bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: Int(length))
+    bufferPtr.initialize(repeating: 0, count: Int(length))
 	return MemoryBuffer(Id: 1, Pointer: bufferPtr, Length: length)
 }
 

@@ -22,25 +22,17 @@ struct Vector2
     float X, Y;
 };
 
-struct Vector4
-{
-    float X, Y, Z, W;
-};
-
-struct Matrix4x4
-{
-    float Item00, Item01, Item02, Item03;
-    float Item10, Item11, Item12, Item13;
-    float Item20, Item21, Item22, Item23;
-    float Item30, Item31, Item32, Item33;
-};
-
 typedef struct Vector2 (*GetRenderSizePtr)(void* graphicsContext);
 typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuffer shaderByteCode);
 typedef unsigned int (*CreateShaderParametersPtr)(void* graphicsContext, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3); 
-typedef unsigned int (*CreateGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
+typedef unsigned int (*CreateStaticGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
+typedef struct MemoryBuffer (*CreateDynamicGraphicsBufferPtr)(void* graphicsContext, unsigned int length);
 typedef void (*UploadDataToGraphicsBufferPtr)(void* graphicsContext, unsigned int graphicsBufferId,  struct MemoryBuffer data);
-typedef void (*DrawPrimitivesPtr)(void* graphicsContext, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, int objectPropertyIndex);
+typedef void (*BeginCopyGpuDataPtr)(void* graphicsContext);
+typedef void (*EndCopyGpuDataPtr)(void* graphicsContext);
+typedef void (*BeginRenderPtr)(void* graphicsContext);
+typedef void (*EndRenderPtr)(void* graphicsContext);
+typedef void (*DrawPrimitivesPtr)(void* graphicsContext, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
 
 struct GraphicsService
 {
@@ -48,8 +40,13 @@ struct GraphicsService
     GetRenderSizePtr GetRenderSize;
     CreateShaderPtr CreateShader;
     CreateShaderParametersPtr CreateShaderParameters;
-    CreateGraphicsBufferPtr CreateGraphicsBuffer;
+    CreateStaticGraphicsBufferPtr CreateStaticGraphicsBuffer;
+    CreateDynamicGraphicsBufferPtr CreateDynamicGraphicsBuffer;
     UploadDataToGraphicsBufferPtr UploadDataToGraphicsBuffer;
+    BeginCopyGpuDataPtr BeginCopyGpuData;
+    EndCopyGpuDataPtr EndCopyGpuData;
+    BeginRenderPtr BeginRender;
+    EndRenderPtr EndRender;
     DrawPrimitivesPtr DrawPrimitives;
 };
 

@@ -5,7 +5,7 @@ namespace CoreEngine.Graphics
 {
     public class MeshInstance
     {
-        public MeshInstance(Entity entity, Mesh mesh, Matrix4x4 worldMatrix, int objectPropertiesIndex)
+        public MeshInstance(Entity entity, Mesh mesh, Matrix4x4 worldMatrix, uint objectPropertiesIndex)
         {
             this.Entity = entity;
             this.Mesh = mesh;
@@ -20,6 +20,6 @@ namespace CoreEngine.Graphics
         public Matrix4x4 WorldMatrix { get; internal set; }
         public bool IsAlive { get; internal set; }
         public bool IsDirty { get; internal set; }
-        public int ObjectPropertiesIndex { get; }
+        public uint ObjectPropertiesIndex { get; }
     }
 }

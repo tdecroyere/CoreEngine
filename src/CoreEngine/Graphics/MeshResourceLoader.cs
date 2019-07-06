@@ -62,10 +62,10 @@ namespace CoreEngine.Graphics
             var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
 
             var vertexBufferData = reader.ReadBytes(vertexBufferSize);
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer(vertexBufferData.AsSpan());
+            var vertexBuffer = this.graphicsManager.CreateStaticGraphicsBuffer(vertexBufferData.AsSpan());
 
             var indexBufferData = reader.ReadBytes(indexBufferSize);
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer(indexBufferData.AsSpan());
+            var indexBuffer = this.graphicsManager.CreateStaticGraphicsBuffer(indexBufferData.AsSpan());
             
             var geometryPacket = new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
 

@@ -21,15 +21,11 @@ namespace CoreEngine.Graphics
         private List<Entity> meshInstancesToRemove;
         private RenderPassConstants renderPassConstants;
         private List<GeometryInstance> meshGeometryInstances;
-        private List<int> meshGeometryInstancesParamIdList;
-        private MemoryBuffer renderPassConstantsMemoryBuffer;
+        private List<uint> meshGeometryInstancesParamIdList;
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
-        private MemoryBuffer vertexShaderParametersMemoryBuffer;
         private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
-
-        private MemoryBuffer objectPropertiesMemoryBuffer;
         private GraphicsBuffer objectPropertiesGraphicsBuffer;
-        private int currentObjectPropertyIndex = 0;
+        private uint currentObjectPropertyIndex = 0;
 
         public GraphicsManager(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
         {
@@ -40,23 +36,18 @@ namespace CoreEngine.Graphics
             this.meshInstances = new Dictionary<Entity, MeshInstance>();
             this.meshInstancesToRemove = new List<Entity>();
 
-            this.renderPassConstantsMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
             this.renderPassConstants = new RenderPassConstants();
-            this.renderPassParametersGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.renderPassConstantsMemoryBuffer.AsSpan());
-
-            this.vertexShaderParametersMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(int)) * 1024);
-            this.vertexShaderParametersGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.vertexShaderParametersMemoryBuffer.AsSpan());
-
-            this.objectPropertiesMemoryBuffer = memoryService.CreateMemoryBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 256);
-            this.objectPropertiesGraphicsBuffer = CreateGraphicsBuffer((ReadOnlySpan<byte>)this.objectPropertiesMemoryBuffer.AsSpan());
+            this.renderPassParametersGraphicsBuffer = CreateDynamicGraphicsBuffer((uint)Marshal.SizeOf(typeof(RenderPassConstants)));
+            this.vertexShaderParametersGraphicsBuffer = CreateDynamicGraphicsBuffer((uint)Marshal.SizeOf(typeof(int)) * 1024);
+            this.objectPropertiesGraphicsBuffer = CreateDynamicGraphicsBuffer((uint)Marshal.SizeOf(typeof(Matrix4x4)) * 256);
 
             this.meshGeometryInstances = new List<GeometryInstance>();
-            this.meshGeometryInstancesParamIdList = new List<int>();
+            this.meshGeometryInstancesParamIdList = new List<uint>();
             
             InitResourceLoaders();
         }
 
-        internal GraphicsBuffer CreateGraphicsBuffer(ReadOnlySpan<byte> data)
+        internal GraphicsBuffer CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
         {
             var dataMemoryBuffer = this.memoryService.CreateMemoryBuffer(data.Length);
 
@@ -65,10 +56,16 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("Error while copying graphics buffer data.");
             }
 
-            var graphicsBufferId = graphicsService.CreateGraphicsBuffer(dataMemoryBuffer);
+            var graphicsBufferId = graphicsService.CreateStaticGraphicsBuffer(dataMemoryBuffer);
             this.memoryService.DestroyMemoryBuffer(dataMemoryBuffer.Id);
 
             return new GraphicsBuffer(graphicsBufferId, dataMemoryBuffer.Length);
+        }
+
+        internal GraphicsBuffer CreateDynamicGraphicsBuffer(uint length)
+        {
+            var graphicsBuffer = graphicsService.CreateDynamicGraphicsBuffer(length);
+            return new GraphicsBuffer(graphicsBuffer);
         }
 
         // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
@@ -83,23 +80,12 @@ namespace CoreEngine.Graphics
                 {
                     this.meshInstances[entity].WorldMatrix = worldMatrix;
                     this.meshInstances[entity].IsDirty = true;
-
-                    
                 }
 
                 else
                 {
                     this.meshInstances[entity].IsDirty = false;
                 }
-
-                // TODO: Move that to a proper update function
-                // TODO: IsDirty is not taken into account for the moment
-                var objectProperties = new ObjectProperties() { WorldMatrix = worldMatrix };
-                var objectPropertiesIndex = this.meshInstances[entity].ObjectPropertiesIndex;
-                var objectPropertiesOffset = objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
-
-                var objectBufferSpan = this.objectPropertiesMemoryBuffer.AsSpan().Slice(objectPropertiesOffset);
-                MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
             }
 
             else
@@ -125,15 +111,29 @@ namespace CoreEngine.Graphics
 
         public override void Update()
         {
-            ProcessActiveMeshInstances();
-            RunRenderPipeline();
-            UpdateMeshInstancesStatus(false);
-        }
-
-        private void RunRenderPipeline()
-        {
+            this.graphicsService.BeginCopyGpuData();
+            // TODO: Process pending gpu resource loading here
             SetRenderPassConstants(this.renderPassConstants);
-            DrawGeometryInstances();
+            ProcessActiveMeshInstances();
+
+            // Prepare draw parameters
+            var vertexShaderParametersSpan = this.vertexShaderParametersGraphicsBuffer.MemoryBuffer.AsSpan();
+            vertexShaderParametersSpan.Clear();
+
+            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
+            {
+                var objectPropertiesIndex = this.meshGeometryInstancesParamIdList[i];
+                MemoryMarshal.Write(vertexShaderParametersSpan.Slice(i * 4), ref objectPropertiesIndex);
+            }
+
+            // TODO: Implement a ring buffer strategy by creating several versions of the same
+            // argument buffer per shader?
+            this.graphicsService.UploadDataToGraphicsBuffer(this.vertexShaderParametersGraphicsBuffer.Id, this.vertexShaderParametersGraphicsBuffer.MemoryBuffer);
+            this.graphicsService.EndCopyGpuData();
+
+            RunRenderPipeline();
+
+            UpdateMeshInstancesStatus(false);
         }
 
         private void ProcessActiveMeshInstances()
@@ -152,6 +152,15 @@ namespace CoreEngine.Graphics
 
                 else
                 {
+                    // TODO: Move that to a proper update function
+                    // TODO: IsDirty is not taken into account for the moment
+                    var objectProperties = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
+                    var objectPropertiesIndex = meshInstance.ObjectPropertiesIndex;
+                    var objectPropertiesOffset = (int)objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
+
+                    var objectBufferSpan = this.objectPropertiesGraphicsBuffer.MemoryBuffer.AsSpan().Slice(objectPropertiesOffset);
+                    MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
+
                     var mesh = meshInstance.Mesh;
 
                     for (var i = 0; i < mesh.GeometryInstances.Count; i++)
@@ -163,12 +172,24 @@ namespace CoreEngine.Graphics
                 }
             }
 
+            // TODO: Only update partially the buffer?
+            this.graphicsService.UploadDataToGraphicsBuffer(this.objectPropertiesGraphicsBuffer.Id, this.objectPropertiesGraphicsBuffer.MemoryBuffer);
+
             for (var i = 0; i < this.meshInstancesToRemove.Count; i++)
             {
+                // TODO: Remove GPU data!
                 this.meshInstances.Remove(this.meshInstancesToRemove[i]);
             }
         }
-bool shaderParametersCreated = false;
+
+        private void RunRenderPipeline()
+        {
+            this.graphicsService.BeginRender();
+            DrawGeometryInstances();
+            this.graphicsService.EndRender();
+        }
+
+        bool shaderParametersCreated = false;
         public void SetRenderPassConstants(RenderPassConstants renderPassConstants)
         {
             if (!shaderParametersCreated)
@@ -178,32 +199,18 @@ bool shaderParametersCreated = false;
             }
 
             // TODO: Switch to configurable render pass constants
-            MemoryMarshal.Write(this.renderPassConstantsMemoryBuffer.AsSpan(), ref renderPassConstants);
-            this.graphicsService.UploadDataToGraphicsBuffer(this.renderPassParametersGraphicsBuffer.Id, this.renderPassConstantsMemoryBuffer);
-
-            // TODO: Only update partially the buffer?
-            this.graphicsService.UploadDataToGraphicsBuffer(this.objectPropertiesGraphicsBuffer.Id, this.objectPropertiesMemoryBuffer);
+            MemoryMarshal.Write(this.renderPassParametersGraphicsBuffer.MemoryBuffer.AsSpan(), ref renderPassConstants);
+            this.graphicsService.UploadDataToGraphicsBuffer(this.renderPassParametersGraphicsBuffer.Id, this.renderPassParametersGraphicsBuffer.MemoryBuffer);
         }
 
         public void DrawGeometryInstances()
         {
-            var vertexShaderParametersSpan = this.vertexShaderParametersMemoryBuffer.AsSpan();
-            vertexShaderParametersSpan.Clear();
-
-            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
-            {
-                var objectPropertiesIndex = this.meshGeometryInstancesParamIdList[i];
-                MemoryMarshal.Write(vertexShaderParametersSpan.Slice(i * 4), ref objectPropertiesIndex);
-            }
-
-            this.graphicsService.UploadDataToGraphicsBuffer(this.vertexShaderParametersGraphicsBuffer.Id, this.vertexShaderParametersMemoryBuffer);
-
             for (var i = 0; i < this.meshGeometryInstances.Count; i++)
             {
                 // TODO: Calculate base instanceid based on the previous batch size
 
                 var geometryInstance = this.meshGeometryInstances[i];
-                this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, i);
+                this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, (uint)i);
             }
         }
 

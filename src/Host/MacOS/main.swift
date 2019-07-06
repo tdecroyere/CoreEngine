@@ -74,6 +74,8 @@ autoreleasepool {
     // mach_timebase_info(&machTimebaseInfo)
 
     // var lastCounter = mach_absolute_time()
+    
+    // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
     let stepTimeInSeconds = Float(1.0 / 60.0)
 
     while (isGameRunning) {
@@ -83,7 +85,7 @@ autoreleasepool {
             isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
 
             if (!isGamePaused) {
-                // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
+                
                 inputsManager.processGamepadControllers()
 
                 // let currentCounter = mach_absolute_time()
@@ -94,13 +96,8 @@ autoreleasepool {
                 // let milliSeconds = Double(nanoSeconds) / 1_000_000
                 // lastCounter = currentCounter
 
-                // TODO: Implement Draw triangle debug function
-                renderer.beginRender()
-                
-                // TODO: Update at 60Hz for now
                 coreEngineHost.updateEngine(stepTimeInSeconds)
-
-                renderer.endRender()
+                renderer.mtkView.draw()
             }
         }
     }

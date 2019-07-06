@@ -4,63 +4,38 @@ import MetalKit
 import simd
 import CoreEngineInterop
 
-func getRenderSizeHandle(graphicsContext: UnsafeMutableRawPointer?) -> Vector2 {
-    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    return renderer.getRenderSize()
-}
-
-func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: MemoryBuffer) -> UInt32 {
-    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    renderer.createShader(shaderByteCode: shaderByteCode)
-    return 0
-}
-
-func createShaderParametersHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBuffer1: UInt32, graphicsBuffer2: UInt32, graphicsBuffer3: UInt32) -> UInt32 {
-    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    return renderer.createShaderParameters([graphicsBuffer1, graphicsBuffer2, graphicsBuffer3])
-}
-
-func createGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) -> UInt32 {
-    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    return renderer.createGraphicsBuffer(data: data)
-}
-
-func uploadDataToGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBufferId: UInt32, data: MemoryBuffer) {
-    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    renderer.uploadDataToGraphicsBuffer(graphicsBufferId, data)
-}
-
-func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, startIndex: UInt32, indexCount: UInt32, vertexBufferId: UInt32, indexBufferId: UInt32, objectPropertyIndex: Int32) {
-    let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    renderer.drawPrimitives(startIndex, indexCount, vertexBufferId, indexBufferId, objectPropertyIndex)
-}
-
-
 class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     let device: MTLDevice
     let mtkView: MTKView
     var commandQueue: MTLCommandQueue!
     var pipelineState: MTLRenderPipelineState?
     var depthStencilState: MTLDepthStencilState!
-    var currentCommandBuffer: MTLCommandBuffer!
-    var currentRenderEncoder: MTLRenderCommandEncoder!
+    
+    var renderCommandBuffer: MTLCommandBuffer!
+    var renderCommandEncoder: MTLRenderCommandEncoder!
+
+    var copyCommandBuffer: MTLCommandBuffer!
+    var copyCommandEncoder: MTLBlitCommandEncoder!
 
     var vertexFunction: MTLFunction!
     var fragmentFunction: MTLFunction!
 
     var argumentBuffer: MTLBuffer!
-    var renderPassParametersBuffer: MTLBuffer!
-    var vertexShaderParametersBuffer: MTLBuffer!
-    var objectPropertiesBuffer: MTLBuffer!
 
+    var globalHeap: MTLHeap!
     var graphicsBuffers: [UInt32: MTLBuffer]
+    var cpuGraphicsBuffers: [UInt32: MTLBuffer]
+    var graphicsBuffersToCopy: [UInt32]
     var currentGraphicsBufferId: UInt32
 
     init(view: MTKView, device: MTLDevice) {
         self.mtkView = view
         self.device = device
-        self.currentCommandBuffer = nil
+        self.renderCommandBuffer = nil
+        self.copyCommandBuffer = nil
         self.graphicsBuffers = [:]
+        self.cpuGraphicsBuffers = [:]
+        self.graphicsBuffersToCopy = []
         self.currentGraphicsBufferId = 0;
 
         super.init()
@@ -75,6 +50,12 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.depthStencilState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         self.commandQueue = self.device.makeCommandQueue()
+
+        let heapDescriptor = MTLHeapDescriptor()
+        heapDescriptor.storageMode = .`private`
+        heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
+        heapDescriptor.size = 1024 * 1024 * 1024; // Allocate 1GB for now
+        self.globalHeap = self.device.makeHeap(descriptor: heapDescriptor)!
     }
 
     func initGraphicsService(_ graphicsService: inout GraphicsService) {
@@ -82,8 +63,13 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         graphicsService.GetRenderSize = getRenderSizeHandle
         graphicsService.CreateShader = createShaderHandle
         graphicsService.CreateShaderParameters = createShaderParametersHandle
-        graphicsService.CreateGraphicsBuffer = createGraphicsBufferHandle
+        graphicsService.CreateStaticGraphicsBuffer = createStaticGraphicsBufferHandle
+        graphicsService.CreateDynamicGraphicsBuffer = createDynamicGraphicsBufferHandle
         graphicsService.UploadDataToGraphicsBuffer = uploadDataToGraphicsBufferHandle
+        graphicsService.BeginCopyGpuData = beginCopyGpuDataHandle
+        graphicsService.EndCopyGpuData = endCopyGpuDataHandle
+        graphicsService.BeginRender = beginRenderHandle
+        graphicsService.EndRender = endRenderHandle
         graphicsService.DrawPrimitives = drawPrimitivesHandle
     }
 
@@ -134,81 +120,111 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     func createShaderParameters(_ graphicsBufferIdList: [UInt32]) -> UInt32 {
         let argumentEncoder = self.vertexFunction!.makeArgumentEncoder(bufferIndex: 1)
         self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
-        self.argumentBuffer.label = "argument buffer"
+        self.argumentBuffer.label = "Vertex Argument Buffer"
 
         argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
 
-        for i in 0...graphicsBufferIdList.count - 1 {
+        for i in 0..<graphicsBufferIdList.count {
             let graphicsBuffer = self.graphicsBuffers[graphicsBufferIdList[i]]
             argumentEncoder.setBuffer(graphicsBuffer, offset: 0, index: i)
         }
 
-        self.renderPassParametersBuffer = self.graphicsBuffers[graphicsBufferIdList[0]]
-        self.renderPassParametersBuffer.label = "RenderPassBuffer"
-        
-        self.objectPropertiesBuffer = self.graphicsBuffers[graphicsBufferIdList[1]]
-        self.objectPropertiesBuffer.label = "ObjectPropertiesBuffer"
-
-        self.vertexShaderParametersBuffer = self.graphicsBuffers[graphicsBufferIdList[2]]
-        self.vertexShaderParametersBuffer.label = "VertexShaderParametersBuffer"
-
         return 0
     }
 
-    func createGraphicsBuffer(data: MemoryBuffer) -> UInt32 {
+    func createStaticGraphicsBuffer(_ data: MemoryBuffer) -> UInt32 {
         self.currentGraphicsBufferId += 1
-        self.graphicsBuffers[self.currentGraphicsBufferId] = self.device.makeBuffer(bytes: data.Pointer, length: Int(data.Length), options: .storageModeShared)
+
+        // TODO: Re-use temporary cpu buffers
+        
+        // Create a the metal buffer on the CPU
+        let cpuBuffer = self.device.makeBuffer(bytes: data.Pointer, length: Int(data.Length), options: .cpuCacheModeWriteCombined)!
+        
+        // Create the metal buffer on the GPU
+        let gpuBuffer = self.globalHeap.makeBuffer(length: Int(data.Length), options: .storageModePrivate)!
+        gpuBuffer.label = "Static Graphics Buffer"
+
+        self.graphicsBuffers[self.currentGraphicsBufferId] = gpuBuffer
+        self.cpuGraphicsBuffers[self.currentGraphicsBufferId] = cpuBuffer
+        self.graphicsBuffersToCopy.append(self.currentGraphicsBufferId)
+
         return self.currentGraphicsBufferId
     }
 
+    func createDynamicGraphicsBuffer(_ length: UInt32) -> MemoryBuffer {
+        self.currentGraphicsBufferId += 1
+
+        // Create a the metal buffer on the CPU
+        let cpuBuffer = self.device.makeBuffer(length: Int(length), options: .cpuCacheModeWriteCombined)!
+
+        // Create the metal buffer on the GPU
+        let gpuBuffer = self.globalHeap.makeBuffer(length: Int(length), options: .storageModePrivate)!
+        gpuBuffer.label = "Dynamic Graphics Buffer"
+
+        self.graphicsBuffers[self.currentGraphicsBufferId] = gpuBuffer
+        self.cpuGraphicsBuffers[self.currentGraphicsBufferId] = cpuBuffer
+
+        return MemoryBuffer(Id: self.currentGraphicsBufferId, Pointer: cpuBuffer.contents().assumingMemoryBound(to: UInt8.self), Length: Int32(length))
+    }
+
     func uploadDataToGraphicsBuffer(_ graphicsBufferId: UInt32, _ data: MemoryBuffer) {
-        guard let graphicsBuffer = self.graphicsBuffers[graphicsBufferId] else {
-            print("ERROR: Graphics buffer was not found")
+        guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
+            print("ERROR: GPU graphics buffer was not found")
             return
         }
 
-        let bufferContents = graphicsBuffer.contents()
-        bufferContents.copyMemory(from: data.Pointer, byteCount: Int(data.Length))
+        guard let cpuBuffer = self.cpuGraphicsBuffers[graphicsBufferId] else {
+            print("ERROR: CPU graphics buffer was not found")
+            return
+        }
+
+        // TODO: Add parameters to be able to update partially the buffer
+        self.copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: Int(data.Length))
     }
 
-    func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ objectPropertyIndex: Int32) {
-        if (self.currentRenderEncoder != nil) {
-            // TODO: Change the fact that we have only one command buffer stored in a private field
-            
-            if (self.renderPassParametersBuffer == nil)
-            {
-                return
-            }
+    func beginCopyGpuData() {
+        self.copyCommandBuffer = self.commandQueue.makeCommandBuffer()!
+        self.copyCommandBuffer.label = "Copy Command Buffer"
 
-            let vertexGraphicsBuffer = self.graphicsBuffers[vertexBufferId]
-            let indexGraphicsBuffer = self.graphicsBuffers[indexBufferId]
+        self.copyCommandEncoder = self.copyCommandBuffer.makeBlitCommandEncoder()!
+        self.copyCommandEncoder.label = "Copy Command Encoder"
 
-            self.currentRenderEncoder!.useResource(self.renderPassParametersBuffer, usage: .read)
-            self.currentRenderEncoder!.useResource(self.vertexShaderParametersBuffer, usage: .read)
-            self.currentRenderEncoder!.useResource(self.objectPropertiesBuffer, usage: .read)
+        // Copy pending static graphics buffers
+        for i in 0..<self.graphicsBuffersToCopy.count {
+            let cpuGraphicsBuffer = self.cpuGraphicsBuffers[self.graphicsBuffersToCopy[i]]!
+            let gpuGraphicsBuffer = self.graphicsBuffers[self.graphicsBuffersToCopy[i]]!
 
-            let startIndexOffset = Int(startIndex * 4)
-
-            self.currentRenderEncoder!.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
-            self.currentRenderEncoder!.setVertexBuffer(self.argumentBuffer, offset: 0, index: 1)
-
-            self.currentRenderEncoder!.drawIndexedPrimitives(type: .triangle, 
-                                                             indexCount: Int(indexCount), 
-                                                             indexType: .uint32, 
-                                                             indexBuffer: indexGraphicsBuffer!, 
-                                                             indexBufferOffset: startIndexOffset, 
-                                                             instanceCount: 1, 
-                                                             baseVertex: 0, 
-                                                             baseInstance: Int(objectPropertyIndex))
+            self.copyCommandEncoder.copy(from: cpuGraphicsBuffer, sourceOffset: 0, to: gpuGraphicsBuffer, destinationOffset: 0, size: gpuGraphicsBuffer.length)
         }
+
+        self.graphicsBuffersToCopy = []
+    }
+
+    func endCopyGpuData() {
+        guard let copyCommandEncoder = self.copyCommandEncoder else {
+            print("Error: Copy Command Encoder is null.")
+            return
+        }
+
+        guard let copyCommandBuffer = self.copyCommandBuffer else {
+            print("Error: Copy Command buffer is null.")
+            return
+        }
+
+        copyCommandEncoder.endEncoding()
+        self.copyCommandEncoder = nil
+
+        copyCommandBuffer.commit()
+        self.copyCommandBuffer = nil
     }
 
     func beginRender() {
         self.mtkView.clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
 
         // Create a new command buffer for each render pass to the current drawable
-        self.currentCommandBuffer = self.commandQueue.makeCommandBuffer()!
-        self.currentCommandBuffer.label = "MyCommand"
+        // TODO: Can we re-use command buffers like in DirectX12? With one command buffer by double buffer render target?
+        self.renderCommandBuffer = self.commandQueue.makeCommandBuffer()!
+        self.renderCommandBuffer.label = "Frame Render Command Buffer"
 
         guard let pipelineState = self.pipelineState else {
             print("pipeline state empty")
@@ -218,29 +234,60 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         // Obtain a render pass descriptor, generated from the view's drawable
         let renderPassDescriptor = self.mtkView.currentRenderPassDescriptor!
         
-        self.currentRenderEncoder = self.currentCommandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
-        self.currentRenderEncoder.label = "BeginRenderEncoder"
+        self.renderCommandEncoder = self.renderCommandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
+        self.renderCommandEncoder.label = "Frame Render Command Encoder"
 
-        self.currentRenderEncoder.setDepthStencilState(self.depthStencilState)
-        self.currentRenderEncoder.setCullMode(.back)
+        self.renderCommandEncoder.setDepthStencilState(self.depthStencilState)
+        self.renderCommandEncoder.setCullMode(.back)
 
         // Set the region of the drawable to which we'll draw.
         let renderSize = getRenderSize()
-        self.currentRenderEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
-        self.currentRenderEncoder.setRenderPipelineState(pipelineState)
+        self.renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
+        self.renderCommandEncoder.setRenderPipelineState(pipelineState)
+
+        self.renderCommandEncoder.useHeap(self.globalHeap)
     }
 
     func endRender() {
-        if (self.currentRenderEncoder != nil) {
-            self.currentRenderEncoder.endEncoding()
-            self.currentRenderEncoder = nil
+        guard let renderCommandEncoder = self.renderCommandEncoder else {
+            print("Error: Render Command Encoder is null.")
+            return
         }
-        
-        self.currentCommandBuffer.present(self.mtkView.currentDrawable!)
-        self.currentCommandBuffer.commit()
-        self.currentCommandBuffer = nil
 
-        self.mtkView.draw()
+        guard let renderCommandBuffer = self.renderCommandBuffer else {
+            print("Error: Render Command buffer is null.")
+            return
+        }
+
+        renderCommandEncoder.endEncoding()
+        self.renderCommandEncoder = nil
+
+        renderCommandBuffer.present(self.mtkView.currentDrawable!)
+        renderCommandBuffer.commit()
+        self.renderCommandBuffer = nil
+    }
+
+    func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ baseInstanceId: UInt32) {
+        if (self.renderCommandEncoder != nil) {
+            // TODO: Change the fact that we have only one command buffer stored in a private field
+
+            let vertexGraphicsBuffer = self.graphicsBuffers[vertexBufferId]
+            let indexGraphicsBuffer = self.graphicsBuffers[indexBufferId]
+            
+            let startIndexOffset = Int(startIndex * 4)
+
+            self.renderCommandEncoder!.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
+            self.renderCommandEncoder!.setVertexBuffer(self.argumentBuffer, offset: 0, index: 1)
+
+            self.renderCommandEncoder!.drawIndexedPrimitives(type: .triangle, 
+                                                             indexCount: Int(indexCount), 
+                                                             indexType: .uint32, 
+                                                             indexBuffer: indexGraphicsBuffer!, 
+                                                             indexBufferOffset: startIndexOffset, 
+                                                             instanceCount: 1, 
+                                                             baseVertex: 0, 
+                                                             baseInstance: Int(baseInstanceId))
+        }
     }
 
     func draw(in view: MTKView) {

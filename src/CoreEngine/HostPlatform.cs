@@ -42,10 +42,17 @@ namespace CoreEngine
     public delegate Vector2 GetRenderSizeDelegate(IntPtr graphicsContext);
     public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
     public delegate uint CreateShaderParametersDelegate(IntPtr graphicsContext, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3); 
+    public delegate uint CreateStaticGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
+    public delegate MemoryBuffer CreateDynamicGraphicsBufferDelegate(IntPtr graphicsContext, uint length);
 
-    public delegate uint CreateGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
+    // TODO: Write delete graphics buffer methods
+
     public delegate void UploadDataToGraphicsBufferDelegate(IntPtr graphicsContext, uint graphicsBufferId,  MemoryBuffer data);
-    public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, int objectPropertyIndex);
+    public delegate void BeginCopyGpuDataDelegate(IntPtr graphicsContext);
+    public delegate void EndCopyGpuDataDelegate(IntPtr graphicsContext);
+    public delegate void BeginRenderDelegate(IntPtr graphicsContext);
+    public delegate void EndRenderDelegate(IntPtr graphicsContext);
+    public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
 
     public readonly struct GraphicsService
     {
@@ -53,8 +60,13 @@ namespace CoreEngine
         private GetRenderSizeDelegate getRenderSizeDelegate { get; } 
         private CreateShaderDelegate createShaderDelegate { get; } 
         private CreateShaderParametersDelegate createShaderParametersDelegate { get; } 
-        private CreateGraphicsBufferDelegate createGraphicsBufferDelegate { get; } 
+        private CreateStaticGraphicsBufferDelegate createStaticGraphicsBufferDelegate { get; } 
+        private CreateDynamicGraphicsBufferDelegate createDynamicGraphicsBufferDelegate { get; } 
         private UploadDataToGraphicsBufferDelegate uploadDataToGraphicsBuffer { get; } 
+        private BeginCopyGpuDataDelegate beginCopyGpuData { get; }
+        private EndCopyGpuDataDelegate endCopyGpuData { get; }
+        private BeginRenderDelegate beginRender { get; }
+        private EndRenderDelegate endRender { get; }
         private DrawPrimitivesDelegate drawPrimitivesDelegate { get; } 
 
         public Vector2 GetRenderSize()
@@ -72,9 +84,14 @@ namespace CoreEngine
             return createShaderParametersDelegate(graphicsContext, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
         }
 
-        public uint CreateGraphicsBuffer(MemoryBuffer data)
+        public uint CreateStaticGraphicsBuffer(MemoryBuffer data)
         {
-            return createGraphicsBufferDelegate(graphicsContext, data);
+            return createStaticGraphicsBufferDelegate(graphicsContext, data);
+        }
+
+        public MemoryBuffer CreateDynamicGraphicsBuffer(uint length)
+        {
+            return createDynamicGraphicsBufferDelegate(graphicsContext, length);
         }
 
         public void UploadDataToGraphicsBuffer(uint graphicsBufferId, MemoryBuffer data)
@@ -82,9 +99,29 @@ namespace CoreEngine
             uploadDataToGraphicsBuffer(graphicsContext, graphicsBufferId, data);
         }
 
-        public void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, int objectPropertyIndex)
+        public void BeginCopyGpuData()
         {
-            drawPrimitivesDelegate(graphicsContext, startIndex, indexCount, vertexBufferId, indexBufferId, objectPropertyIndex);
+            beginCopyGpuData(graphicsContext);
+        }
+
+        public void EndCopyGpuData()
+        {
+            endCopyGpuData(graphicsContext);
+        }
+
+        public void BeginRender()
+        {
+            beginRender(graphicsContext);
+        }
+
+        public void EndRender()
+        {
+            endRender(graphicsContext);
+        }
+
+        public void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId)
+        {
+            drawPrimitivesDelegate(graphicsContext, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
         }
     }
 

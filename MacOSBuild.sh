@@ -50,7 +50,7 @@ compileDotnet() {
 compileSwift() {
     echo [93mCompiling MacOS Executable...[0m
     cd "../"$outputDirectory"/MacOS/"
-    swiftc "../../../../../src/Host/MacOS/"*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -swift-version 5 -target x86_64-apple-macosx10.14 -I "../../../../../src/Host/MacOS" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    swiftc "../../../../../src/Host/MacOS/"*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../../../src/Host/MacOS" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     if [ $? != 0 ]; then
         showErrorMessage

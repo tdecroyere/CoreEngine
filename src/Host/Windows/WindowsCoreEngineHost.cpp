@@ -2,6 +2,7 @@
 
 #include "WindowsCommon.h"
 #include "WindowsCoreEngineHost.h"
+#include "WindowsDirect3D12RendererInterop.h"
 
 using namespace winrt;
 using namespace Windows::ApplicationModel;
@@ -14,7 +15,7 @@ int AddTestHostMethod(int a, int b)
 	return a + b;
 }
 
-::MemoryBuffer GetTestBuffer()
+HostMemoryBuffer GetTestBuffer()
 {
 	unsigned char* testBuffer = new unsigned char[5];
 
@@ -24,7 +25,7 @@ int AddTestHostMethod(int a, int b)
 	testBuffer[3] = 4;
 	testBuffer[4] = 5;
 
-    ::MemoryBuffer span = {};
+    HostMemoryBuffer span = {};
     span.Pointer = testBuffer;
     span.Length = 5;
 
@@ -43,11 +44,13 @@ void SendVibrationCommand(void* inputsContext, unsigned char playerId, float lef
 }
 
 
-::MemoryBuffer CreateMemoryBuffer(void* memoryManagerContext, int length)
+HostMemoryBuffer CreateMemoryBuffer(void* memoryManagerContext, int length)
 {
     unsigned char* buffer = new unsigned char[length];
+    ZeroMemory(buffer, length);
 
-    ::MemoryBuffer span = {};
+    HostMemoryBuffer span = {};
+    span.Id = 1;
     span.Pointer = buffer;
     span.Length = length;
 
@@ -78,7 +81,7 @@ void WindowsCoreEngineHost::StartEngine(hstring appName)
     hostPlatform.MemoryService.CreateMemoryBuffer = CreateMemoryBuffer;
     hostPlatform.MemoryService.DestroyMemoryBuffer = DestroyMemoryBuffer;
 
-    this->renderer->InitGraphicsService(&hostPlatform.GraphicsService);
+    InitGraphicsService(this->renderer, &hostPlatform.GraphicsService);
 
     hostPlatform.InputsService.GetInputsState = GetInputsState;
     hostPlatform.InputsService.SendVibrationCommand = SendVibrationCommand;

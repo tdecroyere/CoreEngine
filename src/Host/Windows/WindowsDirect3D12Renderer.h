@@ -12,7 +12,16 @@
 
 #include "../Common/CoreEngine.h"
 
-#define ReturnIfFailed(expression) if (FAILED(expression)) { OutputDebugStringA("ERROR: DirectX12 Init error!\n"); return false; };
+// Macros
+#if DEBUG && _MSC_VER
+    #define Assert(expression) if(!(expression)) { OutputDebugString("ASSERT ERROR\n");(*(int*) 0) = 0; }
+#elif DEBUG && !_MSC_VER
+    #define Assert(expression) if(!(expression)) { printf("ASSERT ERROR\n");__builtin_trap(); }
+#else
+    #define Assert(expression)
+#endif
+
+#define AssertIfFailed(expression) if (FAILED(expression)) { Assert("ERROR: DirectX12 Init error!\n"); };
 #define ArrayCount(value) ((sizeof(value) / sizeof(value[0])))
 
 static const int RenderBuffersCountConst = 2;
@@ -20,6 +29,7 @@ static const int RenderBuffersCountConst = 2;
 namespace impl
 {
     using namespace winrt;
+    using namespace Windows::Foundation::Collections;
     using namespace Windows::UI::Core;
 
     class Direct3D12Texture
@@ -43,17 +53,18 @@ namespace impl
         WindowsDirect3D12Renderer(const CoreWindow& window, int width, int height, int refreshRate);
         ~WindowsDirect3D12Renderer();
 
-        void InitGraphicsService(GraphicsService* graphicsService);
-
         Vector2 GetRenderSize();
-        unsigned int CreateShader(::MemoryBuffer shaderByteCode);
-        unsigned int CreateGraphicsBuffer(::MemoryBuffer data);
+        unsigned int CreateShader(HostMemoryBuffer shaderByteCode);
         unsigned int CreateShaderParameters(unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
-        void UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, ::MemoryBuffer data);
-        void DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, int objectPropertyIndex);
+        unsigned int CreateStaticGraphicsBuffer(HostMemoryBuffer data);
+        HostMemoryBuffer CreateDynamicGraphicsBuffer(unsigned int length);
+        void UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, HostMemoryBuffer data);
+        void BeginCopyGpuData();
+        void EndCopyGpuData();
+        void BeginRender();
+        void EndRender();
+        void DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
 
-        void BeginFrame();
-        void EndFrame();
         void PresentScreenBuffer();
         bool SwitchScreenMode();
 
@@ -80,6 +91,10 @@ namespace impl
         com_ptr<ID3D12Resource> RenderTargets[RenderBuffersCountConst];
         D3D12_RESOURCE_BARRIER PresentToRenderTargetBarriers[RenderBuffersCountConst];
         D3D12_RESOURCE_BARRIER RenderTargetToPresentBarriers[RenderBuffersCountConst];
+
+        com_ptr<ID3D12Heap> globalHeap;
+        std::map<uint32_t, com_ptr<ID3D12Resource>> graphicsBuffers;
+        uint32_t currentGraphicsBufferId;
 
         com_ptr<ID3D12PipelineState> pipelineState;
         com_ptr<ID3D12RootSignature> rootSignature;

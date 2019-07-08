@@ -127,9 +127,6 @@ public:
             if (this->isVisible)
             {
                 this->coreEngineHost->UpdateEngine(1);
-
-                this->renderer->BeginFrame();
-                this->renderer->EndFrame();
                 this->renderer->PresentScreenBuffer();
 
                 CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);

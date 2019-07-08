@@ -1,13 +1,13 @@
 #pragma once
 
-struct MemoryBuffer
+struct HostMemoryBuffer
 {
-    unsigned int Id;
-    unsigned char* Pointer;
-    int Length;
+    uint32_t Id;
+    uint8_t* Pointer;
+    int32_t Length;
 };
 
-typedef struct MemoryBuffer (*CreateMemoryBufferPtr)(void* memoryManagerContext, int length);
+typedef struct HostMemoryBuffer (*CreateMemoryBufferPtr)(void* memoryManagerContext, int length);
 typedef void (*DestroyMemoryBufferPtr)(void* memoryManagerContext, unsigned int memoryBufferId);
 
 struct MemoryService
@@ -23,11 +23,11 @@ struct Vector2
 };
 
 typedef struct Vector2 (*GetRenderSizePtr)(void* graphicsContext);
-typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct MemoryBuffer shaderByteCode);
+typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct HostMemoryBuffer shaderByteCode);
 typedef unsigned int (*CreateShaderParametersPtr)(void* graphicsContext, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3); 
-typedef unsigned int (*CreateStaticGraphicsBufferPtr)(void* graphicsContext, struct MemoryBuffer data);
-typedef struct MemoryBuffer (*CreateDynamicGraphicsBufferPtr)(void* graphicsContext, unsigned int length);
-typedef void (*UploadDataToGraphicsBufferPtr)(void* graphicsContext, unsigned int graphicsBufferId,  struct MemoryBuffer data);
+typedef unsigned int (*CreateStaticGraphicsBufferPtr)(void* graphicsContext, struct HostMemoryBuffer data);
+typedef struct HostMemoryBuffer (*CreateDynamicGraphicsBufferPtr)(void* graphicsContext, unsigned int length);
+typedef void (*UploadDataToGraphicsBufferPtr)(void* graphicsContext, unsigned int graphicsBufferId,  struct HostMemoryBuffer data);
 typedef void (*BeginCopyGpuDataPtr)(void* graphicsContext);
 typedef void (*EndCopyGpuDataPtr)(void* graphicsContext);
 typedef void (*BeginRenderPtr)(void* graphicsContext);
@@ -188,7 +188,7 @@ struct InputsService
 };
 
 typedef int (*AddTestHostMethodPtr)(int a, int b);
-typedef struct MemoryBuffer (*GetTestBufferPtr)();
+typedef struct HostMemoryBuffer (*GetTestBufferPtr)();
 
 struct HostPlatform
 {

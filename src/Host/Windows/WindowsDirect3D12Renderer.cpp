@@ -59,20 +59,16 @@ WindowsDirect3D12Renderer::WindowsDirect3D12Renderer(const CoreWindow& window, i
 		return;
 	}
 
-	if (!Direct3D12CreateSpriteRootSignature())
-	{
-		return;
-	}
-
-	if (!Direct3D12CreateSpritePSO())
-	{
-		return;
-	}
-
 	if (!Direct3D12CreateResources())
 	{
 		return;
 	}
+
+	D3D12_HEAP_DESC heapDescriptor = {};
+	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapDescriptor.SizeInBytes = 1024 * 1024 * 100;// *1024; // Allocate 1GB for now
+
+	AssertIfFailed(this->Device->CreateHeap(&heapDescriptor, IID_PPV_ARGS_WINRT(this->globalHeap)));
 
 	this->IsInitialized = true;
 }
@@ -89,23 +85,12 @@ WindowsDirect3D12Renderer::~WindowsDirect3D12Renderer()
 	CloseHandle(this->FenceEvent);
 }
 
-void WindowsDirect3D12Renderer::InitGraphicsService(GraphicsService* graphicsService) 
-{
-	graphicsService->GraphicsContext = this;
-	graphicsService->GetRenderSize = GetRenderSizeHandle;
-	graphicsService->CreateShader = CreateShaderHandle;
-	graphicsService->CreateShaderParameters = CreateShaderParametersHandle;
-	graphicsService->CreateGraphicsBuffer = CreateGraphicsBufferHandle;
-	graphicsService->UploadDataToGraphicsBuffer = UploadDataToGraphicsBufferHandle;
-	graphicsService->DrawPrimitives = DrawPrimitivesHandle;
-}
-
 Vector2 WindowsDirect3D12Renderer::GetRenderSize()
 {
 	return Vector2() = { (float)this->Width, (float)this->Height };
 }
 
-unsigned int WindowsDirect3D12Renderer::CreateShader(::MemoryBuffer shaderByteCode)
+unsigned int WindowsDirect3D12Renderer::CreateShader(HostMemoryBuffer shaderByteCode)
 {
 	auto currentDataPtr = shaderByteCode.Pointer;
 	
@@ -187,22 +172,32 @@ unsigned int WindowsDirect3D12Renderer::CreateShaderParameters(unsigned int grap
 	return 0;
 }
 
-unsigned int WindowsDirect3D12Renderer::CreateGraphicsBuffer(::MemoryBuffer data)
+unsigned int WindowsDirect3D12Renderer::CreateStaticGraphicsBuffer(HostMemoryBuffer data)
 {
 	return 0;
 }
 
-void WindowsDirect3D12Renderer::UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, ::MemoryBuffer data)
+HostMemoryBuffer WindowsDirect3D12Renderer::CreateDynamicGraphicsBuffer(unsigned int length)
+{
+	return HostMemoryBuffer();
+}
+
+void WindowsDirect3D12Renderer::UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, HostMemoryBuffer data)
 {
 
 }
 
-void WindowsDirect3D12Renderer::DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, int objectPropertyIndex)
+void WindowsDirect3D12Renderer::BeginCopyGpuData()
 {
 
 }
 
-void WindowsDirect3D12Renderer::BeginFrame()
+void WindowsDirect3D12Renderer::EndCopyGpuData()
+{
+
+}
+
+void WindowsDirect3D12Renderer::BeginRender()
 {
 	// TODO: Add more log on return codes
 	this->CommandAllocator->Reset();
@@ -223,7 +218,7 @@ void WindowsDirect3D12Renderer::BeginFrame()
 	this->CommandList->SetGraphicsRootSignature(this->rootSignature.get());
 }
 
-void WindowsDirect3D12Renderer::EndFrame()
+void WindowsDirect3D12Renderer::EndRender()
 {
 	// ID3D12DescriptorHeap* ppHeaps[] = { this->SrvDescriptorHeap.get() };
 	// this->CommandList->SetDescriptorHeaps(ArrayCount(ppHeaps), ppHeaps);
@@ -238,6 +233,11 @@ void WindowsDirect3D12Renderer::EndFrame()
 
 	ID3D12CommandList* commandLists[] = { this->CommandList.get() };
 	this->CommandQueue->ExecuteCommandLists(1, commandLists);
+}
+
+void WindowsDirect3D12Renderer::DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId)
+{
+
 }
 
 void WindowsDirect3D12Renderer::PresentScreenBuffer()
@@ -265,7 +265,7 @@ void WindowsDirect3D12Renderer::PresentScreenBuffer()
 bool WindowsDirect3D12Renderer::SwitchScreenMode()
 {
 	BOOL fullscreenState;
-	ReturnIfFailed(this->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
+	AssertIfFailed(this->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
 
 	if (FAILED(this->SwapChain->SetFullscreenState(!fullscreenState, nullptr)))
 	{
@@ -451,7 +451,7 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 		com_ptr<IDXGIAdapter> warpAdapter;
 		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS_WINRT(warpAdapter));
 
-		ReturnIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(this->Device)));
+		AssertIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(this->Device)));
 	}
 
 	// Create the command queue and command allocator
@@ -459,9 +459,9 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	ReturnIfFailed(this->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(this->CommandQueue)));
-	ReturnIfFailed(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator)));
-	ReturnIfFailed(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
+	AssertIfFailed(this->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(this->CommandQueue)));
+	AssertIfFailed(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator)));
+	AssertIfFailed(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
 
 
 	// Describe and create the swap chain.
@@ -470,13 +470,14 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	swapChainDesc.Width = width;
 	swapChainDesc.Height = height;
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapChainDesc.Scaling = DXGI_SCALING_ASPECT_RATIO_STRETCH;
+	swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-	swapChainDesc.SampleDesc.Count = 1;
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+	swapChainDesc.SampleDesc = { 1, 0 };
+	//swapChainDesc.Flags = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 	
-	ReturnIfFailed(dxgiFactory->CreateSwapChainForCoreWindow(this->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)this->SwapChain.put()));
+	AssertIfFailed(dxgiFactory->CreateSwapChainForCoreWindow(this->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)this->SwapChain.put()));
 
 	// Describe and create a render target view (RTV) descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
@@ -484,7 +485,7 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	
-	ReturnIfFailed(this->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS_WINRT(this->RtvDescriptorHeap)));
+	AssertIfFailed(this->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS_WINRT(this->RtvDescriptorHeap)));
 
 	// Describe and create a shader resource view (SRV) heap for the texture
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -492,11 +493,11 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-	ReturnIfFailed(this->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS_WINRT(this->SrvDescriptorHeap)));
+	AssertIfFailed(this->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS_WINRT(this->SrvDescriptorHeap)));
 	this->RtvDescriptorHandleSize = this->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Create a fence object used to synchronize the CPU with the GPU
-	ReturnIfFailed(this->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS_WINRT(this->Fence)));
+	AssertIfFailed(this->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS_WINRT(this->Fence)));
 	this->FenceValue = 1;
 
 	// Create an event handle to use for frame synchronization
@@ -524,7 +525,7 @@ bool WindowsDirect3D12Renderer::Direct3D12InitSizeDependentResources()
 	DXGI_SWAP_CHAIN_DESC desc = {};
 	this->SwapChain->GetDesc(&desc);
 
-	ReturnIfFailed(this->SwapChain->ResizeBuffers(RenderBuffersCountConst, width, height, desc.BufferDesc.Format, desc.Flags));
+	AssertIfFailed(this->SwapChain->ResizeBuffers(RenderBuffersCountConst, width, height, desc.BufferDesc.Format, desc.Flags));
 
 	// Reset the frame index to the current back buffer index.
 	this->CurrentBackBufferIndex = this->SwapChain->GetCurrentBackBufferIndex();
@@ -540,7 +541,7 @@ bool WindowsDirect3D12Renderer::Direct3D12InitSizeDependentResources()
 	// Create a RTV for each frame.
 	for (int i = 0; i < this->RenderBuffersCount; ++i)
 	{
-		ReturnIfFailed(this->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(this->RenderTargets[i])));
+		AssertIfFailed(this->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(this->RenderTargets[i])));
 
 		this->Device->CreateRenderTargetView(this->RenderTargets[i].get(), &rtvDesc, rtvDecriptorHandle);
 		rtvDecriptorHandle.ptr += this->RtvDescriptorHandleSize;
@@ -601,8 +602,8 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateSpriteRootSignature()
 	com_ptr<ID3DBlob> signature;
 	com_ptr<ID3DBlob> error;
 
-	ReturnIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
-	ReturnIfFailed((this->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(this->SpriteRootSignature))));
+	AssertIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
+	AssertIfFailed((this->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(this->SpriteRootSignature))));
 
 	return true;
 }
@@ -620,8 +621,8 @@ com_ptr<ID3D12PipelineState> WindowsDirect3D12Renderer::Direct3D12CreatePipeline
 	UINT compileFlags = 0;
 #endif
 
-	ReturnIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, vertexShader.put(), nullptr));
-	ReturnIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, pixelShader.put(), nullptr));
+	AssertIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, vertexShader.put(), nullptr));
+	AssertIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, pixelShader.put(), nullptr));
 
 	// Describe and create the graphics pipeline state object (PSO)
 	const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
@@ -665,7 +666,7 @@ com_ptr<ID3D12PipelineState> WindowsDirect3D12Renderer::Direct3D12CreatePipeline
 	}
 
 	com_ptr<ID3D12PipelineState> pipelineState;
-	ReturnIfFailed(this->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(pipelineState)));
+	AssertIfFailed(this->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(pipelineState)));
 
 	return pipelineState;
 }

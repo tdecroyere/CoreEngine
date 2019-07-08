@@ -32,8 +32,14 @@ function RegisterVisualStudioEnvironment
 
         # TODO: Do something better here
         $vsPath = ""
+        $vs2019ComPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019ProfPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019EntPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+
+        if (Test-Path -Path $vs2019ComPath)
+        {
+            $vsPath = $vs2019ComPath
+        }
 
         if (Test-Path -Path $vs2019ProfPath)
         {

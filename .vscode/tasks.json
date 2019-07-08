@@ -11,12 +11,18 @@
                 "command": "./MacOSBuild.sh"
             },
             "windows": {
-                "command": ".\\WindowsBuild.cmd",
+                "command": ".\\WindowsBuild.ps1",
             },
             "group": {
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "WindowsRun",
+            "command": ".\\WindowsRun.cmd",
+            "args": ["EcsTest"],
+            "type": "shell"
         }
     ]
 }

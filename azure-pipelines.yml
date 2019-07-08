@@ -8,10 +8,10 @@ jobs:
       displayName: 'Use .NET Core sdk 3.0.100-preview6-012264'
       inputs:
         version: '3.0.100-preview6-012264'
-
-    - script: '.\WindowsBuild.cmd'
-      displayName: 'Build CoreEngine'
-
+        
+    - task: PowerShell@2
+      inputs:
+        filePath: '.\WindowsBuild.ps1'
     - script: '.\WindowsBuildTest.cmd EcsTest'
       displayName: 'Build Tests'
 

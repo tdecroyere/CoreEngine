@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "(Windows) Attach",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
+        },
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
+        },
+        {
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
@@ -17,7 +29,7 @@
             },
             "windows": {
                 "cwd": "${workspaceFolder}/build/Windows/",
-                "program": "./CoreEngine.exe"
+                "program": "./CoreEngineConsole.exe"
             }
         },
         {
@@ -36,12 +48,12 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "./CoreEngine.exe",
-            "args": ["EcsTest"],
+            "program": "./CoreEngineConsole.exe",
+            "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
             "environment": [],
-            "externalConsole": true
+            "externalConsole": false
         }
     ]
 }

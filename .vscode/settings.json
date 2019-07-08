@@ -40,17 +40,8 @@
     },
     "omnisharp.enableRoslynAnalyzers": false,
     "omnisharp.path": "latest",
-    "swift.targets": [
-        {
-          "name": "CoreEngine",
-          "path": "/Users/tdecroyere/Projects/CoreEngine/src/Host/MacOS",
-          "sources": ["/Users/tdecroyere/Projects/CoreEngine/src/Host/MacOS/*.swift"],
-          "compilerArguments": [
-            "-sdk",
-            "/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk",
-            "-target",
-            "x86_64-apple-macosx10.15"
-          ]
-        }
-      ]
+    "sde.sourcekit.compilerOptions": [
+        "-target", "x86_64-apple-macosx10.15",
+        "-sdk", "/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+    ]
 }

@@ -51,7 +51,7 @@ class MacOSCoreEngineHost {
         self.hostPlatform.MemoryService.CreateMemoryBuffer = createMemoryBuffer
         self.hostPlatform.MemoryService.DestroyMemoryBuffer = destroyMemoryBuffer
 
-        self.renderer.initGraphicsService(&self.hostPlatform.GraphicsService)
+        initGraphicsService(self.renderer, &self.hostPlatform.GraphicsService)
 
         self.hostPlatform.InputsService.InputsContext = Unmanaged.passUnretained(self.inputsManager).toOpaque()
         self.hostPlatform.InputsService.GetInputsState = getInputsState

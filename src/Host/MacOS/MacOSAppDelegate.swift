@@ -47,9 +47,6 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         print(defaultDevice.name)
-        self.mtkView.device = defaultDevice
-        self.mtkView.colorPixelFormat = .bgra8Unorm
-        self.mtkView.isPaused = true
 
         self.renderer = MacOSMetalRenderer(view: self.mtkView, device: defaultDevice)
         self.mtkView.delegate = renderer

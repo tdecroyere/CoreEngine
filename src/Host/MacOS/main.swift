@@ -97,7 +97,7 @@ autoreleasepool {
                 // lastCounter = currentCounter
 
                 coreEngineHost.updateEngine(stepTimeInSeconds)
-                renderer.mtkView.draw()
+                //renderer.mtkView.draw()
             }
         }
     }

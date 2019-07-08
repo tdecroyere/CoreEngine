@@ -55,3 +55,18 @@ func drawPrimitivesHandle(graphicsContext: UnsafeMutableRawPointer?, startIndex:
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     renderer.drawPrimitives(startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId)
 }
+
+func initGraphicsService(_ renderer: MacOSMetalRenderer, _ graphicsService: inout GraphicsService) {
+    graphicsService.GraphicsContext = Unmanaged.passUnretained(renderer).toOpaque()
+    graphicsService.GetRenderSize = getRenderSizeHandle
+    graphicsService.CreateShader = createShaderHandle
+    graphicsService.CreateShaderParameters = createShaderParametersHandle
+    graphicsService.CreateStaticGraphicsBuffer = createStaticGraphicsBufferHandle
+    graphicsService.CreateDynamicGraphicsBuffer = createDynamicGraphicsBufferHandle
+    graphicsService.UploadDataToGraphicsBuffer = uploadDataToGraphicsBufferHandle
+    graphicsService.BeginCopyGpuData = beginCopyGpuDataHandle
+    graphicsService.EndCopyGpuData = endCopyGpuDataHandle
+    graphicsService.BeginRender = beginRenderHandle
+    graphicsService.EndRender = endRenderHandle
+    graphicsService.DrawPrimitives = drawPrimitivesHandle
+}

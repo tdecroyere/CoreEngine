@@ -62,7 +62,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         return Vector2(X: Float(self.mtkView.drawableSize.width), Y: Float(self.mtkView.drawableSize.height))
     }
 
-    func createShader(shaderByteCode: MemoryBuffer) {
+    func createShader(shaderByteCode: HostMemoryBuffer) {
         let dispatchData = DispatchData(bytesNoCopy: UnsafeRawBufferPointer(start: shaderByteCode.Pointer!, count: Int(shaderByteCode.Length)))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
@@ -114,7 +114,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         return 0
     }
 
-    func createStaticGraphicsBuffer(_ data: MemoryBuffer) -> UInt32 {
+    func createStaticGraphicsBuffer(_ data: HostMemoryBuffer) -> UInt32 {
         self.currentGraphicsBufferId += 1
 
         // TODO: Re-use temporary cpu buffers
@@ -134,7 +134,7 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         return self.currentGraphicsBufferId
     }
 
-    func createDynamicGraphicsBuffer(_ length: UInt32) -> MemoryBuffer {
+    func createDynamicGraphicsBuffer(_ length: UInt32) -> HostMemoryBuffer {
         self.currentGraphicsBufferId += 1
 
         // Create a the metal buffer on the CPU
@@ -148,10 +148,10 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.graphicsBuffers[self.currentGraphicsBufferId] = gpuBuffer
         self.cpuGraphicsBuffers[self.currentGraphicsBufferId] = cpuBuffer
 
-        return MemoryBuffer(Id: self.currentGraphicsBufferId, Pointer: cpuBuffer.contents().assumingMemoryBound(to: UInt8.self), Length: Int32(length))
+        return HostMemoryBuffer(Id: self.currentGraphicsBufferId, Pointer: cpuBuffer.contents().assumingMemoryBound(to: UInt8.self), Length: UInt32(length))
     }
 
-    func uploadDataToGraphicsBuffer(_ graphicsBufferId: UInt32, _ data: MemoryBuffer) {
+    func uploadDataToGraphicsBuffer(_ graphicsBufferId: UInt32, _ data: HostMemoryBuffer) {
         guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
             print("ERROR: GPU graphics buffer was not found")
             return

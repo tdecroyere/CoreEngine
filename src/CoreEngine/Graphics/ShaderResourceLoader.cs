@@ -53,7 +53,7 @@ namespace CoreEngine.Graphics
 
             Logger.WriteMessage("OK Shader loader");
 
-            var shaderByteCodeBuffer = this.memoryService.CreateMemoryBuffer(shaderByteCodeLength);
+            var shaderByteCodeBuffer = this.memoryService.CreateMemoryBuffer((uint)shaderByteCodeLength);
             
             if (!shaderByteCode.TryCopyTo(shaderByteCodeBuffer.AsSpan()))
             {

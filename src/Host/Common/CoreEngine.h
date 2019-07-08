@@ -2,12 +2,12 @@
 
 struct HostMemoryBuffer
 {
-    uint32_t Id;
-    uint8_t* Pointer;
-    int32_t Length;
+    unsigned int Id;
+    unsigned char* Pointer;
+    unsigned int Length;
 };
 
-typedef struct HostMemoryBuffer (*CreateMemoryBufferPtr)(void* memoryManagerContext, int length);
+typedef struct HostMemoryBuffer (*CreateMemoryBufferPtr)(void* memoryManagerContext, unsigned int length);
 typedef void (*DestroyMemoryBufferPtr)(void* memoryManagerContext, unsigned int memoryBufferId);
 
 struct MemoryService

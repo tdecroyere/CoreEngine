@@ -5,7 +5,7 @@ func getRenderSizeHandle(graphicsContext: UnsafeMutableRawPointer?) -> Vector2 {
     return renderer.getRenderSize()
 }
 
-func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: MemoryBuffer) -> UInt32 {
+func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: HostMemoryBuffer) -> UInt32 {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     renderer.createShader(shaderByteCode: shaderByteCode)
     return 0
@@ -16,17 +16,17 @@ func createShaderParametersHandle(graphicsContext: UnsafeMutableRawPointer?, gra
     return renderer.createShaderParameters([graphicsBuffer1, graphicsBuffer2, graphicsBuffer3])
 }
 
-func createStaticGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: MemoryBuffer) -> UInt32 {
+func createStaticGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: HostMemoryBuffer) -> UInt32 {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.createStaticGraphicsBuffer(data)
 }
 
-func createDynamicGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, length: UInt32) -> MemoryBuffer {
+func createDynamicGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, length: UInt32) -> HostMemoryBuffer {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.createDynamicGraphicsBuffer(length)
 }
 
-func uploadDataToGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBufferId: UInt32, data: MemoryBuffer) {
+func uploadDataToGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBufferId: UInt32, data: HostMemoryBuffer) {
     let renderer = Unmanaged<MacOSMetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     renderer.uploadDataToGraphicsBuffer(graphicsBufferId, data)
 }

@@ -4,9 +4,9 @@ namespace CoreEngine.Graphics
 {
     public readonly struct GraphicsBuffer
     {
-        private readonly MemoryBuffer? internalMemoryBuffer;
+        private readonly HostMemoryBuffer? internalMemoryBuffer;
 
-        internal GraphicsBuffer(uint id, int sizeInBytes)
+        internal GraphicsBuffer(uint id, uint sizeInBytes)
         {
             this.Id = id;
             this.SizeInBytes = sizeInBytes;
@@ -14,7 +14,7 @@ namespace CoreEngine.Graphics
             this.internalMemoryBuffer = null;
         }
 
-        internal GraphicsBuffer(MemoryBuffer memoryBuffer)
+        internal GraphicsBuffer(HostMemoryBuffer memoryBuffer)
         {
             this.Id = memoryBuffer.Id;
             this.SizeInBytes = memoryBuffer.Length;
@@ -23,10 +23,10 @@ namespace CoreEngine.Graphics
         }
 
         public readonly uint Id { get; }
-        public readonly int SizeInBytes { get; }
+        public readonly uint SizeInBytes { get; }
         public readonly GraphicsBufferType BufferType { get; }
 
-        public MemoryBuffer MemoryBuffer
+        public HostMemoryBuffer MemoryBuffer
         {
             get
             {

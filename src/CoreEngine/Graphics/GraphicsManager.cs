@@ -49,7 +49,7 @@ namespace CoreEngine.Graphics
 
         internal GraphicsBuffer CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
         {
-            var dataMemoryBuffer = this.memoryService.CreateMemoryBuffer(data.Length);
+            var dataMemoryBuffer = this.memoryService.CreateMemoryBuffer((uint)data.Length);
 
             if (!data.TryCopyTo(dataMemoryBuffer.AsSpan()))
             {

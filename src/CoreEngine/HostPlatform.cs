@@ -6,20 +6,20 @@ using System.Runtime.InteropServices;
 namespace CoreEngine
 {
     // TODO: Use MemoryHandle ?
-    public readonly struct MemoryBuffer
+    public readonly struct HostMemoryBuffer
     {
         public uint Id { get; }
         public IntPtr MemoryPointer { get; }
-        public int Length { get; }
+        public uint Length { get; }
 
         public unsafe Span<byte> AsSpan()
         {
-            return new Span<byte>(this.MemoryPointer.ToPointer(), this.Length);
+            return new Span<byte>(this.MemoryPointer.ToPointer(), (int)this.Length);
         }
     }
 
     // TODO: Add parameters to specify global or per frame allocation
-    public delegate MemoryBuffer CreateMemoryBufferDelegate(IntPtr memoryManagerContext, int length);
+    public delegate HostMemoryBuffer CreateMemoryBufferDelegate(IntPtr memoryManagerContext, uint length);
     public delegate void DestroyMemoryBufferDelegate(IntPtr memoryManagerContext, uint memoryBufferId);
 
     public readonly struct MemoryService
@@ -28,7 +28,7 @@ namespace CoreEngine
         private CreateMemoryBufferDelegate createMemoryBufferDelegate { get; } 
         private DestroyMemoryBufferDelegate destroyMemoryBufferDelegate { get; } 
 
-        public MemoryBuffer CreateMemoryBuffer(int length)
+        public HostMemoryBuffer CreateMemoryBuffer(uint length)
         {
             return createMemoryBufferDelegate(memoryManagerContext, length);
         }
@@ -40,14 +40,14 @@ namespace CoreEngine
     }
 
     public delegate Vector2 GetRenderSizeDelegate(IntPtr graphicsContext);
-    public delegate uint CreateShaderDelegate(IntPtr graphicsContext, MemoryBuffer shaderByteCode);
+    public delegate uint CreateShaderDelegate(IntPtr graphicsContext, HostMemoryBuffer shaderByteCode);
     public delegate uint CreateShaderParametersDelegate(IntPtr graphicsContext, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3); 
-    public delegate uint CreateStaticGraphicsBufferDelegate(IntPtr graphicsContext, MemoryBuffer data);
-    public delegate MemoryBuffer CreateDynamicGraphicsBufferDelegate(IntPtr graphicsContext, uint length);
+    public delegate uint CreateStaticGraphicsBufferDelegate(IntPtr graphicsContext, HostMemoryBuffer data);
+    public delegate HostMemoryBuffer CreateDynamicGraphicsBufferDelegate(IntPtr graphicsContext, uint length);
 
     // TODO: Write delete graphics buffer methods
 
-    public delegate void UploadDataToGraphicsBufferDelegate(IntPtr graphicsContext, uint graphicsBufferId,  MemoryBuffer data);
+    public delegate void UploadDataToGraphicsBufferDelegate(IntPtr graphicsContext, uint graphicsBufferId,  HostMemoryBuffer data);
     public delegate void BeginCopyGpuDataDelegate(IntPtr graphicsContext);
     public delegate void EndCopyGpuDataDelegate(IntPtr graphicsContext);
     public delegate void BeginRenderDelegate(IntPtr graphicsContext);
@@ -74,7 +74,7 @@ namespace CoreEngine
             return getRenderSizeDelegate(graphicsContext);
         }
 
-        public uint CreateShader(MemoryBuffer shaderByteCode)
+        public uint CreateShader(HostMemoryBuffer shaderByteCode)
         {
             return createShaderDelegate(graphicsContext, shaderByteCode);
         }
@@ -84,17 +84,17 @@ namespace CoreEngine
             return createShaderParametersDelegate(graphicsContext, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
         }
 
-        public uint CreateStaticGraphicsBuffer(MemoryBuffer data)
+        public uint CreateStaticGraphicsBuffer(HostMemoryBuffer data)
         {
             return createStaticGraphicsBufferDelegate(graphicsContext, data);
         }
 
-        public MemoryBuffer CreateDynamicGraphicsBuffer(uint length)
+        public HostMemoryBuffer CreateDynamicGraphicsBuffer(uint length)
         {
             return createDynamicGraphicsBufferDelegate(graphicsContext, length);
         }
 
-        public void UploadDataToGraphicsBuffer(uint graphicsBufferId, MemoryBuffer data)
+        public void UploadDataToGraphicsBuffer(uint graphicsBufferId, HostMemoryBuffer data)
         {
             uploadDataToGraphicsBuffer(graphicsContext, graphicsBufferId, data);
         }
@@ -272,7 +272,7 @@ namespace CoreEngine
     }
 
     public delegate int AddTestHostMethodDelegate(int a, int b);
-    public delegate MemoryBuffer GetTestBufferDelegate();
+    public delegate HostMemoryBuffer GetTestBufferDelegate();
 
     public readonly struct HostPlatform
     {

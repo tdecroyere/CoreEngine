@@ -2,7 +2,7 @@ import Cocoa
 import CoreEngineInterop
 import simd
 
-func getTestBuffer() -> MemoryBuffer {
+func getTestBuffer() -> HostMemoryBuffer {
     let bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: 5)
     let buffer = UnsafeMutableBufferPointer(start: bufferPtr, count: 5)
     buffer[0] = 1
@@ -11,7 +11,7 @@ func getTestBuffer() -> MemoryBuffer {
     buffer[3] = 45
     buffer[4] = 5
 
-	return MemoryBuffer(Id: 1, Pointer: bufferPtr, Length: 5)
+	return HostMemoryBuffer(Id: 1, Pointer: bufferPtr, Length: 5)
 }
 
 func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32 {

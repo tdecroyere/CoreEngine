@@ -9,6 +9,7 @@ using namespace winrt;
 using namespace Windows::UI::Core;
 
 #define IID_PPV_ARGS_WINRT(ppType) __uuidof(ppType), ppType.put_void()
+#define GetAlignedValue(value, alignement) (value + (alignement - (value % alignement)) % alignement)
 
 // TODO: To Remove and to replace with the string class
 int StringLength(char* string)
@@ -31,6 +32,9 @@ WindowsDirect3D12Renderer::WindowsDirect3D12Renderer(const CoreWindow& window, i
 	this->BytesPerPixel = 4;
 	this->RefreshRate = refreshRate;
 	this->Pitch = this->Width * this->BytesPerPixel;
+	this->currentUploadHeapOffset = 0;
+	this->currentGlobalHeapOffset = 0;
+	this->currentGraphicsBufferId = 0;
 
     UINT createFactoryFlags = 0;
 
@@ -40,35 +44,28 @@ WindowsDirect3D12Renderer::WindowsDirect3D12Renderer(const CoreWindow& window, i
 #endif
 
 	com_ptr<IDXGIFactory4> dxgiFactory;
-	auto hresult = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS_WINRT(dxgiFactory));
-
-	if (FAILED(hresult))
-	{
-		return;
-	}
+	check_hresult(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS_WINRT(dxgiFactory)));
 
 	auto graphicsAdapter = FindGraphicsAdapter(dxgiFactory);
 	
-	if (!Direct3D12CreateDevice(dxgiFactory, graphicsAdapter, window, width, height))
-	{
-		return;
-	}
+	check_hresult(Direct3D12CreateDevice(dxgiFactory, graphicsAdapter, window, width, height));
+	check_hresult(Direct3D12InitSizeDependentResources());
+	check_hresult(Direct3D12CreateResources());
 
-	if (!Direct3D12InitSizeDependentResources())
-	{
-		return;
-	}
-
-	if (!Direct3D12CreateResources())
-	{
-		return;
-	}
-
+	// Create cpu heap
 	D3D12_HEAP_DESC heapDescriptor = {};
-	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
-	heapDescriptor.SizeInBytes = 1024 * 1024 * 100;// *1024; // Allocate 1GB for now
+	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapDescriptor.SizeInBytes = 1024 * 1024 * 100;//1024; // Allocate 1GB for now
 
-	AssertIfFailed(this->Device->CreateHeap(&heapDescriptor, IID_PPV_ARGS_WINRT(this->globalHeap)));
+	check_hresult(this->Device->CreateHeap(&heapDescriptor, IID_PPV_ARGS_WINRT(this->uploadHeap)));
+
+	// Create global GPU heap
+	heapDescriptor = {};
+	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapDescriptor.SizeInBytes = 1024 * 1024 * 100;//1024; // Allocate 1GB for now
+
+	check_hresult(this->Device->CreateHeap(&heapDescriptor, IID_PPV_ARGS_WINRT(this->globalHeap)));
 
 	this->IsInitialized = true;
 }
@@ -174,12 +171,88 @@ unsigned int WindowsDirect3D12Renderer::CreateShaderParameters(unsigned int grap
 
 unsigned int WindowsDirect3D12Renderer::CreateStaticGraphicsBuffer(HostMemoryBuffer data)
 {
-	return 0;
+	// TODO: Re-use temporary cpu buffers
+
+	// For the moment, all data is aligned in a 64 KB alignement
+	uint64_t alignement = 64 * 1024;
+	this->currentGraphicsBufferId++;
+
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = data.Length;
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	// Create a Direct3D12 buffer on the CPU
+	com_ptr<ID3D12Resource> cpuBuffer;
+	check_hresult(this->Device->CreatePlacedResource(this->uploadHeap.get(), this->currentUploadHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS_WINRT(cpuBuffer)));
+	cpuBuffer->SetName(L"Static Graphics Buffer - CPU buffer");
+	this->currentUploadHeapOffset += GetAlignedValue(data.Length, alignement);
+
+	// Create a Direct3D12 buffer on the GPU
+	com_ptr<ID3D12Resource> gpuBuffer;
+	check_hresult(this->Device->CreatePlacedResource(this->globalHeap.get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS_WINRT(cpuBuffer)));
+	cpuBuffer->SetName(L"Static Graphics Buffer");
+	this->currentGlobalHeapOffset += GetAlignedValue(data.Length, alignement);
+
+	this->graphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, gpuBuffer));
+	this->cpuGraphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, cpuBuffer));
+	this->graphicsBuffersToCopy.push_back(this->currentGraphicsBufferId);
+
+	return this->currentGraphicsBufferId;
 }
 
 HostMemoryBuffer WindowsDirect3D12Renderer::CreateDynamicGraphicsBuffer(unsigned int length)
 {
-	return HostMemoryBuffer();
+	// For the moment, all data is aligned in a 64 KB alignement
+	uint64_t alignement = 64 * 1024;
+	this->currentGraphicsBufferId++;
+
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = length;
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	// Create a Direct3D12 buffer on the CPU
+	com_ptr<ID3D12Resource> cpuBuffer;
+	check_hresult(this->Device->CreatePlacedResource(this->uploadHeap.get(), this->currentUploadHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS_WINRT(cpuBuffer)));
+	cpuBuffer->SetName(L"Dynamic Graphics Buffer - CPU buffer");
+	this->currentUploadHeapOffset += GetAlignedValue(length, alignement);
+
+	// Create a Direct3D12 buffer on the GPU
+	com_ptr<ID3D12Resource> gpuBuffer;
+	check_hresult(this->Device->CreatePlacedResource(this->globalHeap.get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS_WINRT(cpuBuffer)));
+	cpuBuffer->SetName(L"Dynamic Graphics Buffer");
+	this->currentGlobalHeapOffset += GetAlignedValue(length, alignement);
+
+	this->graphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, gpuBuffer));
+	this->cpuGraphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, cpuBuffer));
+
+	void* pointer = nullptr;
+	D3D12_RANGE range = { 0, 0 };
+	cpuBuffer->Map(0, &range, &pointer);
+
+	auto hostMemoryBuffer = HostMemoryBuffer();
+	hostMemoryBuffer.Id = this->currentGraphicsBufferId;
+	hostMemoryBuffer.Pointer = (unsigned char*)pointer;
+	hostMemoryBuffer.Length = length;
+
+	return hostMemoryBuffer;
 }
 
 void WindowsDirect3D12Renderer::UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, HostMemoryBuffer data)
@@ -265,14 +338,14 @@ void WindowsDirect3D12Renderer::PresentScreenBuffer()
 bool WindowsDirect3D12Renderer::SwitchScreenMode()
 {
 	BOOL fullscreenState;
-	AssertIfFailed(this->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
+	check_hresult(this->SwapChain->GetFullscreenState(&fullscreenState, nullptr));
 
 	if (FAILED(this->SwapChain->SetFullscreenState(!fullscreenState, nullptr)))
 	{
 		// Transitions to fullscreen mode can fail when running apps over
 		// terminal services or for some other unexpected reason.  Consider
 		// notifying the user in some way when this happens.
-		OutputDebugStringA("Fullscreen transition failed");
+		OutputDebugString("Fullscreen transition failed");
 		return false;
 	}
 
@@ -451,7 +524,7 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 		com_ptr<IDXGIAdapter> warpAdapter;
 		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS_WINRT(warpAdapter));
 
-		AssertIfFailed(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(this->Device)));
+		check_hresult(D3D12CreateDevice(warpAdapter.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(this->Device)));
 	}
 
 	// Create the command queue and command allocator
@@ -459,9 +532,9 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	AssertIfFailed(this->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(this->CommandQueue)));
-	AssertIfFailed(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator)));
-	AssertIfFailed(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
+	check_hresult(this->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(this->CommandQueue)));
+	check_hresult(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator)));
+	check_hresult(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
 
 
 	// Describe and create the swap chain.
@@ -477,7 +550,7 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	swapChainDesc.SampleDesc = { 1, 0 };
 	//swapChainDesc.Flags = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 	
-	AssertIfFailed(dxgiFactory->CreateSwapChainForCoreWindow(this->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)this->SwapChain.put()));
+	check_hresult(dxgiFactory->CreateSwapChainForCoreWindow(this->CommandQueue.get(), get_unknown(window), &swapChainDesc, nullptr, (IDXGISwapChain1**)this->SwapChain.put()));
 
 	// Describe and create a render target view (RTV) descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
@@ -485,7 +558,7 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	
-	AssertIfFailed(this->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS_WINRT(this->RtvDescriptorHeap)));
+	check_hresult(this->Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS_WINRT(this->RtvDescriptorHeap)));
 
 	// Describe and create a shader resource view (SRV) heap for the texture
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -493,11 +566,11 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-	AssertIfFailed(this->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS_WINRT(this->SrvDescriptorHeap)));
+	check_hresult(this->Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS_WINRT(this->SrvDescriptorHeap)));
 	this->RtvDescriptorHandleSize = this->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Create a fence object used to synchronize the CPU with the GPU
-	AssertIfFailed(this->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS_WINRT(this->Fence)));
+	check_hresult(this->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS_WINRT(this->Fence)));
 	this->FenceValue = 1;
 
 	// Create an event handle to use for frame synchronization
@@ -525,7 +598,7 @@ bool WindowsDirect3D12Renderer::Direct3D12InitSizeDependentResources()
 	DXGI_SWAP_CHAIN_DESC desc = {};
 	this->SwapChain->GetDesc(&desc);
 
-	AssertIfFailed(this->SwapChain->ResizeBuffers(RenderBuffersCountConst, width, height, desc.BufferDesc.Format, desc.Flags));
+	check_hresult(this->SwapChain->ResizeBuffers(RenderBuffersCountConst, width, height, desc.BufferDesc.Format, desc.Flags));
 
 	// Reset the frame index to the current back buffer index.
 	this->CurrentBackBufferIndex = this->SwapChain->GetCurrentBackBufferIndex();
@@ -541,7 +614,7 @@ bool WindowsDirect3D12Renderer::Direct3D12InitSizeDependentResources()
 	// Create a RTV for each frame.
 	for (int i = 0; i < this->RenderBuffersCount; ++i)
 	{
-		AssertIfFailed(this->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(this->RenderTargets[i])));
+		check_hresult(this->SwapChain->GetBuffer(i, IID_PPV_ARGS_WINRT(this->RenderTargets[i])));
 
 		this->Device->CreateRenderTargetView(this->RenderTargets[i].get(), &rtvDesc, rtvDecriptorHandle);
 		rtvDecriptorHandle.ptr += this->RtvDescriptorHandleSize;
@@ -602,8 +675,8 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateSpriteRootSignature()
 	com_ptr<ID3DBlob> signature;
 	com_ptr<ID3DBlob> error;
 
-	AssertIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
-	AssertIfFailed((this->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(this->SpriteRootSignature))));
+	check_hresult(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.put(), error.put()));
+	check_hresult((this->Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS_WINRT(this->SpriteRootSignature))));
 
 	return true;
 }
@@ -621,8 +694,8 @@ com_ptr<ID3D12PipelineState> WindowsDirect3D12Renderer::Direct3D12CreatePipeline
 	UINT compileFlags = 0;
 #endif
 
-	AssertIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, vertexShader.put(), nullptr));
-	AssertIfFailed(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, pixelShader.put(), nullptr));
+	check_hresult(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, vertexShader.put(), nullptr));
+	check_hresult(D3DCompile(shaderCode, StringLength(shaderCode), "ProjectGaia_Internal.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, pixelShader.put(), nullptr));
 
 	// Describe and create the graphics pipeline state object (PSO)
 	const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
@@ -666,7 +739,7 @@ com_ptr<ID3D12PipelineState> WindowsDirect3D12Renderer::Direct3D12CreatePipeline
 	}
 
 	com_ptr<ID3D12PipelineState> pipelineState;
-	AssertIfFailed(this->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(pipelineState)));
+	check_hresult(this->Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS_WINRT(pipelineState)));
 
 	return pipelineState;
 }
@@ -741,10 +814,16 @@ com_ptr<IDXGIAdapter4> WindowsDirect3D12Renderer::FindGraphicsAdapter(const com_
 
 	for (int i = 0; dxgiFactory->EnumAdapters1(i, dxgiAdapter1.put()) != DXGI_ERROR_NOT_FOUND; i++)
 	{
+		com_ptr<ID3D12Device> tempDevice;
+		D3D12CreateDevice(dxgiAdapter1.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(tempDevice));
+
+		D3D12_FEATURE_DATA_D3D12_OPTIONS deviceOptions = {};
+		check_hresult(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &deviceOptions, sizeof(deviceOptions)) == 0);
+
 		DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
 		dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
 
-		if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+		if (deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && (dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
 		{
 			maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
 			dxgiAdapter1.as(dxgiAdapter4);

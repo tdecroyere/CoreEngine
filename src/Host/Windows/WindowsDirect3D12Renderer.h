@@ -12,16 +12,6 @@
 
 #include "../Common/CoreEngine.h"
 
-// Macros
-#if DEBUG && _MSC_VER
-    #define Assert(expression) if(!(expression)) { OutputDebugString("ASSERT ERROR\n");(*(int*) 0) = 0; }
-#elif DEBUG && !_MSC_VER
-    #define Assert(expression) if(!(expression)) { printf("ASSERT ERROR\n");__builtin_trap(); }
-#else
-    #define Assert(expression)
-#endif
-
-#define AssertIfFailed(expression) if (FAILED(expression)) { Assert("ERROR: DirectX12 Init error!\n"); };
 #define ArrayCount(value) ((sizeof(value) / sizeof(value[0])))
 
 static const int RenderBuffersCountConst = 2;
@@ -79,10 +69,10 @@ namespace impl
         bool VSync;
         int RenderBuffersCount;
 
-        com_ptr<ID3D12Device> Device;
+        com_ptr<ID3D12Device3> Device;
         com_ptr<ID3D12CommandQueue> CommandQueue;
         com_ptr<ID3D12CommandAllocator> CommandAllocator; // TODO: We need one allocator per frame;
-        com_ptr<ID3D12GraphicsCommandList> CommandList;
+        com_ptr<ID3D12GraphicsCommandList3> CommandList;
         com_ptr<IDXGISwapChain3> SwapChain;
 
         com_ptr<ID3D12DescriptorHeap> RtvDescriptorHeap;
@@ -92,8 +82,13 @@ namespace impl
         D3D12_RESOURCE_BARRIER PresentToRenderTargetBarriers[RenderBuffersCountConst];
         D3D12_RESOURCE_BARRIER RenderTargetToPresentBarriers[RenderBuffersCountConst];
 
+        com_ptr<ID3D12Heap> uploadHeap;
+        uint64_t currentUploadHeapOffset;
         com_ptr<ID3D12Heap> globalHeap;
+        uint64_t currentGlobalHeapOffset;
+        std::map<uint32_t, com_ptr<ID3D12Resource>> cpuGraphicsBuffers;
         std::map<uint32_t, com_ptr<ID3D12Resource>> graphicsBuffers;
+        std::vector<uint32_t> graphicsBuffersToCopy;
         uint32_t currentGraphicsBufferId;
 
         com_ptr<ID3D12PipelineState> pipelineState;
@@ -110,7 +105,7 @@ namespace impl
         int CurrentBackBufferIndex;
 
         // Synchronization objects
-        com_ptr<ID3D12Fence> Fence;
+        com_ptr<ID3D12Fence1> Fence;
         uint64_t FrameFenceValues[RenderBuffersCountConst] = {};
         uint64_t FenceValue;
         HANDLE FenceEvent;

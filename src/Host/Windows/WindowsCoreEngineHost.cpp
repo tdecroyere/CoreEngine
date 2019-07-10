@@ -44,7 +44,7 @@ void SendVibrationCommand(void* inputsContext, unsigned char playerId, float lef
 }
 
 
-HostMemoryBuffer CreateMemoryBuffer(void* memoryManagerContext, int length)
+HostMemoryBuffer CreateMemoryBuffer(void* memoryManagerContext, unsigned int length)
 {
     unsigned char* buffer = new unsigned char[length];
     ZeroMemory(buffer, length);

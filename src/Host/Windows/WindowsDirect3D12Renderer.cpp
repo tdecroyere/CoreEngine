@@ -35,6 +35,7 @@ WindowsDirect3D12Renderer::WindowsDirect3D12Renderer(const CoreWindow& window, i
 	this->currentUploadHeapOffset = 0;
 	this->currentGlobalHeapOffset = 0;
 	this->currentGraphicsBufferId = 0;
+	this->graphicsBuffersToCopy = single_threaded_vector<uint32_t>();
 
     UINT createFactoryFlags = 0;
 
@@ -198,13 +199,13 @@ unsigned int WindowsDirect3D12Renderer::CreateStaticGraphicsBuffer(HostMemoryBuf
 
 	// Create a Direct3D12 buffer on the GPU
 	com_ptr<ID3D12Resource> gpuBuffer;
-	check_hresult(this->Device->CreatePlacedResource(this->globalHeap.get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS_WINRT(cpuBuffer)));
-	cpuBuffer->SetName(L"Static Graphics Buffer");
+	check_hresult(this->Device->CreatePlacedResource(this->globalHeap.get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS_WINRT(gpuBuffer)));
+	gpuBuffer->SetName(L"Static Graphics Buffer");
 	this->currentGlobalHeapOffset += GetAlignedValue(data.Length, alignement);
 
-	this->graphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, gpuBuffer));
-	this->cpuGraphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, cpuBuffer));
-	this->graphicsBuffersToCopy.push_back(this->currentGraphicsBufferId);
+	this->graphicsBuffers[this->currentGraphicsBufferId] = gpuBuffer;
+	this->cpuGraphicsBuffers[this->currentGraphicsBufferId] = cpuBuffer;
+	this->graphicsBuffersToCopy.Append(this->currentGraphicsBufferId);
 
 	return this->currentGraphicsBufferId;
 }
@@ -236,12 +237,12 @@ HostMemoryBuffer WindowsDirect3D12Renderer::CreateDynamicGraphicsBuffer(unsigned
 
 	// Create a Direct3D12 buffer on the GPU
 	com_ptr<ID3D12Resource> gpuBuffer;
-	check_hresult(this->Device->CreatePlacedResource(this->globalHeap.get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS_WINRT(cpuBuffer)));
-	cpuBuffer->SetName(L"Dynamic Graphics Buffer");
+	check_hresult(this->Device->CreatePlacedResource(this->globalHeap.get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS_WINRT(gpuBuffer)));
+	gpuBuffer->SetName(L"Dynamic Graphics Buffer");
 	this->currentGlobalHeapOffset += GetAlignedValue(length, alignement);
 
-	this->graphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, gpuBuffer));
-	this->cpuGraphicsBuffers.insert(std::pair(this->currentGraphicsBufferId, cpuBuffer));
+	this->graphicsBuffers[this->currentGraphicsBufferId] = gpuBuffer;
+	this->cpuGraphicsBuffers[this->currentGraphicsBufferId] = cpuBuffer;
 
 	void* pointer = nullptr;
 	D3D12_RANGE range = { 0, 0 };
@@ -257,17 +258,41 @@ HostMemoryBuffer WindowsDirect3D12Renderer::CreateDynamicGraphicsBuffer(unsigned
 
 void WindowsDirect3D12Renderer::UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, HostMemoryBuffer data)
 {
+	auto gpuBuffer = this->graphicsBuffers[graphicsBufferId];
+	auto cpuBuffer = this->cpuGraphicsBuffers[graphicsBufferId];
 
+	// TODO: Add parameters to be able to update partially the buffer
+	this->copyCommandList->CopyResource(gpuBuffer.get(), cpuBuffer.get());
 }
 
 void WindowsDirect3D12Renderer::BeginCopyGpuData()
 {
+	this->copyCommandAllocator->Reset();
+	this->copyCommandList->Reset(this->copyCommandAllocator.get(), nullptr);
 
+	// Copy pending static graphics buffers
+	for (uint32_t i = 0; i < this->graphicsBuffersToCopy.Size(); i++)
+	{
+		auto graphicsBufferId = this->graphicsBuffersToCopy.GetAt(i);
+
+		auto gpuBuffer = this->graphicsBuffers[graphicsBufferId];
+		auto cpuBuffer = this->cpuGraphicsBuffers[graphicsBufferId];
+
+		this->copyCommandList->CopyResource(gpuBuffer.get(), cpuBuffer.get());
+		
+		// TODO: Removing the cpu graphics buffer before the command list has executed it give an error
+		//this->cpuGraphicsBuffers[graphicsBufferId] = nullptr;
+	}
+
+	this->graphicsBuffersToCopy.Clear();
 }
 
 void WindowsDirect3D12Renderer::EndCopyGpuData()
 {
+	this->copyCommandList->Close();
 
+	ID3D12CommandList* commandLists[] = { this->copyCommandList.get() };
+	this->copyCommandQueue->ExecuteCommandLists(1, commandLists);
 }
 
 void WindowsDirect3D12Renderer::BeginRender()
@@ -310,7 +335,41 @@ void WindowsDirect3D12Renderer::EndRender()
 
 void WindowsDirect3D12Renderer::DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId)
 {
+	auto vertexGraphicsBuffer = this->graphicsBuffers[vertexBufferId];
+  	auto indexGraphicsBuffer = this->graphicsBuffers[indexBufferId];
 
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
+	vertexBufferView.BufferLocation = vertexGraphicsBuffer->GetGPUVirtualAddress();
+	vertexBufferView.SizeInBytes = vertexGraphicsBuffer->GetDesc().Width;
+	vertexBufferView.StrideInBytes = 24;
+
+	this->CommandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+
+	/*
+	
+	guard let renderCommandEncoder = self.renderCommandEncoder else {
+            print("Error: Render Command Encoder is null.")
+            return
+        }
+
+        let vertexGraphicsBuffer = self.graphicsBuffers[vertexBufferId]
+        let indexGraphicsBuffer = self.graphicsBuffers[indexBufferId]
+        
+        let startIndexOffset = Int(startIndex * 4)
+
+        renderCommandEncoder.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
+        renderCommandEncoder.setVertexBuffer(self.argumentBuffer, offset: 0, index: 1)
+
+        renderCommandEncoder.drawIndexedPrimitives(type: .triangle, 
+                                                   indexCount: Int(indexCount), 
+                                                   indexType: .uint32, 
+                                                   indexBuffer: indexGraphicsBuffer!, 
+                                                   indexBufferOffset: startIndexOffset, 
+                                                   instanceCount: 1, 
+                                                   baseVertex: 0, 
+                                                   baseInstance: Int(baseInstanceId))
+	
+	 */
 }
 
 void WindowsDirect3D12Renderer::PresentScreenBuffer()
@@ -536,6 +595,17 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	check_hresult(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator)));
 	check_hresult(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
 
+	// Create the copy command queue and copy command allocator
+	D3D12_COMMAND_QUEUE_DESC copyCommandQueueDesc = {};
+	copyCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	copyCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+
+	check_hresult(this->Device->CreateCommandQueue(&copyCommandQueueDesc, IID_PPV_ARGS_WINRT(this->copyCommandQueue)));
+	check_hresult(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS_WINRT(this->copyCommandAllocator)));
+	check_hresult(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, this->copyCommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->copyCommandList)));
+	
+	// TODO: Do we need to do this?
+	this->copyCommandList->Close();
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
@@ -814,19 +884,22 @@ com_ptr<IDXGIAdapter4> WindowsDirect3D12Renderer::FindGraphicsAdapter(const com_
 
 	for (int i = 0; dxgiFactory->EnumAdapters1(i, dxgiAdapter1.put()) != DXGI_ERROR_NOT_FOUND; i++)
 	{
-		com_ptr<ID3D12Device> tempDevice;
-		D3D12CreateDevice(dxgiAdapter1.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(tempDevice));
-
-		D3D12_FEATURE_DATA_D3D12_OPTIONS deviceOptions = {};
-		check_hresult(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &deviceOptions, sizeof(deviceOptions)) == 0);
-
 		DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
 		dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
 
-		if (deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && (dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+		if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0)
 		{
-			maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
-			dxgiAdapter1.as(dxgiAdapter4);
+			com_ptr<ID3D12Device> tempDevice;
+			D3D12CreateDevice(dxgiAdapter1.get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS_WINRT(tempDevice));
+
+			D3D12_FEATURE_DATA_D3D12_OPTIONS deviceOptions = {};
+			check_hresult(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &deviceOptions, sizeof(deviceOptions)) == 0);
+
+			if (deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+			{
+				maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
+				dxgiAdapter1.as(dxgiAdapter4);
+			}
 		}
 	}
 

@@ -62,6 +62,7 @@ void DestroyMemoryBuffer(void* memoryManagerContext, unsigned int memoryBufferId
 
 }
 
+
 WindowsCoreEngineHost::WindowsCoreEngineHost(WindowsDirect3D12Renderer* renderer)
 {
     this->renderer = renderer;

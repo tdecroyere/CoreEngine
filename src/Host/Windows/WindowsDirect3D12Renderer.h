@@ -70,10 +70,15 @@ namespace impl
         int RenderBuffersCount;
 
         com_ptr<ID3D12Device3> Device;
+        com_ptr<IDXGISwapChain3> SwapChain;
+
         com_ptr<ID3D12CommandQueue> CommandQueue;
         com_ptr<ID3D12CommandAllocator> CommandAllocator; // TODO: We need one allocator per frame;
-        com_ptr<ID3D12GraphicsCommandList3> CommandList;
-        com_ptr<IDXGISwapChain3> SwapChain;
+        com_ptr<ID3D12GraphicsCommandList> CommandList;
+
+        com_ptr<ID3D12CommandQueue> copyCommandQueue;
+        com_ptr<ID3D12CommandAllocator> copyCommandAllocator; // TODO: We need one allocator per frame;
+        com_ptr<ID3D12GraphicsCommandList> copyCommandList;
 
         com_ptr<ID3D12DescriptorHeap> RtvDescriptorHeap;
         com_ptr<ID3D12DescriptorHeap> SrvDescriptorHeap;
@@ -88,7 +93,7 @@ namespace impl
         uint64_t currentGlobalHeapOffset;
         std::map<uint32_t, com_ptr<ID3D12Resource>> cpuGraphicsBuffers;
         std::map<uint32_t, com_ptr<ID3D12Resource>> graphicsBuffers;
-        std::vector<uint32_t> graphicsBuffersToCopy;
+        IVector<uint32_t> graphicsBuffersToCopy;
         uint32_t currentGraphicsBufferId;
 
         com_ptr<ID3D12PipelineState> pipelineState;

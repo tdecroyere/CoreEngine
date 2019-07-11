@@ -109,7 +109,12 @@ namespace CoreEngine.Graphics
             this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
         }
 
-        public override void Update()
+        public override void PreUpdate()
+        {
+            RunRenderPipeline();
+        }
+
+        public override void PostUpdate()
         {
             this.graphicsService.BeginCopyGpuData();
             // TODO: Process pending gpu resource loading here
@@ -130,8 +135,6 @@ namespace CoreEngine.Graphics
             // argument buffer per shader?
             this.graphicsService.UploadDataToGraphicsBuffer(this.vertexShaderParametersGraphicsBuffer.Id, this.vertexShaderParametersGraphicsBuffer.MemoryBuffer);
             this.graphicsService.EndCopyGpuData();
-
-            RunRenderPipeline();
 
             UpdateMeshInstancesStatus(false);
         }

@@ -107,7 +107,7 @@ namespace CoreEngine.Resources
             return (T)resource;
         }
 
-        public override void Update()
+        public override void PreUpdate()
         {
             CheckResourceLoadingTasks();
             CheckForUpdatedResources();

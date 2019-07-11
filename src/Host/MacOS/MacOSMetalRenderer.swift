@@ -1,12 +1,20 @@
 import Cocoa
+import QuartzCore.CAMetalLayer
 import Metal
-import MetalKit
 import simd
 import CoreEngineInterop
 
-class MacOSMetalRenderer: NSObject, MTKViewDelegate {
+class MacOSMetalRenderer: NSObject {
     let device: MTLDevice
-    let mtkView: MTKView
+    let view: NSView
+    let metalLayer: CAMetalLayer
+    var currentMetalDrawable: CAMetalDrawable?
+    var depthTextures: [MTLTexture]
+    var currentDepthTextureIndex: Int
+
+    var renderWidth: Int
+    var renderHeight: Int
+    
     var commandQueue: MTLCommandQueue!
     var pipelineState: MTLRenderPipelineState?
     var depthStencilState: MTLDepthStencilState!
@@ -27,9 +35,31 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     var graphicsBuffersToCopy: [UInt32]
     var currentGraphicsBufferId: UInt32
 
-    init(view: MTKView, device: MTLDevice) {
-        self.mtkView = view
-        self.device = device
+    init(view: NSView, renderWidth: Int, renderHeight: Int) {
+        let defaultDevice = MTLCreateSystemDefaultDevice()!
+        print(defaultDevice.name)
+        print(renderWidth)
+
+        self.device = defaultDevice
+        self.view = view
+        self.renderWidth = renderWidth
+        self.renderHeight = renderHeight
+
+        // Create color metal layer
+        self.metalLayer = CAMetalLayer()
+        self.metalLayer.device = device
+        self.metalLayer.pixelFormat = .bgra8Unorm_srgb
+        self.metalLayer.framebufferOnly = true
+        self.metalLayer.allowsNextDrawableTimeout = false
+        self.metalLayer.displaySyncEnabled = true
+        self.metalLayer.maximumDrawableCount = 2
+        self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
+
+        view.layer = self.metalLayer
+
+        self.depthTextures = []
+        self.currentDepthTextureIndex = 0
+
         self.renderCommandBuffer = nil
         self.copyCommandBuffer = nil
         self.graphicsBuffers = [:]
@@ -39,11 +69,6 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
 
         super.init()
 
-        self.mtkView.device = device
-        self.mtkView.isPaused = true
-        self.mtkView.colorPixelFormat = .bgra8Unorm_srgb
-        self.mtkView.depthStencilPixelFormat = .depth32Float
-
         let depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .less
         depthStencilDescriptor.isDepthWriteEnabled = true
@@ -52,14 +77,24 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         self.commandQueue = self.device.makeCommandQueue()
 
         let heapDescriptor = MTLHeapDescriptor()
-        heapDescriptor.storageMode = .`private`
+        heapDescriptor.storageMode = .private
         heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
         heapDescriptor.size = 1024 * 1024 * 1024; // Allocate 1GB for now
         self.globalHeap = self.device.makeHeap(descriptor: heapDescriptor)!
+
+        createDepthBuffers()
     }
 
     func getRenderSize() -> Vector2 {
-        return Vector2(X: Float(self.mtkView.drawableSize.width), Y: Float(self.mtkView.drawableSize.height))
+        return Vector2(X: Float(self.renderWidth), Y: Float(self.renderHeight))
+    }
+
+    func changeRenderSize(renderWidth: Int, renderHeight: Int) {
+        self.renderWidth = renderWidth
+        self.renderHeight = renderHeight
+        
+        self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
+        createDepthBuffers()
     }
 
     func createShader(shaderByteCode: HostMemoryBuffer) {
@@ -88,8 +123,8 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         pipelineStateDescriptor.vertexFunction = vertexFunction
         pipelineStateDescriptor.fragmentFunction = fragmentFunction
         pipelineStateDescriptor.vertexBuffers[0].mutability = .immutable
-        pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.mtkView.colorPixelFormat
-        pipelineStateDescriptor.depthAttachmentPixelFormat = self.mtkView.depthStencilPixelFormat
+        pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat
+        pipelineStateDescriptor.depthAttachmentPixelFormat = .depth32Float
 
         do {
             self.pipelineState = try self.device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
@@ -204,7 +239,23 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
     }
 
     func beginRender() {
-        self.mtkView.clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
+        guard let currentMetalDrawable = self.metalLayer.nextDrawable() else {
+            return
+        }
+
+        let depthTexture = self.depthTextures[0]
+
+        self.currentMetalDrawable = currentMetalDrawable
+
+        let renderPassDescriptor = MTLRenderPassDescriptor()
+        renderPassDescriptor.colorAttachments[0].texture = currentMetalDrawable.texture
+        renderPassDescriptor.colorAttachments[0].loadAction = .clear
+        renderPassDescriptor.colorAttachments[0].storeAction = .dontCare
+        renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
+        renderPassDescriptor.depthAttachment.texture = depthTexture
+        renderPassDescriptor.depthAttachment.loadAction = .clear
+        renderPassDescriptor.depthAttachment.storeAction = .dontCare
+        renderPassDescriptor.depthAttachment.clearDepth = 1.0
 
         self.renderCommandBuffer = self.commandQueue.makeCommandBuffer()!
         self.renderCommandBuffer.label = "Frame Render Command Buffer"
@@ -213,8 +264,6 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
             print("pipeline state empty")
             return
         }
-
-        let renderPassDescriptor = self.mtkView.currentRenderPassDescriptor!
         
         self.renderCommandEncoder = self.renderCommandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
         self.renderCommandEncoder.label = "Frame Render Command Encoder"
@@ -243,12 +292,20 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
         renderCommandEncoder.endEncoding()
         self.renderCommandEncoder = nil
 
-        renderCommandBuffer.present(self.mtkView.currentDrawable!)
+        //renderCommandBuffer.present(self.currentMetalDrawable!)
         renderCommandBuffer.commit()
-        renderCommandBuffer.waitUntilScheduled()
         self.renderCommandBuffer = nil
+        //self.currentMetalDrawable = nil
+    }
 
-        self.mtkView.draw()
+    func presentScreenBuffer() {
+        // TODO: Wait for render command buffer execution?
+
+        guard let currentMetalDrawable = self.currentMetalDrawable else {
+            return
+        }
+        currentMetalDrawable.present()
+        self.currentMetalDrawable = nil
     }
 
     func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ baseInstanceId: UInt32) {
@@ -275,10 +332,14 @@ class MacOSMetalRenderer: NSObject, MTKViewDelegate {
                                                    baseInstance: Int(baseInstanceId))
     }
 
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-    }
+    private func createDepthBuffers() {
+        // TODO: Create an array per render buffer count
 
-    func draw(in view: MTKView) {
-
+        let depthTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .depth32Float, width: self.renderWidth, height: self.renderHeight, mipmapped: false)
+        depthTextureDescriptor.storageMode = .private
+        depthTextureDescriptor.usage = .renderTarget
+        let depthTexture = self.globalHeap.makeTexture(descriptor: depthTextureDescriptor)!
+        self.depthTextures = []
+        self.depthTextures.append(depthTexture)
     }
 }

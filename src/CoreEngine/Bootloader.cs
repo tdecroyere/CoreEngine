@@ -65,8 +65,10 @@ namespace CoreEngine
         {
             if (coreEngineApp != null)
             {
-                coreEngineApp.SystemManagerContainer.UpdateSystemManagers();
+                coreEngineApp.SystemManagerContainer.PreUpdateSystemManagers();
                 coreEngineApp.Update(deltaTime);
+                coreEngineApp.SystemManagerContainer.PostUpdateSystemManagers();
+
             }
         }
 

@@ -17,7 +17,7 @@ namespace CoreEngine.Inputs
             this.inputsState = new InputsState();
         }
 
-        public override void Update()
+        public override void PreUpdate()
         {
             // TODO: Implement an input action system to map the controls to actions
             // TODO: Take into account transition count

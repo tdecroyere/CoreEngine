@@ -70,11 +70,6 @@ autoreleasepool {
     let coreEngineHost = MacOSCoreEngineHost(memoryManager: memoryManager, renderer: renderer, inputsManager: inputsManager)
     coreEngineHost.startEngine(appName)
 
-    // var machTimebaseInfo = mach_timebase_info(numer: 0, denom: 0)
-    // mach_timebase_info(&machTimebaseInfo)
-
-    // var lastCounter = mach_absolute_time()
-    
     // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
     let stepTimeInSeconds = Float(1.0 / 60.0)
 
@@ -85,19 +80,9 @@ autoreleasepool {
             isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
 
             if (!isGamePaused) {
-                
                 inputsManager.processGamepadControllers()
-
-                // let currentCounter = mach_absolute_time()
-
-                // // TODO: Precise frame time calculation is not used for the moment
-                // let elapsed = currentCounter - lastCounter
-                // let nanoSeconds = elapsed * UInt64(machTimebaseInfo.numer) / UInt64(machTimebaseInfo.denom)
-                // let milliSeconds = Double(nanoSeconds) / 1_000_000
-                // lastCounter = currentCounter
-
                 coreEngineHost.updateEngine(stepTimeInSeconds)
-                //renderer.mtkView.draw()
+                renderer.presentScreenBuffer()
             }
         }
     }

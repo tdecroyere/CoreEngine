@@ -62,12 +62,21 @@ namespace CoreEngine
             return (T)Activator.CreateInstance(typeof(T), resolvedParameters);
         }
 
-        public void UpdateSystemManagers()
+        public void PreUpdateSystemManagers()
         {
             // TODO: Performance issue here?
             foreach (var manager in this.systemManagerList)
             {
-                manager.Value.Update();
+                manager.Value.PreUpdate();
+            }
+        }
+
+        public void PostUpdateSystemManagers()
+        {
+            // TODO: Performance issue here?
+            foreach (var manager in this.systemManagerList)
+            {
+                manager.Value.PostUpdate();
             }
         }
     }

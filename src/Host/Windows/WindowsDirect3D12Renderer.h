@@ -22,6 +22,14 @@ namespace impl
     using namespace Windows::Foundation::Collections;
     using namespace Windows::UI::Core;
 
+    struct WindowsDirect3D12Buffer
+    {
+        com_ptr<ID3D12Resource>* CpuGraphicsBuffers;
+        com_ptr<ID3D12Resource>* GpuGraphicsBuffers;
+        uint32_t BuffersCount;
+        bool IsInCopyState;
+    };
+
     class Direct3D12Texture
     {
     public:
@@ -73,11 +81,11 @@ namespace impl
         com_ptr<IDXGISwapChain3> SwapChain;
 
         com_ptr<ID3D12CommandQueue> CommandQueue;
-        com_ptr<ID3D12CommandAllocator> CommandAllocator; // TODO: We need one allocator per frame;
+        com_ptr<ID3D12CommandAllocator> CommandAllocator[RenderBuffersCountConst] = {};
         com_ptr<ID3D12GraphicsCommandList> CommandList;
 
         com_ptr<ID3D12CommandQueue> copyCommandQueue;
-        com_ptr<ID3D12CommandAllocator> copyCommandAllocator; // TODO: We need one allocator per frame;
+        com_ptr<ID3D12CommandAllocator> copyCommandAllocator[RenderBuffersCountConst] = {};
         com_ptr<ID3D12GraphicsCommandList> copyCommandList;
 
         com_ptr<ID3D12DescriptorHeap> RtvDescriptorHeap;
@@ -91,8 +99,10 @@ namespace impl
         uint64_t currentUploadHeapOffset;
         com_ptr<ID3D12Heap> globalHeap;
         uint64_t currentGlobalHeapOffset;
-        std::map<uint32_t, com_ptr<ID3D12Resource>> cpuGraphicsBuffers;
-        std::map<uint32_t, com_ptr<ID3D12Resource>> graphicsBuffers;
+
+        std::map<uint32_t, WindowsDirect3D12Buffer> graphicsBuffers;
+        // std::map<uint32_t, com_ptr<ID3D12Resource>> cpuGraphicsBuffers;
+        // std::map<uint32_t, com_ptr<ID3D12Resource>> graphicsBuffers;
         IVector<uint32_t> graphicsBuffersToCopy;
         uint32_t currentGraphicsBufferId;
 
@@ -132,5 +142,6 @@ namespace impl
     };
 };
 
+using ::impl::WindowsDirect3D12Buffer;
 using ::impl::Direct3D12Texture;
 using ::impl::WindowsDirect3D12Renderer;

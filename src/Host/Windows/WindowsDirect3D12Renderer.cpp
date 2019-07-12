@@ -58,6 +58,7 @@ WindowsDirect3D12Renderer::WindowsDirect3D12Renderer(const CoreWindow& window, i
 	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_UPLOAD;
 	heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	heapDescriptor.SizeInBytes = 1024 * 1024 * 100;//1024; // Allocate 1GB for now
+	heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
 
 	check_hresult(this->Device->CreateHeap(&heapDescriptor, IID_PPV_ARGS_WINRT(this->uploadHeap)));
 
@@ -65,6 +66,7 @@ WindowsDirect3D12Renderer::WindowsDirect3D12Renderer(const CoreWindow& window, i
 	heapDescriptor = {};
 	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
 	heapDescriptor.SizeInBytes = 1024 * 1024 * 100;//1024; // Allocate 1GB for now
+	heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
 
 	check_hresult(this->Device->CreateHeap(&heapDescriptor, IID_PPV_ARGS_WINRT(this->globalHeap)));
 
@@ -203,8 +205,15 @@ unsigned int WindowsDirect3D12Renderer::CreateStaticGraphicsBuffer(HostMemoryBuf
 	gpuBuffer->SetName(L"Static Graphics Buffer");
 	this->currentGlobalHeapOffset += GetAlignedValue(data.Length, alignement);
 
-	this->graphicsBuffers[this->currentGraphicsBufferId] = gpuBuffer;
-	this->cpuGraphicsBuffers[this->currentGraphicsBufferId] = cpuBuffer;
+	WindowsDirect3D12Buffer graphicsBuffer = {};
+	graphicsBuffer.BuffersCount = 1;
+	graphicsBuffer.IsInCopyState = false;
+	graphicsBuffer.CpuGraphicsBuffers = new com_ptr<ID3D12Resource>[1];
+	graphicsBuffer.CpuGraphicsBuffers[0] = cpuBuffer;
+	graphicsBuffer.GpuGraphicsBuffers = new com_ptr<ID3D12Resource>[1];
+	graphicsBuffer.GpuGraphicsBuffers[0] = gpuBuffer;
+
+	this->graphicsBuffers[this->currentGraphicsBufferId] = graphicsBuffer;
 	this->graphicsBuffersToCopy.Append(this->currentGraphicsBufferId);
 
 	return this->currentGraphicsBufferId;
@@ -241,8 +250,15 @@ HostMemoryBuffer WindowsDirect3D12Renderer::CreateDynamicGraphicsBuffer(unsigned
 	gpuBuffer->SetName(L"Dynamic Graphics Buffer");
 	this->currentGlobalHeapOffset += GetAlignedValue(length, alignement);
 
-	this->graphicsBuffers[this->currentGraphicsBufferId] = gpuBuffer;
-	this->cpuGraphicsBuffers[this->currentGraphicsBufferId] = cpuBuffer;
+	WindowsDirect3D12Buffer graphicsBuffer = {};
+	graphicsBuffer.BuffersCount = this->RenderBuffersCount;
+	graphicsBuffer.IsInCopyState = true;
+	graphicsBuffer.CpuGraphicsBuffers = new com_ptr<ID3D12Resource>[this->RenderBuffersCount];
+	graphicsBuffer.CpuGraphicsBuffers[0] = cpuBuffer;
+	graphicsBuffer.GpuGraphicsBuffers = new com_ptr<ID3D12Resource>[this->RenderBuffersCount];
+	graphicsBuffer.GpuGraphicsBuffers[0] = gpuBuffer;
+
+	this->graphicsBuffers[this->currentGraphicsBufferId] = graphicsBuffer;
 
 	void* pointer = nullptr;
 	D3D12_RANGE range = { 0, 0 };
@@ -258,8 +274,10 @@ HostMemoryBuffer WindowsDirect3D12Renderer::CreateDynamicGraphicsBuffer(unsigned
 
 void WindowsDirect3D12Renderer::UploadDataToGraphicsBuffer(unsigned int graphicsBufferId, HostMemoryBuffer data)
 {
-	auto gpuBuffer = this->graphicsBuffers[graphicsBufferId];
-	auto cpuBuffer = this->cpuGraphicsBuffers[graphicsBufferId];
+	auto graphicsBuffer = this->graphicsBuffers[graphicsBufferId];
+
+	auto gpuBuffer = graphicsBuffer.GpuGraphicsBuffers[this->CurrentBackBufferIndex];
+	auto cpuBuffer = graphicsBuffer.CpuGraphicsBuffers[this->CurrentBackBufferIndex];
 
 	// TODO: Add parameters to be able to update partially the buffer
 	this->copyCommandList->CopyResource(gpuBuffer.get(), cpuBuffer.get());
@@ -267,19 +285,22 @@ void WindowsDirect3D12Renderer::UploadDataToGraphicsBuffer(unsigned int graphics
 
 void WindowsDirect3D12Renderer::BeginCopyGpuData()
 {
-	this->copyCommandAllocator->Reset();
-	this->copyCommandList->Reset(this->copyCommandAllocator.get(), nullptr);
+	this->copyCommandAllocator[this->CurrentBackBufferIndex]->Reset();
+	this->copyCommandList->Reset(this->copyCommandAllocator[this->CurrentBackBufferIndex].get(), nullptr);
 
 	// Copy pending static graphics buffers
 	for (uint32_t i = 0; i < this->graphicsBuffersToCopy.Size(); i++)
 	{
 		auto graphicsBufferId = this->graphicsBuffersToCopy.GetAt(i);
+		auto graphicsBuffer = this->graphicsBuffers[graphicsBufferId];
 
-		auto gpuBuffer = this->graphicsBuffers[graphicsBufferId];
-		auto cpuBuffer = this->cpuGraphicsBuffers[graphicsBufferId];
+		auto gpuBuffer = graphicsBuffer.GpuGraphicsBuffers[this->CurrentBackBufferIndex];
+		auto cpuBuffer = graphicsBuffer.CpuGraphicsBuffers[this->CurrentBackBufferIndex];
 
 		this->copyCommandList->CopyResource(gpuBuffer.get(), cpuBuffer.get());
-		
+
+		this->graphicsBuffers[graphicsBufferId].IsInCopyState = true;
+
 		// TODO: Removing the cpu graphics buffer before the command list has executed it give an error
 		//this->cpuGraphicsBuffers[graphicsBufferId] = nullptr;
 	}
@@ -298,8 +319,8 @@ void WindowsDirect3D12Renderer::EndCopyGpuData()
 void WindowsDirect3D12Renderer::BeginRender()
 {
 	// TODO: Add more log on return codes
-	this->CommandAllocator->Reset();
-	this->CommandList->Reset(this->CommandAllocator.get(), nullptr);
+	this->CommandAllocator[this->CurrentBackBufferIndex]->Reset();
+	this->CommandList->Reset(this->CommandAllocator[this->CurrentBackBufferIndex].get(), nullptr);
 
 	this->CommandList->RSSetViewports(1, &this->Viewport);
 	this->CommandList->RSSetScissorRects(1, &this->ScissorRect);
@@ -335,8 +356,22 @@ void WindowsDirect3D12Renderer::EndRender()
 
 void WindowsDirect3D12Renderer::DrawPrimitives(unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId)
 {
-	auto vertexGraphicsBuffer = this->graphicsBuffers[vertexBufferId];
-  	auto indexGraphicsBuffer = this->graphicsBuffers[indexBufferId];
+	auto vertexGraphicsBuffer = this->graphicsBuffers[vertexBufferId].GpuGraphicsBuffers[0];
+  	auto indexGraphicsBuffer = this->graphicsBuffers[indexBufferId].GpuGraphicsBuffers[0];
+
+	if (this->graphicsBuffers[vertexBufferId].IsInCopyState)
+	{
+		auto resourceBarrier = CreateTransitionResourceBarrier(vertexGraphicsBuffer.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+		this->CommandList->ResourceBarrier(1, &resourceBarrier);
+		this->graphicsBuffers[vertexBufferId].IsInCopyState = false;
+	}
+
+	if (this->graphicsBuffers[indexBufferId].IsInCopyState)
+	{
+		auto resourceBarrier = CreateTransitionResourceBarrier(indexGraphicsBuffer.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+		this->CommandList->ResourceBarrier(1, &resourceBarrier);
+		this->graphicsBuffers[indexBufferId].IsInCopyState = false;
+	}
 
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = {};
 	vertexBufferView.BufferLocation = vertexGraphicsBuffer->GetGPUVirtualAddress();
@@ -345,31 +380,15 @@ void WindowsDirect3D12Renderer::DrawPrimitives(unsigned int startIndex, unsigned
 
 	this->CommandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
-	/*
-	
-	guard let renderCommandEncoder = self.renderCommandEncoder else {
-            print("Error: Render Command Encoder is null.")
-            return
-        }
+	D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
+	indexBufferView.BufferLocation = vertexGraphicsBuffer->GetGPUVirtualAddress();
+	indexBufferView.SizeInBytes = vertexGraphicsBuffer->GetDesc().Width;
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 
-        let vertexGraphicsBuffer = self.graphicsBuffers[vertexBufferId]
-        let indexGraphicsBuffer = self.graphicsBuffers[indexBufferId]
-        
-        let startIndexOffset = Int(startIndex * 4)
+	this->CommandList->IASetIndexBuffer(&indexBufferView);
+	this->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        renderCommandEncoder.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
-        renderCommandEncoder.setVertexBuffer(self.argumentBuffer, offset: 0, index: 1)
-
-        renderCommandEncoder.drawIndexedPrimitives(type: .triangle, 
-                                                   indexCount: Int(indexCount), 
-                                                   indexType: .uint32, 
-                                                   indexBuffer: indexGraphicsBuffer!, 
-                                                   indexBufferOffset: startIndexOffset, 
-                                                   instanceCount: 1, 
-                                                   baseVertex: 0, 
-                                                   baseInstance: Int(baseInstanceId))
-	
-	 */
+	this->CommandList->DrawIndexedInstanced(indexCount, 1, startIndex, 0, baseInstanceId);
 }
 
 void WindowsDirect3D12Renderer::PresentScreenBuffer()
@@ -592,8 +611,13 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	check_hresult(this->Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS_WINRT(this->CommandQueue)));
-	check_hresult(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator)));
-	check_hresult(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
+
+	for (int i = 0; i < this->RenderBuffersCount; ++i)
+	{
+		check_hresult(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS_WINRT(this->CommandAllocator[i])));
+	}
+
+	check_hresult(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->CommandAllocator[0].get(), nullptr, IID_PPV_ARGS_WINRT(this->CommandList)));
 
 	// Create the copy command queue and copy command allocator
 	D3D12_COMMAND_QUEUE_DESC copyCommandQueueDesc = {};
@@ -601,8 +625,13 @@ bool WindowsDirect3D12Renderer::Direct3D12CreateDevice(const com_ptr<IDXGIFactor
 	copyCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
 
 	check_hresult(this->Device->CreateCommandQueue(&copyCommandQueueDesc, IID_PPV_ARGS_WINRT(this->copyCommandQueue)));
-	check_hresult(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS_WINRT(this->copyCommandAllocator)));
-	check_hresult(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, this->copyCommandAllocator.get(), nullptr, IID_PPV_ARGS_WINRT(this->copyCommandList)));
+
+	for (int i = 0; i < this->RenderBuffersCount; ++i)
+	{
+		check_hresult(this->Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS_WINRT(this->copyCommandAllocator[i])));
+	}
+
+	check_hresult(this->Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, this->copyCommandAllocator[0].get(), nullptr, IID_PPV_ARGS_WINRT(this->copyCommandList)));
 	
 	// TODO: Do we need to do this?
 	this->copyCommandList->Close();
@@ -895,7 +924,7 @@ com_ptr<IDXGIAdapter4> WindowsDirect3D12Renderer::FindGraphicsAdapter(const com_
 			D3D12_FEATURE_DATA_D3D12_OPTIONS deviceOptions = {};
 			check_hresult(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &deviceOptions, sizeof(deviceOptions)) == 0);
 
-			if (deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+			if (/* deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && */dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
 			{
 				maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
 				dxgiAdapter1.as(dxgiAdapter4);

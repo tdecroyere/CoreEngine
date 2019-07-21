@@ -1,12 +1,10 @@
-import Cocoa
-import QuartzCore.CAMetalLayer
 import Metal
+import QuartzCore.CAMetalLayer
 import simd
 import CoreEngineInterop
 
-class MacOSMetalRenderer: NSObject {
+public class MetalRenderer {
     let device: MTLDevice
-    let view: NSView
     let metalLayer: CAMetalLayer
     var currentMetalDrawable: CAMetalDrawable?
     var depthTextures: [MTLTexture]
@@ -35,27 +33,24 @@ class MacOSMetalRenderer: NSObject {
     var graphicsBuffersToCopy: [UInt32]
     var currentGraphicsBufferId: UInt32
 
-    init(view: NSView, renderWidth: Int, renderHeight: Int) {
+    public init(view: MetalView, renderWidth: Int, renderHeight: Int) {
         let defaultDevice = MTLCreateSystemDefaultDevice()!
         print(defaultDevice.name)
         print(renderWidth)
 
         self.device = defaultDevice
-        self.view = view
         self.renderWidth = renderWidth
         self.renderHeight = renderHeight
 
         // Create color metal layer
-        self.metalLayer = CAMetalLayer()
+        self.metalLayer = view.metalLayer
         self.metalLayer.device = device
         self.metalLayer.pixelFormat = .bgra8Unorm_srgb
         self.metalLayer.framebufferOnly = true
         self.metalLayer.allowsNextDrawableTimeout = false
         self.metalLayer.displaySyncEnabled = true
-        self.metalLayer.maximumDrawableCount = 2
+        self.metalLayer.maximumDrawableCount = 3
         self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
-
-        view.layer = self.metalLayer
 
         self.depthTextures = []
         self.currentDepthTextureIndex = 0
@@ -67,7 +62,7 @@ class MacOSMetalRenderer: NSObject {
         self.graphicsBuffersToCopy = []
         self.currentGraphicsBufferId = 0;
 
-        super.init()
+        // super.init()
 
         let depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .less
@@ -89,7 +84,7 @@ class MacOSMetalRenderer: NSObject {
         return Vector2(X: Float(self.renderWidth), Y: Float(self.renderHeight))
     }
 
-    func changeRenderSize(renderWidth: Int, renderHeight: Int) {
+    public func changeRenderSize(renderWidth: Int, renderHeight: Int) {
         self.renderWidth = renderWidth
         self.renderHeight = renderHeight
         
@@ -201,7 +196,7 @@ class MacOSMetalRenderer: NSObject {
         self.copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: Int(data.Length))
     }
 
-    func beginCopyGpuData() {
+    public func beginCopyGpuData() {
         self.copyCommandBuffer = self.commandQueue.makeCommandBuffer()!
         self.copyCommandBuffer.label = "Copy Command Buffer"
 
@@ -220,7 +215,7 @@ class MacOSMetalRenderer: NSObject {
         self.graphicsBuffersToCopy = []
     }
 
-    func endCopyGpuData() {
+    public func endCopyGpuData() {
         guard let copyCommandEncoder = self.copyCommandEncoder else {
             print("Error: Copy Command Encoder is null.")
             return
@@ -238,14 +233,12 @@ class MacOSMetalRenderer: NSObject {
         self.copyCommandBuffer = nil
     }
 
-    func beginRender() {
-        guard let currentMetalDrawable = self.metalLayer.nextDrawable() else {
+    public func beginRender() {
+        guard let currentMetalDrawable = self.currentMetalDrawable else {
             return
         }
 
         let depthTexture = self.depthTextures[0]
-
-        self.currentMetalDrawable = currentMetalDrawable
 
         let renderPassDescriptor = MTLRenderPassDescriptor()
         renderPassDescriptor.colorAttachments[0].texture = currentMetalDrawable.texture
@@ -278,7 +271,7 @@ class MacOSMetalRenderer: NSObject {
         self.renderCommandEncoder.useHeap(self.globalHeap)
     }
 
-    func endRender() {
+    public func endRender() {
         guard let renderCommandEncoder = self.renderCommandEncoder else {
             print("Error: Render Command Encoder is null.")
             return
@@ -289,23 +282,27 @@ class MacOSMetalRenderer: NSObject {
             return
         }
 
+        guard let currentMetalDrawable = self.currentMetalDrawable else {
+            print("Error: Current Metal Drawable is null.")
+            return
+        }
+
         renderCommandEncoder.endEncoding()
         self.renderCommandEncoder = nil
 
-        //renderCommandBuffer.present(self.currentMetalDrawable!)
+        renderCommandBuffer.present(currentMetalDrawable)
         renderCommandBuffer.commit()
+        
         self.renderCommandBuffer = nil
-        //self.currentMetalDrawable = nil
+        self.currentMetalDrawable = nil
     }
 
-    func presentScreenBuffer() {
-        // TODO: Wait for render command buffer execution?
-
-        guard let currentMetalDrawable = self.currentMetalDrawable else {
+    public func presentScreenBuffer() {
+        guard let currentMetalDrawable = self.metalLayer.nextDrawable() else {
             return
         }
-        currentMetalDrawable.present()
-        self.currentMetalDrawable = nil
+
+        self.currentMetalDrawable = currentMetalDrawable
     }
 
     func drawPrimitives(_ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ baseInstanceId: UInt32) {

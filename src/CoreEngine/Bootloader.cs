@@ -12,27 +12,11 @@ namespace CoreEngine
     public static class Bootloader
     {
         private static CoreEngineApp? coreEngineApp = null;
+        private static GraphicsManager? graphicsManager = null;
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
         {
             Logger.WriteMessage("Starting CoreEngine...");
-            Logger.WriteMessage($"Test Parameter: {hostPlatform.TestParameter}");
-
-            if (hostPlatform.AddTestHostMethod != null)
-            {
-                var result = hostPlatform.AddTestHostMethod(3, 8);
-                Logger.WriteMessage($"Test Parameter: {hostPlatform.TestParameter} - {result}");
-            }
-
-            if (hostPlatform.GetTestBuffer != null)
-            {
-                var testBuffer = hostPlatform.GetTestBuffer().AsSpan();
-
-                for (int i = 0; i < testBuffer.Length; i++)
-                {
-                    Logger.WriteMessage($"TestBuffer {testBuffer[i]}");
-                }
-            }
 
             if (appName != null)
             {
@@ -50,8 +34,10 @@ namespace CoreEngine
                     resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
                     // Register managers
+                    graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, hostPlatform.MemoryService, resourcesManager);
+
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(new GraphicsManager(hostPlatform.GraphicsService, hostPlatform.MemoryService, resourcesManager));
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
                     Logger.WriteMessage("Initializing app...");
@@ -68,7 +54,14 @@ namespace CoreEngine
                 coreEngineApp.SystemManagerContainer.PreUpdateSystemManagers();
                 coreEngineApp.Update(deltaTime);
                 coreEngineApp.SystemManagerContainer.PostUpdateSystemManagers();
+            }
+        }
 
+        public static void Render()
+        {
+            if (graphicsManager != null)
+            {
+                graphicsManager.Render();
             }
         }
 

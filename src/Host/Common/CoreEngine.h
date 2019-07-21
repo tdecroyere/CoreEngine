@@ -187,14 +187,8 @@ struct InputsService
     SendVibrationCommandPtr SendVibrationCommand;
 };
 
-typedef int (*AddTestHostMethodPtr)(int a, int b);
-typedef struct HostMemoryBuffer (*GetTestBufferPtr)();
-
 struct HostPlatform
 {
-	int TestParameter;
-	AddTestHostMethodPtr AddTestHostMethod;
-	GetTestBufferPtr GetTestBuffer;
     struct MemoryService MemoryService;
     struct GraphicsService GraphicsService;
     struct InputsService InputsService;
@@ -202,6 +196,7 @@ struct HostPlatform
 
 typedef void (*StartEnginePtr)(char* appName, struct HostPlatform* hostPlatform);
 typedef void (*UpdateEnginePtr)(float deltaTime);
+typedef void (*RenderPtr)();
 
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,

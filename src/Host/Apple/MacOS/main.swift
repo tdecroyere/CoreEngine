@@ -1,5 +1,6 @@
 import Cocoa
 import CoreEngineInterop
+import CoreEngineCommon
 
 var keyLeftPressed = false
 var keyRightPressed = false
@@ -9,7 +10,7 @@ var keyDownPressed = false
 var isGameRunning = true
 var isGamePaused = false
 
-func processPendingMessages(inputsManager: MacOSInputsManager) {
+func processPendingMessages(inputsManager: InputsManager) {
     var rawEvent: NSEvent? = nil
 
     repeat {
@@ -51,8 +52,8 @@ autoreleasepool {
     NSApplication.shared.activate(ignoringOtherApps: true)
     NSApplication.shared.finishLaunching()
 
-    let memoryManager = MacOSMemoryManager()
-    let inputsManager = MacOSInputsManager()
+    let memoryManager = MemoryManager()
+    let inputsManager = InputsManager()
 
     while (delegate.renderer == nil) {
         processPendingMessages(inputsManager: inputsManager)
@@ -67,11 +68,14 @@ autoreleasepool {
         appName = CommandLine.arguments[1]
     }
 
-    let coreEngineHost = MacOSCoreEngineHost(memoryManager: memoryManager, renderer: renderer, inputsManager: inputsManager)
+    let coreEngineHost = CoreEngineHost(memoryManager: memoryManager, renderer: renderer, inputsManager: inputsManager)
     coreEngineHost.startEngine(appName)
+
+    let timer = PerformanceTimer()
 
     // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
     let stepTimeInSeconds = Float(1.0 / 60.0)
+    var frameCounter = 0
 
     while (isGameRunning) {
         autoreleasepool {
@@ -80,10 +84,36 @@ autoreleasepool {
             isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
 
             if (!isGamePaused) {
+                print("======== Frame \(frameCounter) =========")
                 inputsManager.processGamepadControllers()
-                coreEngineHost.updateEngine(stepTimeInSeconds)
+
+                timer.start()
+                
+                autoreleasepool {
+                    renderer.beginRender()
+                    coreEngineHost.render()
+                    renderer.endRender()
+                }
+
+                var elapsed = timer.stop()
+                print("Render elapsed time: \(elapsed)")
+
+                timer.start()
+
+                autoreleasepool {
+                    coreEngineHost.updateEngine(stepTimeInSeconds)
+                }
+
+                elapsed = timer.stop()
+                print("Update elapsed time: \(elapsed)")
+
+                timer.start()
                 renderer.presentScreenBuffer()
+                elapsed = timer.stop()
+                print("Present elapsed time: \(elapsed)")	
             }
         }
+
+        frameCounter += 1
     }
 }

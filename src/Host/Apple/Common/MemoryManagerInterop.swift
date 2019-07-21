@@ -1,4 +1,3 @@
-import Cocoa
 import CoreEngineInterop
 
 func createMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, length: UInt32) -> HostMemoryBuffer {
@@ -11,10 +10,4 @@ func createMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, length: 
 func destroyMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, memoryBufferId: UInt32) {
     // TODO: Implement buffer destroy
     //print("Swift destroy memory buffer (NOT IMPLEMENTED YET)")
-}
-
-
-class MacOSMemoryManager {
-    // var memoryBuffers: [UInt32: UnsafeMutableRawPointer]
-    // var currentMemoryBufferId: UInt32
 }

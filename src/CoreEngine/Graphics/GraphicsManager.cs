@@ -109,11 +109,6 @@ namespace CoreEngine.Graphics
             this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
         }
 
-        public override void PreUpdate()
-        {
-            RunRenderPipeline();
-        }
-
         public override void PostUpdate()
         {
             this.graphicsService.BeginCopyGpuData();
@@ -185,11 +180,16 @@ namespace CoreEngine.Graphics
             }
         }
 
+        public void Render()
+        {
+            RunRenderPipeline();
+        }
+
         private void RunRenderPipeline()
         {
-            this.graphicsService.BeginRender();
+            //this.graphicsService.BeginRender();
             DrawGeometryInstances();
-            this.graphicsService.EndRender();
+            //this.graphicsService.EndRender();
         }
 
         bool shaderParametersCreated = false;

@@ -1,32 +1,16 @@
 import Cocoa
 import CoreEngineInterop
 
-func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
-    let inputsManager = Unmanaged<MacOSInputsManager>.fromOpaque(inputsContext!).takeUnretainedValue()
-    let result = inputsManager.inputsState
-    inputsManager.inputsState.Mouse.DeltaX.Value = 0
-    inputsManager.inputsState.Mouse.DeltaY.Value = 0
-    return result
-}
-
-func sendVibrationCommand(inputsContext: UnsafeMutableRawPointer?, playerId: UInt8, leftTriggerMotor: Float, rightTriggerMotor: Float, leftStickMotor: Float, rightStickMotor: Float, duration10ms: UInt8) {
-    let inputsManager = Unmanaged<MacOSInputsManager>.fromOpaque(inputsContext!).takeUnretainedValue()
-
-    if (inputsManager.gamepadManager.registeredGamepads.count > playerId) {
-        inputsManager.gamepadManager.registeredGamepads[Int(playerId) - 1].sendVibrationCommand(leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms)
-    }
-}
-
-class MacOSInputsManager {
+public class InputsManager {
     var inputsState: InputsState
     var gamepadManager: MacOSGamepadManager
 
-    init() {
+    public init() {
         self.inputsState = InputsState()
         self.gamepadManager = MacOSGamepadManager()
     }
 
-    func processKeyboardEvent(_ event: NSEvent) {
+    public func processKeyboardEvent(_ event: NSEvent) {
         // TODO: Fill in transition count in case a key state change multiple times per frame
         guard let keyChar = event.characters else {
             return
@@ -90,17 +74,17 @@ class MacOSInputsManager {
         }
     }
 
-    func processMouseMovedEvent(_ event: NSEvent) {
+    public func processMouseMovedEvent(_ event: NSEvent) {
         self.inputsState.Mouse.DeltaX.Value = -((event.deltaX != CGFloat.nan) ? Float(event.deltaX * 0.5) : 0)
         self.inputsState.Mouse.DeltaY.Value = -((event.deltaY != CGFloat.nan) ? Float(event.deltaY * 0.5) : 0)
     }
 
-    func processMouseLeftButtonEvent(_ event: NSEvent) {
+    public func processMouseLeftButtonEvent(_ event: NSEvent) {
         self.inputsState.Mouse.LeftButton.Value = computeInputObjectValue(event)
         self.inputsState.Mouse.LeftButton.TransitionCount = 1
     }
 
-    func processGamepadControllers() {
+    public func processGamepadControllers() {
         // TODO: Process connect events
         let controllers = self.gamepadManager.registeredGamepads
 

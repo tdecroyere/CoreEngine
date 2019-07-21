@@ -271,14 +271,8 @@ namespace CoreEngine
         }
     }
 
-    public delegate int AddTestHostMethodDelegate(int a, int b);
-    public delegate HostMemoryBuffer GetTestBufferDelegate();
-
     public readonly struct HostPlatform
     {
-        public int TestParameter { get; }
-        public AddTestHostMethodDelegate AddTestHostMethod { get; }
-        public GetTestBufferDelegate GetTestBuffer { get; }
         public MemoryService MemoryService { get; }
         public GraphicsService GraphicsService { get; }
         public InputsService InputsService { get; }

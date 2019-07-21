@@ -1,40 +1,24 @@
-import Cocoa
+import Foundation
 import CoreEngineInterop
-import simd
 
-func getTestBuffer() -> HostMemoryBuffer {
-    let bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: 5)
-    let buffer = UnsafeMutableBufferPointer(start: bufferPtr, count: 5)
-    buffer[0] = 1
-    buffer[1] = 2
-    buffer[2] = 3
-    buffer[3] = 45
-    buffer[4] = 5
-
-	return HostMemoryBuffer(Id: 1, Pointer: bufferPtr, Length: 5)
-}
-
-func addTestHostMethod(_ a: Int32, _ b: Int32) -> Int32 {
-	return a + b + 40
-}
-
-class MacOSCoreEngineHost {
+public class CoreEngineHost {
     public var hostPlatform: HostPlatform!
-    var memoryManager: MacOSMemoryManager!
-    var renderer: MacOSMetalRenderer!
-    var inputsManager: MacOSInputsManager!
+    let memoryManager: MemoryManager
+    let renderer: MetalRenderer
+    let inputsManager: InputsManager
 
     var startEnginePointer: StartEnginePtr?
     var updateEnginePointer: UpdateEnginePtr?
+    var renderPointer: RenderPtr?
 
-    init(memoryManager: MacOSMemoryManager, renderer: MacOSMetalRenderer, inputsManager: MacOSInputsManager) {
+    public init(memoryManager: MemoryManager, renderer: MetalRenderer, inputsManager: InputsManager) {
         self.hostPlatform = HostPlatform()
         self.memoryManager = memoryManager
         self.renderer = renderer
         self.inputsManager = inputsManager
     }
 
-    func startEngine(_ appName: String? = nil) {
+    public func startEngine(_ appName: String? = nil) {
         initCoreClrSwift()
 
         var appNameUnsafe: UnsafeMutablePointer<Int8>? = nil
@@ -42,10 +26,6 @@ class MacOSCoreEngineHost {
         if (CommandLine.arguments.count > 1) {
             appNameUnsafe = strdup(CommandLine.arguments[1])
         }
-        
-        self.hostPlatform.TestParameter = 5
-        self.hostPlatform.AddTestHostMethod = addTestHostMethod
-        self.hostPlatform.GetTestBuffer = getTestBuffer
 
         self.hostPlatform.MemoryService.MemoryManagerContext = Unmanaged.passUnretained(self.memoryManager).toOpaque()
         self.hostPlatform.MemoryService.CreateMemoryBuffer = createMemoryBuffer
@@ -68,13 +48,22 @@ class MacOSCoreEngineHost {
         startEngineInterop(appNameUnsafe, &self.hostPlatform)
     }
 
-    func updateEngine(_ deltaTime: Float) {
+    public func updateEngine(_ deltaTime: Float) {
         guard let updateEngineInterop = self.updateEnginePointer else {
             print("CoreEngine UpdatEngine method is not initialized")
             return
         }
 
         updateEngineInterop(deltaTime)
+    }
+
+    public func render() {
+        guard let renderPointer = self.renderPointer else {
+            print("CoreEngine Render method is not initialized")
+            return
+        }
+
+        renderPointer()
     }
 
     func initCoreClrSwift() {
@@ -148,6 +137,17 @@ class MacOSCoreEngineHost {
 
             if (result == 0) {
                 self.updateEnginePointer = unsafeBitCast(managedDelegate!, to: UpdateEnginePtr.self)
+            }
+
+            result = coreclr_create_delegate(hostHandle!, 
+                                            domainId,
+                                            "CoreEngine",
+                                            "CoreEngine.Bootloader",
+                                            "Render",
+                                            &managedDelegate)
+
+            if (result == 0) {
+                self.renderPointer = unsafeBitCast(managedDelegate!, to: RenderPtr.self)
             }
         }
         

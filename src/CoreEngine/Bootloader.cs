@@ -77,7 +77,7 @@ namespace CoreEngine
             {
                 if (type.IsSubclassOf(typeof(CoreEngineApp)))
                 {
-                    return (CoreEngineApp)Activator.CreateInstance(type);
+                    return (CoreEngineApp?)Activator.CreateInstance(type);
                 }
             }
 

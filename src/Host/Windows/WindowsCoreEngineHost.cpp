@@ -75,9 +75,6 @@ void WindowsCoreEngineHost::StartEngine(hstring appName)
     // Add asserts to check for null values
 
     HostPlatform hostPlatform = {};
-    hostPlatform.TestParameter = 5;
-    hostPlatform.AddTestHostMethod = AddTestHostMethod;
-    hostPlatform.GetTestBuffer = GetTestBuffer;
 
     hostPlatform.MemoryService.CreateMemoryBuffer = CreateMemoryBuffer;
     hostPlatform.MemoryService.DestroyMemoryBuffer = DestroyMemoryBuffer;

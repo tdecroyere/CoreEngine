@@ -11,7 +11,7 @@ namespace CoreEngine
         
         public readonly uint EntityComponentLayoutId { get; }
 
-        public override bool Equals(Object obj) 
+        public override bool Equals(Object? obj) 
         {
             return obj is ComponentLayout && this == (ComponentLayout)obj;
         }

@@ -24,7 +24,13 @@ namespace CoreEngine
 
                 this.Size += this.ComponentSizes[i];
 
-                var component = (IComponentData)Activator.CreateInstance(componentTypes[i]);
+                var component = (IComponentData?)Activator.CreateInstance(componentTypes[i]);
+
+                if (component == null)
+                {
+                    throw new InvalidOperationException("Cannot create component type.");
+                }
+                
                 component.SetDefaultValues();
                 this.ComponentDefaultValues[i] = component;
             }

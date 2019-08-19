@@ -121,9 +121,14 @@ namespace CoreEngine
 
                     if (componentType != null)
                     {
-                        component = (IComponentData)Activator.CreateInstance(componentType);
+                        component = (IComponentData?)Activator.CreateInstance(componentType);
+
+                        if (component == null)
+                        {
+                            throw new InvalidOperationException("Cannot create component type.");
+                        }
+
                         component.SetDefaultValues();
-                        
                         Logger.WriteMessage($"Component: {component.ToString()}");
                     }
 

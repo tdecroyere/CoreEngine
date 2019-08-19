@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <LangVersion>8.0</LangVersion>
-    <NullableContextOptions>enable</NullableContextOptions>
+    <Nullable>enable</Nullable>
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618</WarningsAsErrors>
-    <NoWarn>CA1303;CA1815;CA2007</NoWarn>
+    <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618;CS8610;CS8601</WarningsAsErrors>
+    <NoWarn>CA1303;CA1815;CA2007;CS8604</NoWarn>
     <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>

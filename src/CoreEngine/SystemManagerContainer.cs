@@ -59,7 +59,14 @@ namespace CoreEngine
                 resolvedParameters[i] = this.systemManagerList[parameter.ParameterType];
             }
 
-            return (T)Activator.CreateInstance(typeof(T), resolvedParameters);
+            var instance = Activator.CreateInstance(typeof(T), resolvedParameters);
+
+            if (instance == null)
+            {
+                throw new InvalidOperationException("Cannot create instance type.");
+            }
+
+            return (T)instance;
         }
 
         public void PreUpdateSystemManagers()

@@ -11,7 +11,7 @@ namespace CoreEngine
 
         public readonly uint EntityId { get; }
 
-        public override bool Equals(Object obj) 
+        public override bool Equals(Object? obj) 
         {
             return obj is Entity && this == (Entity)obj;
         }

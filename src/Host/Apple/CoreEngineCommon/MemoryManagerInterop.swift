@@ -1,4 +1,4 @@
-import CoreEngineInterop
+import CoreEngineCommonInterop
 
 func createMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, length: UInt32) -> HostMemoryBuffer {
     //print("Swift create memory buffer")
@@ -10,4 +10,10 @@ func createMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, length: 
 func destroyMemoryBuffer(memoryManagerContext: UnsafeMutableRawPointer?, memoryBufferId: UInt32) {
     // TODO: Implement buffer destroy
     //print("Swift destroy memory buffer (NOT IMPLEMENTED YET)")
+}
+
+func initMemoryService(_ memoryManager: MemoryManager, _ memoryService: inout MemoryService) {
+    memoryService.MemoryManagerContext = Unmanaged.passUnretained(memoryManager).toOpaque()
+    memoryService.CreateMemoryBuffer = createMemoryBuffer
+    memoryService.DestroyMemoryBuffer = destroyMemoryBuffer
 }

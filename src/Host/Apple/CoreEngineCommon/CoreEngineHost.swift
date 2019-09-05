@@ -1,5 +1,5 @@
 import Foundation
-import CoreEngineInterop
+import CoreEngineCommonInterop
 
 public class CoreEngineHost {
     public var hostPlatform: HostPlatform!
@@ -23,19 +23,13 @@ public class CoreEngineHost {
 
         var appNameUnsafe: UnsafeMutablePointer<Int8>? = nil
 
-        if (CommandLine.arguments.count > 1) {
-            appNameUnsafe = strdup(CommandLine.arguments[1])
+        if (appName != nil) {
+            appNameUnsafe = strdup(appName)
         }
-
-        self.hostPlatform.MemoryService.MemoryManagerContext = Unmanaged.passUnretained(self.memoryManager).toOpaque()
-        self.hostPlatform.MemoryService.CreateMemoryBuffer = createMemoryBuffer
-        self.hostPlatform.MemoryService.DestroyMemoryBuffer = destroyMemoryBuffer
-
+        
+        initMemoryService(self.memoryManager, &self.hostPlatform.MemoryService)
         initGraphicsService(self.renderer, &self.hostPlatform.GraphicsService)
-
-        self.hostPlatform.InputsService.InputsContext = Unmanaged.passUnretained(self.inputsManager).toOpaque()
-        self.hostPlatform.InputsService.GetInputsState = getInputsState
-        self.hostPlatform.InputsService.SendVibrationCommand = sendVibrationCommand
+        initInputsService(self.inputsManager, &self.hostPlatform.InputsService)
 
         guard let startEngineInterop = self.startEnginePointer else {
             print("CoreEngine StartEngine method is not initialized")

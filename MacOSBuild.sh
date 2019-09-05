@@ -42,8 +42,8 @@ compileDotnet() {
 
 compileHostModule() {
     cd $macosTempDirectory
-    echo [93mCompiling MacOS Module...[0m
-    swiftc "../../../src/Host/Apple/Common/"*".swift" -Onone -emit-library -static -emit-module -module-name CoreEngineCommon -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/Interop" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    echo [93mCompiling Apple CoreEngine Common Module for MacOS...[0m
+    swiftc "../../../src/Host/Apple/CoreEngineCommon/"*".swift" -Onone -v -emit-library -emit-module -static -module-name CoreEngineCommon -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     if [ $? != 0 ]; then
         showErrorMessage
@@ -56,7 +56,7 @@ compileHostModule() {
 compileHost() {
     cd $macosTempDirectory
     echo [93mCompiling MacOS Executable...[0m
-    swiftc "../../../src/Host/Apple/MacOS/"*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -swift-version 5 -target x86_64-apple-macosx10.15 -lCoreEngineCommon -L "." -I "." -I "../../../src/Host/Apple/Interop" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    swiftc "../../../src/Host/Apple/MacOS/"*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -swift-version 5 -target x86_64-apple-macosx10.15 -lCoreEngineCommon -L "." -I "." -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     if [ $? != 0 ]; then
         showErrorMessage
@@ -66,9 +66,20 @@ compileHost() {
     cd "../../.."
 }
 
+signCode() {
+    cp "./src/Host/Apple/MacOS/CoreEngine.entitlements" $macosTempDirectory
+
+    echo [93mSigning Code...[0m
+
+    cd $macosTempDirectory
+    codesign --entitlements ./CoreEngine.entitlements -s "Mac Developer: Thomas Decroyere (M9L7VG8ZR5)" ./CoreEngine
+    cd "../../.."
+}
+
 compileDotnet
 compileHostModule
 compileHost
+#signCode
 copyFiles
 
 echo [92mSuccess: Compilation done.[0m

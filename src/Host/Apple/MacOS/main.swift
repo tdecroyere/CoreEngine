@@ -1,11 +1,5 @@
 import Cocoa
-import CoreEngineInterop
 import CoreEngineCommon
-
-var keyLeftPressed = false
-var keyRightPressed = false
-var keyUpPressed = false
-var keyDownPressed = false
 
 var isGameRunning = true
 var isGamePaused = false
@@ -62,7 +56,7 @@ autoreleasepool {
     // TODO: Sometimes it seems there is a malloc error but not all the time (See MacOSCrash_20190324.txt)
     let renderer = delegate.renderer!
 
-    var appName: String? = nil
+    var appName = "EcsTest"
 
     if (CommandLine.arguments.count > 1) {
         appName = CommandLine.arguments[1]
@@ -84,7 +78,7 @@ autoreleasepool {
             isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
 
             if (!isGamePaused) {
-                print("======== Frame \(frameCounter) =========")
+                //print("======== Frame \(frameCounter) =========")
                 inputsManager.processGamepadControllers()
 
                 timer.start()
@@ -96,7 +90,7 @@ autoreleasepool {
                 }
 
                 var elapsed = timer.stop()
-                print("Render elapsed time: \(elapsed)")
+                //print("Render elapsed time: \(elapsed)")
 
                 timer.start()
 
@@ -105,12 +99,12 @@ autoreleasepool {
                 }
 
                 elapsed = timer.stop()
-                print("Update elapsed time: \(elapsed)")
+                //print("Update elapsed time: \(elapsed)")
 
                 timer.start()
                 renderer.presentScreenBuffer()
                 elapsed = timer.stop()
-                print("Present elapsed time: \(elapsed)")	
+                //print("Present elapsed time: \(elapsed)")	
             }
         }
 

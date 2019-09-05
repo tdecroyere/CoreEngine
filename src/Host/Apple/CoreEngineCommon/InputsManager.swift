@@ -1,12 +1,14 @@
 import Cocoa
-import CoreEngineInterop
+import CoreEngineCommonInterop
 
 public class InputsManager {
     var inputsState: InputsState
+    var keyboardManager: KeyboardManager
     var gamepadManager: MacOSGamepadManager
 
     public init() {
         self.inputsState = InputsState()
+        self.keyboardManager = KeyboardManager()
         self.gamepadManager = MacOSGamepadManager()
     }
 

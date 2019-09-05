@@ -1,7 +1,7 @@
 import Metal
 import QuartzCore.CAMetalLayer
 import simd
-import CoreEngineInterop
+import CoreEngineCommonInterop
 
 public class MetalRenderer {
     let device: MTLDevice

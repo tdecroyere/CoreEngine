@@ -1,4 +1,4 @@
-import CoreEngineInterop
+import CoreEngineCommonInterop
 
 func getRenderSizeHandle(graphicsContext: UnsafeMutableRawPointer?) -> Vector2 {
     let renderer = Unmanaged<MetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()

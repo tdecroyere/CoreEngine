@@ -1,4 +1,4 @@
-import CoreEngineInterop
+import CoreEngineCommonInterop
 
 func getInputsState(inputsContext: UnsafeMutableRawPointer?) -> InputsState {
     let inputsManager = Unmanaged<InputsManager>.fromOpaque(inputsContext!).takeUnretainedValue()
@@ -14,4 +14,10 @@ func sendVibrationCommand(inputsContext: UnsafeMutableRawPointer?, playerId: UIn
     if (inputsManager.gamepadManager.registeredGamepads.count > playerId) {
         inputsManager.gamepadManager.registeredGamepads[Int(playerId) - 1].sendVibrationCommand(leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms)
     }
+}
+
+func initInputsService(_ inputsManager: InputsManager, _ inputsService: inout InputsService) {
+    inputsService.InputsContext = Unmanaged.passUnretained(inputsManager).toOpaque()
+    inputsService.GetInputsState = getInputsState
+    inputsService.SendVibrationCommand = sendVibrationCommand
 }

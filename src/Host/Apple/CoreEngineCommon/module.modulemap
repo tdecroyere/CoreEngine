@@ -1,4 +1,4 @@
-module CoreEngineInterop {
+module CoreEngineCommonInterop {
      header "../../Common/CoreEngine.h"
      export *
  }

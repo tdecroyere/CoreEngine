@@ -43,7 +43,7 @@ compileDotnet() {
 compileHostModule() {
     cd $macosTempDirectory
     echo [93mCompiling Apple CoreEngine Common Module for MacOS...[0m
-    swiftc "../../../src/Host/Apple/CoreEngineCommon/"*".swift" -Onone -v -emit-library -emit-module -static -module-name CoreEngineCommon -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    swiftc "../../../src/Host/Apple/CoreEngineCommon/"*".swift" -Onone -emit-library -emit-module -static -module-name CoreEngineCommon -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     if [ $? != 0 ]; then
         showErrorMessage

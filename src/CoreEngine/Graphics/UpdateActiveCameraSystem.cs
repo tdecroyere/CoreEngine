@@ -9,9 +9,9 @@ namespace CoreEngine.Graphics
 {
     public class UpdateActiveCameraSystem : EntitySystem
     {
-        private readonly GraphicsManager graphicsManager;
+        private readonly SceneRenderer graphicsManager;
 
-        public UpdateActiveCameraSystem(GraphicsManager graphicsManager)
+        public UpdateActiveCameraSystem(SceneRenderer graphicsManager)
         {
             this.graphicsManager = graphicsManager;
         }

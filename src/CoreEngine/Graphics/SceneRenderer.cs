@@ -12,11 +12,12 @@ namespace CoreEngine.Graphics
     }
 
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
-    public class GraphicsManager : SystemManager
+    public class SceneRenderer : SystemManager
     {
         private readonly GraphicsService graphicsService;
         private readonly MemoryService memoryService;
         private readonly ResourcesManager resourcesManager;
+
         private Dictionary<Entity, MeshInstance> meshInstances;
         private List<Entity> meshInstancesToRemove;
         private RenderPassConstants renderPassConstants;
@@ -27,7 +28,7 @@ namespace CoreEngine.Graphics
         private GraphicsBuffer objectPropertiesGraphicsBuffer;
         private uint currentObjectPropertyIndex = 0;
 
-        public GraphicsManager(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
+        public SceneRenderer(GraphicsService graphicsService, MemoryService memoryService, ResourcesManager resourcesManager)
         {
             this.graphicsService = graphicsService;
             this.memoryService = memoryService;

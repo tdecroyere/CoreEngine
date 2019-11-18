@@ -8,10 +8,10 @@ namespace CoreEngine.Graphics
 {
     public class RenderMeshSystem : EntitySystem
     {
-        private readonly GraphicsManager graphicsManager;
+        private readonly SceneRenderer graphicsManager;
         private readonly ResourcesManager resourcesManager;
 
-        public RenderMeshSystem(GraphicsManager graphicsManager, ResourcesManager resourceManager)
+        public RenderMeshSystem(SceneRenderer graphicsManager, ResourcesManager resourceManager)
         {
             this.graphicsManager = graphicsManager;
             this.resourcesManager = resourceManager;

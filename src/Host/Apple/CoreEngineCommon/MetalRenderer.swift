@@ -92,8 +92,8 @@ public class MetalRenderer {
         createDepthBuffers()
     }
 
-    func createShader(shaderByteCode: HostMemoryBuffer) {
-        let dispatchData = DispatchData(bytesNoCopy: UnsafeRawBufferPointer(start: shaderByteCode.Pointer!, count: Int(shaderByteCode.Length)))
+    func createShader(shaderByteCodeData: UnsafeMutableRawPointer, shaderByteCodeLength: Int32) {
+        let dispatchData = DispatchData(bytesNoCopy: UnsafeRawBufferPointer(start: shaderByteCodeData, count: Int(shaderByteCodeLength)))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
         self.vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")
@@ -144,17 +144,20 @@ public class MetalRenderer {
         return 0
     }
 
-    func createStaticGraphicsBuffer(_ data: HostMemoryBuffer) -> UInt32 {
+    func createStaticGraphicsBuffer(_ data: UnsafeMutableRawPointer, _ length: Int32) -> UInt32 {
         self.currentGraphicsBufferId += 1
 
+        // TODO: Not thread-safe!!
         // TODO: Re-use temporary cpu buffers
         
         // Create a the metal buffer on the CPU
-        let cpuBuffer = self.device.makeBuffer(bytes: data.Pointer, length: Int(data.Length), options: .cpuCacheModeWriteCombined)!
+        let cpuBuffer = self.device.makeBuffer(bytes: data, length: Int(length), options: .cpuCacheModeWriteCombined)!
+        // TODO: Cannot avoid copy for now because the copy is deffered and the memory is only temporary pinned by dotnet
+        //let cpuBuffer = self.device.makeBuffer(bytesNoCopy: data, length: Int(length), options: .cpuCacheModeWriteCombined, deallocator: nil)!
         cpuBuffer.label = "Static Graphics Buffer - CPU buffer"
 
         // Create the metal buffer on the GPU
-        let gpuBuffer = self.globalHeap.makeBuffer(length: Int(data.Length), options: .storageModePrivate)!
+        let gpuBuffer = self.globalHeap.makeBuffer(length: Int(length), options: .storageModePrivate)!
         gpuBuffer.label = "Static Graphics Buffer"
 
         self.graphicsBuffers[self.currentGraphicsBufferId] = gpuBuffer
@@ -164,9 +167,10 @@ public class MetalRenderer {
         return self.currentGraphicsBufferId
     }
 
-    func createDynamicGraphicsBuffer(_ length: UInt32) -> HostMemoryBuffer {
+    func createDynamicGraphicsBuffer(_ length: UInt32) -> UInt32 {
         self.currentGraphicsBufferId += 1
 
+        // TODO: Not thread-safe!!
         // Create a the metal buffer on the CPU
         let cpuBuffer = self.device.makeBuffer(length: Int(length), options: .cpuCacheModeWriteCombined)!
         cpuBuffer.label = "Dynamic Graphics Buffer - CPU buffer"
@@ -178,10 +182,10 @@ public class MetalRenderer {
         self.graphicsBuffers[self.currentGraphicsBufferId] = gpuBuffer
         self.cpuGraphicsBuffers[self.currentGraphicsBufferId] = cpuBuffer
 
-        return HostMemoryBuffer(Id: self.currentGraphicsBufferId, Pointer: cpuBuffer.contents().assumingMemoryBound(to: UInt8.self), Length: UInt32(length))
+        return self.currentGraphicsBufferId
     }
 
-    func uploadDataToGraphicsBuffer(_ graphicsBufferId: UInt32, _ data: HostMemoryBuffer) {
+    func uploadDataToGraphicsBuffer(_ graphicsBufferId: UInt32, _ data: UnsafeMutableRawPointer, _ length: Int32) {
         guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
             print("ERROR: GPU graphics buffer was not found")
             return
@@ -192,8 +196,10 @@ public class MetalRenderer {
             return
         }
 
+        cpuBuffer.contents().copyMemory(from: data.assumingMemoryBound(to: UInt8.self), byteCount: Int(length) * MemoryLayout<UInt8>.stride)
+
         // TODO: Add parameters to be able to update partially the buffer
-        self.copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: Int(data.Length))
+        self.copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: Int(length))
     }
 
     public func beginCopyGpuData() {

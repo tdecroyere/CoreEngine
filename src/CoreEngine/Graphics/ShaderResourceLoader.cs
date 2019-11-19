@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
+using CoreEngine.HostServices;
 using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
@@ -10,10 +11,10 @@ namespace CoreEngine.Graphics
     
     public class ShaderResourceLoader : ResourceLoader
     {
-        private readonly GraphicsService graphicsService;
+        private readonly IGraphicsService graphicsService;
         private readonly MemoryService memoryService;
 
-        public ShaderResourceLoader(ResourcesManager resourcesManager, GraphicsService graphicsService, MemoryService memoryService) : base(resourcesManager)
+        public ShaderResourceLoader(ResourcesManager resourcesManager, IGraphicsService graphicsService, MemoryService memoryService) : base(resourcesManager)
         {
             this.graphicsService = graphicsService;
             this.memoryService = memoryService;
@@ -66,7 +67,7 @@ namespace CoreEngine.Graphics
             // TODO: Do not forget to implement hardware resource deallocation/reallocation
             
             // TODO: Pass the id here so that the host remove replace the shader himself at the right time
-            this.graphicsService.CreateShader(shaderByteCodeBuffer);
+            this.graphicsService.CreateShader(shaderByteCode);
             this.memoryService.DestroyMemoryBuffer(shaderByteCodeBuffer.Id);
 
             return Task.FromResult((Resource)shader);

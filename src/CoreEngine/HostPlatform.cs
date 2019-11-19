@@ -1,16 +1,23 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.InteropServices;
+using CoreEngine.HostServices;
 
 namespace CoreEngine
 {
     // TODO: Use MemoryHandle ?
-    public readonly struct HostMemoryBuffer
+    public unsafe readonly struct HostMemoryBuffer
     {
-        public uint Id { get; }
-        public IntPtr MemoryPointer { get; }
-        public uint Length { get; }
+        public readonly uint Id { get; }
+        public readonly IntPtr MemoryPointer { get; }
+        public readonly uint Length { get; }
+
+        public HostMemoryBuffer(byte* data, uint length)
+        {
+            // TODO: Remove the IntPtr cast
+            this.Id = 0;
+            this.MemoryPointer = (IntPtr)data;
+            this.Length = length;
+        }
 
         public unsafe Span<byte> AsSpan()
         {
@@ -39,22 +46,26 @@ namespace CoreEngine
         }
     }
 
+
+    
+
+
     public delegate Vector2 GetRenderSizeDelegate(IntPtr graphicsContext);
-    public delegate uint CreateShaderDelegate(IntPtr graphicsContext, HostMemoryBuffer shaderByteCode);
+    public unsafe delegate uint CreateShaderDelegate(IntPtr graphicsContext, byte* shaderByteCodeData, int shaderByteCodeLength);
     public delegate uint CreateShaderParametersDelegate(IntPtr graphicsContext, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3); 
-    public delegate uint CreateStaticGraphicsBufferDelegate(IntPtr graphicsContext, HostMemoryBuffer data);
-    public delegate HostMemoryBuffer CreateDynamicGraphicsBufferDelegate(IntPtr graphicsContext, uint length);
+    public unsafe delegate uint CreateStaticGraphicsBufferDelegate(IntPtr graphicsContext, byte* data, int length);
+    public delegate uint CreateDynamicGraphicsBufferDelegate(IntPtr graphicsContext, uint length);
 
     // TODO: Write delete graphics buffer methods
 
-    public delegate void UploadDataToGraphicsBufferDelegate(IntPtr graphicsContext, uint graphicsBufferId,  HostMemoryBuffer data);
+    public unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr graphicsContext, uint graphicsBufferId, byte* data, int length);
     public delegate void BeginCopyGpuDataDelegate(IntPtr graphicsContext);
     public delegate void EndCopyGpuDataDelegate(IntPtr graphicsContext);
     public delegate void BeginRenderDelegate(IntPtr graphicsContext);
     public delegate void EndRenderDelegate(IntPtr graphicsContext);
     public delegate void DrawPrimitivesDelegate(IntPtr graphicsContext, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
 
-    public readonly struct GraphicsService
+    public readonly struct GraphicsService : IGraphicsService
     {
         private IntPtr graphicsContext { get; } 
         private GetRenderSizeDelegate getRenderSizeDelegate { get; } 
@@ -74,9 +85,12 @@ namespace CoreEngine
             return getRenderSizeDelegate(graphicsContext);
         }
 
-        public uint CreateShader(HostMemoryBuffer shaderByteCode)
+        public unsafe uint CreateShader(ReadOnlySpan<byte> shaderByteCode)
         {
-            return createShaderDelegate(graphicsContext, shaderByteCode);
+            fixed (byte* pinnedData = shaderByteCode)
+            {
+                return createShaderDelegate(graphicsContext, pinnedData, shaderByteCode.Length);
+            }
         }
 
         public uint CreateShaderParameters(uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3)
@@ -84,19 +98,25 @@ namespace CoreEngine
             return createShaderParametersDelegate(graphicsContext, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
         }
 
-        public uint CreateStaticGraphicsBuffer(HostMemoryBuffer data)
+        public unsafe uint CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
         {
-            return createStaticGraphicsBufferDelegate(graphicsContext, data);
+            fixed (byte* pinnedData = data)
+            {
+                return createStaticGraphicsBufferDelegate(graphicsContext, pinnedData, data.Length);
+            }
         }
 
-        public HostMemoryBuffer CreateDynamicGraphicsBuffer(uint length)
+        public uint CreateDynamicGraphicsBuffer(uint length)
         {
             return createDynamicGraphicsBufferDelegate(graphicsContext, length);
         }
 
-        public void UploadDataToGraphicsBuffer(uint graphicsBufferId, HostMemoryBuffer data)
+        public unsafe void UploadDataToGraphicsBuffer(uint graphicsBufferId, ReadOnlySpan<byte> data)
         {
-            uploadDataToGraphicsBuffer(graphicsContext, graphicsBufferId, data);
+            fixed (byte* pinnedData = data)
+            {
+                uploadDataToGraphicsBuffer(graphicsContext, graphicsBufferId, pinnedData, data.Length);
+            }
         }
 
         public void BeginCopyGpuData()
@@ -124,6 +144,8 @@ namespace CoreEngine
             drawPrimitivesDelegate(graphicsContext, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
         }
     }
+
+    
 
     public enum InputsObjectType
     {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using CoreEngine.HostServices;
 using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
@@ -14,7 +15,7 @@ namespace CoreEngine.Graphics
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
     public class SceneRenderer : SystemManager
     {
-        private readonly GraphicsService graphicsService;
+        private readonly IGraphicsService graphicsService;
         private readonly MemoryService memoryService;
         private readonly ResourcesManager resourcesManager;
 
@@ -50,23 +51,14 @@ namespace CoreEngine.Graphics
 
         internal GraphicsBuffer CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
         {
-            var dataMemoryBuffer = this.memoryService.CreateMemoryBuffer((uint)data.Length);
-
-            if (!data.TryCopyTo(dataMemoryBuffer.AsSpan()))
-            {
-                throw new InvalidOperationException("Error while copying graphics buffer data.");
-            }
-
-            var graphicsBufferId = graphicsService.CreateStaticGraphicsBuffer(dataMemoryBuffer);
-            this.memoryService.DestroyMemoryBuffer(dataMemoryBuffer.Id);
-
-            return new GraphicsBuffer(graphicsBufferId, dataMemoryBuffer.Length);
+            var graphicsBufferId = graphicsService.CreateStaticGraphicsBuffer(data);
+            return new GraphicsBuffer(graphicsBufferId, (uint)data.Length, GraphicsBufferType.Static);
         }
 
         internal GraphicsBuffer CreateDynamicGraphicsBuffer(uint length)
         {
-            var graphicsBuffer = graphicsService.CreateDynamicGraphicsBuffer(length);
-            return new GraphicsBuffer(graphicsBuffer);
+            var graphicsBufferId = graphicsService.CreateDynamicGraphicsBuffer(length);
+            return new GraphicsBuffer(graphicsBufferId, length, GraphicsBufferType.Dynamic);
         }
 
         // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
@@ -118,7 +110,7 @@ namespace CoreEngine.Graphics
             ProcessActiveMeshInstances();
 
             // Prepare draw parameters
-            var vertexShaderParametersSpan = this.vertexShaderParametersGraphicsBuffer.MemoryBuffer.AsSpan();
+            var vertexShaderParametersSpan = this.vertexShaderParametersGraphicsBuffer.MemoryBuffer;
             vertexShaderParametersSpan.Clear();
 
             for (var i = 0; i < this.meshGeometryInstances.Count; i++)
@@ -157,7 +149,7 @@ namespace CoreEngine.Graphics
                     var objectPropertiesIndex = meshInstance.ObjectPropertiesIndex;
                     var objectPropertiesOffset = (int)objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
 
-                    var objectBufferSpan = this.objectPropertiesGraphicsBuffer.MemoryBuffer.AsSpan().Slice(objectPropertiesOffset);
+                    var objectBufferSpan = this.objectPropertiesGraphicsBuffer.MemoryBuffer.Slice(objectPropertiesOffset);
                     MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
 
                     var mesh = meshInstance.Mesh;
@@ -203,7 +195,7 @@ namespace CoreEngine.Graphics
             }
 
             // TODO: Switch to configurable render pass constants
-            MemoryMarshal.Write(this.renderPassParametersGraphicsBuffer.MemoryBuffer.AsSpan(), ref renderPassConstants);
+            MemoryMarshal.Write(this.renderPassParametersGraphicsBuffer.MemoryBuffer, ref renderPassConstants);
             this.graphicsService.UploadDataToGraphicsBuffer(this.renderPassParametersGraphicsBuffer.Id, this.renderPassParametersGraphicsBuffer.MemoryBuffer);
         }
 

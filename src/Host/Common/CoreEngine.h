@@ -23,11 +23,11 @@ struct Vector2
 };
 
 typedef struct Vector2 (*GetRenderSizePtr)(void* graphicsContext);
-typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, struct HostMemoryBuffer shaderByteCode);
+typedef unsigned int (*CreateShaderPtr)(void* graphicsContext, void* shaderByteCodeData, int shaderByteCodeLength);
 typedef unsigned int (*CreateShaderParametersPtr)(void* graphicsContext, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3); 
-typedef unsigned int (*CreateStaticGraphicsBufferPtr)(void* graphicsContext, struct HostMemoryBuffer data);
-typedef struct HostMemoryBuffer (*CreateDynamicGraphicsBufferPtr)(void* graphicsContext, unsigned int length);
-typedef void (*UploadDataToGraphicsBufferPtr)(void* graphicsContext, unsigned int graphicsBufferId,  struct HostMemoryBuffer data);
+typedef unsigned int (*CreateStaticGraphicsBufferPtr)(void* graphicsContext, void* data, int length);
+typedef unsigned int (*CreateDynamicGraphicsBufferPtr)(void* graphicsContext, unsigned int length);
+typedef void (*UploadDataToGraphicsBufferPtr)(void* graphicsContext, unsigned int graphicsBufferId, void* data, int length);
 typedef void (*BeginCopyGpuDataPtr)(void* graphicsContext);
 typedef void (*EndCopyGpuDataPtr)(void* graphicsContext);
 typedef void (*BeginRenderPtr)(void* graphicsContext);

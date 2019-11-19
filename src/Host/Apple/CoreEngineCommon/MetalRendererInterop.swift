@@ -5,9 +5,14 @@ func getRenderSizeHandle(graphicsContext: UnsafeMutableRawPointer?) -> Vector2 {
     return renderer.getRenderSize()
 }
 
-func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCode: HostMemoryBuffer) -> UInt32 {
+func createShaderHandle(graphicsContext: UnsafeMutableRawPointer?, shaderByteCodeData: UnsafeMutableRawPointer?, shaderByteCodeLength: Int32) -> UInt32 {
+    guard let dataBuffer = shaderByteCodeData else {
+        print("ERROR: Static data buffer data is null")
+        return 0
+    }
+
     let renderer = Unmanaged<MetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    renderer.createShader(shaderByteCode: shaderByteCode)
+    renderer.createShader(shaderByteCodeData: dataBuffer, shaderByteCodeLength: shaderByteCodeLength)
     return 0
 }
 
@@ -16,19 +21,29 @@ func createShaderParametersHandle(graphicsContext: UnsafeMutableRawPointer?, gra
     return renderer.createShaderParameters([graphicsBuffer1, graphicsBuffer2, graphicsBuffer3])
 }
 
-func createStaticGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: HostMemoryBuffer) -> UInt32 {
+func createStaticGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, data: UnsafeMutableRawPointer?, length: Int32) -> UInt32 {
+    guard let dataBuffer = data else {
+        print("ERROR: Static data buffer data is null")
+        return 0
+    }
+
     let renderer = Unmanaged<MetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    return renderer.createStaticGraphicsBuffer(data)
+    return renderer.createStaticGraphicsBuffer(dataBuffer, length)
 }
 
-func createDynamicGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, length: UInt32) -> HostMemoryBuffer {
+func createDynamicGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, length: UInt32) -> UInt32 {
     let renderer = Unmanaged<MetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
     return renderer.createDynamicGraphicsBuffer(length)
 }
 
-func uploadDataToGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBufferId: UInt32, data: HostMemoryBuffer) {
+func uploadDataToGraphicsBufferHandle(graphicsContext: UnsafeMutableRawPointer?, graphicsBufferId: UInt32, data: UnsafeMutableRawPointer?, length: Int32) {
+    guard let dataBuffer = data else {
+        print("ERROR: Dynamic data buffer data is null")
+        return
+    }
+
     let renderer = Unmanaged<MetalRenderer>.fromOpaque(graphicsContext!).takeUnretainedValue()
-    renderer.uploadDataToGraphicsBuffer(graphicsBufferId, data)
+    renderer.uploadDataToGraphicsBuffer(graphicsBufferId, dataBuffer, length)
 }
 
 // TODO: ToRemove

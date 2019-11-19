@@ -4,29 +4,26 @@ namespace CoreEngine.Graphics
 {
     public readonly struct GraphicsBuffer
     {
-        private readonly HostMemoryBuffer? internalMemoryBuffer;
+        private readonly Memory<byte>? internalMemoryBuffer;
 
-        internal GraphicsBuffer(uint id, uint sizeInBytes)
+        internal GraphicsBuffer(uint id, uint sizeInBytes, GraphicsBufferType graphicsBufferType)
         {
             this.Id = id;
             this.SizeInBytes = sizeInBytes;
-            this.BufferType = GraphicsBufferType.Static;
+            this.BufferType = graphicsBufferType;
             this.internalMemoryBuffer = null;
-        }
 
-        internal GraphicsBuffer(HostMemoryBuffer memoryBuffer)
-        {
-            this.Id = memoryBuffer.Id;
-            this.SizeInBytes = memoryBuffer.Length;
-            this.BufferType = GraphicsBufferType.Dynamic;
-            this.internalMemoryBuffer = memoryBuffer;
+            if (this.BufferType == GraphicsBufferType.Dynamic)
+            {
+                this.internalMemoryBuffer = new Memory<byte>(new byte[sizeInBytes]);
+            }
         }
 
         public readonly uint Id { get; }
         public readonly uint SizeInBytes { get; }
         public readonly GraphicsBufferType BufferType { get; }
 
-        public HostMemoryBuffer MemoryBuffer
+        public Span<byte> MemoryBuffer
         {
             get
             {
@@ -35,7 +32,7 @@ namespace CoreEngine.Graphics
                     throw new InvalidOperationException("The current graphics buffer is static");
                 }
 
-                return this.internalMemoryBuffer!.Value;
+                return this.internalMemoryBuffer!.Value.Span;
             }
         }
     }

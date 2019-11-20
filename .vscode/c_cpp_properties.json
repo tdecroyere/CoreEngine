@@ -4,13 +4,16 @@
             "name": "Mac",
             "defines": [],
             "intelliSenseMode": "clang-x64",
-            "cppStandard": "c++17"
+            "cppStandard": "c++17",
+            "includePath": [
+                "${workspaceFolder}/src/Host/Common/**"
+            ]
         },
         {
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/src/Host/Windows/**"
-            ],
+            ], 
             "defines": ["DEBUG"],
             "intelliSenseMode": "msvc-x64",
             "cppStandard": "c++17"

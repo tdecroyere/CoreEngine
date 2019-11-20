@@ -6,7 +6,7 @@ namespace CoreEngine.Graphics
     {
         private readonly Memory<byte>? internalMemoryBuffer;
 
-        internal GraphicsBuffer(uint id, uint sizeInBytes, GraphicsBufferType graphicsBufferType)
+        internal GraphicsBuffer(uint id, int sizeInBytes, GraphicsBufferType graphicsBufferType)
         {
             this.Id = id;
             this.SizeInBytes = sizeInBytes;
@@ -20,7 +20,7 @@ namespace CoreEngine.Graphics
         }
 
         public readonly uint Id { get; }
-        public readonly uint SizeInBytes { get; }
+        public readonly int SizeInBytes { get; }
         public readonly GraphicsBufferType BufferType { get; }
 
         public Span<byte> MemoryBuffer

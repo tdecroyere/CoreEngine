@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using CoreEngine.HostServices;
 
 namespace CoreEngine.Inputs
 {
@@ -7,11 +8,11 @@ namespace CoreEngine.Inputs
 
     public class InputsManager : SystemManager
     {
-        private readonly InputsService inputsService;
+        private readonly IInputsService inputsService;
         private InputsState inputsState;
         private const float deadZoneSquared = 0.1f;
 
-        public InputsManager(InputsService inputsService)
+        public InputsManager(IInputsService inputsService)
         {
             this.inputsService = inputsService;
             this.inputsState = new InputsState();

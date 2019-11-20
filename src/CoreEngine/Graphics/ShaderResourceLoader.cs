@@ -12,12 +12,10 @@ namespace CoreEngine.Graphics
     public class ShaderResourceLoader : ResourceLoader
     {
         private readonly IGraphicsService graphicsService;
-        private readonly MemoryService memoryService;
 
-        public ShaderResourceLoader(ResourcesManager resourcesManager, IGraphicsService graphicsService, MemoryService memoryService) : base(resourcesManager)
+        public ShaderResourceLoader(ResourcesManager resourcesManager, IGraphicsService graphicsService) : base(resourcesManager)
         {
             this.graphicsService = graphicsService;
-            this.memoryService = memoryService;
         }
 
         public override string Name => "Shader Loader";
@@ -52,23 +50,10 @@ namespace CoreEngine.Graphics
             var shaderByteCodeLength = reader.ReadInt32();
             var shaderByteCode = new Span<byte>(reader.ReadBytes(shaderByteCodeLength));
 
-            Logger.WriteMessage("OK Shader loader");
-
-            var shaderByteCodeBuffer = this.memoryService.CreateMemoryBuffer((uint)shaderByteCodeLength);
-            
-            if (!shaderByteCode.TryCopyTo(shaderByteCodeBuffer.AsSpan()))
-            {
-                Logger.WriteMessage("Shader bytecode copy error");
-                return Task.FromResult(resource);
-            }
-
-            Logger.WriteMessage("Shader bytecode copy OK");
-
             // TODO: Do not forget to implement hardware resource deallocation/reallocation
             
             // TODO: Pass the id here so that the host remove replace the shader himself at the right time
             this.graphicsService.CreateShader(shaderByteCode);
-            this.memoryService.DestroyMemoryBuffer(shaderByteCodeBuffer.Id);
 
             return Task.FromResult((Resource)shader);
         }

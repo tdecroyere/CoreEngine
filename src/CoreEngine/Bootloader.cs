@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
+using CoreEngine.HostServices;
 using CoreEngine.Inputs;
 using CoreEngine.Resources;
 
@@ -34,7 +35,7 @@ namespace CoreEngine
                     resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
                     // Register managers
-                    graphicsManager = new SceneRenderer(hostPlatform.GraphicsService, hostPlatform.MemoryService, resourcesManager);
+                    graphicsManager = new SceneRenderer(hostPlatform.GraphicsService, resourcesManager);
 
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<SceneRenderer>(graphicsManager);

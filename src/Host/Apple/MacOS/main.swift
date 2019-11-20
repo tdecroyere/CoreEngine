@@ -46,7 +46,6 @@ autoreleasepool {
     NSApplication.shared.activate(ignoringOtherApps: true)
     NSApplication.shared.finishLaunching()
 
-    let memoryManager = MemoryManager()
     let inputsManager = InputsManager()
 
     while (delegate.renderer == nil) {
@@ -62,7 +61,7 @@ autoreleasepool {
         appName = CommandLine.arguments[1]
     }
 
-    let coreEngineHost = CoreEngineHost(memoryManager: memoryManager, renderer: renderer, inputsManager: inputsManager)
+    let coreEngineHost = CoreEngineHost(renderer: renderer, inputsManager: inputsManager)
     coreEngineHost.startEngine(appName)
 
     let timer = PerformanceTimer()

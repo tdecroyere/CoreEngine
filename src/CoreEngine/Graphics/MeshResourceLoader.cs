@@ -9,12 +9,10 @@ namespace CoreEngine.Graphics
     public class MeshResourceLoader : ResourceLoader
     {
         private readonly SceneRenderer graphicsManager;
-        private readonly MemoryService memoryService;
 
-        public MeshResourceLoader(ResourcesManager resourcesManager, SceneRenderer graphicsManager, MemoryService memoryService) : base(resourcesManager)
+        public MeshResourceLoader(ResourcesManager resourcesManager, SceneRenderer graphicsManager) : base(resourcesManager)
         {
             this.graphicsManager = graphicsManager;
-            this.memoryService = memoryService;
         }
 
         public override string Name => "Mesh Loader";

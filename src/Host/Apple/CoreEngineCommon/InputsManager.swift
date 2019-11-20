@@ -1,7 +1,7 @@
 import Cocoa
 import CoreEngineCommonInterop
 
-public class InputsManager {
+public class InputsManager: InputsServiceProtocol {
     var inputsState: InputsState
     var keyboardManager: KeyboardManager
     var gamepadManager: MacOSGamepadManager
@@ -10,6 +10,19 @@ public class InputsManager {
         self.inputsState = InputsState()
         self.keyboardManager = KeyboardManager()
         self.gamepadManager = MacOSGamepadManager()
+    }
+
+    public func getInputsState() -> InputsState {
+        let result = self.inputsState
+        self.inputsState.Mouse.DeltaX.Value = 0
+        self.inputsState.Mouse.DeltaY.Value = 0
+        return result
+    }
+
+    public func sendVibrationCommand(_ playerId: UInt, _ leftTriggerMotor: Float, _ rightTriggerMotor: Float, _ leftStickMotor: Float, _ rightStickMotor: Float, _ duration10ms: UInt) {
+        if (self.gamepadManager.registeredGamepads.count > playerId) {
+            self.gamepadManager.registeredGamepads[Int(playerId) - 1].sendVibrationCommand(leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, UInt8(duration10ms))
+        }
     }
 
     public func processKeyboardEvent(_ event: NSEvent) {

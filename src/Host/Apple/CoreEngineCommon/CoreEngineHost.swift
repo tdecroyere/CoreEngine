@@ -3,7 +3,6 @@ import CoreEngineCommonInterop
 
 public class CoreEngineHost {
     public var hostPlatform: HostPlatform!
-    let memoryManager: MemoryManager
     let renderer: MetalRenderer
     let inputsManager: InputsManager
 
@@ -11,9 +10,8 @@ public class CoreEngineHost {
     var updateEnginePointer: UpdateEnginePtr?
     var renderPointer: RenderPtr?
 
-    public init(memoryManager: MemoryManager, renderer: MetalRenderer, inputsManager: InputsManager) {
+    public init(renderer: MetalRenderer, inputsManager: InputsManager) {
         self.hostPlatform = HostPlatform()
-        self.memoryManager = memoryManager
         self.renderer = renderer
         self.inputsManager = inputsManager
     }
@@ -27,7 +25,6 @@ public class CoreEngineHost {
             appNameUnsafe = strdup(appName)
         }
         
-        initMemoryService(self.memoryManager, &self.hostPlatform.MemoryService)
         initGraphicsService(self.renderer, &self.hostPlatform.GraphicsService)
         initInputsService(self.inputsManager, &self.hostPlatform.InputsService)
 

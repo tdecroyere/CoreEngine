@@ -9,7 +9,7 @@ namespace CoreEngine.HostServices
         uint CreateShader(ReadOnlySpan<byte> shaderByteCode);
         uint CreateShaderParameters(uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
         uint CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data);
-        uint CreateDynamicGraphicsBuffer(uint length);
+        uint CreateDynamicGraphicsBuffer(int length);
 
         void UploadDataToGraphicsBuffer(uint graphicsBufferId, ReadOnlySpan<byte> data);
         void BeginCopyGpuData();

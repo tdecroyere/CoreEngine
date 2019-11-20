@@ -8,9 +8,9 @@ namespace CoreEngine.Graphics
 {
     public class MeshResourceLoader : ResourceLoader
     {
-        private readonly SceneRenderer graphicsManager;
+        private readonly GraphicsManager graphicsManager;
 
-        public MeshResourceLoader(ResourcesManager resourcesManager, SceneRenderer graphicsManager) : base(resourcesManager)
+        public MeshResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
             this.graphicsManager = graphicsManager;
         }

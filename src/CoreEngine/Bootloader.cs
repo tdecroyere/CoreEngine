@@ -13,7 +13,7 @@ namespace CoreEngine
     public static class Bootloader
     {
         private static CoreEngineApp? coreEngineApp = null;
-        private static SceneRenderer? graphicsManager = null;
+        private static SceneRenderer? sceneRenderer = null;
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
         {
@@ -34,11 +34,14 @@ namespace CoreEngine
                     resourcesManager.AddResourceStorage(new FileSystemResourceStorage("."));
                     resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
+                    var graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
+
                     // Register managers
-                    graphicsManager = new SceneRenderer(hostPlatform.GraphicsService, resourcesManager);
+                    sceneRenderer = new SceneRenderer(hostPlatform.GraphicsService, graphicsManager);
 
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<SceneRenderer>(graphicsManager);
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<SceneRenderer>(sceneRenderer);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
                     Logger.WriteMessage("Initializing app...");
@@ -60,9 +63,9 @@ namespace CoreEngine
 
         public static void Render()
         {
-            if (graphicsManager != null)
+            if (sceneRenderer != null)
             {
-                graphicsManager.Render();
+                sceneRenderer.Render();
             }
         }
 

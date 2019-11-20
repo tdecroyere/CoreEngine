@@ -16,7 +16,7 @@ namespace CoreEngine.Graphics
     public class SceneRenderer : SystemManager
     {
         private readonly IGraphicsService graphicsService;
-        private readonly ResourcesManager resourcesManager;
+        private readonly GraphicsManager graphicsManager;
 
         private Dictionary<Entity, MeshInstance> meshInstances;
         private List<Entity> meshInstancesToRemove;
@@ -28,35 +28,21 @@ namespace CoreEngine.Graphics
         private GraphicsBuffer objectPropertiesGraphicsBuffer;
         private uint currentObjectPropertyIndex = 0;
 
-        public SceneRenderer(IGraphicsService graphicsService, ResourcesManager resourcesManager)
+        public SceneRenderer(IGraphicsService graphicsService, GraphicsManager graphicsManager)
         {
             this.graphicsService = graphicsService;
-            this.resourcesManager = resourcesManager;
+            this.graphicsManager = graphicsManager;
 
             this.meshInstances = new Dictionary<Entity, MeshInstance>();
             this.meshInstancesToRemove = new List<Entity>();
 
             this.renderPassConstants = new RenderPassConstants();
-            this.renderPassParametersGraphicsBuffer = CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
-            this.vertexShaderParametersGraphicsBuffer = CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(int)) * 1024);
-            this.objectPropertiesGraphicsBuffer = CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 256);
+            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
+            this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(int)) * 1024);
+            this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 256);
 
             this.meshGeometryInstances = new List<GeometryInstance>();
             this.meshGeometryInstancesParamIdList = new List<uint>();
-            
-            InitResourceLoaders();
-        }
-
-        internal GraphicsBuffer CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
-        {
-            var graphicsBufferId = graphicsService.CreateStaticGraphicsBuffer(data);
-            return new GraphicsBuffer(graphicsBufferId, data.Length, GraphicsBufferType.Static);
-        }
-
-        internal GraphicsBuffer CreateDynamicGraphicsBuffer(int length)
-        {
-            var graphicsBufferId = graphicsService.CreateDynamicGraphicsBuffer(length);
-            return new GraphicsBuffer(graphicsBufferId, length, GraphicsBufferType.Dynamic);
         }
 
         // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
@@ -215,13 +201,6 @@ namespace CoreEngine.Graphics
             {
                 meshInstance.IsAlive = isAlive;
             }
-        }
-
-        private void InitResourceLoaders()
-        {
-            this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this.graphicsService));
-            this.resourcesManager.AddResourceLoader(new MaterialResourceLoader(this.resourcesManager, this));
-            this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this));
         }
     }
 }

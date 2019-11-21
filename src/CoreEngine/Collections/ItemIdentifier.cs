@@ -4,6 +4,8 @@ namespace CoreEngine.Collections
 {
     public readonly struct ItemIdentifier : IEquatable<ItemIdentifier>
     {
+        public readonly static ItemIdentifier Empty = new ItemIdentifier(0);
+        
         public ItemIdentifier(uint id)
         {
             this.Id = id;

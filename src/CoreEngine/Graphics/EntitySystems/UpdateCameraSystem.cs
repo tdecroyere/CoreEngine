@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using CoreEngine.Collections;
 using CoreEngine.Components;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics.Components;
@@ -69,7 +70,7 @@ namespace CoreEngine.Graphics.EntitySystems
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
                 
                 // TODO: Replace that with ItemIdentifier.Empty
-                if (cameraComponent.Camera.Id == 0)
+                if (cameraComponent.Camera == ItemIdentifier.Empty)
                 {
                     var camera = new Camera(viewMatrix, projectionMatrix);
                     cameraComponent.Camera = sceneRenderer.CurrentScene.Cameras.Add(camera);

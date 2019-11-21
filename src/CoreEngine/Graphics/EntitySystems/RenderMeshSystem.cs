@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using CoreEngine.Collections;
 using CoreEngine.Components;
 using CoreEngine.Graphics.Components;
 using CoreEngine.Resources;
@@ -46,7 +47,7 @@ namespace CoreEngine.Graphics.EntitySystems
                     if (mesh != null)
                     {
                         // TODO: Replace that with ItemIdentifier.Empty
-                        if (meshComponent.MeshInstance.Id == 0)
+                        if (meshComponent.MeshInstance == ItemIdentifier.Empty)
                         {
                             var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, this.sceneRenderer.currentObjectPropertyIndex++);
                             meshInstance.IsAlive = true;

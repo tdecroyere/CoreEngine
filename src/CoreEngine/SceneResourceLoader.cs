@@ -103,6 +103,8 @@ namespace CoreEngine
                 var entityLayoutIndex = reader.ReadInt32();
                 var componentsCount = reader.ReadInt32();
 
+                Logger.BeginAction($"Create Entity '{entityName}'");
+                Logger.WriteMessage($"Components Count: {componentsCount}");
                 Logger.WriteMessage($"EntityLayoutIndex: {entityLayoutIndex}");
 
                 var entityLayout = sceneEntityLayoutsList[entityLayoutIndex];
@@ -110,9 +112,7 @@ namespace CoreEngine
 
                 if (entityLayout != null)
                 {
-                    Logger.WriteMessage($"Create Entity (Components Count: {componentsCount})");
                     entity = scene.EntityManager.CreateEntity(entityLayout.Value);
-
                     entitiesMapping.Add(entityName, entity.Value);
                 }
 
@@ -122,7 +122,7 @@ namespace CoreEngine
                     var componentValuesCount = reader.ReadInt32();
 
                     var componentType = FindType(componentTypeName);
-                    Logger.WriteMessage($"Component Type: {componentType}");
+                    Logger.BeginAction($"Reading Component Type '{componentType}'");
 
                     IComponentData? component = null;
 
@@ -136,7 +136,6 @@ namespace CoreEngine
                         }
 
                         component.SetDefaultValues();
-                        Logger.WriteMessage($"Component: {component.ToString()}");
                     }
 
                     for (var k = 0; k < componentValuesCount; k++)
@@ -172,7 +171,6 @@ namespace CoreEngine
                                     resource.DependentResources.Add(componentResource);
 
                                     propertyInfo.SetValue(component, componentResource.ResourceId);
-                                    Logger.WriteMessage("Set resource Id value OK");
                                 }
 
                                 else if (propertyInfo.PropertyType == typeof(Entity) || propertyInfo.PropertyType == typeof(Entity?))
@@ -182,14 +180,15 @@ namespace CoreEngine
                                         entitiesToResolve.Add(stringValue, new List<(Entity entity, Type componentType, IComponentData component, PropertyInfo property)>());
                                     }
 
-                                    entitiesToResolve[stringValue].Add((entity.Value, componentType, component, propertyInfo));
-                                    Logger.WriteMessage($"Entity binding: {stringValue}");
+                                    if (entity != null && componentType != null && component != null)
+                                    {
+                                        entitiesToResolve[stringValue].Add((entity.Value, componentType, component, propertyInfo));
+                                    }
                                 }
 
                                 else
                                 {
                                     propertyInfo.SetValue(component, stringValue);
-                                    Logger.WriteMessage("Set string raw value OK");
                                 }
                             }
                         }
@@ -201,7 +200,6 @@ namespace CoreEngine
                             if (propertyInfo != null)
                             {
                                 propertyInfo.SetValue(component, boolValue);
-                                Logger.WriteMessage("Set bool OK");
                             }
                         }
 
@@ -212,7 +210,6 @@ namespace CoreEngine
                             if (propertyInfo != null)
                             {
                                 propertyInfo.SetValue(component, floatValue);
-                                Logger.WriteMessage("Set float OK");
                             }
                         }
 
@@ -233,21 +230,18 @@ namespace CoreEngine
                                 {
                                     var value = new Vector2(floatArrayValue[0], floatArrayValue[1]);
                                     propertyInfo.SetValue(component, value);
-                                    Logger.WriteMessage("Set Vector2 OK");
                                 }
 
                                 else if (floatArrayLength == 3)
                                 {
                                     var value = new Vector3(floatArrayValue[0], floatArrayValue[1], floatArrayValue[2]);
                                     propertyInfo.SetValue(component, value);
-                                    Logger.WriteMessage("Set Vector3 OK");
                                 }
 
                                 else if (floatArrayLength == 4)
                                 {
                                     var value = new Vector4(floatArrayValue[0], floatArrayValue[1], floatArrayValue[2], floatArrayValue[3]);
                                     propertyInfo.SetValue(component, value);
-                                    Logger.WriteMessage("Set Vector4 OK");
                                 }
 
                                 else
@@ -262,12 +256,18 @@ namespace CoreEngine
                     {
                         scene.EntityManager.SetComponentData(entity.Value, componentType, component);
                     }
+
+                    Logger.EndAction();
                 }
+
+                Logger.EndAction();
             }
+
+            Logger.BeginAction($"Resolving entities");
 
             foreach (var entry in entitiesToResolve)
             {
-                Logger.WriteMessage($"Resolving entity: {entry.Key}");
+                Logger.BeginAction($"Resolving entity: {entry.Key}");
 
                 if (entitiesMapping.ContainsKey(entry.Key))
                 {
@@ -275,7 +275,7 @@ namespace CoreEngine
 
                     foreach (var value in entry.Value)
                     {
-                        Logger.WriteMessage($"{value.entity.EntityId}");
+                        Logger.WriteMessage($"Found entity with Id: {value.entity.EntityId}");
 
                         value.property.SetValue(value.component, resolvedEntity);
                         scene.EntityManager.SetComponentData(value.entity, value.componentType, value.component);
@@ -286,7 +286,11 @@ namespace CoreEngine
                 {
                     Logger.WriteMessage($"Entity '{entry.Key}' was not found", LogMessageTypes.Warning);
                 }
+
+                Logger.EndAction();
             }
+
+            Logger.EndAction();
 
             return Task.FromResult((Resource)scene);
         }

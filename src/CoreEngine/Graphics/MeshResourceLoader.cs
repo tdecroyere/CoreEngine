@@ -44,8 +44,6 @@ namespace CoreEngine.Graphics
                 return Task.FromResult(resource);
             }
 
-            Logger.WriteMessage("Mesh Loading");
-
             // TODO: Read the vertex format from the mesh file
             var vertexLayout = new VertexLayout(VertexElementType.Float3, VertexElementType.Float3);
 

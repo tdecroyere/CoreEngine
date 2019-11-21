@@ -19,8 +19,6 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Init()
         {
-            Logger.WriteMessage("Init Ecs Test App...");
-
             var resourcesManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
             resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
             resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\Windows\Resources"));

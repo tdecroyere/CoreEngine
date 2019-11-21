@@ -66,7 +66,7 @@ namespace CoreEngine.Resources
                 return (T)this.resources[path];
             }
 
-            Logger.WriteMessage($"Loading resource '{path}'...");
+            Logger.BeginAction($"Loading resource '{path}'");
             var resourceLoader = FindResourceLoader(Path.GetExtension(path));
 
             if (resourceLoader == null)
@@ -87,7 +87,7 @@ namespace CoreEngine.Resources
 
             if (resourceStorage == null)
             {
-                Logger.WriteMessage($"Resource '{path}' was not found.", LogMessageTypes.Warning);
+                Logger.EndActionWarning($"Resource '{path}' was not found.");
                 // TODO return a default not found resource specific to the resource type (shader, texture, etc.)
                 //throw new NotImplementedException("Resource not found path is not yet implemented");
 
@@ -103,6 +103,8 @@ namespace CoreEngine.Resources
 
             var resourceLoadingTask = resourceLoader.LoadResourceDataAsync(resource, resourceData);
             this.resourceLoadingList.Add(resourceLoadingTask);
+
+            Logger.EndAction();
 
             return (T)resource;
         }

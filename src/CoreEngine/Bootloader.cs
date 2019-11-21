@@ -17,17 +17,15 @@ namespace CoreEngine
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
         {
-            Logger.WriteMessage("Starting CoreEngine...");
+            Logger.BeginAction("Starting CoreEngine");
 
             if (appName != null)
             {
-                Logger.WriteMessage($"Loading CoreEngineApp '{appName}'...", LogMessageTypes.Action);
+                Logger.BeginAction($"Loading CoreEngineApp '{appName}'");
                 coreEngineApp = LoadCoreEngineApp(appName).Result;
 
                 if (coreEngineApp != null)
                 {
-                    Logger.WriteMessage("CoreEngineApp loading successfull.", LogMessageTypes.Success);
-
                     var resourcesManager = new ResourcesManager();
                     
                     // TODO: Get the config from the host using hardcoded values for the moment
@@ -44,11 +42,17 @@ namespace CoreEngine
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsSceneRenderer>(sceneRenderer);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
-                    Logger.WriteMessage("Initializing app...", LogMessageTypes.Action);
                     coreEngineApp.Init();
-                    Logger.WriteMessage("Initializing app done.", LogMessageTypes.Success);
+                    Logger.EndAction();
+                }
+
+                else
+                {
+                    Logger.EndActionError();
                 }
             }
+
+            Logger.EndAction();
         }
 
         public static void UpdateEngine(float deltaTime)
@@ -74,14 +78,19 @@ namespace CoreEngine
         {
             // TODO: Check if dll exists
             var currentAssemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            var assemblyContent = await File.ReadAllBytesAsync(Path.Combine(currentAssemblyPath, $"{appName}.dll"));
-            var assembly = Assembly.Load(assemblyContent);
+            var assemblyPath = Path.Combine(currentAssemblyPath, $"{appName}.dll");
 
-            foreach (var type in assembly.GetTypes())
+            if (File.Exists(assemblyPath))
             {
-                if (type.IsSubclassOf(typeof(CoreEngineApp)))
+                var assemblyContent = await File.ReadAllBytesAsync(assemblyPath);
+                var assembly = Assembly.Load(assemblyContent);
+
+                foreach (var type in assembly.GetTypes())
                 {
-                    return (CoreEngineApp?)Activator.CreateInstance(type);
+                    if (type.IsSubclassOf(typeof(CoreEngineApp)))
+                    {
+                        return (CoreEngineApp?)Activator.CreateInstance(type);
+                    }
                 }
             }
 

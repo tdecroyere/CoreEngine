@@ -1,6 +1,6 @@
 using System;
 using System.Numerics;
-using CoreEngine;
+using CoreEngine.Components;
 
 namespace CoreEngine.Tests.EcsTest
 {
@@ -16,7 +16,7 @@ namespace CoreEngine.Tests.EcsTest
             return definition;
         }
 
-        public override void Process(float deltaTime)
+        public override void Process(EntityManager entityManager, float deltaTime)
         {
             var friction = -80.5f;
             var deltaTimePow2 = deltaTime * deltaTime;

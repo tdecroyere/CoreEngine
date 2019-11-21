@@ -168,11 +168,27 @@ namespace CoreEngine
                                     Logger.WriteMessage("Set resource Id value OK");
                                 }
 
+                                else if (propertyInfo.PropertyType == typeof(Entity) || propertyInfo.PropertyType == typeof(Entity?))
+                                {
+                                    Logger.WriteMessage("Entity binding");
+                                }
+
                                 else
                                 {
                                     propertyInfo.SetValue(component, stringValue);
                                     Logger.WriteMessage("Set string raw value OK");
                                 }
+                            }
+                        }
+
+                        else if (Type.GetType(componentValueType) == typeof(bool))
+                        {
+                            var boolValue = reader.ReadBoolean();
+
+                            if (propertyInfo != null)
+                            {
+                                propertyInfo.SetValue(component, boolValue);
+                                Logger.WriteMessage("Set bool OK");
                             }
                         }
 

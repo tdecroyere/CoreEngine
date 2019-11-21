@@ -1,9 +1,10 @@
 using System;
 using System.Numerics;
 using System.IO;
-using CoreEngine;
+using CoreEngine.EntitySystems;
 using CoreEngine.Resources;
 using CoreEngine.Graphics;
+using CoreEngine.Graphics.EntitySystems;
 using CoreEngine.Diagnostics;
 
 namespace CoreEngine.Tests.EcsTest
@@ -33,7 +34,8 @@ namespace CoreEngine.Tests.EcsTest
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
-            this.entitySystemManager.RegisterEntitySystem<UpdateActiveCameraSystem>();
+            this.entitySystemManager.RegisterEntitySystem<UpdateCameraSystem>();
+            this.entitySystemManager.RegisterEntitySystem<UpdateGraphicsSceneSystem>();
             this.entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
         }
 

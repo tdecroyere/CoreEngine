@@ -72,7 +72,7 @@ namespace CoreEngine
                 var entitySystemData = entityManager.GetEntitySystemData(this.componentTypes[i]);
 
                 entitySystem.SetEntitySystemData(entitySystemData);
-                entitySystem.Process(deltaTime);
+                entitySystem.Process(entityManager, deltaTime);
             }
         }
     }

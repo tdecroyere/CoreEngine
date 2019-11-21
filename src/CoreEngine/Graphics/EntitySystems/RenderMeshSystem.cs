@@ -1,19 +1,19 @@
 using System;
 using System.Numerics;
-using CoreEngine;
-using CoreEngine.Graphics;
+using CoreEngine.Components;
+using CoreEngine.Graphics.Components;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Graphics.EntitySystems
 {
     public class RenderMeshSystem : EntitySystem
     {
-        private readonly SceneRenderer graphicsManager;
+        private readonly GraphicsSceneRenderer sceneRenderer;
         private readonly ResourcesManager resourcesManager;
 
-        public RenderMeshSystem(SceneRenderer graphicsManager, ResourcesManager resourceManager)
+        public RenderMeshSystem(GraphicsSceneRenderer sceneRenderer, ResourcesManager resourceManager)
         {
-            this.graphicsManager = graphicsManager;
+            this.sceneRenderer = sceneRenderer;
             this.resourcesManager = resourceManager;
         }
 
@@ -27,7 +27,7 @@ namespace CoreEngine.Graphics
             return definition;
         }
 
-        public override void Process(float deltaTime)
+        public override void Process(EntityManager entityManager, float deltaTime)
         {
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
@@ -45,7 +45,7 @@ namespace CoreEngine.Graphics
 
                     if (mesh != null)
                     {
-                        graphicsManager.AddOrUpdateEntity(entity, mesh, transform.WorldMatrix);
+                        sceneRenderer.AddOrUpdateEntity(entity, mesh, transform.WorldMatrix);
                     }
                 }
             }

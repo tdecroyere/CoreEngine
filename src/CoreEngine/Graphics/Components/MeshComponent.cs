@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Graphics.Components
 {
     public struct MeshComponent : IComponentData
     {

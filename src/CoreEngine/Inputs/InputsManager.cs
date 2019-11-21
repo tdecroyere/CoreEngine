@@ -9,7 +9,7 @@ namespace CoreEngine.Inputs
     public class InputsManager : SystemManager
     {
         private readonly IInputsService inputsService;
-        private InputsState inputsState;
+        public InputsState inputsState;
         private const float deadZoneSquared = 0.1f;
 
         public InputsManager(IInputsService inputsService)

@@ -1,24 +1,23 @@
 using System;
 using System.Numerics;
-using CoreEngine;
+using CoreEngine.Components;
 using CoreEngine.Diagnostics;
-using CoreEngine.Graphics;
-using CoreEngine.Resources;
+using CoreEngine.Graphics.Components;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Graphics.EntitySystems
 {
-    public class UpdateActiveCameraSystem : EntitySystem
+    public class UpdateCameraSystem : EntitySystem
     {
-        private readonly SceneRenderer graphicsManager;
+        private readonly GraphicsSceneRenderer sceneRenderer;
 
-        public UpdateActiveCameraSystem(SceneRenderer graphicsManager)
+        public UpdateCameraSystem(GraphicsSceneRenderer sceneRenderer)
         {
-            this.graphicsManager = graphicsManager;
+            this.sceneRenderer = sceneRenderer;
         }
 
         public override EntitySystemDefinition BuildDefinition()
         {
-            var definition = new EntitySystemDefinition("Update Active Camera System");
+            var definition = new EntitySystemDefinition("Update Camera System");
 
             definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
             definition.Parameters.Add(new EntitySystemParameter(typeof(CameraComponent)));
@@ -26,11 +25,22 @@ namespace CoreEngine.Graphics
             return definition;
         }
 
-        public override void Process(float deltaTime)
+        public override void Process(EntityManager entityManager, float deltaTime)
         {
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
+
+            Entity? sceneEntity = null;
+            SceneComponent? sceneComponent = null;
+
+            var sceneEntities = entityManager.GetEntitiesByComponentType<SceneComponent>();
+
+            if (sceneEntities.Length > 0)
+            {
+                sceneEntity = sceneEntities[0];
+                sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
+            }
 
             for (var i = 0; i < entityArray.Length; i++)
             {
@@ -47,7 +57,7 @@ namespace CoreEngine.Graphics
                 var target = Vector3.Transform(new Vector3(0, 0, 1), transform.RotationQuaternion) + cameraPosition;
 
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
-                graphicsManager.UpdateCamera(viewMatrix);
+                sceneRenderer.AddOrUpdateCamera(entity, viewMatrix);
             }
         }
 

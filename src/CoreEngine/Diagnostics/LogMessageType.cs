@@ -3,7 +3,7 @@ using System;
 namespace CoreEngine.Diagnostics
 {
     [Flags]
-    public enum LogMessageType
+    public enum LogMessageTypes
     {
         None = 0,
         Normal = 1,

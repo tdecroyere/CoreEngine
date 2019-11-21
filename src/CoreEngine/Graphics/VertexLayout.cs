@@ -4,7 +4,7 @@ namespace CoreEngine.Graphics
 {
     public struct VertexLayout
     {
-        private readonly uint rawVertexLayout;
+        //private readonly uint rawVertexLayout;
 
         public VertexLayout(params VertexElementType[] elementTypes)
         {
@@ -18,7 +18,7 @@ namespace CoreEngine.Graphics
                 throw new NotSupportedException("Vertex layout doesn't support more than 8 vertex elements.");
             }
 
-            this.rawVertexLayout = 0;
+            //this.rawVertexLayout = 0;
         }
     }
 }

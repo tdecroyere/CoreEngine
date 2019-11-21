@@ -10,7 +10,7 @@ namespace CoreEngine
 
         public abstract EntitySystemDefinition BuildDefinition();
         
-        public abstract void Process(float deltaTime);
+        public abstract void Process(EntityManager entityManager, float deltaTime);
 
         protected EntitySystemArray<Entity> GetEntityArray()
         {

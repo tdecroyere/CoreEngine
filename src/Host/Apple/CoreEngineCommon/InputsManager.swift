@@ -16,6 +16,7 @@ public class InputsManager: InputsServiceProtocol {
         let result = self.inputsState
         self.inputsState.Mouse.DeltaX.Value = 0
         self.inputsState.Mouse.DeltaY.Value = 0
+        resetInputState()
         return result
     }
 
@@ -23,6 +24,10 @@ public class InputsManager: InputsServiceProtocol {
         if (self.gamepadManager.registeredGamepads.count > playerId) {
             self.gamepadManager.registeredGamepads[Int(playerId) - 1].sendVibrationCommand(leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, UInt8(duration10ms))
         }
+    }
+
+    private func resetInputState() {
+        self.inputsState.Keyboard.Space.TransitionCount = 0
     }
 
     public func processKeyboardEvent(_ event: NSEvent) {
@@ -154,6 +159,9 @@ public class InputsManager: InputsServiceProtocol {
             self.inputsState.Keyboard.UpArrow.Value = computeInputObjectValue(event)
         } else if (keyCode == 125) { // Down Arrow
             self.inputsState.Keyboard.DownArrow.Value = computeInputObjectValue(event)
+        } else if (keyCode == 49) { // Space
+            self.inputsState.Keyboard.Space.Value = computeInputObjectValue(event)
+            self.inputsState.Keyboard.Space.TransitionCount += 1;
         } else {
             NSApplication.shared.sendEvent(event)
         }

@@ -1,8 +1,6 @@
-using System;
 using System.Numerics;
-using System.Runtime.InteropServices;
 
-namespace CoreEngine
+namespace CoreEngine.Components
 {
     public struct TransformComponent : IComponentData
     {

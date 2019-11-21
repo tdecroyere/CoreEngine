@@ -1,8 +1,8 @@
 using System;
 using System.Numerics;
-using CoreEngine;
+using CoreEngine.Components;
 
-namespace CoreEngine
+namespace CoreEngine.EntitySystems
 {
     public class ComputeWorldMatrixSystem : EntitySystem
     {
@@ -15,7 +15,7 @@ namespace CoreEngine
             return definition;
         }
 
-        public override void Process(float deltaTime)
+        public override void Process(EntityManager entityManager, float deltaTime)
         {
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();

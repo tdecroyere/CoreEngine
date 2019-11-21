@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
 
@@ -13,12 +14,13 @@ namespace CoreEngine.Graphics
     }
 
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
-    public class SceneRenderer : SystemManager
+    public class GraphicsSceneRenderer : SystemManager
     {
         private readonly IGraphicsService graphicsService;
         private readonly GraphicsManager graphicsManager;
 
-        private Dictionary<Entity, MeshInstance> meshInstances;
+        private GraphicsScene currentScene;
+
         private List<Entity> meshInstancesToRemove;
         private RenderPassConstants renderPassConstants;
         private List<GeometryInstance> meshGeometryInstances;
@@ -28,12 +30,19 @@ namespace CoreEngine.Graphics
         private GraphicsBuffer objectPropertiesGraphicsBuffer;
         private uint currentObjectPropertyIndex = 0;
 
-        public SceneRenderer(IGraphicsService graphicsService, GraphicsManager graphicsManager)
+        // TODO: Remove the dependency to GraphicsService. Only GraphicsManager should have a dependency to it
+        public GraphicsSceneRenderer(IGraphicsService graphicsService, GraphicsManager graphicsManager)
         {
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
             this.graphicsService = graphicsService;
             this.graphicsManager = graphicsManager;
 
-            this.meshInstances = new Dictionary<Entity, MeshInstance>();
+            this.currentScene = new GraphicsScene();
+
             this.meshInstancesToRemove = new List<Entity>();
 
             this.renderPassConstants = new RenderPassConstants();
@@ -45,51 +54,89 @@ namespace CoreEngine.Graphics
             this.meshGeometryInstancesParamIdList = new List<uint>();
         }
 
+        public void UpdateScene(Entity? camera)
+        {
+            if (camera != null)
+            {
+                this.currentScene.ActiveCamera = this.currentScene.Cameras[camera.Value];
+            }
+
+            else
+            {
+                this.currentScene.ActiveCamera = null;
+            }
+        }
+
         // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
         public void AddOrUpdateEntity(Entity entity, Mesh mesh, Matrix4x4 worldMatrix)
         {
-            if (this.meshInstances.ContainsKey(entity))
+            if (this.currentScene.MeshInstances.ContainsKey(entity))
             {
-                this.meshInstances[entity].Mesh = mesh;
-                this.meshInstances[entity].IsAlive = true;
+                this.currentScene.MeshInstances[entity].Mesh = mesh;
+                this.currentScene.MeshInstances[entity].IsAlive = true;
 
-                if (this.meshInstances[entity].WorldMatrix != worldMatrix)
+                if (this.currentScene.MeshInstances[entity].WorldMatrix != worldMatrix)
                 {
-                    this.meshInstances[entity].WorldMatrix = worldMatrix;
-                    this.meshInstances[entity].IsDirty = true;
+                    this.currentScene.MeshInstances[entity].WorldMatrix = worldMatrix;
+                    this.currentScene.MeshInstances[entity].IsDirty = true;
                 }
 
                 else
                 {
-                    this.meshInstances[entity].IsDirty = false;
+                    this.currentScene.MeshInstances[entity].IsDirty = false;
                 }
             }
 
             else
             {
-                this.meshInstances.Add(entity, new MeshInstance(entity, mesh, worldMatrix, this.currentObjectPropertyIndex));
+                this.currentScene.MeshInstances.Add(entity, new MeshInstance(entity, mesh, worldMatrix, this.currentObjectPropertyIndex));
                 this.currentObjectPropertyIndex++;
             }
         }
-        
-        public void UpdateCamera(Matrix4x4 viewMatrix)
+
+        public void AddOrUpdateCamera(Entity entity, Matrix4x4 viewMatrix)
         {
             var renderSize = this.graphicsService.GetRenderSize();
             var renderWidth = renderSize.X;
             var renderHeight = renderSize.Y;
 
-            // TODO: Try to update directly the host memory buffer
+            var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
+            // var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), renderWidth / renderHeight, 10.0f, 100000.0f);
 
-            this.renderPassConstants.ViewMatrix = viewMatrix;
+            Camera camera;
 
-            // this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), renderWidth / renderHeight, 10.0f, 100000.0f);
-            this.renderPassConstants.ProjectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
+            if (this.currentScene.Cameras.ContainsKey(entity))
+            {
+                camera = this.currentScene.Cameras[entity];
+
+                camera.IsAlive = true;
+                camera.ViewMatrix = viewMatrix;
+                camera.ProjectionMatrix = projectionMatrix;
+            }
+
+            else
+            {
+                camera = new Camera(entity, viewMatrix, projectionMatrix);
+                this.currentScene.Cameras.Add(entity, camera);
+            }
+        }
+        
+        private void SetupCamera(Camera camera)
+        {
+            this.renderPassConstants.ViewMatrix = camera.ViewMatrix;
+            this.renderPassConstants.ProjectionMatrix = camera.ProjectionMatrix;
         }
 
         public override void PostUpdate()
         {
             this.graphicsService.BeginCopyGpuData();
             // TODO: Process pending gpu resource loading here
+
+            if (this.currentScene.ActiveCamera != null)
+            {
+                SetupCamera(this.currentScene.ActiveCamera);
+            }
+
             SetRenderPassConstants(this.renderPassConstants);
             ProcessActiveMeshInstances();
 
@@ -118,7 +165,7 @@ namespace CoreEngine.Graphics
             this.meshGeometryInstancesParamIdList.Clear();
 
             // TODO: Replace that with an hybrid dictionary/list
-            foreach(var meshInstance in this.meshInstances.Values)
+            foreach(var meshInstance in this.currentScene.MeshInstances.Values)
             {
                 if (!meshInstance.IsAlive)
                 {
@@ -153,7 +200,7 @@ namespace CoreEngine.Graphics
             for (var i = 0; i < this.meshInstancesToRemove.Count; i++)
             {
                 // TODO: Remove GPU data!
-                this.meshInstances.Remove(this.meshInstancesToRemove[i]);
+                this.currentScene.MeshInstances.Remove(this.meshInstancesToRemove[i]);
             }
         }
 
@@ -197,7 +244,7 @@ namespace CoreEngine.Graphics
         private void UpdateMeshInstancesStatus(bool isAlive)
         {
             // TODO: Replace that with an hybrid dictionary/list
-            foreach(var meshInstance in this.meshInstances.Values)
+            foreach(var meshInstance in this.currentScene.MeshInstances.Values)
             {
                 meshInstance.IsAlive = isAlive;
             }

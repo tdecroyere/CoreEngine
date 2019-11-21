@@ -12,12 +12,12 @@ func keyboardConnected(context: UnsafeMutableRawPointer?, result: IOReturn, send
 
     print("MacOS: Keyboard controller connected")
 
-    let keyboardManager = Unmanaged<KeyboardManager>.fromOpaque(context!).takeUnretainedValue()
-    let manufacturerName = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString)
-    let productName  = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString)
+    // let keyboardManager = Unmanaged<KeyboardManager>.fromOpaque(context!).takeUnretainedValue()
+    // let manufacturerName = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString)
+    // let productName  = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString)
 
-    print(manufacturerName)
-    print(productName)
+    // print(manufacturerName)
+    // print(productName)
 	//let controller = MacOSGamepad(gamepadManager: gamepadManager, device: device)
     //gamepadManager.registeredGamepads.append(controller)
 }

@@ -101,6 +101,22 @@ namespace CoreEngine
             return entities.AsSpan();
         }
 
+        public Span<Entity> GetEntitiesByComponentType<T>() where T: struct, IComponentData
+        {
+            var entities = new List<Entity>();
+
+            for (int i = 0; i < this.entityComponentLayouts.Count; i++)
+            {
+                var entity = new Entity((uint)i + 1);
+                if (this.HasComponent<T>(entity))
+                {
+                    entities.Add(entity);
+                }
+            }
+            
+            return entities.ToArray();
+        }
+
         public void SetComponentData<T>(Entity entity, T component) where T : struct, IComponentData
         {
             var componentLayout = this.entityComponentLayouts[(int)entity.EntityId - 1];

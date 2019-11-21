@@ -5,24 +5,24 @@ namespace CoreEngine.Diagnostics
 {
     public static class Logger
     {
-        public static void WriteMessage(string message, LogMessageType messageType = LogMessageType.Normal)
+        public static void WriteMessage(string message, LogMessageTypes messageType = LogMessageTypes.Normal)
         {
-            if ((messageType & LogMessageType.Success) != 0)
+            if ((messageType & LogMessageTypes.Success) != 0)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
             }
 
-            else if ((messageType & LogMessageType.Action) != 0)
+            else if ((messageType & LogMessageTypes.Action) != 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
             }
 
-            else if ((messageType & LogMessageType.Error) != 0)
+            else if ((messageType & LogMessageTypes.Error) != 0)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
             }
 
-            else if ((messageType & LogMessageType.Important) != 0)
+            else if ((messageType & LogMessageTypes.Important) != 0)
             {
                 Console.ForegroundColor = ConsoleColor.White;
             }

@@ -21,12 +21,12 @@ namespace CoreEngine
 
             if (appName != null)
             {
-                Logger.WriteMessage($"Loading CoreEngineApp '{appName}'...");
+                Logger.WriteMessage($"Loading CoreEngineApp '{appName}'...", LogMessageTypes.Action);
                 coreEngineApp = LoadCoreEngineApp(appName).Result;
 
                 if (coreEngineApp != null)
                 {
-                    Logger.WriteMessage("CoreEngineApp loading successfull.");
+                    Logger.WriteMessage("CoreEngineApp loading successfull.", LogMessageTypes.Success);
 
                     var resourcesManager = new ResourcesManager();
                     
@@ -44,9 +44,9 @@ namespace CoreEngine
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsSceneRenderer>(sceneRenderer);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
-                    Logger.WriteMessage("Initializing app...");
+                    Logger.WriteMessage("Initializing app...", LogMessageTypes.Action);
                     coreEngineApp.Init();
-                    Logger.WriteMessage("Initializing app done.");
+                    Logger.WriteMessage("Initializing app done.", LogMessageTypes.Success);
                 }
             }
         }

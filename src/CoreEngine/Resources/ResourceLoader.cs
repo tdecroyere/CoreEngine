@@ -36,7 +36,7 @@ namespace CoreEngine.Resources
                 throw new ArgumentNullException(nameof(resource));
             }
             
-            Logger.WriteMessage($"Warning: No destroy method for '{resource.GetType()}'...");
+            Logger.WriteMessage($"No destroy method for '{resource.GetType()}'...", LogMessageTypes.Warning);
         }
     }
 }

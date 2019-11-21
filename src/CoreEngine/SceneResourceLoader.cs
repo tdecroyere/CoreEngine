@@ -93,8 +93,13 @@ namespace CoreEngine
                 }
             }
 
+            var entitiesMapping = new Dictionary<string, Entity>();
+            var entitiesToResolve = new Dictionary<string, List<(Entity entity, Type componentType, IComponentData component, PropertyInfo property)>>();
+
             for (var i = 0; i < entitiesCount; i++)
             {
+                // TODO: Try to not use strings
+                var entityName = reader.ReadString();
                 var entityLayoutIndex = reader.ReadInt32();
                 var componentsCount = reader.ReadInt32();
 
@@ -107,6 +112,8 @@ namespace CoreEngine
                 {
                     Logger.WriteMessage($"Create Entity (Components Count: {componentsCount})");
                     entity = scene.EntityManager.CreateEntity(entityLayout.Value);
+
+                    entitiesMapping.Add(entityName, entity.Value);
                 }
 
                 for (var j = 0; j < componentsCount; j++)
@@ -170,7 +177,13 @@ namespace CoreEngine
 
                                 else if (propertyInfo.PropertyType == typeof(Entity) || propertyInfo.PropertyType == typeof(Entity?))
                                 {
-                                    Logger.WriteMessage("Entity binding");
+                                    if (!entitiesToResolve.ContainsKey(stringValue))
+                                    {
+                                        entitiesToResolve.Add(stringValue, new List<(Entity entity, Type componentType, IComponentData component, PropertyInfo property)>());
+                                    }
+
+                                    entitiesToResolve[stringValue].Add((entity.Value, componentType, component, propertyInfo));
+                                    Logger.WriteMessage($"Entity binding: {stringValue}");
                                 }
 
                                 else
@@ -249,6 +262,29 @@ namespace CoreEngine
                     {
                         scene.EntityManager.SetComponentData(entity.Value, componentType, component);
                     }
+                }
+            }
+
+            foreach (var entry in entitiesToResolve)
+            {
+                Logger.WriteMessage($"Resolving entity: {entry.Key}");
+
+                if (entitiesMapping.ContainsKey(entry.Key))
+                {
+                    var resolvedEntity = entitiesMapping[entry.Key];
+
+                    foreach (var value in entry.Value)
+                    {
+                        Logger.WriteMessage($"{value.entity.EntityId}");
+
+                        value.property.SetValue(value.component, resolvedEntity);
+                        scene.EntityManager.SetComponentData(value.entity, value.componentType, value.component);
+                    }
+                }
+
+                else
+                {
+                    Logger.WriteMessage($"Entity '{entry.Key}' was not found", LogMessageTypes.Warning);
                 }
             }
 

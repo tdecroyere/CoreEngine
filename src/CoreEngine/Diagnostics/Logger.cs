@@ -14,6 +14,11 @@ namespace CoreEngine.Diagnostics
 
             else if ((messageType & LogMessageTypes.Action) != 0)
             {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+            }
+
+            else if ((messageType & LogMessageTypes.Warning) != 0)
+            {
                 Console.ForegroundColor = ConsoleColor.Yellow;
             }
 
@@ -25,6 +30,11 @@ namespace CoreEngine.Diagnostics
             else if ((messageType & LogMessageTypes.Important) != 0)
             {
                 Console.ForegroundColor = ConsoleColor.White;
+            }
+
+            if (messageType != LogMessageTypes.Normal && messageType != LogMessageTypes.Action && messageType != LogMessageTypes.Success)
+            {
+                message = $"{messageType.ToString()}: " + message;
             }
 
             Console.WriteLine(message);

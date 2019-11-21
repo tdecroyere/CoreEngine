@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
 
@@ -21,13 +19,18 @@ namespace CoreEngine.Graphics
             InitResourceLoaders();
         }
 
-        internal GraphicsBuffer CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
+        public Vector2 GetRenderSize()
+        {
+            return this.graphicsService.GetRenderSize();
+        }
+
+        public GraphicsBuffer CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
         {
             var graphicsBufferId = graphicsService.CreateStaticGraphicsBuffer(data);
             return new GraphicsBuffer(graphicsBufferId, data.Length, GraphicsBufferType.Static);
         }
 
-        internal GraphicsBuffer CreateDynamicGraphicsBuffer(int length)
+        public GraphicsBuffer CreateDynamicGraphicsBuffer(int length)
         {
             var graphicsBufferId = graphicsService.CreateDynamicGraphicsBuffer(length);
             return new GraphicsBuffer(graphicsBufferId, length, GraphicsBufferType.Dynamic);

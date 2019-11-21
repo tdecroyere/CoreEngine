@@ -28,12 +28,19 @@ namespace CoreEngine.Graphics.EntitySystems
         {
             var sceneArray = this.GetComponentDataArray<SceneComponent>();
            
-            sceneRenderer.UpdateScene(null);
+            sceneRenderer.CurrentScene.ActiveCamera = null;
 
             for (var i = 0; i < sceneArray.Length; i++)
             {
-                var scene = sceneArray[i];
-                sceneRenderer.UpdateScene(scene.ActiveCamera);
+                var sceneComponent = sceneArray[i];
+
+                if (sceneComponent.ActiveCamera != null)
+                {
+                    var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.ActiveCamera.Value);
+                    var camera = sceneRenderer.CurrentScene.Cameras[cameraComponent.Camera];
+                    
+                    sceneRenderer.CurrentScene.ActiveCamera = camera;
+                }
             }
         }
     }

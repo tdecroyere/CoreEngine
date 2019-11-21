@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using CoreEngine.Collections;
 
 namespace CoreEngine
 {
     public class EntityManager
     {
         // TODO: Switch to memory manager
+        // TODO: Don't use list index for entity id because otherwise it is impossible to implement delete
         // TODO: Not thread safe for the moment
         // TODO: Use something different than an array of bytes?
         // TODO: Embed entities data into a world class or struct (with ref properties?)?

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using CoreEngine.Collections;
 using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
@@ -19,16 +20,20 @@ namespace CoreEngine.Graphics
         private readonly IGraphicsService graphicsService;
         private readonly GraphicsManager graphicsManager;
 
-        private GraphicsScene currentScene;
+        // Dissociate this?
+        public GraphicsScene CurrentScene 
+        {
+            get;
+        }
 
-        private List<Entity> meshInstancesToRemove;
+        private List<ItemIdentifier> meshInstancesToRemove;
         private RenderPassConstants renderPassConstants;
         private List<GeometryInstance> meshGeometryInstances;
         private List<uint> meshGeometryInstancesParamIdList;
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
         private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
         private GraphicsBuffer objectPropertiesGraphicsBuffer;
-        private uint currentObjectPropertyIndex = 0;
+        internal uint currentObjectPropertyIndex = 0;
 
         // TODO: Remove the dependency to GraphicsService. Only GraphicsManager should have a dependency to it
         public GraphicsSceneRenderer(IGraphicsService graphicsService, GraphicsManager graphicsManager)
@@ -41,9 +46,9 @@ namespace CoreEngine.Graphics
             this.graphicsService = graphicsService;
             this.graphicsManager = graphicsManager;
 
-            this.currentScene = new GraphicsScene();
+            this.CurrentScene = new GraphicsScene();
 
-            this.meshInstancesToRemove = new List<Entity>();
+            this.meshInstancesToRemove = new List<ItemIdentifier>();
 
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
@@ -54,73 +59,6 @@ namespace CoreEngine.Graphics
             this.meshGeometryInstancesParamIdList = new List<uint>();
         }
 
-        public void UpdateScene(Entity? camera)
-        {
-            if (camera != null)
-            {
-                this.currentScene.ActiveCamera = this.currentScene.Cameras[camera.Value];
-            }
-
-            else
-            {
-                this.currentScene.ActiveCamera = null;
-            }
-        }
-
-        // TODO: Remove worldmatrix parameter so we can pass graphics paramters in constant buffers
-        public void AddOrUpdateEntity(Entity entity, Mesh mesh, Matrix4x4 worldMatrix)
-        {
-            if (this.currentScene.MeshInstances.ContainsKey(entity))
-            {
-                this.currentScene.MeshInstances[entity].Mesh = mesh;
-                this.currentScene.MeshInstances[entity].IsAlive = true;
-
-                if (this.currentScene.MeshInstances[entity].WorldMatrix != worldMatrix)
-                {
-                    this.currentScene.MeshInstances[entity].WorldMatrix = worldMatrix;
-                    this.currentScene.MeshInstances[entity].IsDirty = true;
-                }
-
-                else
-                {
-                    this.currentScene.MeshInstances[entity].IsDirty = false;
-                }
-            }
-
-            else
-            {
-                this.currentScene.MeshInstances.Add(entity, new MeshInstance(entity, mesh, worldMatrix, this.currentObjectPropertyIndex));
-                this.currentObjectPropertyIndex++;
-            }
-        }
-
-        public void AddOrUpdateCamera(Entity entity, Matrix4x4 viewMatrix)
-        {
-            var renderSize = this.graphicsService.GetRenderSize();
-            var renderWidth = renderSize.X;
-            var renderHeight = renderSize.Y;
-
-            var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
-            // var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), renderWidth / renderHeight, 10.0f, 100000.0f);
-
-            Camera camera;
-
-            if (this.currentScene.Cameras.ContainsKey(entity))
-            {
-                camera = this.currentScene.Cameras[entity];
-
-                camera.IsAlive = true;
-                camera.ViewMatrix = viewMatrix;
-                camera.ProjectionMatrix = projectionMatrix;
-            }
-
-            else
-            {
-                camera = new Camera(entity, viewMatrix, projectionMatrix);
-                this.currentScene.Cameras.Add(entity, camera);
-            }
-        }
-        
         private void SetupCamera(Camera camera)
         {
             this.renderPassConstants.ViewMatrix = camera.ViewMatrix;
@@ -132,9 +70,9 @@ namespace CoreEngine.Graphics
             this.graphicsService.BeginCopyGpuData();
             // TODO: Process pending gpu resource loading here
 
-            if (this.currentScene.ActiveCamera != null)
+            if (this.CurrentScene.ActiveCamera != null)
             {
-                SetupCamera(this.currentScene.ActiveCamera);
+                SetupCamera(this.CurrentScene.ActiveCamera);
             }
 
             SetRenderPassConstants(this.renderPassConstants);
@@ -164,12 +102,14 @@ namespace CoreEngine.Graphics
             this.meshGeometryInstances.Clear();
             this.meshGeometryInstancesParamIdList.Clear();
 
-            // TODO: Replace that with an hybrid dictionary/list
-            foreach(var meshInstance in this.currentScene.MeshInstances.Values)
+            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
             {
+                var meshInstance = this.CurrentScene.MeshInstances[i];
+                var meshInstanceKey = this.CurrentScene.MeshInstances.Keys[i];
+
                 if (!meshInstance.IsAlive)
                 {
-                    this.meshInstancesToRemove.Add(meshInstance.Entity);
+                    this.meshInstancesToRemove.Add(meshInstanceKey);
                 }
 
                 else
@@ -185,9 +125,9 @@ namespace CoreEngine.Graphics
 
                     var mesh = meshInstance.Mesh;
 
-                    for (var i = 0; i < mesh.GeometryInstances.Count; i++)
+                    for (var j = 0; j < mesh.GeometryInstances.Count; j++)
                     {
-                        var geometryInstance = mesh.GeometryInstances[i];
+                        var geometryInstance = mesh.GeometryInstances[j];
                         this.meshGeometryInstances.Add(geometryInstance);
                         this.meshGeometryInstancesParamIdList.Add(meshInstance.ObjectPropertiesIndex);
                     }
@@ -199,8 +139,9 @@ namespace CoreEngine.Graphics
 
             for (var i = 0; i < this.meshInstancesToRemove.Count; i++)
             {
+                Logger.WriteMessage("Remove mesh instance");
                 // TODO: Remove GPU data!
-                this.currentScene.MeshInstances.Remove(this.meshInstancesToRemove[i]);
+                this.CurrentScene.MeshInstances.Remove(this.meshInstancesToRemove[i]);
             }
         }
 
@@ -244,8 +185,9 @@ namespace CoreEngine.Graphics
         private void UpdateMeshInstancesStatus(bool isAlive)
         {
             // TODO: Replace that with an hybrid dictionary/list
-            foreach(var meshInstance in this.currentScene.MeshInstances.Values)
+            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
             {
+                var meshInstance = this.CurrentScene.MeshInstances[i];
                 meshInstance.IsAlive = isAlive;
             }
         }

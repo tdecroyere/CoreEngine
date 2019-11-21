@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
+using CoreEngine.Collections;
 
 namespace CoreEngine.Graphics
 {
@@ -10,8 +12,19 @@ namespace CoreEngine.Graphics
         public GraphicsScene()
         {
             this.activeCamera = null;
-            this.Cameras = new Dictionary<Entity, Camera>();
-            this.MeshInstances = new Dictionary<Entity, MeshInstance>();
+            this.Cameras = new ItemCollection<Camera>();
+            this.MeshInstances = new ItemCollection<MeshInstance>();
+        }
+
+        // TODO: Always auto-delete cameras that are not alive anymore
+        public ItemCollection<Camera> Cameras 
+        { 
+            get;
+        }
+
+        public ItemCollection<MeshInstance> MeshInstances 
+        { 
+            get; 
         }
 
         public Camera? ActiveCamera 
@@ -20,10 +33,7 @@ namespace CoreEngine.Graphics
             {
                 if (this.activeCamera == null && this.Cameras.Count > 0)
                 {
-                    // TODO: Change that to an hybrid list
-                    var enumerator = this.Cameras.Values.GetEnumerator();
-                    enumerator.MoveNext();
-                    return enumerator.Current;
+                    return this.Cameras[0];
                 }
 
                 return this.activeCamera;
@@ -34,8 +44,5 @@ namespace CoreEngine.Graphics
                 this.activeCamera = value;
             } 
         }
-
-        public Dictionary<Entity, Camera> Cameras { get; }
-        public Dictionary<Entity, MeshInstance> MeshInstances { get; }
     }
 }

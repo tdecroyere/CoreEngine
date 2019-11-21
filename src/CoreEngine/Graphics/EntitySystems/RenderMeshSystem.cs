@@ -36,8 +36,8 @@ namespace CoreEngine.Graphics.EntitySystems
             for (var i = 0; i < entityArray.Length; i++)
             {
                 var entity = entityArray[i];
-                var transform = transformArray[i];
-                var meshComponent = meshArray[i];
+                ref var transformComponent = ref transformArray[i];
+                ref var meshComponent = ref meshArray[i];
 
                 if (meshComponent.MeshResourceId != 0)
                 {
@@ -45,7 +45,20 @@ namespace CoreEngine.Graphics.EntitySystems
 
                     if (mesh != null)
                     {
-                        sceneRenderer.AddOrUpdateEntity(entity, mesh, transform.WorldMatrix);
+                        // TODO: Replace that with ItemIdentifier.Empty
+                        if (meshComponent.MeshInstance.Id == 0)
+                        {
+                            var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, this.sceneRenderer.currentObjectPropertyIndex++);
+                            meshInstance.IsAlive = true;
+                            meshComponent.MeshInstance = sceneRenderer.CurrentScene.MeshInstances.Add(meshInstance);
+                        }
+
+                        else
+                        {
+                            var meshInstance = sceneRenderer.CurrentScene.MeshInstances[meshComponent.MeshInstance];
+                            meshInstance.WorldMatrix = transformComponent.WorldMatrix;
+                            meshInstance.IsAlive = true;
+                        }
                     }
                 }
             }

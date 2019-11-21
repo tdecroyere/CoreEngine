@@ -27,25 +27,25 @@ namespace CoreEngine.Tests.EcsTest
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                var player = playerArray[i];
+                var playerComponent = playerArray[i];
 
-	            var rotationAcceleration = player.RotationVector * player.RotationAcceleration;
-
-                // Add friction to the player
-                // TODO: It seems we need to implement ODE equations here
-                rotationAcceleration += friction * player.RotationVelocity;
-
-                var movementAcceleration = player.MovementVector * player.MovementAcceleration;
+	            var rotationAcceleration = playerComponent.RotationVector * playerComponent.RotationAcceleration;
 
                 // Add friction to the player
                 // TODO: It seems we need to implement ODE equations here
-                movementAcceleration += friction * player.MovementVelocity;
+                rotationAcceleration += friction * playerComponent.RotationVelocity;
 
-	            var rotationDelta = 0.5f * rotationAcceleration * deltaTimePow2 + player.RotationVelocity * deltaTime;
-	            playerArray[i].RotationVelocity = rotationAcceleration * deltaTime + player.RotationVelocity;
+                var movementAcceleration = playerComponent.MovementVector * playerComponent.MovementAcceleration;
 
-                var movementDelta = 0.5f * movementAcceleration * deltaTimePow2 + player.MovementVelocity * deltaTime;
-	            playerArray[i].MovementVelocity = movementAcceleration * deltaTime + player.MovementVelocity;
+                // Add friction to the player
+                // TODO: It seems we need to implement ODE equations here
+                movementAcceleration += friction * playerComponent.MovementVelocity;
+
+	            var rotationDelta = 0.5f * rotationAcceleration * deltaTimePow2 + playerComponent.RotationVelocity * deltaTime;
+	            playerArray[i].RotationVelocity = rotationAcceleration * deltaTime + playerComponent.RotationVelocity;
+
+                var movementDelta = 0.5f * movementAcceleration * deltaTimePow2 + playerComponent.MovementVelocity * deltaTime;
+	            playerArray[i].MovementVelocity = movementAcceleration * deltaTime + playerComponent.MovementVelocity;
 
                 if (rotationDelta.LengthSquared() > 0)
                 {

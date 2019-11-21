@@ -8,10 +8,12 @@ namespace CoreEngine.Graphics.EntitySystems
 {
     public class UpdateCameraSystem : EntitySystem
     {
+        private readonly GraphicsManager graphicsManager;
         private readonly GraphicsSceneRenderer sceneRenderer;
 
-        public UpdateCameraSystem(GraphicsSceneRenderer sceneRenderer)
+        public UpdateCameraSystem(GraphicsManager graphicsManager, GraphicsSceneRenderer sceneRenderer)
         {
+            this.graphicsManager = graphicsManager;
             this.sceneRenderer = sceneRenderer;
         }
 
@@ -19,7 +21,7 @@ namespace CoreEngine.Graphics.EntitySystems
         {
             var definition = new EntitySystemDefinition("Update Camera System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
+            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent), true));
             definition.Parameters.Add(new EntitySystemParameter(typeof(CameraComponent)));
 
             return definition;
@@ -42,22 +44,44 @@ namespace CoreEngine.Graphics.EntitySystems
                 sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
             }
 
+            var renderSize = this.graphicsManager.GetRenderSize();
+            var renderWidth = renderSize.X;
+            var renderHeight = renderSize.Y;
+
+            var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
+            // var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), renderWidth / renderHeight, 10.0f, 100000.0f);
+
+
             for (var i = 0; i < entityArray.Length; i++)
             {
                 var entity = entityArray[i];
-                ref var transform = ref transformArray[i];
-                ref var camera = ref cameraArray[i];
+                ref var transformComponent = ref transformArray[i];
+                ref var cameraComponent = ref cameraArray[i];
 
                 if (cameraArray[i].EyePosition != Vector3.Zero || cameraArray[i].LookAtPosition != Vector3.Zero)
                 {
-                    SetupCamera(ref camera, ref transform);
+                    SetupCamera(ref cameraComponent, ref transformComponent);
                 }
 
-                var cameraPosition = transform.Position;
-                var target = Vector3.Transform(new Vector3(0, 0, 1), transform.RotationQuaternion) + cameraPosition;
+                var cameraPosition = transformComponent.Position;
+                var target = Vector3.Transform(new Vector3(0, 0, 1), transformComponent.RotationQuaternion) + cameraPosition;
 
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
-                sceneRenderer.AddOrUpdateCamera(entity, viewMatrix);
+                
+                // TODO: Replace that with ItemIdentifier.Empty
+                if (cameraComponent.Camera.Id == 0)
+                {
+                    var camera = new Camera(viewMatrix, projectionMatrix);
+                    cameraComponent.Camera = sceneRenderer.CurrentScene.Cameras.Add(camera);
+                }
+
+                else
+                {
+                    var camera = sceneRenderer.CurrentScene.Cameras[cameraComponent.Camera];
+
+                    camera.ViewMatrix = viewMatrix;
+                    camera.ProjectionMatrix = projectionMatrix;
+                }
             }
         }
 

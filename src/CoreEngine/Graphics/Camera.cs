@@ -8,14 +8,11 @@ namespace CoreEngine.Graphics
         private Matrix4x4 viewMatrix;
         private Matrix4x4 projectionMatrix;
 
-        public Camera(Entity entity, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix)
+        public Camera(Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix)
         {
-            this.Entity = entity;
             this.viewMatrix = viewMatrix;
             this.projectionMatrix = projectionMatrix;
         }
-
-        public Entity Entity { get; }
 
         public Matrix4x4 ViewMatrix 
         { 

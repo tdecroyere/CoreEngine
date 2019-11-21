@@ -48,11 +48,11 @@ namespace CoreEngine.Tests.EcsTest
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                ref var player = ref playerArray[i];
-                ref var camera = ref cameraArray[i];
+                ref var playerComponent = ref playerArray[i];
+                ref var cameraComponent = ref cameraArray[i];
 
-                player.MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
-                player.RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
+                playerComponent.MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
+                playerComponent.RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
 
                 if(sceneComponent.HasValue)
                 {

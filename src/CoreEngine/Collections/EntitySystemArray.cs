@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace CoreEngine
+namespace CoreEngine.Collections
 {
     // TODO: Implement a readonly version
     public class EntitySystemArray<T> where T : struct

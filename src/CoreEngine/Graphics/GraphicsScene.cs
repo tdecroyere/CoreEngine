@@ -17,15 +17,8 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Always auto-delete cameras that are not alive anymore
-        public ItemCollection<Camera> Cameras 
-        { 
-            get;
-        }
-
-        public ItemCollection<MeshInstance> MeshInstances 
-        { 
-            get; 
-        }
+        public ItemCollection<Camera> Cameras { get; }
+        public ItemCollection<MeshInstance> MeshInstances { get; }
 
         public Camera? ActiveCamera 
         { 
@@ -43,6 +36,18 @@ namespace CoreEngine.Graphics
             {
                 this.activeCamera = value;
             } 
+        }
+
+        public void CleanItems()
+        {
+            this.Cameras.CleanItems();
+            this.MeshInstances.CleanItems();
+        }
+
+        public void ResetItemsStatus()
+        {
+            this.Cameras.ResetItemsStatus();
+            this.MeshInstances.ResetItemsStatus();
         }
     }
 }

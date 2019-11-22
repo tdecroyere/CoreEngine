@@ -1,9 +1,10 @@
 using System;
 using System.Numerics;
+using CoreEngine.Collections;
 
 namespace CoreEngine.Graphics
 {
-    public class Camera
+    public class Camera : TrackedItem
     {
         private Matrix4x4 viewMatrix;
         private Matrix4x4 projectionMatrix;
@@ -23,11 +24,7 @@ namespace CoreEngine.Graphics
             
             set
             {
-                if (this.viewMatrix != value)
-                {
-                    this.viewMatrix = value;
-                    this.IsDirty = true;
-                }
+                UpdateField(ref this.viewMatrix, value);
             } 
         }
 
@@ -40,15 +37,8 @@ namespace CoreEngine.Graphics
             
             set
             {
-                if (this.projectionMatrix != value)
-                {
-                    this.projectionMatrix = value;
-                    this.IsDirty = true;
-                }
+                UpdateField(ref this.projectionMatrix, value);
             } 
         }
-
-        public bool IsAlive { get; internal set; }
-        public bool IsDirty { get; internal set; }
     }
 }

@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
+using CoreEngine.Diagnostics;
 
 namespace CoreEngine.Collections
 {
     // TODO: Make this class thread-safe!
-    public class ItemCollection<T>
+    public class ItemCollection<T> where T : TrackedItem
     {
         private List<T> list;
         private Dictionary<ItemIdentifier, T> lookupTable;
@@ -19,7 +20,13 @@ namespace CoreEngine.Collections
 
         public ItemIdentifier Add(T item)
         {
+            if (item == null)
+            {
+                throw new ArgumentNullException(nameof(item));
+            }
+
             var itemId = new ItemIdentifier(++this.currentId);
+            item.Id = itemId;
 
             this.list.Add(item);
             this.lookupTable.Add(itemId, item);
@@ -52,15 +59,6 @@ namespace CoreEngine.Collections
             }
         }
 
-        public IList<ItemIdentifier> Keys
-        {
-            get
-            {
-                // TODO: Avoid the copy
-                return new List<ItemIdentifier>(this.lookupTable.Keys);
-            }
-        }
-
         public T this[int index]
         {
             get
@@ -80,6 +78,38 @@ namespace CoreEngine.Collections
         public IList<T> ToList()
         {
             return this.list;
+        }
+
+        public void CleanItems()
+        {
+            var itemsToRemove = new List<ItemIdentifier>();
+
+            for (var i = 0; i < this.list.Count; i++)
+            {
+                var item = this.list[i];
+
+                if (!item.IsAlive)
+                {
+                    itemsToRemove.Add(item.Id);
+                }
+            }
+
+            for (var i = 0; i < itemsToRemove.Count; i++)
+            {
+                Logger.WriteMessage($"Remove {typeof(T).ToString()} item");
+                Remove(itemsToRemove[i]);
+            }
+        }
+
+        public void ResetItemsStatus()
+        {
+            for (var i = 0; i < this.list.Count; i++)
+            {
+                var item = this.list[i];
+
+                item.IsAlive = false;
+                item.IsDirty = false;
+            }
         }
     }
 }

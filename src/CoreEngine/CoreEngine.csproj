@@ -6,7 +6,7 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618;CS8610;CS8601</WarningsAsErrors>
-    <NoWarn>CA1303;CA1815;CA2007;CS8604</NoWarn>
+    <NoWarn>CA1303;CA1815;CA2007;CS8604;CA1043</NoWarn>
     <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>

@@ -28,6 +28,11 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Process(EntityManager entityManager, float deltaTime)
         {
+            if (entityManager == null)
+            {
+                return;
+            }
+
             var entityArray = this.GetEntityArray();
             var playerArray = this.GetComponentDataArray<PlayerComponent>();
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
@@ -42,7 +47,7 @@ namespace CoreEngine.Tests.EcsTest
                 sceneEntity = sceneEntities[0];
                 sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
             }
-
+        
             var changeCamera = (this.inputsManager.inputsState.Keyboard.Space.Value == 0.0f && this.inputsManager.inputsState.Keyboard.Space.TransitionCount > 0);
             var activeCameraIndex = -1;
 

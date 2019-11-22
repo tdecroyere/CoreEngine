@@ -26,6 +26,11 @@ namespace CoreEngine.Graphics.EntitySystems
 
         public override void Process(EntityManager entityManager, float deltaTime)
         {
+            if (entityManager == null)
+            {
+                return;
+            }
+            
             var sceneArray = this.GetComponentDataArray<SceneComponent>();
            
             sceneRenderer.CurrentScene.ActiveCamera = null;

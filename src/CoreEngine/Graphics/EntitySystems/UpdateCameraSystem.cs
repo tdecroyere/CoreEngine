@@ -30,6 +30,11 @@ namespace CoreEngine.Graphics.EntitySystems
 
         public override void Process(EntityManager entityManager, float deltaTime)
         {
+            if (entityManager == null)
+            {
+                return;
+            }
+            
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
@@ -69,8 +74,7 @@ namespace CoreEngine.Graphics.EntitySystems
 
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
                 
-                // TODO: Replace that with ItemIdentifier.Empty
-                if (cameraComponent.Camera == ItemIdentifier.Empty)
+                if (!sceneRenderer.CurrentScene.MeshInstances.Contains(cameraComponent.Camera))
                 {
                     var camera = new Camera(viewMatrix, projectionMatrix);
                     cameraComponent.Camera = sceneRenderer.CurrentScene.Cameras.Add(camera);

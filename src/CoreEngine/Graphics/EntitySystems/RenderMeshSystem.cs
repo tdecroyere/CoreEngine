@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using CoreEngine.Collections;
 using CoreEngine.Components;
+using CoreEngine.Diagnostics;
 using CoreEngine.Graphics.Components;
 using CoreEngine.Resources;
 
@@ -46,19 +47,18 @@ namespace CoreEngine.Graphics.EntitySystems
 
                     if (mesh != null)
                     {
-                        // TODO: Replace that with ItemIdentifier.Empty
-                        if (meshComponent.MeshInstance == ItemIdentifier.Empty)
+                        var currentScene = sceneRenderer.CurrentScene;
+
+                        if (!currentScene.MeshInstances.Contains(meshComponent.MeshInstance))
                         {
                             var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, this.sceneRenderer.currentObjectPropertyIndex++);
-                            meshInstance.IsAlive = true;
-                            meshComponent.MeshInstance = sceneRenderer.CurrentScene.MeshInstances.Add(meshInstance);
+                            meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
                         }
 
                         else
                         {
-                            var meshInstance = sceneRenderer.CurrentScene.MeshInstances[meshComponent.MeshInstance];
+                            var meshInstance = currentScene.MeshInstances[meshComponent.MeshInstance];
                             meshInstance.WorldMatrix = transformComponent.WorldMatrix;
-                            meshInstance.IsAlive = true;
                         }
                     }
                 }

@@ -1,5 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>CA1303;CA1815;CA2007;CS8604</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\CoreEngine\CoreEngine.csproj" />
   </ItemGroup>
@@ -7,12 +15,5 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.11.4" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <LangVersion>8.0</LangVersion>
-    <Nullable>enable</Nullable>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
   
 </Project>

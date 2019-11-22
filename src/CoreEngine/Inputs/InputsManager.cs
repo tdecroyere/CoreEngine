@@ -9,13 +9,18 @@ namespace CoreEngine.Inputs
     public class InputsManager : SystemManager
     {
         private readonly IInputsService inputsService;
-        public InputsState inputsState;
         private const float deadZoneSquared = 0.1f;
 
         public InputsManager(IInputsService inputsService)
         {
             this.inputsService = inputsService;
             this.inputsState = new InputsState();
+        }
+
+        public InputsState inputsState
+        {
+            get;
+            private set;
         }
 
         public override void PreUpdate()

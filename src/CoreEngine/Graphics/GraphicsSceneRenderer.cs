@@ -26,7 +26,6 @@ namespace CoreEngine.Graphics
             get;
         }
 
-        private List<ItemIdentifier> meshInstancesToRemove;
         private RenderPassConstants renderPassConstants;
         private List<GeometryInstance> meshGeometryInstances;
         private List<uint> meshGeometryInstancesParamIdList;
@@ -48,8 +47,6 @@ namespace CoreEngine.Graphics
 
             this.CurrentScene = new GraphicsScene();
 
-            this.meshInstancesToRemove = new List<ItemIdentifier>();
-
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
             this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(int)) * 1024);
@@ -67,6 +64,8 @@ namespace CoreEngine.Graphics
 
         public override void PostUpdate()
         {
+            this.CurrentScene.CleanItems();
+
             this.graphicsService.BeginCopyGpuData();
             // TODO: Process pending gpu resource loading here
 
@@ -93,56 +92,39 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToGraphicsBuffer(this.vertexShaderParametersGraphicsBuffer.Id, this.vertexShaderParametersGraphicsBuffer.MemoryBuffer);
             this.graphicsService.EndCopyGpuData();
 
-            UpdateMeshInstancesStatus(false);
+            this.CurrentScene.ResetItemsStatus();
         }
 
         private void ProcessActiveMeshInstances()
         {
-            this.meshInstancesToRemove.Clear();
             this.meshGeometryInstances.Clear();
             this.meshGeometryInstancesParamIdList.Clear();
 
             for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
             {
                 var meshInstance = this.CurrentScene.MeshInstances[i];
-                var meshInstanceKey = this.CurrentScene.MeshInstances.Keys[i];
 
-                if (!meshInstance.IsAlive)
+                // TODO: Move that to a proper update function
+                // TODO: IsDirty is not taken into account for the moment
+                var objectProperties = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
+                var objectPropertiesIndex = meshInstance.ObjectPropertiesIndex;
+                var objectPropertiesOffset = (int)objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
+
+                var objectBufferSpan = this.objectPropertiesGraphicsBuffer.MemoryBuffer.Slice(objectPropertiesOffset);
+                MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
+
+                var mesh = meshInstance.Mesh;
+
+                for (var j = 0; j < mesh.GeometryInstances.Count; j++)
                 {
-                    this.meshInstancesToRemove.Add(meshInstanceKey);
-                }
-
-                else
-                {
-                    // TODO: Move that to a proper update function
-                    // TODO: IsDirty is not taken into account for the moment
-                    var objectProperties = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
-                    var objectPropertiesIndex = meshInstance.ObjectPropertiesIndex;
-                    var objectPropertiesOffset = (int)objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
-
-                    var objectBufferSpan = this.objectPropertiesGraphicsBuffer.MemoryBuffer.Slice(objectPropertiesOffset);
-                    MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
-
-                    var mesh = meshInstance.Mesh;
-
-                    for (var j = 0; j < mesh.GeometryInstances.Count; j++)
-                    {
-                        var geometryInstance = mesh.GeometryInstances[j];
-                        this.meshGeometryInstances.Add(geometryInstance);
-                        this.meshGeometryInstancesParamIdList.Add(meshInstance.ObjectPropertiesIndex);
-                    }
+                    var geometryInstance = mesh.GeometryInstances[j];
+                    this.meshGeometryInstances.Add(geometryInstance);
+                    this.meshGeometryInstancesParamIdList.Add(meshInstance.ObjectPropertiesIndex);
                 }
             }
 
             // TODO: Only update partially the buffer?
             this.graphicsService.UploadDataToGraphicsBuffer(this.objectPropertiesGraphicsBuffer.Id, this.objectPropertiesGraphicsBuffer.MemoryBuffer);
-
-            for (var i = 0; i < this.meshInstancesToRemove.Count; i++)
-            {
-                Logger.WriteMessage("Remove mesh instance");
-                // TODO: Remove GPU data!
-                this.CurrentScene.MeshInstances.Remove(this.meshInstancesToRemove[i]);
-            }
         }
 
         public void Render()
@@ -179,16 +161,6 @@ namespace CoreEngine.Graphics
 
                 var geometryInstance = this.meshGeometryInstances[i];
                 this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, (uint)i);
-            }
-        }
-
-        private void UpdateMeshInstancesStatus(bool isAlive)
-        {
-            // TODO: Replace that with an hybrid dictionary/list
-            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
-            {
-                var meshInstance = this.CurrentScene.MeshInstances[i];
-                meshInstance.IsAlive = isAlive;
             }
         }
     }

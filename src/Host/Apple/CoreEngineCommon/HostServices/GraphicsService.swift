@@ -11,5 +11,5 @@ public protocol GraphicsServiceProtocol {
     func endCopyGpuData()
     func beginRender()
     func endRender()
-    func drawPrimitives(_ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt)
+    func drawPrimitives(_ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt)
 }

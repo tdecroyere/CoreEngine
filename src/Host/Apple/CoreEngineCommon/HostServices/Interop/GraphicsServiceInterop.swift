@@ -50,9 +50,9 @@ func endRenderInterop(context: UnsafeMutableRawPointer?) {
     contextObject.endRender()
 }
 
-func drawPrimitivesInterop(context: UnsafeMutableRawPointer?, _ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ baseInstanceId: UInt32) {
+func drawPrimitivesInterop(context: UnsafeMutableRawPointer?, _ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ baseInstanceId: UInt32) {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.drawPrimitives(UInt(startIndex), UInt(indexCount), UInt(vertexBufferId), UInt(indexBufferId), UInt(baseInstanceId))
+    contextObject.drawPrimitives(primitiveType, UInt(startIndex), UInt(indexCount), UInt(vertexBufferId), UInt(indexBufferId), UInt(baseInstanceId))
 }
 
 func initGraphicsService(_ context: MetalRenderer, _ service: inout GraphicsService) {

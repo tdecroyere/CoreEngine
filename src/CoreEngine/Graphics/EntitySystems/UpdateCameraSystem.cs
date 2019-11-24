@@ -57,7 +57,6 @@ namespace CoreEngine.Graphics.EntitySystems
             var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 10.0f, 100000.0f);
             // var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(39.375f), renderWidth / renderHeight, 10.0f, 100000.0f);
 
-
             for (var i = 0; i < entityArray.Length; i++)
             {
                 var entity = entityArray[i];

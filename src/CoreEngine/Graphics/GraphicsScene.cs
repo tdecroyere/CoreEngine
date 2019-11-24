@@ -14,11 +14,12 @@ namespace CoreEngine.Graphics
             this.activeCamera = null;
             this.Cameras = new ItemCollection<Camera>();
             this.MeshInstances = new ItemCollection<MeshInstance>();
+            this.DebugMeshInstances = new ItemCollection<MeshInstance>();
         }
 
-        // TODO: Always auto-delete cameras that are not alive anymore
         public ItemCollection<Camera> Cameras { get; }
         public ItemCollection<MeshInstance> MeshInstances { get; }
+        public ItemCollection<MeshInstance> DebugMeshInstances { get; }
 
         public Camera? ActiveCamera 
         { 
@@ -37,6 +38,8 @@ namespace CoreEngine.Graphics
                 this.activeCamera = value;
             } 
         }
+
+        public Camera? DebugCamera { get; set; }
 
         public void CleanItems()
         {

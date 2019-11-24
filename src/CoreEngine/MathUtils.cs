@@ -26,10 +26,10 @@ namespace CoreEngine
             var row3 = new Vector4(xAxis.Z, yAxis.Z, zAxis.Z, 0);
             var row4 = new Vector4(-Vector3.Dot(xAxis, cameraPosition), -Vector3.Dot(yAxis, cameraPosition), -Vector3.Dot(zAxis, cameraPosition), 1);
     
-            return new Matrix4x4(row1.X, row2.X, row3.X, row4.X,
-                                 row1.Y, row2.Y, row3.Y, row4.Y,
-                                 row1.Z, row2.Z, row3.Z, row4.Z,
-                                 row1.W, row2.W, row3.W, row4.W);
+            return new Matrix4x4(row1.X, row1.Y, row1.Z, row1.W,
+                                 row2.X, row2.Y, row2.Z, row2.W,
+                                 row3.X, row3.Y, row3.Z, row3.W,
+                                 row4.X, row4.Y, row4.Z, row4.W);
         }
 
         public static Matrix4x4 CreatePerspectiveFieldOfViewMatrix(float fieldOfViewY, float aspectRatio, float nearPlaneDistance, float farPlaneDistance)
@@ -41,10 +41,10 @@ namespace CoreEngine
             var row3 = new Vector4(0, 0, (farPlaneDistance / (farPlaneDistance - nearPlaneDistance)), 1);
             var row4 = new Vector4(0, 0, -nearPlaneDistance * farPlaneDistance / (farPlaneDistance - nearPlaneDistance), 0);
 
-            return new Matrix4x4(row1.X, row2.X, row3.X, row4.X,
-                                 row1.Y, row2.Y, row3.Y, row4.Y,
-                                 row1.Z, row2.Z, row3.Z, row4.Z,
-                                 row1.W, row2.W, row3.W, row4.W);
+            return new Matrix4x4(row1.X, row1.Y, row1.Z, row1.W,
+                                 row2.X, row2.Y, row2.Z, row2.W,
+                                 row3.X, row3.Y, row3.Z, row3.W,
+                                 row4.X, row4.Y, row4.Z, row4.W);
         }
 
         public static Matrix4x4 CreateTranslation(Vector3 translationVector)
@@ -54,10 +54,10 @@ namespace CoreEngine
             var row3 = new Vector4(0, 0, 1, 0);
             var row4 = new Vector4(translationVector.X, translationVector.Y, translationVector.Z, 1);
 
-			return new Matrix4x4(row1.X, row2.X, row3.X, row4.X,
-                                 row1.Y, row2.Y, row3.Y, row4.Y,
-                                 row1.Z, row2.Z, row3.Z, row4.Z,
-                                 row1.W, row2.W, row3.W, row4.W);
+			return new Matrix4x4(row1.X, row1.Y, row1.Z, row1.W,
+                                 row2.X, row2.Y, row2.Z, row2.W,
+                                 row3.X, row3.Y, row3.Z, row3.W,
+                                 row4.X, row4.Y, row4.Z, row4.W);
 		}
     }
 }

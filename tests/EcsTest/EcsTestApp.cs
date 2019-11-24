@@ -30,6 +30,7 @@ namespace CoreEngine.Tests.EcsTest
 
             this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
+            this.entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
             this.entitySystemManager.RegisterEntitySystem<UpdateCameraSystem>();

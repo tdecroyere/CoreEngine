@@ -46,6 +46,19 @@ namespace CoreEngine.Graphics.EntitySystems
                     
                     sceneRenderer.CurrentScene.ActiveCamera = camera;
                 }
+
+                if (sceneComponent.DebugCamera != null)
+                {
+                    var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.DebugCamera.Value);
+                    var camera = sceneRenderer.CurrentScene.Cameras[cameraComponent.Camera];
+                    
+                    sceneRenderer.CurrentScene.DebugCamera = camera;
+                }
+
+                else
+                {
+                    sceneRenderer.CurrentScene.DebugCamera = null;
+                }                    
             }
         }
     }

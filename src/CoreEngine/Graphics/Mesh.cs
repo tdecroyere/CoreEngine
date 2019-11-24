@@ -7,6 +7,10 @@ namespace CoreEngine.Graphics
 {
     public class Mesh : Resource
     {
+        public Mesh() : base(0, string.Empty)
+        {
+        }
+
         internal Mesh(uint resourceId, string path) : base(resourceId, path)
         {
 

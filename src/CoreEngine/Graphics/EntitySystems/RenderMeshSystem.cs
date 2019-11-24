@@ -51,7 +51,7 @@ namespace CoreEngine.Graphics.EntitySystems
 
                         if (!currentScene.MeshInstances.Contains(meshComponent.MeshInstance))
                         {
-                            var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, this.sceneRenderer.currentObjectPropertyIndex++);
+                            var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, this.sceneRenderer.currentObjectPropertyIndex++, false);
                             meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
                         }
 

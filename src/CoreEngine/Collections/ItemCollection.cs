@@ -88,7 +88,7 @@ namespace CoreEngine.Collections
             {
                 var item = this.list[i];
 
-                if (!item.IsAlive)
+                if (!item.IsAlive && !item.AlwaysAlive)
                 {
                     itemsToRemove.Add(item.Id);
                 }

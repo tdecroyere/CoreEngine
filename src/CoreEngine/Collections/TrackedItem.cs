@@ -10,11 +10,13 @@ namespace CoreEngine.Collections
             this.Id = ItemIdentifier.Empty;
             this.IsAlive = true;
             this.IsDirty = true;
+            this.AlwaysAlive = false;
         }
 
         public ItemIdentifier Id { get; internal set; }
         public bool IsAlive { get; internal set; }
         public bool IsDirty { get; internal set; }
+        public bool AlwaysAlive { get; internal set; }
 
         protected void UpdateField<T>(ref T field, T value) where T : IEquatable<T>
         {

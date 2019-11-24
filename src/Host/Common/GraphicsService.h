@@ -1,6 +1,12 @@
 #pragma once
 #include "CoreEngine.h"
 
+enum GraphicsPrimitiveType : int
+{
+    Triangle, 
+    Line
+};
+
 typedef struct Vector2 (*GetRenderSizePtr)(void* context);
 typedef unsigned int (*CreateShaderPtr)(void* context, void* shaderByteCode, int shaderByteCodeLength);
 typedef unsigned int (*CreateShaderParametersPtr)(void* context, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
@@ -11,7 +17,7 @@ typedef void (*BeginCopyGpuDataPtr)(void* context);
 typedef void (*EndCopyGpuDataPtr)(void* context);
 typedef void (*BeginRenderPtr)(void* context);
 typedef void (*EndRenderPtr)(void* context);
-typedef void (*DrawPrimitivesPtr)(void* context, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
+typedef void (*DrawPrimitivesPtr)(void* context, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
 
 struct GraphicsService
 {

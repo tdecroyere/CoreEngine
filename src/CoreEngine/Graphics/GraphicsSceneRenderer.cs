@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 using CoreEngine.Collections;
 using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
-using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
@@ -21,10 +20,7 @@ namespace CoreEngine.Graphics
         private readonly GraphicsManager graphicsManager;
 
         // Dissociate this?
-        public GraphicsScene CurrentScene 
-        {
-            get;
-        }
+        public GraphicsScene CurrentScene { get; }
 
         private RenderPassConstants renderPassConstants;
         private List<GeometryInstance> meshGeometryInstances;
@@ -33,6 +29,8 @@ namespace CoreEngine.Graphics
         private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
         private GraphicsBuffer objectPropertiesGraphicsBuffer;
         internal uint currentObjectPropertyIndex = 0;
+
+        private Mesh boundingBoxMesh;
 
         // TODO: Remove the dependency to GraphicsService. Only GraphicsManager should have a dependency to it
         public GraphicsSceneRenderer(IGraphicsService graphicsService, GraphicsManager graphicsManager)
@@ -50,10 +48,150 @@ namespace CoreEngine.Graphics
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
             this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(int)) * 1024);
-            this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 256);
+            this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateDynamicGraphicsBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 1024);
 
             this.meshGeometryInstances = new List<GeometryInstance>();
             this.meshGeometryInstancesParamIdList = new List<uint>();
+
+            this.boundingBoxMesh = SetupBoundingBoxMesh();
+        }
+
+        private Mesh SetupBoundingBoxMesh()
+        {
+            var vertexLayout = new VertexLayout(VertexElementType.Float3, VertexElementType.Float3);
+
+            var geometryPacketVertexCount = 8;
+            var geometryPacketIndexCount = 8;
+
+            var vertexSize = sizeof(float) * 6;
+            var vertexBufferSize = geometryPacketVertexCount * vertexSize;
+            var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
+
+            var vertexData = new float[]
+            {
+                -0.5f, -0.5f, -0.5f, 0, 0, 0,
+                -0.5f, 0.5f, -0.5f, 0, 0, 0,
+                0.5f, 0.5f, -0.5f, 0, 0, 0,
+                0.5f, -0.5f, -0.5f, 0, 0, 0,
+                -0.5f, -0.5f, 0.5f, 0, 0, 0,
+                -0.5f, 0.5f, 0.5f, 0, 0, 0,
+                0.5f, 0.5f, 0.5f, 0, 0, 0,
+                0.5f, -0.5f, 0.5f, 0, 0, 0
+            };
+
+            var indexData = new uint[]
+            {
+                0, 1, 1, 2, 2, 3, 3, 0, 
+                4, 5, 5, 6, 6, 7, 7, 4,
+                0, 4, 1, 5,
+                2, 6, 3, 7
+            };
+
+            var vertexBufferData = MemoryMarshal.Cast<float, byte>(new Span<float>(vertexData));
+            var vertexBuffer = this.graphicsManager.CreateStaticGraphicsBuffer(vertexBufferData);
+
+            var indexBufferData = MemoryMarshal.Cast<uint, byte>(new Span<uint>(indexData));
+            var indexBuffer = this.graphicsManager.CreateStaticGraphicsBuffer(indexBufferData);
+            
+            var geometryPacket = new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
+
+            var material = new Material();
+            var geometryInstance = new GeometryInstance(geometryPacket, material, 0, (uint)indexData.Length, new BoundingBox(), GeometryPrimitiveType.Line);
+            
+            var mesh = new Mesh();
+            mesh.GeometryInstances.Add(geometryInstance);
+
+            return mesh;
+        }
+
+        public override void PostUpdate()
+        {
+            this.CurrentScene.CleanItems();
+
+            var camera = this.CurrentScene.DebugCamera;
+
+            if (camera == null)
+            {
+                camera = this.CurrentScene.ActiveCamera;
+            }
+
+            if (camera != null)
+            {
+                SetupCamera(camera);
+            }
+
+            UpdateMeshWorldBoundingBox();
+            UpdateDebugBoundingBox();
+
+            CopyGpuData();
+
+            this.CurrentScene.ResetItemsStatus();
+        }
+
+        private void UpdateMeshWorldBoundingBox()
+        {
+            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
+            {
+                var meshInstance = this.CurrentScene.MeshInstances[i];
+
+                if (meshInstance.IsDirty)
+                {
+                    meshInstance.WorldBoundingBoxList.Clear();
+
+                    for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
+                    {
+                        var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
+
+                        var boundingBox = BoundingBox.CreateTransformed(geometryInstance.BoundingBox, meshInstance.WorldMatrix);
+                        meshInstance.WorldBoundingBoxList.Add(boundingBox);
+                    }
+                }
+            }
+        }
+
+        private void UpdateDebugBoundingBox()
+        {
+            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
+            {
+                var meshInstance = this.CurrentScene.MeshInstances[i];
+
+                for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
+                {
+                    var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
+                    var worldBoundingBox = meshInstance.WorldBoundingBoxList[j];
+
+                    var scale = Matrix4x4.CreateScale(worldBoundingBox.XSize, worldBoundingBox.YSize, worldBoundingBox.ZSize);
+                    var translation = MathUtils.CreateTranslation(new Vector3(worldBoundingBox.Center.X, worldBoundingBox.Center.Y, worldBoundingBox.Center.Z));
+
+                    if (meshInstance.BoundingBoxMeshList.Count <= j)
+                    {
+                        var boundingBoxMeshInstance = new MeshInstance(this.boundingBoxMesh, scale * translation, this.currentObjectPropertyIndex++);
+                        var boundingBoxMeshInstanceId = this.CurrentScene.DebugMeshInstances.Add(boundingBoxMeshInstance);
+
+                        meshInstance.BoundingBoxMeshList.Add(boundingBoxMeshInstanceId);
+                    }
+
+                    else if (meshInstance.IsDirty)
+                    {
+                        var boundingBoxMeshInstanceId = meshInstance.BoundingBoxMeshList[j];
+                        var boundingBoxMeshInstance = this.CurrentScene.DebugMeshInstances[boundingBoxMeshInstanceId];
+
+                        boundingBoxMeshInstance.WorldMatrix = scale * translation;
+                    }
+                }
+            }
+        }
+
+        public void Render()
+        {
+            RunRenderPipeline();
+        }
+
+        private void RunRenderPipeline()
+        {
+            //this.graphicsService.BeginRender();
+            DrawGeometryInstances();
+            //this.graphicsService.EndRender();
         }
 
         private void SetupCamera(Camera camera)
@@ -62,56 +200,37 @@ namespace CoreEngine.Graphics
             this.renderPassConstants.ProjectionMatrix = camera.ProjectionMatrix;
         }
 
-        public override void PostUpdate()
+        private void CopyGpuData()
         {
-            this.CurrentScene.CleanItems();
-
             this.graphicsService.BeginCopyGpuData();
+
             // TODO: Process pending gpu resource loading here
-
-            if (this.CurrentScene.ActiveCamera != null)
-            {
-                SetupCamera(this.CurrentScene.ActiveCamera);
-            }
-
-            SetRenderPassConstants(this.renderPassConstants);
-            ProcessActiveMeshInstances();
-
-            // Prepare draw parameters
-            var vertexShaderParametersSpan = this.vertexShaderParametersGraphicsBuffer.MemoryBuffer;
-            vertexShaderParametersSpan.Clear();
-
-            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
-            {
-                var objectPropertiesIndex = this.meshGeometryInstancesParamIdList[i];
-                MemoryMarshal.Write(vertexShaderParametersSpan.Slice(i * 4), ref objectPropertiesIndex);
-            }
-
-            // TODO: Implement a ring buffer strategy by creating several versions of the same
-            // argument buffer per shader?
-            this.graphicsService.UploadDataToGraphicsBuffer(this.vertexShaderParametersGraphicsBuffer.Id, this.vertexShaderParametersGraphicsBuffer.MemoryBuffer);
-            this.graphicsService.EndCopyGpuData();
-
-            this.CurrentScene.ResetItemsStatus();
-        }
-
-        private void ProcessActiveMeshInstances()
-        {
             this.meshGeometryInstances.Clear();
             this.meshGeometryInstancesParamIdList.Clear();
 
-            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
+            CopyObjectPropertiesToGpu(this.CurrentScene.MeshInstances);
+            CopyObjectPropertiesToGpu(this.CurrentScene.DebugMeshInstances);
+            CopyRenderPassConstantsToGpu(this.renderPassConstants);
+            CopyDrawParametersToGpu();
+
+            this.graphicsService.EndCopyGpuData();
+        }
+
+        private void CopyObjectPropertiesToGpu(ItemCollection<MeshInstance> meshInstances)
+        {
+            for (var i = 0; i < meshInstances.Count; i++)
             {
-                var meshInstance = this.CurrentScene.MeshInstances[i];
+                var meshInstance = meshInstances[i];
 
-                // TODO: Move that to a proper update function
-                // TODO: IsDirty is not taken into account for the moment
-                var objectProperties = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
-                var objectPropertiesIndex = meshInstance.ObjectPropertiesIndex;
-                var objectPropertiesOffset = (int)objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
+                if (meshInstance.IsDirty)
+                {
+                    var objectProperties = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
+                    var objectPropertiesIndex = meshInstance.ObjectPropertiesIndex;
+                    var objectPropertiesOffset = (int)objectPropertiesIndex * Marshal.SizeOf<ObjectProperties>();
 
-                var objectBufferSpan = this.objectPropertiesGraphicsBuffer.MemoryBuffer.Slice(objectPropertiesOffset);
-                MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
+                    var objectBufferSpan = this.objectPropertiesGraphicsBuffer.MemoryBuffer.Slice(objectPropertiesOffset);
+                    MemoryMarshal.Write(objectBufferSpan, ref objectProperties);
+                }
 
                 var mesh = meshInstance.Mesh;
 
@@ -127,20 +246,8 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToGraphicsBuffer(this.objectPropertiesGraphicsBuffer.Id, this.objectPropertiesGraphicsBuffer.MemoryBuffer);
         }
 
-        public void Render()
-        {
-            RunRenderPipeline();
-        }
-
-        private void RunRenderPipeline()
-        {
-            //this.graphicsService.BeginRender();
-            DrawGeometryInstances();
-            //this.graphicsService.EndRender();
-        }
-
         bool shaderParametersCreated = false;
-        public void SetRenderPassConstants(RenderPassConstants renderPassConstants)
+        private void CopyRenderPassConstantsToGpu(RenderPassConstants renderPassConstants)
         {
             if (!shaderParametersCreated)
             {
@@ -153,14 +260,31 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToGraphicsBuffer(this.renderPassParametersGraphicsBuffer.Id, this.renderPassParametersGraphicsBuffer.MemoryBuffer);
         }
 
-        public void DrawGeometryInstances()
+        private void CopyDrawParametersToGpu()
+        {
+            // Prepare draw parameters
+            var vertexShaderParametersSpan = this.vertexShaderParametersGraphicsBuffer.MemoryBuffer;
+            vertexShaderParametersSpan.Clear();
+
+            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
+            {
+                var objectPropertiesIndex = this.meshGeometryInstancesParamIdList[i];
+                MemoryMarshal.Write(vertexShaderParametersSpan.Slice(i * 4), ref objectPropertiesIndex);
+            }
+
+            // TODO: Implement a ring buffer strategy by creating several versions of the same
+            // argument buffer per shader?
+            this.graphicsService.UploadDataToGraphicsBuffer(this.vertexShaderParametersGraphicsBuffer.Id, this.vertexShaderParametersGraphicsBuffer.MemoryBuffer);
+        }
+
+        private void DrawGeometryInstances()
         {
             for (var i = 0; i < this.meshGeometryInstances.Count; i++)
             {
                 // TODO: Calculate base instanceid based on the previous batch size
 
                 var geometryInstance = this.meshGeometryInstances[i];
-                this.graphicsService.DrawPrimitives(geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, (uint)i);
+                this.graphicsService.DrawPrimitives((GraphicsPrimitiveType)(int)geometryInstance.PrimitiveType, geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer.Id, geometryInstance.GeometryPacket.IndexBuffer.Id, (uint)i);
             }
         }
     }

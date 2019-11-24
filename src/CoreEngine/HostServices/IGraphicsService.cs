@@ -3,6 +3,12 @@ using System.Numerics;
 
 namespace CoreEngine.HostServices
 {
+    public enum GraphicsPrimitiveType
+    {
+        Triangle,
+        Line
+    }
+
     public interface IGraphicsService
     {
         Vector2 GetRenderSize();
@@ -16,6 +22,6 @@ namespace CoreEngine.HostServices
         void EndCopyGpuData();
         void BeginRender();
         void EndRender();
-        void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+        void DrawPrimitives(GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
     }
 }

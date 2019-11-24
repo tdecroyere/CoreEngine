@@ -13,7 +13,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void EndCopyGpuDataDelegate(IntPtr context);
     internal unsafe delegate void BeginRenderDelegate(IntPtr context);
     internal unsafe delegate void EndRenderDelegate(IntPtr context);
-    internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+    internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
     public struct GraphicsService : IGraphicsService
     {
         private IntPtr context
@@ -149,10 +149,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe void DrawPrimitives(uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId)
+        public unsafe void DrawPrimitives(GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId)
         {
             if (this.context != null && this.drawPrimitivesDelegate != null)
-                this.drawPrimitivesDelegate(this.context, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
+                this.drawPrimitivesDelegate(this.context, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
         }
     }
 }

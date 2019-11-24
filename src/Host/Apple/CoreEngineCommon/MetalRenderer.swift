@@ -314,7 +314,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
         self.currentMetalDrawable = currentMetalDrawable
     }
 
-    public func drawPrimitives(_ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt) {
+    public func drawPrimitives(_ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt) {
         guard let renderCommandEncoder = self.renderCommandEncoder else {
             print("Error: Render Command Encoder is null.")
             return
@@ -328,7 +328,13 @@ public class MetalRenderer: GraphicsServiceProtocol {
         renderCommandEncoder.setVertexBuffer(vertexGraphicsBuffer!, offset: 0, index: 0)
         renderCommandEncoder.setVertexBuffer(self.argumentBuffer, offset: 0, index: 1)
 
-        renderCommandEncoder.drawIndexedPrimitives(type: .triangle, 
+        var primitiveTypeMetal = MTLPrimitiveType.triangle
+
+        if (primitiveType.rawValue == 1) {
+            primitiveTypeMetal = MTLPrimitiveType.line
+        }
+
+        renderCommandEncoder.drawIndexedPrimitives(type: primitiveTypeMetal, 
                                                    indexCount: Int(indexCount), 
                                                    indexType: .uint32, 
                                                    indexBuffer: indexGraphicsBuffer!, 

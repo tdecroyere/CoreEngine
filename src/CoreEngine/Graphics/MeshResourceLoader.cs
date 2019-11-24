@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Numerics;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
@@ -64,6 +65,7 @@ namespace CoreEngine.Graphics
             var indexBuffer = this.graphicsManager.CreateStaticGraphicsBuffer(indexBufferData.AsSpan());
             
             var geometryPacket = new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
+            mesh.GeometryPacket = geometryPacket;
 
             var geometryInstancesCount = reader.ReadInt32();
             Logger.WriteMessage($"GeometryInstances Count: {geometryInstancesCount}");
@@ -74,10 +76,23 @@ namespace CoreEngine.Graphics
                 var startIndex = reader.ReadUInt32();
                 var indexCount = reader.ReadUInt32();
 
+                var x = reader.ReadSingle();
+                var y = reader.ReadSingle();
+                var z = reader.ReadSingle();
+
+                var minPoint = new Vector3(x, y, z);
+
+                x = reader.ReadSingle();
+                y = reader.ReadSingle();
+                z = reader.ReadSingle();
+
+                var maxPoint = new Vector3(x, y, z);
+                var boundingBox = new BoundingBox(minPoint, maxPoint);
+
                 var material = this.ResourcesManager.LoadResourceAsync<Material>(materialPath);
                 resource.DependentResources.Add(material);
 
-                var geometryInstance = new GeometryInstance(geometryPacket, material, startIndex, indexCount);
+                var geometryInstance = new GeometryInstance(geometryPacket, material, startIndex, indexCount, boundingBox);
                 mesh.GeometryInstances.Add(geometryInstance);
             }
 

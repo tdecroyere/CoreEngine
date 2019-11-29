@@ -14,12 +14,10 @@ namespace CoreEngine.Graphics
             this.activeCamera = null;
             this.Cameras = new ItemCollection<Camera>();
             this.MeshInstances = new ItemCollection<MeshInstance>();
-            this.DebugMeshInstances = new ItemCollection<MeshInstance>();
         }
 
         public ItemCollection<Camera> Cameras { get; }
         public ItemCollection<MeshInstance> MeshInstances { get; }
-        public ItemCollection<MeshInstance> DebugMeshInstances { get; }
 
         public Camera? ActiveCamera 
         { 

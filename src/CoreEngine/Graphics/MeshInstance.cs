@@ -16,7 +16,6 @@ namespace CoreEngine.Graphics
             this.worldMatrix = worldMatrix;
             this.AlwaysAlive = alwaysAlive;
             this.WorldBoundingBoxList = new List<BoundingBox>();
-            this.BoundingBoxMeshList = new List<ItemIdentifier>();
         }
 
         public Mesh Mesh { get; }
@@ -36,6 +35,5 @@ namespace CoreEngine.Graphics
         }
         
         internal IList<BoundingBox> WorldBoundingBoxList { get; }
-        internal IList<ItemIdentifier> BoundingBoxMeshList { get; }
     }
 }

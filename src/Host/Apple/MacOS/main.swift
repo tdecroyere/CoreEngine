@@ -54,7 +54,6 @@ autoreleasepool {
 
     // TODO: Sometimes it seems there is a malloc error but not all the time (See MacOSCrash_20190324.txt)
     let renderer = delegate.renderer!
-
     var appName = "EcsTest"
 
     if (CommandLine.arguments.count > 1) {
@@ -62,8 +61,10 @@ autoreleasepool {
     }
 
     let coreEngineHost = CoreEngineHost(renderer: renderer, inputsManager: inputsManager)
-    coreEngineHost.startEngine(appName)
 
+    autoreleasepool {
+        coreEngineHost.startEngine(appName)
+    }
     //let timer = PerformanceTimer()
 
     // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
@@ -81,21 +82,14 @@ autoreleasepool {
                 inputsManager.processGamepadControllers()
 
                 //timer.start()
-                
-                autoreleasepool {
-                    renderer.beginRender()
-                    coreEngineHost.render()
-                    renderer.endRender()
-                }
+                coreEngineHost.updateEngine(stepTimeInSeconds)
+                coreEngineHost.render()
 
                 //var elapsed = timer.stop()
                 //print("Render elapsed time: \(elapsed)")
 
                 //timer.start()
 
-                autoreleasepool {
-                    coreEngineHost.updateEngine(stepTimeInSeconds)
-                }
 
                 //elapsed = timer.stop()
                 //print("Update elapsed time: \(elapsed)")

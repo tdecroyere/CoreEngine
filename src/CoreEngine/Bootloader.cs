@@ -13,6 +13,8 @@ namespace CoreEngine
     public static class Bootloader
     {
         private static CoreEngineApp? coreEngineApp = null;
+        private static GraphicsManager? graphicsManager = null;
+        private static GraphicsDebugRenderer? debugRenderer = null;
         private static GraphicsSceneRenderer? sceneRenderer = null;
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
@@ -32,13 +34,15 @@ namespace CoreEngine
                     resourcesManager.AddResourceStorage(new FileSystemResourceStorage("."));
                     resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
-                    var graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
+                    graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
+                    debugRenderer = new GraphicsDebugRenderer(graphicsManager);
 
                     // Register managers
-                    sceneRenderer = new GraphicsSceneRenderer(hostPlatform.GraphicsService, graphicsManager);
+                    sceneRenderer = new GraphicsSceneRenderer(graphicsManager, debugRenderer);
 
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsDebugRenderer>(debugRenderer);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsSceneRenderer>(sceneRenderer);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
@@ -70,6 +74,11 @@ namespace CoreEngine
             if (sceneRenderer != null)
             {
                 sceneRenderer.Render();
+            }
+
+            if (debugRenderer != null)
+            {
+                debugRenderer.Render();
             }
         }
 

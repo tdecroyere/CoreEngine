@@ -73,7 +73,7 @@ namespace CoreEngine.Graphics.EntitySystems
 
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
                 
-                if (!sceneRenderer.CurrentScene.MeshInstances.Contains(cameraComponent.Camera))
+                if (!sceneRenderer.CurrentScene.Cameras.Contains(cameraComponent.Camera))
                 {
                     var camera = new Camera(viewMatrix, projectionMatrix);
                     cameraComponent.Camera = sceneRenderer.CurrentScene.Cameras.Add(camera);

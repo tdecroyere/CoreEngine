@@ -10,14 +10,13 @@ enum GraphicsPrimitiveType : int
 typedef struct Vector2 (*GetRenderSizePtr)(void* context);
 typedef unsigned int (*CreateShaderPtr)(void* context, void* shaderByteCode, int shaderByteCodeLength);
 typedef unsigned int (*CreateShaderParametersPtr)(void* context, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
-typedef unsigned int (*CreateStaticGraphicsBufferPtr)(void* context, void* data, int dataLength);
-typedef unsigned int (*CreateDynamicGraphicsBufferPtr)(void* context, int length);
-typedef void (*UploadDataToGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, void* data, int dataLength);
-typedef void (*BeginCopyGpuDataPtr)(void* context);
-typedef void (*EndCopyGpuDataPtr)(void* context);
-typedef void (*BeginRenderPtr)(void* context);
-typedef void (*EndRenderPtr)(void* context);
-typedef void (*DrawPrimitivesPtr)(void* context, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
+typedef unsigned int (*CreateGraphicsBufferPtr)(void* context, int length);
+typedef unsigned int (*CreateCopyCommandListPtr)(void* context);
+typedef void (*ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
+typedef void (*UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
+typedef unsigned int (*CreateRenderCommandListPtr)(void* context);
+typedef void (*ExecuteRenderCommandListPtr)(void* context, unsigned int commandListId);
+typedef void (*DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
 
 struct GraphicsService
 {
@@ -25,12 +24,11 @@ struct GraphicsService
     GetRenderSizePtr GetRenderSize;
     CreateShaderPtr CreateShader;
     CreateShaderParametersPtr CreateShaderParameters;
-    CreateStaticGraphicsBufferPtr CreateStaticGraphicsBuffer;
-    CreateDynamicGraphicsBufferPtr CreateDynamicGraphicsBuffer;
+    CreateGraphicsBufferPtr CreateGraphicsBuffer;
+    CreateCopyCommandListPtr CreateCopyCommandList;
+    ExecuteCopyCommandListPtr ExecuteCopyCommandList;
     UploadDataToGraphicsBufferPtr UploadDataToGraphicsBuffer;
-    BeginCopyGpuDataPtr BeginCopyGpuData;
-    EndCopyGpuDataPtr EndCopyGpuData;
-    BeginRenderPtr BeginRender;
-    EndRenderPtr EndRender;
+    CreateRenderCommandListPtr CreateRenderCommandList;
+    ExecuteRenderCommandListPtr ExecuteRenderCommandList;
     DrawPrimitivesPtr DrawPrimitives;
 };

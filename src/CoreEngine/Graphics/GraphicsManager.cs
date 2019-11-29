@@ -1,5 +1,7 @@
 using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
+using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
 
@@ -24,16 +26,63 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetRenderSize();
         }
 
-        public GraphicsBuffer CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
+        public uint CreateShaderParameters(GraphicsBuffer graphicsBuffer1, GraphicsBuffer graphicsBuffer2, GraphicsBuffer graphicsBuffer3)
         {
-            var graphicsBufferId = graphicsService.CreateStaticGraphicsBuffer(data);
-            return new GraphicsBuffer(graphicsBufferId, data.Length, GraphicsBufferType.Static);
+            return this.graphicsService.CreateShaderParameters(graphicsBuffer1.Id, graphicsBuffer2.Id, graphicsBuffer3.Id);
         }
 
-        public GraphicsBuffer CreateDynamicGraphicsBuffer(int length)
+        public GraphicsBuffer CreateGraphicsBuffer(int length)
         {
-            var graphicsBufferId = graphicsService.CreateDynamicGraphicsBuffer(length);
-            return new GraphicsBuffer(graphicsBufferId, length, GraphicsBufferType.Dynamic);
+            var graphicsBufferId = graphicsService.CreateGraphicsBuffer(length);
+            return new GraphicsBuffer(graphicsBufferId, length);
+        }
+
+        public CommandList CreateCopyCommandList()
+        {
+            var commandListId = graphicsService.CreateCopyCommandList();
+            return new CommandList(commandListId, CommandListType.Copy);
+        }
+
+        public void ExecuteCopyCommandList(CommandList commandList)
+        {
+            if (commandList.Type != CommandListType.Copy)
+            {
+                throw new InvalidOperationException("The specified command list is not a copy command list.");
+            }
+
+            this.graphicsService.ExecuteCopyCommandList(commandList.Id);
+        }
+
+        public void UploadDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer graphicsBuffer, ReadOnlySpan<T> data) where T : struct
+        {
+            var rawData = MemoryMarshal.Cast<T, byte>(data);
+            this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.Id, rawData);
+        }
+
+        public CommandList CreateRenderCommandList()
+        {
+            var commandListId = graphicsService.CreateRenderCommandList();
+            return new CommandList(commandListId, CommandListType.Render);
+        }
+
+        public void ExecuteRenderCommandList(CommandList commandList)
+        {
+            if (commandList.Type != CommandListType.Render)
+            {
+                throw new InvalidOperationException("The specified command list is not a render command list.");
+            }
+
+            this.graphicsService.ExecuteRenderCommandList(commandList.Id);
+        }
+
+        public void DrawPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, uint startIndex, uint indexCount, GraphicsBuffer vertexBuffer, GraphicsBuffer indexBuffer, uint baseInstanceId)
+        {
+            if (commandList.Type != CommandListType.Render)
+            {
+                throw new InvalidOperationException("The specified command list is not a render command list.");
+            }
+
+            this.graphicsService.DrawPrimitives(commandList.Id, (GraphicsPrimitiveType)(int)primitiveType, startIndex, indexCount, vertexBuffer.Id, indexBuffer.Id, baseInstanceId);
         }
 
         private void InitResourceLoaders()

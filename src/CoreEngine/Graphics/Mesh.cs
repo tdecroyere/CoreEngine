@@ -7,8 +7,9 @@ namespace CoreEngine.Graphics
 {
     public class Mesh : Resource
     {
-        public Mesh() : base(0, string.Empty)
+        public Mesh(GeometryPacket geometryPacket) : base(0, string.Empty)
         {
+            this.GeometryPacket = geometryPacket;
         }
 
         internal Mesh(uint resourceId, string path) : base(resourceId, path)

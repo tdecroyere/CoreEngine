@@ -13,6 +13,7 @@ namespace CoreEngine.Graphics
         {
             this.viewMatrix = viewMatrix;
             this.projectionMatrix = projectionMatrix;
+            this.BoundingFrustum = new BoundingFrustum(viewMatrix * projectionMatrix);
         }
 
         public Matrix4x4 ViewMatrix 
@@ -40,5 +41,8 @@ namespace CoreEngine.Graphics
                 UpdateField(ref this.projectionMatrix, value);
             } 
         }
+
+        public BoundingFrustum BoundingFrustum { get; set; }
+        public ItemIdentifier? DebugBoundingFrustum { get; set; }
     }
 }

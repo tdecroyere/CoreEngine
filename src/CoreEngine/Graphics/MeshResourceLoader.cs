@@ -59,10 +59,16 @@ namespace CoreEngine.Graphics
             var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
 
             var vertexBufferData = reader.ReadBytes(vertexBufferSize);
-            var vertexBuffer = this.graphicsManager.CreateStaticGraphicsBuffer(vertexBufferData.AsSpan());
-
             var indexBufferData = reader.ReadBytes(indexBufferSize);
-            var indexBuffer = this.graphicsManager.CreateStaticGraphicsBuffer(indexBufferData.AsSpan());
+
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer(vertexBufferData.Length);
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer(indexBufferData.Length);
+
+            // TODO: Refactor that
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, vertexBufferData);
+            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, indexBufferData);
+            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
             
             var geometryPacket = new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
             mesh.GeometryPacket = geometryPacket;

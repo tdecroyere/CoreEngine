@@ -12,16 +12,17 @@ namespace CoreEngine.HostServices
     public interface IGraphicsService
     {
         Vector2 GetRenderSize();
+        
         uint CreateShader(ReadOnlySpan<byte> shaderByteCode);
         uint CreateShaderParameters(uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
-        uint CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data);
-        uint CreateDynamicGraphicsBuffer(int length);
-
-        void UploadDataToGraphicsBuffer(uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void BeginCopyGpuData();
-        void EndCopyGpuData();
-        void BeginRender();
-        void EndRender();
-        void DrawPrimitives(GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+        uint CreateGraphicsBuffer(int length);
+        
+        uint CreateCopyCommandList();
+        void ExecuteCopyCommandList(uint commandListId);
+        void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
+        
+        uint CreateRenderCommandList();
+        void ExecuteRenderCommandList(uint commandListId);
+        void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
     }
 }

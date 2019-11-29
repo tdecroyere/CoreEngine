@@ -16,22 +16,25 @@ public class MetalRenderer: GraphicsServiceProtocol {
     var commandQueue: MTLCommandQueue!
     var pipelineState: MTLRenderPipelineState?
     var depthStencilState: MTLDepthStencilState!
-    
-    var renderCommandBuffer: MTLCommandBuffer!
-    var renderCommandEncoder: MTLRenderCommandEncoder!
-    var copyCommandBuffer: MTLCommandBuffer!
-    var copyCommandEncoder: MTLBlitCommandEncoder!
 
     var vertexFunction: MTLFunction!
     var fragmentFunction: MTLFunction!
-
     var argumentBuffer: MTLBuffer!
+
+    var currentCopyCommandListId: UInt
+    var copyCommandBuffers: [UInt: MTLCommandBuffer]
+    var copyCommandEncoders: [UInt: MTLBlitCommandEncoder]
+
+    var currentRenderCommandListId: UInt
+    var renderCommandBuffers: [UInt: MTLCommandBuffer]
+    var renderCommandEncoders: [UInt: MTLRenderCommandEncoder]
 
     var globalHeap: MTLHeap!
     var graphicsBuffers: [UInt: MTLBuffer]
     var cpuGraphicsBuffers: [UInt: MTLBuffer]
-    var graphicsBuffersToCopy: [UInt]
     var currentGraphicsBufferId: UInt
+
+    var serialQueue: DispatchQueue
 
     public init(view: MetalView, renderWidth: Int, renderHeight: Int) {
         let defaultDevice = MTLCreateSystemDefaultDevice()!
@@ -41,6 +44,8 @@ public class MetalRenderer: GraphicsServiceProtocol {
         self.device = defaultDevice
         self.renderWidth = renderWidth
         self.renderHeight = renderHeight
+
+        self.serialQueue = DispatchQueue(label: "SerialQueue")
 
         // Create color metal layer
         self.metalLayer = view.metalLayer
@@ -55,14 +60,17 @@ public class MetalRenderer: GraphicsServiceProtocol {
         self.depthTextures = []
         self.currentDepthTextureIndex = 0
 
-        self.renderCommandBuffer = nil
-        self.copyCommandBuffer = nil
         self.graphicsBuffers = [:]
         self.cpuGraphicsBuffers = [:]
-        self.graphicsBuffersToCopy = []
-        self.currentGraphicsBufferId = 0;
+        self.currentGraphicsBufferId = 0
 
-        // super.init()
+        self.copyCommandBuffers = [:]
+        self.copyCommandEncoders = [:]
+        self.currentCopyCommandListId = 0
+
+        self.renderCommandBuffers = [:]
+        self.renderCommandEncoders = [:]
+        self.currentRenderCommandListId = 0
 
         let depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .less
@@ -147,33 +155,12 @@ public class MetalRenderer: GraphicsServiceProtocol {
         return 0
     }
 
-    public func createStaticGraphicsBuffer(_ data: UnsafeMutableRawPointer, _ length: Int) -> UInt {
-        self.currentGraphicsBufferId += 1
+    public func createGraphicsBuffer(_ length: Int) -> UInt {
+        // TODO: Page Align the length to avoid the copy of the buffer later
+        serialQueue.sync {
+            self.currentGraphicsBufferId += 1
+        }
 
-        // TODO: Not thread-safe!!
-        // TODO: Re-use temporary cpu buffers
-        
-        // Create a the metal buffer on the CPU
-        let cpuBuffer = self.device.makeBuffer(bytes: data, length: length, options: .cpuCacheModeWriteCombined)!
-        // TODO: Cannot avoid copy for now because the copy is deffered and the memory is only temporary pinned by dotnet
-        //let cpuBuffer = self.device.makeBuffer(bytesNoCopy: data, length: Int(length), options: .cpuCacheModeWriteCombined, deallocator: nil)!
-        cpuBuffer.label = "Static Graphics Buffer - CPU buffer"
-
-        // Create the metal buffer on the GPU
-        let gpuBuffer = self.globalHeap.makeBuffer(length: length, options: .storageModePrivate)!
-        gpuBuffer.label = "Static Graphics Buffer"
-
-        self.graphicsBuffers[self.currentGraphicsBufferId] = gpuBuffer
-        self.cpuGraphicsBuffers[self.currentGraphicsBufferId] = cpuBuffer
-        self.graphicsBuffersToCopy.append(self.currentGraphicsBufferId)
-
-        return self.currentGraphicsBufferId
-    }
-
-    public func createDynamicGraphicsBuffer(_ length: Int) -> UInt {
-        self.currentGraphicsBufferId += 1
-
-        // TODO: Not thread-safe!!
         // Create a the metal buffer on the CPU
         let cpuBuffer = self.device.makeBuffer(length: length, options: .cpuCacheModeWriteCombined)!
         cpuBuffer.label = "Dynamic Graphics Buffer - CPU buffer"
@@ -188,7 +175,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
         return self.currentGraphicsBufferId
     }
 
-    public func uploadDataToGraphicsBuffer(_ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ length: Int) {
+    public func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ length: Int) {
         guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
             print("ERROR: GPU graphics buffer was not found")
             return
@@ -199,124 +186,150 @@ public class MetalRenderer: GraphicsServiceProtocol {
             return
         }
 
+        // TODO: Try to avoid the copy
         cpuBuffer.contents().copyMemory(from: data.assumingMemoryBound(to: UInt8.self), byteCount: (length * MemoryLayout<UInt8>.stride))
 
-        // TODO: Add parameters to be able to update partially the buffer
-        self.copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: length)
-    }
-
-    public func beginCopyGpuData() {
-        self.copyCommandBuffer = self.commandQueue.makeCommandBuffer()!
-        self.copyCommandBuffer.label = "Copy Command Buffer"
-
-        self.copyCommandEncoder = self.copyCommandBuffer.makeBlitCommandEncoder()!
-        self.copyCommandEncoder.label = "Copy Command Encoder"
-
-        // Copy pending static graphics buffers
-        for i in 0..<self.graphicsBuffersToCopy.count {
-            let cpuGraphicsBuffer = self.cpuGraphicsBuffers[self.graphicsBuffersToCopy[i]]!
-            let gpuGraphicsBuffer = self.graphicsBuffers[self.graphicsBuffersToCopy[i]]!
-
-            self.copyCommandEncoder.copy(from: cpuGraphicsBuffer, sourceOffset: 0, to: gpuGraphicsBuffer, destinationOffset: 0, size: gpuGraphicsBuffer.length)
-            self.cpuGraphicsBuffers[self.graphicsBuffersToCopy[i]] = nil
-        }
-
-        self.graphicsBuffersToCopy = []
-    }
-
-    public func endCopyGpuData() {
-        guard let copyCommandEncoder = self.copyCommandEncoder else {
-            print("Error: Copy Command Encoder is null.")
+        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
+            print("uploadDataToGraphicsBuffer: Copy command encoder is nil.")
             return
         }
 
-        guard let copyCommandBuffer = self.copyCommandBuffer else {
-            print("Error: Copy Command buffer is null.")
+        // TODO: Add parameters to be able to update partially the buffer
+        copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: length)
+    }
+
+    public func createCopyCommandList() -> UInt {
+        serialQueue.sync {
+            self.currentCopyCommandListId += 1
+        }
+
+        guard let copyCommandBuffer = self.commandQueue.makeCommandBuffer() else {
+            print("ERROR creating copy command buffer.")
+            return 0
+        }
+
+        copyCommandBuffer.label = "Copy Command Buffer \(self.currentCopyCommandListId)"
+        self.copyCommandBuffers[self.currentCopyCommandListId] = copyCommandBuffer
+
+        guard let copyCommandEncoder = copyCommandBuffer.makeBlitCommandEncoder() else {
+            print("ERROR creating copy command encoder.")
+            return 0
+        }
+
+        copyCommandEncoder.label = "Copy Command Encoder \(self.currentCopyCommandListId)"
+        self.copyCommandEncoders[self.currentCopyCommandListId] = copyCommandEncoder
+
+        return self.currentCopyCommandListId
+    }
+
+    public func executeCopyCommandList(_ commandListId: UInt) {
+        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
+            print("executeCopyCommandList: Copy command encoder is nil.")
             return
         }
 
         copyCommandEncoder.endEncoding()
-        self.copyCommandEncoder = nil
+        self.copyCommandEncoders[commandListId] = nil
+
+        guard let copyCommandBuffer = self.copyCommandBuffers[commandListId] else {
+            print("executeCopyCommandList: Copy command buffer is nil.")
+            return
+        }
 
         copyCommandBuffer.commit()
-        self.copyCommandBuffer = nil
+        self.copyCommandBuffers[commandListId] = nil
     }
 
-    public func beginRender() {
+    public func createRenderCommandList() -> UInt {
+        serialQueue.sync {
+            self.currentRenderCommandListId += 1
+        }
+
+        // Create command buffer
+        let renderCommandBuffer = self.commandQueue.makeCommandBuffer()!
+        renderCommandBuffer.label = "Render Command Buffer \(self.currentRenderCommandListId)"
+        self.renderCommandBuffers[self.currentRenderCommandListId] = renderCommandBuffer
+
+        // Create render command encoder
+        // TODO: Move that static declarations to other functions
         guard let currentMetalDrawable = self.currentMetalDrawable else {
-            return
+            return 0
         }
 
         let depthTexture = self.depthTextures[0]
 
         let renderPassDescriptor = MTLRenderPassDescriptor()
         renderPassDescriptor.colorAttachments[0].texture = currentMetalDrawable.texture
-        renderPassDescriptor.colorAttachments[0].loadAction = .clear
-        renderPassDescriptor.colorAttachments[0].storeAction = .dontCare
+        renderPassDescriptor.colorAttachments[0].loadAction = .load // TODO: Use don't care for the final render target
+        renderPassDescriptor.colorAttachments[0].storeAction = .store
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
         renderPassDescriptor.depthAttachment.texture = depthTexture
-        renderPassDescriptor.depthAttachment.loadAction = .clear
+        renderPassDescriptor.depthAttachment.loadAction = .clear // TODO: Use a separate pass for depth buffer
         renderPassDescriptor.depthAttachment.storeAction = .dontCare
         renderPassDescriptor.depthAttachment.clearDepth = 1.0
 
-        self.renderCommandBuffer = self.commandQueue.makeCommandBuffer()!
-        self.renderCommandBuffer.label = "Frame Render Command Buffer"
-
         guard let pipelineState = self.pipelineState else {
             print("pipeline state empty")
-            return
+            return 0
         }
         
-        self.renderCommandEncoder = self.renderCommandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
-        self.renderCommandEncoder.label = "Frame Render Command Encoder"
+        let renderCommandEncoder = renderCommandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
+        renderCommandEncoder.label = "Render Command Encoder \(self.currentRenderCommandListId)"
+        self.renderCommandEncoders[self.currentRenderCommandListId] = renderCommandEncoder
 
-        self.renderCommandEncoder.setDepthStencilState(self.depthStencilState)
-        self.renderCommandEncoder.setCullMode(.back)
+        renderCommandEncoder.setDepthStencilState(self.depthStencilState)
+        renderCommandEncoder.setCullMode(.back)
 
         let renderSize = getRenderSize()
-        self.renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
-        self.renderCommandEncoder.setRenderPipelineState(pipelineState)
+        renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
+        renderCommandEncoder.setRenderPipelineState(pipelineState)
 
-        self.renderCommandEncoder.useHeap(self.globalHeap)
+        renderCommandEncoder.useHeap(self.globalHeap)
+
+        return self.currentRenderCommandListId
     }
 
-    public func endRender() {
-        guard let renderCommandEncoder = self.renderCommandEncoder else {
-            print("Error: Render Command Encoder is null.")
-            return
-        }
-
-        guard let renderCommandBuffer = self.renderCommandBuffer else {
-            print("Error: Render Command buffer is null.")
-            return
-        }
-
-        guard let currentMetalDrawable = self.currentMetalDrawable else {
-            print("Error: Current Metal Drawable is null.")
+    public func executeRenderCommandList(_ commandListId: UInt) {
+        guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+            print("execureRenderCommandList: Render command encoder is nil.")
             return
         }
 
         renderCommandEncoder.endEncoding()
-        self.renderCommandEncoder = nil
+        self.renderCommandEncoders[commandListId] = nil
 
-        renderCommandBuffer.present(currentMetalDrawable)
-        renderCommandBuffer.commit()
-        
-        self.renderCommandBuffer = nil
-        self.currentMetalDrawable = nil
-    }
-
-    public func presentScreenBuffer() {
-        guard let currentMetalDrawable = self.metalLayer.nextDrawable() else {
+        guard let renderCommandBuffer = self.renderCommandBuffers[commandListId] else {
+            print("execureRenderCommandList: Render command buffer is nil.")
             return
         }
 
-        self.currentMetalDrawable = currentMetalDrawable
+        renderCommandBuffer.commit()
+        self.renderCommandBuffers[commandListId] = nil
     }
 
-    public func drawPrimitives(_ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt) {
-        guard let renderCommandEncoder = self.renderCommandEncoder else {
-            print("Error: Render Command Encoder is null.")
+    public func presentScreenBuffer() {
+        if (self.currentMetalDrawable != nil) {
+            guard let currentMetalDrawable = self.currentMetalDrawable else {
+                print("Error: Current Metal Drawable is null.")
+                return
+            }
+
+            let presentCommandBuffer = self.commandQueue.makeCommandBuffer()!
+            presentCommandBuffer.label = "Present Render Command Buffer"
+            presentCommandBuffer.present(currentMetalDrawable)
+            presentCommandBuffer.commit()
+        }
+
+        guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
+            return
+        }
+
+        self.currentMetalDrawable = nextCurrentMetalDrawable
+    }
+
+    public func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt) {
+        guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+            print("drawPrimitives: Render command encoder is nil.")
             return
         }
 

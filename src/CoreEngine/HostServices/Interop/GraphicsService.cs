@@ -6,14 +6,13 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate Vector2 GetRenderSizeDelegate(IntPtr context);
     internal unsafe delegate uint CreateShaderDelegate(IntPtr context, byte *shaderByteCode, int shaderByteCodeLength);
     internal unsafe delegate uint CreateShaderParametersDelegate(IntPtr context, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
-    internal unsafe delegate uint CreateStaticGraphicsBufferDelegate(IntPtr context, byte *data, int dataLength);
-    internal unsafe delegate uint CreateDynamicGraphicsBufferDelegate(IntPtr context, int length);
-    internal unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr context, uint graphicsBufferId, byte *data, int dataLength);
-    internal unsafe delegate void BeginCopyGpuDataDelegate(IntPtr context);
-    internal unsafe delegate void EndCopyGpuDataDelegate(IntPtr context);
-    internal unsafe delegate void BeginRenderDelegate(IntPtr context);
-    internal unsafe delegate void EndRenderDelegate(IntPtr context);
-    internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+    internal unsafe delegate uint CreateGraphicsBufferDelegate(IntPtr context, int length);
+    internal unsafe delegate uint CreateCopyCommandListDelegate(IntPtr context);
+    internal unsafe delegate void ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
+    internal unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
+    internal unsafe delegate uint CreateRenderCommandListDelegate(IntPtr context);
+    internal unsafe delegate void ExecuteRenderCommandListDelegate(IntPtr context, uint commandListId);
+    internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
     public struct GraphicsService : IGraphicsService
     {
         private IntPtr context
@@ -61,31 +60,41 @@ namespace CoreEngine.HostServices.Interop
                 return default(uint);
         }
 
-        private CreateStaticGraphicsBufferDelegate createStaticGraphicsBufferDelegate
+        private CreateGraphicsBufferDelegate createGraphicsBufferDelegate
         {
             get;
         }
 
-        public unsafe uint CreateStaticGraphicsBuffer(ReadOnlySpan<byte> data)
+        public unsafe uint CreateGraphicsBuffer(int length)
         {
-            if (this.context != null && this.createStaticGraphicsBufferDelegate != null)
-                fixed (byte *dataPinned = data)
-                    return this.createStaticGraphicsBufferDelegate(this.context, dataPinned, data.Length);
+            if (this.context != null && this.createGraphicsBufferDelegate != null)
+                return this.createGraphicsBufferDelegate(this.context, length);
             else
                 return default(uint);
         }
 
-        private CreateDynamicGraphicsBufferDelegate createDynamicGraphicsBufferDelegate
+        private CreateCopyCommandListDelegate createCopyCommandListDelegate
         {
             get;
         }
 
-        public unsafe uint CreateDynamicGraphicsBuffer(int length)
+        public unsafe uint CreateCopyCommandList()
         {
-            if (this.context != null && this.createDynamicGraphicsBufferDelegate != null)
-                return this.createDynamicGraphicsBufferDelegate(this.context, length);
+            if (this.context != null && this.createCopyCommandListDelegate != null)
+                return this.createCopyCommandListDelegate(this.context);
             else
                 return default(uint);
+        }
+
+        private ExecuteCopyCommandListDelegate executeCopyCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe void ExecuteCopyCommandList(uint commandListId)
+        {
+            if (this.context != null && this.executeCopyCommandListDelegate != null)
+                this.executeCopyCommandListDelegate(this.context, commandListId);
         }
 
         private UploadDataToGraphicsBufferDelegate uploadDataToGraphicsBufferDelegate
@@ -93,55 +102,35 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe void UploadDataToGraphicsBuffer(uint graphicsBufferId, ReadOnlySpan<byte> data)
+        public unsafe void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data)
         {
             if (this.context != null && this.uploadDataToGraphicsBufferDelegate != null)
                 fixed (byte *dataPinned = data)
-                    this.uploadDataToGraphicsBufferDelegate(this.context, graphicsBufferId, dataPinned, data.Length);
+                    this.uploadDataToGraphicsBufferDelegate(this.context, commandListId, graphicsBufferId, dataPinned, data.Length);
         }
 
-        private BeginCopyGpuDataDelegate beginCopyGpuDataDelegate
+        private CreateRenderCommandListDelegate createRenderCommandListDelegate
         {
             get;
         }
 
-        public unsafe void BeginCopyGpuData()
+        public unsafe uint CreateRenderCommandList()
         {
-            if (this.context != null && this.beginCopyGpuDataDelegate != null)
-                this.beginCopyGpuDataDelegate(this.context);
+            if (this.context != null && this.createRenderCommandListDelegate != null)
+                return this.createRenderCommandListDelegate(this.context);
+            else
+                return default(uint);
         }
 
-        private EndCopyGpuDataDelegate endCopyGpuDataDelegate
+        private ExecuteRenderCommandListDelegate executeRenderCommandListDelegate
         {
             get;
         }
 
-        public unsafe void EndCopyGpuData()
+        public unsafe void ExecuteRenderCommandList(uint commandListId)
         {
-            if (this.context != null && this.endCopyGpuDataDelegate != null)
-                this.endCopyGpuDataDelegate(this.context);
-        }
-
-        private BeginRenderDelegate beginRenderDelegate
-        {
-            get;
-        }
-
-        public unsafe void BeginRender()
-        {
-            if (this.context != null && this.beginRenderDelegate != null)
-                this.beginRenderDelegate(this.context);
-        }
-
-        private EndRenderDelegate endRenderDelegate
-        {
-            get;
-        }
-
-        public unsafe void EndRender()
-        {
-            if (this.context != null && this.endRenderDelegate != null)
-                this.endRenderDelegate(this.context);
+            if (this.context != null && this.executeRenderCommandListDelegate != null)
+                this.executeRenderCommandListDelegate(this.context, commandListId);
         }
 
         private DrawPrimitivesDelegate drawPrimitivesDelegate
@@ -149,10 +138,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe void DrawPrimitives(GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId)
+        public unsafe void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId)
         {
             if (this.context != null && this.drawPrimitivesDelegate != null)
-                this.drawPrimitivesDelegate(this.context, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
+                this.drawPrimitivesDelegate(this.context, commandListId, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
         }
     }
 }

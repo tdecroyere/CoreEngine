@@ -7,7 +7,7 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
-    // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
+    // TODO: Implement resource remove functions
     public class GraphicsManager : SystemManager
     {
         private readonly IGraphicsService graphicsService;
@@ -75,14 +75,20 @@ namespace CoreEngine.Graphics
             this.graphicsService.ExecuteRenderCommandList(commandList.Id);
         }
 
-        public void DrawPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, uint startIndex, uint indexCount, GraphicsBuffer vertexBuffer, GraphicsBuffer indexBuffer, uint baseInstanceId)
+        public void DrawPrimitives(CommandList commandList, GeometryInstance geometryInstance, uint baseInstanceId)
         {
             if (commandList.Type != CommandListType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            this.graphicsService.DrawPrimitives(commandList.Id, (GraphicsPrimitiveType)(int)primitiveType, startIndex, indexCount, vertexBuffer.Id, indexBuffer.Id, baseInstanceId);
+            this.graphicsService.DrawPrimitives(commandList.Id, 
+                                                (GraphicsPrimitiveType)(int)geometryInstance.PrimitiveType, 
+                                                geometryInstance.StartIndex, 
+                                                geometryInstance.IndexCount, 
+                                                geometryInstance.GeometryPacket.VertexBuffer.Id, 
+                                                geometryInstance.GeometryPacket.IndexBuffer.Id, 
+                                                baseInstanceId);
         }
 
         private void InitResourceLoaders()

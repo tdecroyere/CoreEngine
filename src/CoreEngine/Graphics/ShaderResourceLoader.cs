@@ -48,12 +48,10 @@ namespace CoreEngine.Graphics
             }
 
             var shaderByteCodeLength = reader.ReadInt32();
-            var shaderByteCode = new Span<byte>(reader.ReadBytes(shaderByteCodeLength));
+            var shaderByteCode = reader.ReadBytes(shaderByteCodeLength);
 
-            // TODO: Do not forget to implement hardware resource deallocation/reallocation
-            
-            // TODO: Pass the id here so that the host remove replace the shader himself at the right time
-            this.graphicsService.CreateShader(shaderByteCode);
+            var shaderId = this.graphicsService.CreateShader(shaderByteCode);
+            shader.ShaderId = shaderId;
 
             return Task.FromResult((Resource)shader);
         }

@@ -10,12 +10,12 @@ namespace CoreEngine.Graphics.EntitySystems
     public class UpdateCameraSystem : EntitySystem
     {
         private readonly GraphicsManager graphicsManager;
-        private readonly GraphicsSceneRenderer sceneRenderer;
+        private readonly GraphicsSceneManager sceneManager;
 
-        public UpdateCameraSystem(GraphicsManager graphicsManager, GraphicsSceneRenderer sceneRenderer)
+        public UpdateCameraSystem(GraphicsManager graphicsManager, GraphicsSceneManager sceneManager)
         {
             this.graphicsManager = graphicsManager;
-            this.sceneRenderer = sceneRenderer;
+            this.sceneManager = sceneManager;
         }
 
         public override EntitySystemDefinition BuildDefinition()
@@ -73,15 +73,15 @@ namespace CoreEngine.Graphics.EntitySystems
 
                 var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
                 
-                if (!sceneRenderer.CurrentScene.Cameras.Contains(cameraComponent.Camera))
+                if (!sceneManager.CurrentScene.Cameras.Contains(cameraComponent.Camera))
                 {
                     var camera = new Camera(viewMatrix, projectionMatrix);
-                    cameraComponent.Camera = sceneRenderer.CurrentScene.Cameras.Add(camera);
+                    cameraComponent.Camera = sceneManager.CurrentScene.Cameras.Add(camera);
                 }
 
                 else
                 {
-                    var camera = sceneRenderer.CurrentScene.Cameras[cameraComponent.Camera];
+                    var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
 
                     camera.ViewMatrix = viewMatrix;
                     camera.ProjectionMatrix = projectionMatrix;

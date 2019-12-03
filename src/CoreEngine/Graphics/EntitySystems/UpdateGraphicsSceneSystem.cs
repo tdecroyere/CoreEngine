@@ -8,11 +8,11 @@ namespace CoreEngine.Graphics.EntitySystems
 {
     public class UpdateGraphicsSceneSystem : EntitySystem
     {
-        private readonly GraphicsSceneRenderer sceneRenderer;
+        private readonly GraphicsSceneManager sceneManager;
 
-        public UpdateGraphicsSceneSystem(GraphicsSceneRenderer sceneRenderer)
+        public UpdateGraphicsSceneSystem(GraphicsSceneManager sceneManager)
         {
-            this.sceneRenderer = sceneRenderer;
+            this.sceneManager = sceneManager;
         }
 
         public override EntitySystemDefinition BuildDefinition()
@@ -33,7 +33,7 @@ namespace CoreEngine.Graphics.EntitySystems
             
             var sceneArray = this.GetComponentDataArray<SceneComponent>();
            
-            sceneRenderer.CurrentScene.ActiveCamera = null;
+            sceneManager.CurrentScene.ActiveCamera = null;
 
             for (var i = 0; i < sceneArray.Length; i++)
             {
@@ -42,22 +42,22 @@ namespace CoreEngine.Graphics.EntitySystems
                 if (sceneComponent.ActiveCamera != null)
                 {
                     var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.ActiveCamera.Value);
-                    var camera = sceneRenderer.CurrentScene.Cameras[cameraComponent.Camera];
+                    var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
                     
-                    sceneRenderer.CurrentScene.ActiveCamera = camera;
+                    sceneManager.CurrentScene.ActiveCamera = camera;
                 }
 
                 if (sceneComponent.DebugCamera != null)
                 {
                     var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.DebugCamera.Value);
-                    var camera = sceneRenderer.CurrentScene.Cameras[cameraComponent.Camera];
+                    var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
                     
-                    sceneRenderer.CurrentScene.DebugCamera = camera;
+                    sceneManager.CurrentScene.DebugCamera = camera;
                 }
 
                 else
                 {
-                    sceneRenderer.CurrentScene.DebugCamera = null;
+                    sceneManager.CurrentScene.DebugCamera = null;
                 }                    
             }
         }

@@ -50,5 +50,42 @@ namespace CoreEngine.Graphics
             this.Cameras.ResetItemsStatus();
             this.MeshInstances.ResetItemsStatus();
         }
+
+        // TODO: Optimize this! Don't use a deep copy
+        // With this code, all properties will be dirty be default 
+        // so there will always be a gpu copy
+        public GraphicsScene Copy()
+        {
+            var result = new GraphicsScene();
+            
+            for (var i = 0; i < this.Cameras.Count; i++)
+            {
+                result.Cameras.Add(new Camera(this.Cameras[i].ViewMatrix, this.Cameras[i].ProjectionMatrix));
+            }
+
+            for (var i = 0; i < this.MeshInstances.Count; i++)
+            {
+                var meshInstanceCopy = new MeshInstance(this.MeshInstances[i].Mesh, this.MeshInstances[i].WorldMatrix);
+                
+                for (var j = 0; j < this.MeshInstances[i].WorldBoundingBoxList.Count; j++)
+                {
+                    meshInstanceCopy.WorldBoundingBoxList.Add(this.MeshInstances[i].WorldBoundingBoxList[j]);
+                }
+
+                result.MeshInstances.Add(meshInstanceCopy);
+            }
+
+            if (this.activeCamera != null)
+            {
+                result.ActiveCamera = result.Cameras[this.Cameras.IndexOf(this.activeCamera)];
+            }
+
+            if (this.DebugCamera != null)
+            {
+                result.DebugCamera = result.Cameras[this.Cameras.IndexOf(this.DebugCamera)];
+            }
+
+            return result;
+        }
     }
 }

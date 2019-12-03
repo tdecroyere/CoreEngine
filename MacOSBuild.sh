@@ -19,6 +19,8 @@ copyFiles() {
     cp $dotnetTempDirectory"/"* "./build/"$outputDirectory"/CoreClr"
     cp $macosTempDirectory"/CoreEngine" "./build/"$outputDirectory"/MacOS"
     cp -R $macosTempDirectory"/CoreEngine.dSYM" "./build/"$outputDirectory"/MacOS"
+    cp -R "./src/Host/Apple/CoreEngineCommon/Shaders" "./build/"$outputDirectory"/Resources"
+
 
     #rm -R $tempDirectory
 }

@@ -86,6 +86,8 @@ public class MetalRenderer: GraphicsServiceProtocol {
         self.globalHeap = self.device.makeHeap(descriptor: heapDescriptor)!
 
         createDepthBuffers()
+
+        //self.device.makeLibrary(source: "../Resources/Shaders/BasicRender.metal")
     }
 
     public func getRenderSize() -> Vector2 {

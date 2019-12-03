@@ -4,7 +4,7 @@ namespace CoreEngine.Graphics
 {
     public readonly struct GeometryInstance
     {
-        public GeometryInstance(GeometryPacket geometryPacket, Material material, uint startIndex, uint indexCount, BoundingBox boundingBox, GeometryPrimitiveType primitiveType = GeometryPrimitiveType.Triangle)
+        public GeometryInstance(GeometryPacket geometryPacket, Material material, uint startIndex, uint indexCount, BoundingBox boundingBox = new BoundingBox(), GeometryPrimitiveType primitiveType = GeometryPrimitiveType.Triangle)
         {
             this.GeometryPacket = geometryPacket;
             this.Material = material;

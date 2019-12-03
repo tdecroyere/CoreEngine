@@ -14,26 +14,26 @@ namespace CoreEngine.Graphics
     }
 
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
-    public class GraphicsSceneRenderer : SystemManager
+    public class GraphicsSceneRenderer
     {
         private readonly GraphicsManager graphicsManager;
-        private readonly GraphicsDebugRenderer debugRenderer;
+        private readonly DebugRenderer debugRenderer;
+        private readonly GraphicsSceneQueue sceneQueue;
 
-        // Dissociate this?
-        public GraphicsScene CurrentScene { get; }
+        private GraphicsBuffer renderPassParametersGraphicsBuffer;
+        private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
+        private GraphicsBuffer objectPropertiesGraphicsBuffer;
 
         private RenderPassConstants renderPassConstants;
         private List<GeometryInstance> meshGeometryInstances;
         private List<uint> meshGeometryInstancesParamIdList;
-        private GraphicsBuffer renderPassParametersGraphicsBuffer;
-        private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
-        private GraphicsBuffer objectPropertiesGraphicsBuffer;
-        internal uint currentObjectPropertyIndex = 0;
-
-        private ObjectProperties[] objectProperties;
         private uint[] vertexShaderParameters;
 
-        public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsDebugRenderer debugRenderer)
+        private Dictionary<ItemIdentifier, int> objectPropertiesMapping;
+        private ObjectProperties[] objectProperties;
+        internal int currentObjectPropertyIndex = 0;
+
+        public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue)
         {
             if (graphicsManager == null)
             {
@@ -41,8 +41,8 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsManager = graphicsManager;
-            this.debugRenderer = debugRenderer;
-            this.CurrentScene = new GraphicsScene();
+            this.debugRenderer = new DebugRenderer(graphicsManager);
+            this.sceneQueue = sceneQueue;
 
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(RenderPassConstants)));
@@ -50,6 +50,7 @@ namespace CoreEngine.Graphics
             this.vertexShaderParameters = new uint[1024];
             this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(int)) * 1024);
 
+            this.objectPropertiesMapping = new Dictionary<ItemIdentifier, int>();
             this.objectProperties = new ObjectProperties[1024];
             this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 1024);
 
@@ -57,15 +58,14 @@ namespace CoreEngine.Graphics
             this.meshGeometryInstancesParamIdList = new List<uint>();
         }
 
-        public override void PostUpdate()
+        public void Render()
         {
-            this.CurrentScene.CleanItems();
-
-            var camera = this.CurrentScene.DebugCamera;
+            var scene = this.sceneQueue.WaitForNextScene();
+            var camera = scene.DebugCamera;
 
             if (camera == null)
             {
-                camera = this.CurrentScene.ActiveCamera;
+                camera = scene.ActiveCamera;
             }
 
             if (camera != null)
@@ -73,111 +73,21 @@ namespace CoreEngine.Graphics
                 SetupCamera(camera);
             }
 
-            UpdateCameraBoundingFrustrum();
-            UpdateMeshWorldBoundingBox();
-            UpdateDebugCameraBoundingFrustrum();
-            UpdateDebugMeshBoundingBox();
-
-            CopyGpuData();
-
-            this.CurrentScene.ResetItemsStatus();
+            CopyGpuData(scene);
+            RunRenderPipeline(scene);
         }
 
-        private void UpdateCameraBoundingFrustrum()
-        {
-            for (var i = 0; i < this.CurrentScene.Cameras.Count; i++)
-            {
-                var camera = this.CurrentScene.Cameras[i];
-
-                if (camera.IsDirty)
-                {
-                    camera.BoundingFrustum = new BoundingFrustum(camera.ViewMatrix * camera.ProjectionMatrix);
-                }
-            }
-        }
-
-        private void UpdateDebugCameraBoundingFrustrum()
-        {
-            for (var i = 0; i < this.CurrentScene.Cameras.Count; i++)
-            {
-                var camera = this.CurrentScene.Cameras[i];
-
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftTopFarPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.LeftBottomFarPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightTopFarPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.RightBottomNearPoint, camera.BoundingFrustum.RightBottomFarPoint);
-
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.RightTopNearPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.RightBottomNearPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftBottomNearPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightBottomNearPoint);
-
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.RightTopFarPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftBottomFarPoint, camera.BoundingFrustum.RightBottomFarPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.LeftBottomFarPoint);
-                this.debugRenderer.DrawDebugLine(camera.BoundingFrustum.RightTopFarPoint, camera.BoundingFrustum.RightBottomFarPoint);
-            }
-        }
-
-        private void UpdateMeshWorldBoundingBox()
-        {
-            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
-            {
-                var meshInstance = this.CurrentScene.MeshInstances[i];
-
-                if (meshInstance.IsDirty)
-                {
-                    meshInstance.WorldBoundingBoxList.Clear();
-
-                    for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
-                    {
-                        var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
-
-                        var boundingBox = BoundingBox.CreateTransformed(geometryInstance.BoundingBox, meshInstance.WorldMatrix);
-                        meshInstance.WorldBoundingBoxList.Add(boundingBox);
-                    }
-                }
-            }
-        }
-
-        private void UpdateDebugMeshBoundingBox()
-        {
-            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
-            {
-                var meshInstance = this.CurrentScene.MeshInstances[i];
-
-                for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
-                {
-                    var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
-                    var worldBoundingBox = meshInstance.WorldBoundingBoxList[j];
-
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint, worldBoundingBox.MinPoint + new Vector3(0, 0, worldBoundingBox.ZSize));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint, worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, 0));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(0, 0, worldBoundingBox.ZSize), worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, worldBoundingBox.ZSize));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, 0), worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, worldBoundingBox.ZSize));
-                    
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, 0), worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, worldBoundingBox.ZSize));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, 0), worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, 0));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, worldBoundingBox.ZSize), worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, worldBoundingBox.ZSize));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, 0), worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, worldBoundingBox.ZSize));
-                    
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint, worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, 0));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, 0), worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, 0));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, worldBoundingBox.ZSize), worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, worldBoundingBox.ZSize));
-                    this.debugRenderer.DrawDebugLine(worldBoundingBox.MinPoint + new Vector3(0, 0, worldBoundingBox.ZSize), worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, worldBoundingBox.ZSize));
-                }
-            }
-        }
-
-        public void Render()
-        {
-            RunRenderPipeline();
-        }
-
-        private void RunRenderPipeline()
+        private void RunRenderPipeline(GraphicsScene scene)
         {
             var renderCommandList = this.graphicsManager.CreateRenderCommandList();
+            
             DrawGeometryInstances(renderCommandList);
+
+            this.debugRenderer.ClearDebugLines();
+            DrawCameraBoundingFrustum(scene);
+            DrawGeometryInstancesBoundingBox(scene);
+            this.debugRenderer.Render(renderCommandList);
+            
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
         }
 
@@ -187,44 +97,18 @@ namespace CoreEngine.Graphics
             this.renderPassConstants.ProjectionMatrix = camera.ProjectionMatrix;
         }
 
-        private void CopyGpuData()
+        private void CopyGpuData(GraphicsScene scene)
         {
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();
 
-            // TODO: Process pending gpu resource loading here
             this.meshGeometryInstances.Clear();
             this.meshGeometryInstancesParamIdList.Clear();
 
-            CopyObjectPropertiesToGpu(copyCommandList, this.CurrentScene.MeshInstances);
             CopyRenderPassConstantsToGpu(copyCommandList, this.renderPassConstants);
+            CopyObjectPropertiesToGpu(copyCommandList, scene.MeshInstances);
             CopyDrawParametersToGpu(copyCommandList);
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
-        }
-
-        private void CopyObjectPropertiesToGpu(CommandList commandList, ItemCollection<MeshInstance> meshInstances)
-        {
-            for (var i = 0; i < meshInstances.Count; i++)
-            {
-                var meshInstance = meshInstances[i];
-
-                if (meshInstance.IsDirty)
-                {
-                    this.objectProperties[i] = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
-                }
-
-                var mesh = meshInstance.Mesh;
-
-                for (var j = 0; j < mesh.GeometryInstances.Count; j++)
-                {
-                    var geometryInstance = mesh.GeometryInstances[j];
-                    this.meshGeometryInstances.Add(geometryInstance);
-                    this.meshGeometryInstancesParamIdList.Add(meshInstance.ObjectPropertiesIndex);
-                }
-            }
-
-            // TODO: Only update partially the buffer?
-            this.graphicsManager.UploadDataToGraphicsBuffer<ObjectProperties>(commandList, this.objectPropertiesGraphicsBuffer, this.objectProperties);
         }
 
         bool shaderParametersCreated = false;
@@ -238,6 +122,36 @@ namespace CoreEngine.Graphics
 
             // TODO: Switch to configurable render pass constants
             this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants>(commandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants[] {renderPassConstants});
+        }
+
+        private void CopyObjectPropertiesToGpu(CommandList commandList, ItemCollection<MeshInstance> meshInstances)
+        {
+            for (var i = 0; i < meshInstances.Count; i++)
+            {
+                var meshInstance = meshInstances[i];
+
+                if (!this.objectPropertiesMapping.ContainsKey(meshInstance.Id))
+                {
+                    this.objectPropertiesMapping.Add(meshInstance.Id, this.currentObjectPropertyIndex++);
+                }
+
+                if (meshInstance.IsDirty)
+                {
+                    this.objectProperties[this.objectPropertiesMapping[meshInstance.Id]] = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
+                }
+
+                var mesh = meshInstance.Mesh;
+
+                for (var j = 0; j < mesh.GeometryInstances.Count; j++)
+                {
+                    var geometryInstance = mesh.GeometryInstances[j];
+                    this.meshGeometryInstances.Add(geometryInstance);
+                    this.meshGeometryInstancesParamIdList.Add((uint)this.objectPropertiesMapping[meshInstance.Id]);
+                }
+            }
+
+            // TODO: Only update partially the buffer?
+            this.graphicsManager.UploadDataToGraphicsBuffer<ObjectProperties>(commandList, this.objectPropertiesGraphicsBuffer, this.objectProperties);
         }
 
         private void CopyDrawParametersToGpu(CommandList commandList)
@@ -262,7 +176,68 @@ namespace CoreEngine.Graphics
                 // TODO: Calculate base instanceid based on the previous batch size
 
                 var geometryInstance = this.meshGeometryInstances[i];
-                this.graphicsManager.DrawPrimitives(commandList, geometryInstance.PrimitiveType, geometryInstance.StartIndex, geometryInstance.IndexCount, geometryInstance.GeometryPacket.VertexBuffer, geometryInstance.GeometryPacket.IndexBuffer, (uint)i);
+                this.graphicsManager.DrawPrimitives(commandList, geometryInstance, (uint)i);
+            }
+        }
+
+        private void DrawCameraBoundingFrustum(GraphicsScene scene)
+        {
+            for (var i = 0; i < scene.Cameras.Count; i++)
+            {
+                var camera = scene.Cameras[i];
+
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftTopFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.LeftBottomFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightTopFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightBottomNearPoint, camera.BoundingFrustum.RightBottomFarPoint);
+
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.RightTopNearPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.RightBottomNearPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftBottomNearPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightBottomNearPoint);
+
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.RightTopFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomFarPoint, camera.BoundingFrustum.RightBottomFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.LeftBottomFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopFarPoint, camera.BoundingFrustum.RightBottomFarPoint);
+            }
+        }
+
+        private void DrawGeometryInstancesBoundingBox(GraphicsScene scene)
+        {
+            for (var i = 0; i < scene.MeshInstances.Count; i++)
+            {
+                var meshInstance = scene.MeshInstances[i];
+
+                for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
+                {
+                    var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
+                    var worldBoundingBox = meshInstance.WorldBoundingBoxList[j];
+
+                    var point1 = worldBoundingBox.MinPoint;
+                    var point2 = worldBoundingBox.MinPoint + new Vector3(0, 0, worldBoundingBox.ZSize);
+                    var point3 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, 0);
+                    var point4 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, worldBoundingBox.ZSize);
+                    var point5 = worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, 0);
+                    var point6 = worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, worldBoundingBox.ZSize);
+                    var point7 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, 0);
+                    var point8 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, worldBoundingBox.ZSize);
+
+                    this.debugRenderer.DrawLine(point1, point2);
+                    this.debugRenderer.DrawLine(point1, point3);
+                    this.debugRenderer.DrawLine(point2, point4);
+                    this.debugRenderer.DrawLine(point3, point4);
+                    
+                    this.debugRenderer.DrawLine(point5, point6);
+                    this.debugRenderer.DrawLine(point5, point7);
+                    this.debugRenderer.DrawLine(point6, point8);
+                    this.debugRenderer.DrawLine(point7, point8);
+                    
+                    this.debugRenderer.DrawLine(point1, point5);
+                    this.debugRenderer.DrawLine(point3, point7);
+                    this.debugRenderer.DrawLine(point4, point8);
+                    this.debugRenderer.DrawLine(point2, point6);
+                }
             }
         }
     }

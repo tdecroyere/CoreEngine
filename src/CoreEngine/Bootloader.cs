@@ -14,7 +14,8 @@ namespace CoreEngine
     {
         private static CoreEngineApp? coreEngineApp = null;
         private static GraphicsManager? graphicsManager = null;
-        private static GraphicsDebugRenderer? debugRenderer = null;
+        private static GraphicsSceneQueue? sceneQueue = null;
+        private static GraphicsSceneManager? sceneManager = null;
         private static GraphicsSceneRenderer? sceneRenderer = null;
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
@@ -35,15 +36,15 @@ namespace CoreEngine
                     resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
                     graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
-                    debugRenderer = new GraphicsDebugRenderer(graphicsManager);
+
+                    sceneQueue = new GraphicsSceneQueue();
+                    sceneManager = new GraphicsSceneManager(sceneQueue);
+                    sceneRenderer = new GraphicsSceneRenderer(graphicsManager, sceneQueue);
 
                     // Register managers
-                    sceneRenderer = new GraphicsSceneRenderer(graphicsManager, debugRenderer);
-
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsDebugRenderer>(debugRenderer);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsSceneRenderer>(sceneRenderer);
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
                     coreEngineApp.Init();
@@ -74,11 +75,6 @@ namespace CoreEngine
             if (sceneRenderer != null)
             {
                 sceneRenderer.Render();
-            }
-
-            if (debugRenderer != null)
-            {
-                debugRenderer.Render();
             }
         }
 

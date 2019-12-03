@@ -9,17 +9,15 @@ namespace CoreEngine.Graphics
     {
         private Matrix4x4 worldMatrix;
 
-        public MeshInstance(Mesh mesh, Matrix4x4 worldMatrix, uint objectPropertiesIndex, bool alwaysAlive = true)
+        public MeshInstance(Mesh mesh, Matrix4x4 worldMatrix, bool alwaysAlive = true)
         {
             this.Mesh = mesh;
-            this.ObjectPropertiesIndex = objectPropertiesIndex;
             this.worldMatrix = worldMatrix;
             this.AlwaysAlive = alwaysAlive;
             this.WorldBoundingBoxList = new List<BoundingBox>();
         }
 
         public Mesh Mesh { get; }
-        public uint ObjectPropertiesIndex { get; }
 
         public Matrix4x4 WorldMatrix 
         { 

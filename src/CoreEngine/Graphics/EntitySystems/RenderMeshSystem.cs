@@ -10,12 +10,12 @@ namespace CoreEngine.Graphics.EntitySystems
 {
     public class RenderMeshSystem : EntitySystem
     {
-        private readonly GraphicsSceneRenderer sceneRenderer;
+        private readonly GraphicsSceneManager sceneManager;
         private readonly ResourcesManager resourcesManager;
 
-        public RenderMeshSystem(GraphicsSceneRenderer sceneRenderer, ResourcesManager resourceManager)
+        public RenderMeshSystem(GraphicsSceneManager sceneManager, ResourcesManager resourceManager)
         {
-            this.sceneRenderer = sceneRenderer;
+            this.sceneManager = sceneManager;
             this.resourcesManager = resourceManager;
         }
 
@@ -47,11 +47,11 @@ namespace CoreEngine.Graphics.EntitySystems
 
                     if (mesh != null)
                     {
-                        var currentScene = sceneRenderer.CurrentScene;
+                        var currentScene = sceneManager.CurrentScene;
 
                         if (!currentScene.MeshInstances.Contains(meshComponent.MeshInstance))
                         {
-                            var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, this.sceneRenderer.currentObjectPropertyIndex++, false);
+                            var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, false);
                             meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
                         }
 

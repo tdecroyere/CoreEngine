@@ -75,6 +75,11 @@ namespace CoreEngine.Collections
             }
         }
 
+        public int IndexOf(T item)
+        {
+            return this.list.IndexOf(item);
+        }
+
         public IList<T> ToList()
         {
             return this.list;

@@ -57,23 +57,23 @@ compileDotnet() {
     cd "../../.."
 }
 
-compileHostModule() {
-    cd $macosTempDirectory
-    echo "[93mCompiling Apple CoreEngine Common Module for MacOS...[0m"
-    swiftc "../../../src/Host/Apple/CoreEngineCommon"/**/*".swift" -Onone -emit-library -emit-module -static -module-name CoreEngineCommon -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+# compileHostModule() {
+#     cd $macosTempDirectory
+#     echo "[93mCompiling Apple CoreEngine Common Module for MacOS...[0m"
+#     swiftc "../../../src/Host/Apple/CoreEngineCommon"/**/*".swift" -Onone -emit-library -emit-module -static -wmo -module-name CoreEngineCommon -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
-    if [ $? != 0 ]; then
-        showErrorMessage
-        exit 1
-    fi
+#     if [ $? != 0 ]; then
+#         showErrorMessage
+#         exit 1
+#     fi
 
-    cd "../../.."
-}
+#     cd "../../.."
+# }
 
 compileHost() {
     cd $macosTempDirectory
     echo "[93mCompiling MacOS Executable...[0m"
-    swiftc "../../../src/Host/Apple/MacOS/"*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -swift-version 5 -target x86_64-apple-macosx10.15 -lCoreEngineCommon -L "." -I "." -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    swiftc "../../../src/Host/Apple/MacOS/"*".swift" "../../../src/Host/Apple/CoreEngineCommon"/**/*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -wmo -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     if [ $? != 0 ]; then
         showErrorMessage
@@ -95,7 +95,7 @@ signCode() {
 
 generateInteropCode
 compileDotnet
-compileHostModule
+# compileHostModule
 compileHost
 #signCode
 copyFiles

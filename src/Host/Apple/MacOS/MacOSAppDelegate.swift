@@ -1,5 +1,4 @@
 import Cocoa
-import CoreEngineCommon
 
 class MacOSAppDelegate: NSObject, NSApplicationDelegate {
     public var mainWindow: NSWindow!

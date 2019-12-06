@@ -50,8 +50,15 @@ namespace CoreEngine.Graphics
             var shaderByteCodeLength = reader.ReadInt32();
             var shaderByteCode = reader.ReadBytes(shaderByteCodeLength);
 
-            var shaderId = this.graphicsService.CreateShader(shaderByteCode);
-            shader.ShaderId = shaderId;
+            if (shader.PipelineStateId != 0)
+            {
+                this.graphicsService.RemovePipelineState(shader.PipelineStateId);
+            }
+
+            var shaderId = this.graphicsService.CreatePipelineState(shaderByteCode);
+            shader.PipelineStateId = shaderId;
+
+            Logger.WriteMessage("Loading Shader");
 
             return Task.FromResult((Resource)shader);
         }

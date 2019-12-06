@@ -116,6 +116,7 @@ namespace CoreEngine.Resources
             RemoveUnusedResources();
         }
         
+        // TODO: This check needs to be done only each seconds and not each frames!
         private void CheckForUpdatedResources()
         {
             // TODO: Make that a background task on another thread?

@@ -13,20 +13,17 @@ namespace CoreEngine.Tests.EcsTest
     {
         private Scene? currentScene;
         private EntitySystemManager? entitySystemManager;
-        private Shader? testShader;
 
         public override string Name => "EcsTest App";
 
         public override void Init()
         {
             var resourcesManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
-            resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
-            resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\Windows\Resources"));
+            // resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
+            // resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\Windows\Resources"));
 
             this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
-            //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
-            //this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShader.shader");
-            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/TestShaderArguments.shader");
+            // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
 
             this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();

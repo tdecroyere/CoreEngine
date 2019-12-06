@@ -33,8 +33,6 @@ public class CoreEngineHost {
             return
         }
 
-        //let hostPlatformPtr = Unmanaged.passUnretained(self.hostPlatform).toOpaque()
-
         // TODO: The struct seems to be passed by value instead of this address
         startEngineInterop(appNameUnsafe, &self.hostPlatform)
     }

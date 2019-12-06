@@ -1,6 +1,5 @@
 import Cocoa
 import QuartzCore.CAMetalLayer
-import CoreEngineCommon
 
 class MacOSMetalView: NSView, MetalView {
     @available(*, unavailable) public required init?(coder: NSCoder) { fatalError() }

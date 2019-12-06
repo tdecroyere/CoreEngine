@@ -13,12 +13,16 @@ namespace CoreEngine.Graphics
         private readonly IGraphicsService graphicsService;
         private readonly ResourcesManager resourcesManager;
 
+        public Shader testShader;
+
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
             this.graphicsService = graphicsService;
             this.resourcesManager = resourcesManager;
 
             InitResourceLoaders();
+
+            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/BasicRender.shader");
         }
 
         public Vector2 GetRenderSize()
@@ -26,9 +30,15 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetRenderSize();
         }
 
-        public uint CreateShaderParameters(GraphicsBuffer graphicsBuffer1, GraphicsBuffer graphicsBuffer2, GraphicsBuffer graphicsBuffer3)
+        public GraphicsBuffer CreateShaderParameters(Shader shader, GraphicsBuffer graphicsBuffer1, GraphicsBuffer graphicsBuffer2, GraphicsBuffer graphicsBuffer3)
         {
-            return this.graphicsService.CreateShaderParameters(graphicsBuffer1.Id, graphicsBuffer2.Id, graphicsBuffer3.Id);
+            if (shader == null)
+            {
+                throw new ArgumentNullException(nameof(shader));
+            }
+
+            var graphicsBufferId = this.graphicsService.CreateShaderParameters(shader.PipelineStateId, graphicsBuffer1.Id, graphicsBuffer2.Id, graphicsBuffer3.Id);
+            return new GraphicsBuffer(graphicsBufferId, 0);
         }
 
         public GraphicsBuffer CreateGraphicsBuffer(int length)
@@ -75,11 +85,26 @@ namespace CoreEngine.Graphics
             this.graphicsService.ExecuteRenderCommandList(commandList.Id);
         }
 
+        public void SetShader(CommandList commandList, Shader shader)
+        {
+            this.graphicsService.SetPipelineState(commandList.Id, shader.PipelineStateId);
+        }
+
+        public void SetGraphicsBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, uint slot)
+        {
+            this.graphicsService.SetGraphicsBuffer(commandList.Id, graphicsBuffer.Id, GraphicsBindStage.Vertex, slot);
+        }
+
         public void DrawPrimitives(CommandList commandList, GeometryInstance geometryInstance, uint baseInstanceId)
         {
             if (commandList.Type != CommandListType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
+            }
+
+            if (geometryInstance.IndexCount == 0)
+            {
+                throw new InvalidOperationException("Index count must non-zero.");
             }
 
             this.graphicsService.DrawPrimitives(commandList.Id, 

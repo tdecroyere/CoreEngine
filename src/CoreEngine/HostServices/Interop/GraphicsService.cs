@@ -4,14 +4,17 @@ using System.Numerics;
 namespace CoreEngine.HostServices.Interop
 {
     internal unsafe delegate Vector2 GetRenderSizeDelegate(IntPtr context);
-    internal unsafe delegate uint CreateShaderDelegate(IntPtr context, byte *shaderByteCode, int shaderByteCodeLength);
-    internal unsafe delegate uint CreateShaderParametersDelegate(IntPtr context, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
+    internal unsafe delegate uint CreatePipelineStateDelegate(IntPtr context, byte *shaderByteCode, int shaderByteCodeLength);
+    internal unsafe delegate void RemovePipelineStateDelegate(IntPtr context, uint pipelineStateId);
+    internal unsafe delegate uint CreateShaderParametersDelegate(IntPtr context, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
     internal unsafe delegate uint CreateGraphicsBufferDelegate(IntPtr context, int length);
     internal unsafe delegate uint CreateCopyCommandListDelegate(IntPtr context);
     internal unsafe delegate void ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
     internal unsafe delegate uint CreateRenderCommandListDelegate(IntPtr context);
     internal unsafe delegate void ExecuteRenderCommandListDelegate(IntPtr context, uint commandListId);
+    internal unsafe delegate void SetPipelineStateDelegate(IntPtr context, uint commandListId, uint pipelineStateId);
+    internal unsafe delegate void SetGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, GraphicsBindStage graphicsBindStage, uint slot);
     internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
     public struct GraphicsService : IGraphicsService
     {
@@ -33,18 +36,29 @@ namespace CoreEngine.HostServices.Interop
                 return default(Vector2);
         }
 
-        private CreateShaderDelegate createShaderDelegate
+        private CreatePipelineStateDelegate createPipelineStateDelegate
         {
             get;
         }
 
-        public unsafe uint CreateShader(ReadOnlySpan<byte> shaderByteCode)
+        public unsafe uint CreatePipelineState(ReadOnlySpan<byte> shaderByteCode)
         {
-            if (this.context != null && this.createShaderDelegate != null)
+            if (this.context != null && this.createPipelineStateDelegate != null)
                 fixed (byte *shaderByteCodePinned = shaderByteCode)
-                    return this.createShaderDelegate(this.context, shaderByteCodePinned, shaderByteCode.Length);
+                    return this.createPipelineStateDelegate(this.context, shaderByteCodePinned, shaderByteCode.Length);
             else
                 return default(uint);
+        }
+
+        private RemovePipelineStateDelegate removePipelineStateDelegate
+        {
+            get;
+        }
+
+        public unsafe void RemovePipelineState(uint pipelineStateId)
+        {
+            if (this.context != null && this.removePipelineStateDelegate != null)
+                this.removePipelineStateDelegate(this.context, pipelineStateId);
         }
 
         private CreateShaderParametersDelegate createShaderParametersDelegate
@@ -52,10 +66,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe uint CreateShaderParameters(uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3)
+        public unsafe uint CreateShaderParameters(uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3)
         {
             if (this.context != null && this.createShaderParametersDelegate != null)
-                return this.createShaderParametersDelegate(this.context, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
+                return this.createShaderParametersDelegate(this.context, pipelineStateId, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
             else
                 return default(uint);
         }
@@ -131,6 +145,28 @@ namespace CoreEngine.HostServices.Interop
         {
             if (this.context != null && this.executeRenderCommandListDelegate != null)
                 this.executeRenderCommandListDelegate(this.context, commandListId);
+        }
+
+        private SetPipelineStateDelegate setPipelineStateDelegate
+        {
+            get;
+        }
+
+        public unsafe void SetPipelineState(uint commandListId, uint pipelineStateId)
+        {
+            if (this.context != null && this.setPipelineStateDelegate != null)
+                this.setPipelineStateDelegate(this.context, commandListId, pipelineStateId);
+        }
+
+        private SetGraphicsBufferDelegate setGraphicsBufferDelegate
+        {
+            get;
+        }
+
+        public unsafe void SetGraphicsBuffer(uint commandListId, uint graphicsBufferId, GraphicsBindStage graphicsBindStage, uint slot)
+        {
+            if (this.context != null && this.setGraphicsBufferDelegate != null)
+                this.setGraphicsBufferDelegate(this.context, commandListId, graphicsBufferId, graphicsBindStage, slot);
         }
 
         private DrawPrimitivesDelegate drawPrimitivesDelegate

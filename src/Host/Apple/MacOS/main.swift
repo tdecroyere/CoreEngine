@@ -1,5 +1,4 @@
 import Cocoa
-import CoreEngineCommon
 
 var isGameRunning = true
 var isGamePaused = false

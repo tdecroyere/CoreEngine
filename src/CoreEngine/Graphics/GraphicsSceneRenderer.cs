@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using CoreEngine.Collections;
 using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
+using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
@@ -33,7 +34,7 @@ namespace CoreEngine.Graphics
         private ObjectProperties[] objectProperties;
         internal int currentObjectPropertyIndex = 0;
 
-        public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue)
+        public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
             if (graphicsManager == null)
             {
@@ -41,7 +42,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsManager = graphicsManager;
-            this.debugRenderer = new DebugRenderer(graphicsManager);
+            this.debugRenderer = new DebugRenderer(graphicsManager, resourcesManager);
             this.sceneQueue = sceneQueue;
 
             this.renderPassConstants = new RenderPassConstants();
@@ -80,12 +81,21 @@ namespace CoreEngine.Graphics
         private void RunRenderPipeline(GraphicsScene scene)
         {
             var renderCommandList = this.graphicsManager.CreateRenderCommandList();
-            
+
+            this.graphicsManager.SetShader(renderCommandList, this.graphicsManager.testShader);
+
+            if (this.argumentBuffer != null)
+            {
+                this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.argumentBuffer.Value, 1);
+            }
+
             DrawGeometryInstances(renderCommandList);
 
             this.debugRenderer.ClearDebugLines();
             DrawCameraBoundingFrustum(scene);
             DrawGeometryInstancesBoundingBox(scene);
+
+            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.renderPassParametersGraphicsBuffer, 1);
             this.debugRenderer.Render(renderCommandList);
             
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
@@ -111,13 +121,12 @@ namespace CoreEngine.Graphics
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
         }
 
-        bool shaderParametersCreated = false;
+        GraphicsBuffer? argumentBuffer = null;
         private void CopyRenderPassConstantsToGpu(CommandList commandList, RenderPassConstants renderPassConstants)
         {
-            if (!shaderParametersCreated)
+            if (argumentBuffer == null)
             {
-                this.graphicsManager.CreateShaderParameters(this.renderPassParametersGraphicsBuffer, this.objectPropertiesGraphicsBuffer, this.vertexShaderParametersGraphicsBuffer);
-                shaderParametersCreated = true;
+                argumentBuffer = this.graphicsManager.CreateShaderParameters(this.graphicsManager.testShader, this.renderPassParametersGraphicsBuffer, this.objectPropertiesGraphicsBuffer, this.vertexShaderParametersGraphicsBuffer);
             }
 
             // TODO: Switch to configurable render pass constants
@@ -185,21 +194,22 @@ namespace CoreEngine.Graphics
             for (var i = 0; i < scene.Cameras.Count; i++)
             {
                 var camera = scene.Cameras[i];
+                var color = new Vector3(0, 0, 1);
 
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftTopFarPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.LeftBottomFarPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightTopFarPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightBottomNearPoint, camera.BoundingFrustum.RightBottomFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftTopFarPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.LeftBottomFarPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightTopFarPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightBottomNearPoint, camera.BoundingFrustum.RightBottomFarPoint, color);
 
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.RightTopNearPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.RightBottomNearPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftBottomNearPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightBottomNearPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.RightTopNearPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomNearPoint, camera.BoundingFrustum.RightBottomNearPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopNearPoint, camera.BoundingFrustum.LeftBottomNearPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopNearPoint, camera.BoundingFrustum.RightBottomNearPoint, color);
 
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.RightTopFarPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomFarPoint, camera.BoundingFrustum.RightBottomFarPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.LeftBottomFarPoint);
-                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopFarPoint, camera.BoundingFrustum.RightBottomFarPoint);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.RightTopFarPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftBottomFarPoint, camera.BoundingFrustum.RightBottomFarPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.LeftTopFarPoint, camera.BoundingFrustum.LeftBottomFarPoint, color);
+                this.debugRenderer.DrawLine(camera.BoundingFrustum.RightTopFarPoint, camera.BoundingFrustum.RightBottomFarPoint, color);
             }
         }
 

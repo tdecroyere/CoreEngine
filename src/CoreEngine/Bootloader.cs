@@ -32,14 +32,14 @@ namespace CoreEngine
                     var resourcesManager = new ResourcesManager();
                     
                     // TODO: Get the config from the host using hardcoded values for the moment
-                    resourcesManager.AddResourceStorage(new FileSystemResourceStorage("."));
+                    resourcesManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
                     resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
                     graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
 
                     sceneQueue = new GraphicsSceneQueue();
                     sceneManager = new GraphicsSceneManager(sceneQueue);
-                    sceneRenderer = new GraphicsSceneRenderer(graphicsManager, sceneQueue);
+                    sceneRenderer = new GraphicsSceneRenderer(graphicsManager, sceneQueue, resourcesManager);
 
                     // Register managers
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);

@@ -49,7 +49,6 @@ namespace CoreEngine.Diagnostics
             }
 
             Console.WriteLine(message);
-            Debug.WriteLine(message);
             Console.ForegroundColor = ConsoleColor.Gray;
         }
 

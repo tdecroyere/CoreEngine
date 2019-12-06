@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using CoreEngine.Diagnostics;
 
 namespace CoreEngine.Resources
 {
@@ -31,7 +32,7 @@ namespace CoreEngine.Resources
 
         public override DateTime? CheckForUpdatedResource(string path, DateTime lastUpdateDateTime)
         {
-            if (File.Exists(path))
+            if (File.Exists(this.basePath + path))
             {
                 var lastWriteTime = File.GetLastWriteTime(this.basePath + path);
                 return (lastWriteTime > lastUpdateDateTime) ? (DateTime?)lastWriteTime : null;

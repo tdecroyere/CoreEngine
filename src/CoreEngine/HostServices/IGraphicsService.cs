@@ -33,5 +33,7 @@ namespace CoreEngine.HostServices
         void SetPipelineState(uint commandListId, uint pipelineStateId);
         void SetGraphicsBuffer(uint commandListId, uint graphicsBufferId, GraphicsBindStage graphicsBindStage, uint slot);
         void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+
+        void PresentScreenBuffer();
     }
 }

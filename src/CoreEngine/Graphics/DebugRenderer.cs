@@ -18,6 +18,11 @@ namespace CoreEngine.Graphics
 
         public DebugRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
+            if (resourcesManager == null)
+            {
+                throw new ArgumentNullException(nameof(resourcesManager));
+            }
+
             this.graphicsManager = graphicsManager;
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/DebugRender.shader");
@@ -34,8 +39,8 @@ namespace CoreEngine.Graphics
             var maxLineCount = 10000;
             var vertexLayout = new VertexLayout(VertexElementType.Float3, VertexElementType.Float3);
 
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(Vector3)) * 2 * (maxLineCount * 2));
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(uint)) * maxLineCount * 2);
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(Vector3)) * 2 * (maxLineCount * 2), GraphicsResourceType.Dynamic);
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(uint)) * maxLineCount * 2, GraphicsResourceType.Dynamic);
             
             return new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
         }
@@ -67,7 +72,6 @@ namespace CoreEngine.Graphics
         {
             if (this.currentDebugLineIndex > 0)
             {
-                // TODO: Use a ring buffer strategy to not overlap buffers data still used by the GPU
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList();
                 this.graphicsManager.UploadDataToGraphicsBuffer<Vector3>(copyCommandList, this.debugGeometryPacket.VertexBuffer, this.debugVertexData);
                 this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.debugGeometryPacket.IndexBuffer, this.debugIndexData);

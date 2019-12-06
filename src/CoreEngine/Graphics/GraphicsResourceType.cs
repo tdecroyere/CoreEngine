@@ -2,7 +2,7 @@ using System;
 
 namespace CoreEngine.Graphics
 {
-    public enum GraphicsBufferType
+    public enum GraphicsResourceType
     {
         Static,
         Dynamic

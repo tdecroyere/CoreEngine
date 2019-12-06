@@ -16,6 +16,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void SetPipelineStateDelegate(IntPtr context, uint commandListId, uint pipelineStateId);
     internal unsafe delegate void SetGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, GraphicsBindStage graphicsBindStage, uint slot);
     internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+    internal unsafe delegate void PresentScreenBufferDelegate(IntPtr context);
     public struct GraphicsService : IGraphicsService
     {
         private IntPtr context
@@ -178,6 +179,17 @@ namespace CoreEngine.HostServices.Interop
         {
             if (this.context != null && this.drawPrimitivesDelegate != null)
                 this.drawPrimitivesDelegate(this.context, commandListId, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
+        }
+
+        private PresentScreenBufferDelegate presentScreenBufferDelegate
+        {
+            get;
+        }
+
+        public unsafe void PresentScreenBuffer()
+        {
+            if (this.context != null && this.presentScreenBufferDelegate != null)
+                this.presentScreenBufferDelegate(this.context);
         }
     }
 }

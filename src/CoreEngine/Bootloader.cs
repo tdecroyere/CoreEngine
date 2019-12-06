@@ -72,9 +72,10 @@ namespace CoreEngine
 
         public static void Render()
         {
-            if (sceneRenderer != null)
+            if (sceneRenderer != null && graphicsManager != null)
             {
                 sceneRenderer.Render();
+                graphicsManager.PresentScreenBuffer();
             }
         }
 

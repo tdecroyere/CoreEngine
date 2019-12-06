@@ -65,6 +65,11 @@ func drawPrimitivesInterop(context: UnsafeMutableRawPointer?, _ commandListId: U
     contextObject.drawPrimitives(UInt(commandListId), primitiveType, UInt(startIndex), UInt(indexCount), UInt(vertexBufferId), UInt(indexBufferId), UInt(baseInstanceId))
 }
 
+func presentScreenBufferInterop(context: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.presentScreenBuffer()
+}
+
 func initGraphicsService(_ context: MetalRenderer, _ service: inout GraphicsService) {
     service.Context = Unmanaged.passUnretained(context).toOpaque()
     service.GetRenderSize = getRenderSizeInterop
@@ -80,4 +85,5 @@ func initGraphicsService(_ context: MetalRenderer, _ service: inout GraphicsServ
     service.SetPipelineState = setPipelineStateInterop
     service.SetGraphicsBuffer = setGraphicsBufferInterop
     service.DrawPrimitives = drawPrimitivesInterop
+    service.PresentScreenBuffer = presentScreenBufferInterop
 }

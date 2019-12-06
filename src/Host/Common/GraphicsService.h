@@ -26,6 +26,7 @@ typedef void (*ExecuteRenderCommandListPtr)(void* context, unsigned int commandL
 typedef void (*SetPipelineStatePtr)(void* context, unsigned int commandListId, unsigned int pipelineStateId);
 typedef void (*SetGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, enum GraphicsBindStage graphicsBindStage, unsigned int slot);
 typedef void (*DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
+typedef void (*PresentScreenBufferPtr)(void* context);
 
 struct GraphicsService
 {
@@ -43,4 +44,5 @@ struct GraphicsService
     SetPipelineStatePtr SetPipelineState;
     SetGraphicsBufferPtr SetGraphicsBuffer;
     DrawPrimitivesPtr DrawPrimitives;
+    PresentScreenBufferPtr PresentScreenBuffer;
 };

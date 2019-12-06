@@ -12,17 +12,28 @@ namespace CoreEngine.Graphics
     {
         private readonly IGraphicsService graphicsService;
         private readonly ResourcesManager resourcesManager;
-
+        
         public Shader testShader;
 
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
+            if (resourcesManager == null)
+            {
+                throw new ArgumentNullException(nameof(resourcesManager));
+            }
+
             this.graphicsService = graphicsService;
             this.resourcesManager = resourcesManager;
 
             InitResourceLoaders();
 
             this.testShader = resourcesManager.LoadResourceAsync<Shader>("/BasicRender.shader");
+        }
+
+        public uint CurrentFrameNumber
+        {
+            get;
+            private set;
         }
 
         public Vector2 GetRenderSize()
@@ -37,14 +48,28 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(shader));
             }
 
-            var graphicsBufferId = this.graphicsService.CreateShaderParameters(shader.PipelineStateId, graphicsBuffer1.Id, graphicsBuffer2.Id, graphicsBuffer3.Id);
-            return new GraphicsBuffer(graphicsBufferId, 0);
+            var graphicsBufferId = this.graphicsService.CreateShaderParameters(shader.PipelineStateId, graphicsBuffer1.SystemId, graphicsBuffer2.SystemId, graphicsBuffer3.SystemId);
+            uint? graphicsBufferId2 = null;
+
+            if (graphicsBuffer1.SystemId2 != null && graphicsBuffer2.SystemId2 != null && graphicsBuffer3.SystemId2 != null)
+            {
+                graphicsBufferId2 = this.graphicsService.CreateShaderParameters(shader.PipelineStateId, graphicsBuffer1.SystemId2.Value, graphicsBuffer2.SystemId2.Value, graphicsBuffer3.SystemId2.Value);
+            }
+
+            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, 0, GraphicsResourceType.Dynamic);
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer(int length)
+        public GraphicsBuffer CreateGraphicsBuffer(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static)
         {
             var graphicsBufferId = graphicsService.CreateGraphicsBuffer(length);
-            return new GraphicsBuffer(graphicsBufferId, length);
+            uint? graphicsBufferId2 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                graphicsBufferId2 = graphicsService.CreateGraphicsBuffer(length);
+            }
+
+            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, length, resourceType);
         }
 
         public CommandList CreateCopyCommandList()
@@ -87,12 +112,19 @@ namespace CoreEngine.Graphics
 
         public void SetShader(CommandList commandList, Shader shader)
         {
+            if (shader == null)
+            {
+                throw new ArgumentNullException(nameof(shader));
+            }
+
             this.graphicsService.SetPipelineState(commandList.Id, shader.PipelineStateId);
         }
 
         public void SetGraphicsBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, uint slot)
         {
-            this.graphicsService.SetGraphicsBuffer(commandList.Id, graphicsBuffer.Id, GraphicsBindStage.Vertex, slot);
+            var graphicsBufferId = graphicsBuffer.Id;
+
+            this.graphicsService.SetGraphicsBuffer(commandList.Id, graphicsBufferId, GraphicsBindStage.Vertex, slot);
         }
 
         public void DrawPrimitives(CommandList commandList, GeometryInstance geometryInstance, uint baseInstanceId)
@@ -114,6 +146,14 @@ namespace CoreEngine.Graphics
                                                 geometryInstance.GeometryPacket.VertexBuffer.Id, 
                                                 geometryInstance.GeometryPacket.IndexBuffer.Id, 
                                                 baseInstanceId);
+        }
+
+        public void PresentScreenBuffer()
+        {
+            this.graphicsService.PresentScreenBuffer();
+
+            // TODO: A modulo here with Int.MaxValue
+            this.CurrentFrameNumber++;
         }
 
         private void InitResourceLoaders()

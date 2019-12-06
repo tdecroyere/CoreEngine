@@ -80,6 +80,12 @@ void DrawPrimitivesInterop(void* context, unsigned int commandListId, enum Graph
     contextObject->DrawPrimitives(commandListId, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId)
 }
 
+void PresentScreenBufferInterop(void* context)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->PresentScreenBuffer()
+}
+
 void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* service)
 {
     service->Context = context;
@@ -96,4 +102,5 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->SetPipelineState = SetPipelineStateInterop;
     service->SetGraphicsBuffer = SetGraphicsBufferInterop;
     service->DrawPrimitives = DrawPrimitivesInterop;
+    service->PresentScreenBuffer = PresentScreenBufferInterop;
 }

@@ -64,11 +64,8 @@ autoreleasepool {
     autoreleasepool {
         coreEngineHost.startEngine(appName)
     }
-    //let timer = PerformanceTimer()
 
-    // Update is called currently at 60 fps because metal rendering is syncing the draw at 60Hz
     let stepTimeInSeconds = Float(1.0 / 60.0)
-    var frameCounter = 0
 
     while (isGameRunning) {
         autoreleasepool {
@@ -77,29 +74,11 @@ autoreleasepool {
             isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
 
             if (!isGamePaused) {
-                //print("======== Frame \(frameCounter) =========")
                 inputsManager.processGamepadControllers()
 
-                //timer.start()
                 coreEngineHost.updateEngine(stepTimeInSeconds)
                 coreEngineHost.render()
-
-                //var elapsed = timer.stop()
-                //print("Render elapsed time: \(elapsed)")
-
-                //timer.start()
-
-
-                //elapsed = timer.stop()
-                //print("Update elapsed time: \(elapsed)")
-
-                //timer.start()
-                renderer.presentScreenBuffer()
-                //elapsed = timer.stop()
-                //print("Present elapsed time: \(elapsed)")	
             }
         }
-
-        frameCounter += 1
     }
 }

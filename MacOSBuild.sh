@@ -19,8 +19,6 @@ copyFiles() {
     cp $dotnetTempDirectory"/"* "./build/"$outputDirectory"/CoreClr"
     cp $macosTempDirectory"/CoreEngine" "./build/"$outputDirectory"/MacOS"
     cp -R $macosTempDirectory"/CoreEngine.dSYM" "./build/"$outputDirectory"/MacOS"
-    cp -R "./src/Host/Apple/CoreEngineCommon/Shaders" "./build/"$outputDirectory"/Resources"
-
 
     #rm -R $tempDirectory
 }
@@ -57,19 +55,6 @@ compileDotnet() {
     cd "../../.."
 }
 
-# compileHostModule() {
-#     cd $macosTempDirectory
-#     echo "[93mCompiling Apple CoreEngine Common Module for MacOS...[0m"
-#     swiftc "../../../src/Host/Apple/CoreEngineCommon"/**/*".swift" -Onone -emit-library -emit-module -static -wmo -module-name CoreEngineCommon -swift-version 5 -target x86_64-apple-macosx10.15 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
-    
-#     if [ $? != 0 ]; then
-#         showErrorMessage
-#         exit 1
-#     fi
-
-#     cd "../../.."
-# }
-
 compileHost() {
     cd $macosTempDirectory
     echo "[93mCompiling MacOS Executable...[0m"
@@ -95,7 +80,6 @@ signCode() {
 
 generateInteropCode
 compileDotnet
-# compileHostModule
 compileHost
 #signCode
 copyFiles

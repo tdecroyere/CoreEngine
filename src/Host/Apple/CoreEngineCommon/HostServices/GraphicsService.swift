@@ -14,4 +14,5 @@ public protocol GraphicsServiceProtocol {
     func setPipelineState(_ commandListId: UInt, _ pipelineStateId: UInt)
     func setGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ graphicsBindStage: GraphicsBindStage, _ slot: UInt)
     func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt)
+    func presentScreenBuffer()
 }

@@ -8,13 +8,16 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void RemovePipelineStateDelegate(IntPtr context, uint pipelineStateId);
     internal unsafe delegate uint CreateShaderParametersDelegate(IntPtr context, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
     internal unsafe delegate uint CreateGraphicsBufferDelegate(IntPtr context, int length);
+    internal unsafe delegate uint CreateTextureDelegate(IntPtr context, int width, int height);
     internal unsafe delegate uint CreateCopyCommandListDelegate(IntPtr context);
     internal unsafe delegate void ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
+    internal unsafe delegate void UploadDataToTextureDelegate(IntPtr context, uint commandListId, uint textureId, int width, int height, byte *data, int dataLength);
     internal unsafe delegate uint CreateRenderCommandListDelegate(IntPtr context);
     internal unsafe delegate void ExecuteRenderCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void SetPipelineStateDelegate(IntPtr context, uint commandListId, uint pipelineStateId);
     internal unsafe delegate void SetGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, GraphicsBindStage graphicsBindStage, uint slot);
+    internal unsafe delegate void SetTextureDelegate(IntPtr context, uint commandListId, uint textureId, GraphicsBindStage graphicsBindStage, uint slot);
     internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
     internal unsafe delegate void PresentScreenBufferDelegate(IntPtr context);
     public struct GraphicsService : IGraphicsService
@@ -88,6 +91,19 @@ namespace CoreEngine.HostServices.Interop
                 return default(uint);
         }
 
+        private CreateTextureDelegate createTextureDelegate
+        {
+            get;
+        }
+
+        public unsafe uint CreateTexture(int width, int height)
+        {
+            if (this.context != null && this.createTextureDelegate != null)
+                return this.createTextureDelegate(this.context, width, height);
+            else
+                return default(uint);
+        }
+
         private CreateCopyCommandListDelegate createCopyCommandListDelegate
         {
             get;
@@ -122,6 +138,18 @@ namespace CoreEngine.HostServices.Interop
             if (this.context != null && this.uploadDataToGraphicsBufferDelegate != null)
                 fixed (byte *dataPinned = data)
                     this.uploadDataToGraphicsBufferDelegate(this.context, commandListId, graphicsBufferId, dataPinned, data.Length);
+        }
+
+        private UploadDataToTextureDelegate uploadDataToTextureDelegate
+        {
+            get;
+        }
+
+        public unsafe void UploadDataToTexture(uint commandListId, uint textureId, int width, int height, ReadOnlySpan<byte> data)
+        {
+            if (this.context != null && this.uploadDataToTextureDelegate != null)
+                fixed (byte *dataPinned = data)
+                    this.uploadDataToTextureDelegate(this.context, commandListId, textureId, width, height, dataPinned, data.Length);
         }
 
         private CreateRenderCommandListDelegate createRenderCommandListDelegate
@@ -168,6 +196,17 @@ namespace CoreEngine.HostServices.Interop
         {
             if (this.context != null && this.setGraphicsBufferDelegate != null)
                 this.setGraphicsBufferDelegate(this.context, commandListId, graphicsBufferId, graphicsBindStage, slot);
+        }
+
+        private SetTextureDelegate setTextureDelegate
+        {
+            get;
+        }
+
+        public unsafe void SetTexture(uint commandListId, uint textureId, GraphicsBindStage graphicsBindStage, uint slot)
+        {
+            if (this.context != null && this.setTextureDelegate != null)
+                this.setTextureDelegate(this.context, commandListId, textureId, graphicsBindStage, slot);
         }
 
         private DrawPrimitivesDelegate drawPrimitivesDelegate

@@ -18,13 +18,16 @@ typedef unsigned int (*CreatePipelineStatePtr)(void* context, void* shaderByteCo
 typedef void (*RemovePipelineStatePtr)(void* context, unsigned int pipelineStateId);
 typedef unsigned int (*CreateShaderParametersPtr)(void* context, unsigned int pipelineStateId, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
 typedef unsigned int (*CreateGraphicsBufferPtr)(void* context, int length);
+typedef unsigned int (*CreateTexturePtr)(void* context, int width, int height);
 typedef unsigned int (*CreateCopyCommandListPtr)(void* context);
 typedef void (*ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
+typedef void (*UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, void* data, int dataLength);
 typedef unsigned int (*CreateRenderCommandListPtr)(void* context);
 typedef void (*ExecuteRenderCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*SetPipelineStatePtr)(void* context, unsigned int commandListId, unsigned int pipelineStateId);
 typedef void (*SetGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, enum GraphicsBindStage graphicsBindStage, unsigned int slot);
+typedef void (*SetTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsBindStage graphicsBindStage, unsigned int slot);
 typedef void (*DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
 typedef void (*PresentScreenBufferPtr)(void* context);
 
@@ -36,13 +39,16 @@ struct GraphicsService
     RemovePipelineStatePtr RemovePipelineState;
     CreateShaderParametersPtr CreateShaderParameters;
     CreateGraphicsBufferPtr CreateGraphicsBuffer;
+    CreateTexturePtr CreateTexture;
     CreateCopyCommandListPtr CreateCopyCommandList;
     ExecuteCopyCommandListPtr ExecuteCopyCommandList;
     UploadDataToGraphicsBufferPtr UploadDataToGraphicsBuffer;
+    UploadDataToTexturePtr UploadDataToTexture;
     CreateRenderCommandListPtr CreateRenderCommandList;
     ExecuteRenderCommandListPtr ExecuteRenderCommandList;
     SetPipelineStatePtr SetPipelineState;
     SetGraphicsBufferPtr SetGraphicsBuffer;
+    SetTexturePtr SetTexture;
     DrawPrimitivesPtr DrawPrimitives;
     PresentScreenBufferPtr PresentScreenBuffer;
 };

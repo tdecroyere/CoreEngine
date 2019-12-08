@@ -94,6 +94,12 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.Id, rawData);
         }
 
+        public void UploadDataToTexture<T>(CommandList commandList, Texture texture, ReadOnlySpan<T> data) where T : struct
+        {
+            var rawData = MemoryMarshal.Cast<T, byte>(data);
+            this.graphicsService.UploadDataToTexture(commandList.Id, texture.TextureId, texture.Width, texture.Height, rawData);
+        }
+
         public CommandList CreateRenderCommandList()
         {
             var commandListId = graphicsService.CreateRenderCommandList();
@@ -120,11 +126,14 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetPipelineState(commandList.Id, shader.PipelineStateId);
         }
 
-        public void SetGraphicsBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, uint slot)
+        public void SetGraphicsBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, GraphicsBindStage bindStage, uint slot)
         {
-            var graphicsBufferId = graphicsBuffer.Id;
+            this.graphicsService.SetGraphicsBuffer(commandList.Id, graphicsBuffer.Id, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
+        }
 
-            this.graphicsService.SetGraphicsBuffer(commandList.Id, graphicsBufferId, GraphicsBindStage.Vertex, slot);
+        public void SetTexture(CommandList commandList, Texture texture, GraphicsBindStage bindStage, uint slot)
+        {
+            this.graphicsService.SetTexture(commandList.Id, texture.TextureId, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
         }
 
         public void DrawPrimitives(CommandList commandList, GeometryInstance geometryInstance, uint baseInstanceId)
@@ -158,6 +167,7 @@ namespace CoreEngine.Graphics
 
         private void InitResourceLoaders()
         {
+            this.resourcesManager.AddResourceLoader(new TextureResourceLoader(this.resourcesManager, this, this.graphicsService));
             this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this.graphicsService));
             this.resourcesManager.AddResourceLoader(new MaterialResourceLoader(this.resourcesManager, this));
             this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this));

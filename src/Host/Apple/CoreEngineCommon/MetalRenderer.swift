@@ -36,6 +36,9 @@ public class MetalRenderer: GraphicsServiceProtocol {
     var graphicsBuffers: [UInt: MTLBuffer]
     var cpuGraphicsBuffers: [UInt: MTLBuffer]
 
+    var currentTextureId: UInt
+    var textures: [UInt: MTLTexture]
+
     public init(view: MetalView, renderWidth: Int, renderHeight: Int) {
         let defaultDevice = MTLCreateSystemDefaultDevice()!
         print(defaultDevice.name)
@@ -63,10 +66,6 @@ public class MetalRenderer: GraphicsServiceProtocol {
         self.pipelineStates = [:]
         self.currentPipelineStateId = 0
 
-        self.graphicsBuffers = [:]
-        self.cpuGraphicsBuffers = [:]
-        self.currentGraphicsBufferId = 0
-
         self.copyCommandBuffers = [:]
         self.copyCommandEncoders = [:]
         self.currentCopyCommandListId = 0
@@ -74,6 +73,13 @@ public class MetalRenderer: GraphicsServiceProtocol {
         self.renderCommandBuffers = [:]
         self.renderCommandEncoders = [:]
         self.currentRenderCommandListId = 0
+
+        self.graphicsBuffers = [:]
+        self.cpuGraphicsBuffers = [:]
+        self.currentGraphicsBufferId = 0
+
+        self.textures = [:]
+        self.currentTextureId = 0
 
         let depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .less
@@ -215,6 +221,34 @@ public class MetalRenderer: GraphicsServiceProtocol {
         return currentGraphicsBufferId
     }
 
+    public func createTexture(_ width: Int, _ height: Int) -> UInt {
+        var currentTextureId: UInt = 0
+
+        serialQueue.sync {
+            self.currentTextureId += 1
+            currentTextureId = self.currentTextureId
+        }
+
+        let descriptor = MTLTextureDescriptor()
+
+        descriptor.textureType = .type2D
+        descriptor.pixelFormat = .rgba8Unorm_srgb
+        descriptor.width = width
+        descriptor.height = height
+        descriptor.depth = 1
+        descriptor.mipmapLevelCount = 1
+        descriptor.arrayLength = 1
+        descriptor.storageMode = .private
+
+        let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor)!
+        gpuTexture.label = "Texture Graphics Buffer"
+
+        self.textures[currentTextureId] = gpuTexture
+
+        print("CREATE TEXTURE")
+        return currentTextureId
+    }
+
     public func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ length: Int) {
         guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
             print("ERROR: GPU graphics buffer was not found")
@@ -236,6 +270,40 @@ public class MetalRenderer: GraphicsServiceProtocol {
 
         // TODO: Add parameters to be able to update partially the buffer
         copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: length)
+    }
+
+    public func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ width: Int, _ height: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
+        guard let gpuTexture = self.textures[textureId] else {
+            print("ERROR: GPU texture was not found")
+            return
+        }
+
+        // Create a the metal buffer on the CPU
+        // TODO: Create a pool of cpu buffers
+        let cpuTexture = self.device.makeBuffer(length: length, options: .cpuCacheModeWriteCombined)!
+        cpuTexture.label = "Texture - CPU buffer"
+
+        // TODO: Try to avoid the copy
+        cpuTexture.contents().copyMemory(from: data.assumingMemoryBound(to: UInt8.self), byteCount: (length * MemoryLayout<UInt8>.stride))
+
+        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
+            print("uploadDataToTexture: Copy command encoder is nil.")
+            return
+        }
+
+        // TODO: Remove the hardcoding here
+        let pixelSize = 4
+
+        // TODO: Add parameters to be able to update partially the buffer
+        copyCommandEncoder.copy(from: cpuTexture, 
+                                sourceOffset: 0, 
+                                sourceBytesPerRow: pixelSize * width,
+                                sourceBytesPerImage: pixelSize * width * height,
+                                sourceSize: MTLSize(width: width, height: height , depth: 1),
+                                to: gpuTexture, 
+                                destinationSlice: 0,
+                                destinationLevel: 0,
+                                destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
     }
 
     public func createCopyCommandList() -> UInt {
@@ -394,6 +462,26 @@ public class MetalRenderer: GraphicsServiceProtocol {
 
         if (graphicsBindStage.rawValue == 0) {
             renderCommandEncoder.setVertexBuffer(graphicsBuffer, offset: 0, index: Int(slot))
+        } else if (graphicsBindStage.rawValue == 1) {
+            renderCommandEncoder.setFragmentBuffer(graphicsBuffer, offset: 0, index: Int(slot))
+        }
+    }
+
+    public func setTexture(_ commandListId: UInt, _ textureId: UInt, _ graphicsBindStage: GraphicsBindStage, _ slot: UInt) {
+        guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+            print("setTexture: Render command encoder is nil.")
+            return
+        }
+
+        guard let texture = self.textures[textureId] else {
+            print("setTexture: Texture is nil.")
+            return
+        }
+
+        if (graphicsBindStage.rawValue == 0) {
+            renderCommandEncoder.setVertexTexture(texture, index: Int(slot))
+        } else if (graphicsBindStage.rawValue == 1) {
+            renderCommandEncoder.setFragmentTexture(texture, index: Int(slot))
         }
     }
 

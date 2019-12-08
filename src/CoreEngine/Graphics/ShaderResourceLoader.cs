@@ -58,8 +58,6 @@ namespace CoreEngine.Graphics
             var shaderId = this.graphicsService.CreatePipelineState(shaderByteCode);
             shader.PipelineStateId = shaderId;
 
-            Logger.WriteMessage("Loading Shader");
-
             return Task.FromResult((Resource)shader);
         }
     }

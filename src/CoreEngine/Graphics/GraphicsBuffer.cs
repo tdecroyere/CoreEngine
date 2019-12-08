@@ -30,12 +30,12 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public readonly uint SystemId
+        internal readonly uint SystemId
         {
             get;
         }
 
-        public readonly uint? SystemId2
+        internal readonly uint? SystemId2
         {
             get;
         }

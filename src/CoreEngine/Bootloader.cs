@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Numerics;
 using System.Reflection;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
@@ -10,6 +11,7 @@ using CoreEngine.Resources;
 
 namespace CoreEngine
 {
+    // TODO: Make a CoreEngine class
     public static class Bootloader
     {
         private static CoreEngineApp? coreEngineApp = null;
@@ -17,6 +19,7 @@ namespace CoreEngine
         private static GraphicsSceneQueue? sceneQueue = null;
         private static GraphicsSceneManager? sceneManager = null;
         private static GraphicsSceneRenderer? sceneRenderer = null;
+        private static Graphics2DRenderer? graphics2DRenderer = null;
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
         {
@@ -41,10 +44,13 @@ namespace CoreEngine
                     sceneManager = new GraphicsSceneManager(sceneQueue);
                     sceneRenderer = new GraphicsSceneRenderer(graphicsManager, sceneQueue, resourcesManager);
 
+                    graphics2DRenderer = new Graphics2DRenderer(graphicsManager, resourcesManager);
+
                     // Register managers
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
+                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(graphics2DRenderer);
                     coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
                     coreEngineApp.Init();
@@ -72,9 +78,10 @@ namespace CoreEngine
 
         public static void Render()
         {
-            if (sceneRenderer != null && graphicsManager != null)
+            if (sceneRenderer != null && graphicsManager != null && graphics2DRenderer != null)
             {
                 sceneRenderer.Render();
+                graphics2DRenderer.Render();
                 graphicsManager.PresentScreenBuffer();
             }
         }

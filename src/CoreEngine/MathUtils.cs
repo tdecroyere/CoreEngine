@@ -39,12 +39,49 @@ namespace CoreEngine
             var row1 = new Vector4(height / aspectRatio, 0, 0, 0);
             var row2 = new Vector4(0, height, 0, 0);
             var row3 = new Vector4(0, 0, (farPlaneDistance / (farPlaneDistance - nearPlaneDistance)), 1);
-            var row4 = new Vector4(0, 0, -nearPlaneDistance * farPlaneDistance / (farPlaneDistance - nearPlaneDistance), 0);
+            var row4 = new Vector4(0, 0, -nearPlaneDistance * farPlaneDistance / (farPlaneDistance - nearPlaneDistance), 1);
 
             return new Matrix4x4(row1.X, row1.Y, row1.Z, row1.W,
                                  row2.X, row2.Y, row2.Z, row2.W,
                                  row3.X, row3.Y, row3.Z, row3.W,
                                  row4.X, row4.Y, row4.Z, row4.W);
+        }
+
+        public static Matrix4x4 CreateOrthographicMatrix(float width, float height, float nearPlaneDistance, float farPlaneDistance)
+		{
+            var result = new Matrix4x4();
+
+			if(width != 0)
+			{
+                result.M11 = 2.0f / width;
+			}
+
+			if(height != 0)
+			{
+                result.M22 = 2.0f / height;
+			}
+
+            result.M33 = 1.0f / (farPlaneDistance - nearPlaneDistance);
+            result.M43 = nearPlaneDistance / (nearPlaneDistance - farPlaneDistance);
+            result.M44 = 1.0f;
+
+			return result;
+		}
+
+        public static Matrix4x4 CreateOrthographicMatrixOffCenter(float minPlaneX, float maxPlaneX, float minPlaneY, float maxPlaneY, float minPlaneZ, float maxPlaneZ)
+        {
+            var result = new Matrix4x4();
+
+            result.M11 = 2.0f / (maxPlaneX - minPlaneX);
+            result.M22 = -2.0f / (maxPlaneY - minPlaneY);
+            result.M33 = 1.0f / (maxPlaneZ - minPlaneZ);
+
+            result.M41 = (minPlaneX + maxPlaneX) / (minPlaneX - maxPlaneX);
+            result.M42 = -(minPlaneY + maxPlaneY) / (minPlaneY - maxPlaneY);
+            result.M43 = minPlaneZ / (minPlaneZ - maxPlaneZ);
+            result.M44 = 1.0f;
+
+            return result;
         }
 
         public static Matrix4x4 CreateTranslation(Vector3 translationVector)

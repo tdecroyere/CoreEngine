@@ -32,6 +32,12 @@ unsigned int CreateGraphicsBufferInterop(void* context, int length)
     return contextObject->CreateGraphicsBuffer(length)
 }
 
+unsigned int CreateTextureInterop(void* context, int width, int height)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->CreateTexture(width, height)
+}
+
 unsigned int CreateCopyCommandListInterop(void* context)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -48,6 +54,12 @@ void UploadDataToGraphicsBufferInterop(void* context, unsigned int commandListId
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
     contextObject->UploadDataToGraphicsBuffer(commandListId, graphicsBufferId, data, dataLength)
+}
+
+void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, void* data, int dataLength)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->UploadDataToTexture(commandListId, textureId, width, height, data, dataLength)
 }
 
 unsigned int CreateRenderCommandListInterop(void* context)
@@ -74,6 +86,12 @@ void SetGraphicsBufferInterop(void* context, unsigned int commandListId, unsigne
     contextObject->SetGraphicsBuffer(commandListId, graphicsBufferId, graphicsBindStage, slot)
 }
 
+void SetTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsBindStage graphicsBindStage, unsigned int slot)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->SetTexture(commandListId, textureId, graphicsBindStage, slot)
+}
+
 void DrawPrimitivesInterop(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -94,13 +112,16 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->RemovePipelineState = RemovePipelineStateInterop;
     service->CreateShaderParameters = CreateShaderParametersInterop;
     service->CreateGraphicsBuffer = CreateGraphicsBufferInterop;
+    service->CreateTexture = CreateTextureInterop;
     service->CreateCopyCommandList = CreateCopyCommandListInterop;
     service->ExecuteCopyCommandList = ExecuteCopyCommandListInterop;
     service->UploadDataToGraphicsBuffer = UploadDataToGraphicsBufferInterop;
+    service->UploadDataToTexture = UploadDataToTextureInterop;
     service->CreateRenderCommandList = CreateRenderCommandListInterop;
     service->ExecuteRenderCommandList = ExecuteRenderCommandListInterop;
     service->SetPipelineState = SetPipelineStateInterop;
     service->SetGraphicsBuffer = SetGraphicsBufferInterop;
+    service->SetTexture = SetTextureInterop;
     service->DrawPrimitives = DrawPrimitivesInterop;
     service->PresentScreenBuffer = PresentScreenBufferInterop;
 }

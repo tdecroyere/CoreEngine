@@ -86,7 +86,7 @@ namespace CoreEngine.Graphics
 
             if (this.argumentBuffer != null)
             {
-                this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.argumentBuffer.Value, 1);
+                this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.argumentBuffer.Value, GraphicsBindStage.Vertex, 1);
             }
 
             DrawGeometryInstances(renderCommandList);
@@ -95,7 +95,7 @@ namespace CoreEngine.Graphics
             DrawCameraBoundingFrustum(scene);
             DrawGeometryInstancesBoundingBox(scene);
 
-            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.renderPassParametersGraphicsBuffer, 1);
+            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.renderPassParametersGraphicsBuffer, GraphicsBindStage.Vertex, 1);
             this.debugRenderer.Render(renderCommandList);
             
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);

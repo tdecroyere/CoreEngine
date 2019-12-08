@@ -18,6 +18,8 @@ namespace CoreEngine.Graphics
 
         public DebugRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
+            // TODO: Refactor code like in Graphics2DRenderer
+
             if (resourcesManager == null)
             {
                 throw new ArgumentNullException(nameof(resourcesManager));

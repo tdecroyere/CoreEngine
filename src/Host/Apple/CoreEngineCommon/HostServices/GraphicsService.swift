@@ -2,11 +2,11 @@ import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
     func getRenderSize() -> Vector2
-    func createPipelineState(_ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> UInt
-    func removePipelineState(_ pipelineStateId: UInt)
-    func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ graphicsBuffer1: UInt, _ graphicsBuffer2: UInt, _ graphicsBuffer3: UInt) -> Bool
     func createGraphicsBuffer(_ graphicsResourceId: UInt, _ length: Int) -> Bool
     func createTexture(_ graphicsResourceId: UInt, _ width: Int, _ height: Int) -> Bool
+    func createPipelineState(_ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> UInt
+    func removePipelineState(_ pipelineStateId: UInt)
+    func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ parameters: [GraphicsShaderParameterDescriptor]) -> Bool
     func createCopyCommandList() -> UInt
     func executeCopyCommandList(_ commandListId: UInt)
     func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ dataLength: Int)

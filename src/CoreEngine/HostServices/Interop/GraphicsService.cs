@@ -4,11 +4,11 @@ using System.Numerics;
 namespace CoreEngine.HostServices.Interop
 {
     internal unsafe delegate Vector2 GetRenderSizeDelegate(IntPtr context);
-    internal unsafe delegate uint CreatePipelineStateDelegate(IntPtr context, byte *shaderByteCode, int shaderByteCodeLength);
-    internal unsafe delegate void RemovePipelineStateDelegate(IntPtr context, uint pipelineStateId);
-    internal unsafe delegate bool CreateShaderParametersDelegate(IntPtr context, uint graphicsResourceId, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
     internal unsafe delegate bool CreateGraphicsBufferDelegate(IntPtr context, uint graphicsResourceId, int length);
     internal unsafe delegate bool CreateTextureDelegate(IntPtr context, uint graphicsResourceId, int width, int height);
+    internal unsafe delegate uint CreatePipelineStateDelegate(IntPtr context, byte *shaderByteCode, int shaderByteCodeLength);
+    internal unsafe delegate void RemovePipelineStateDelegate(IntPtr context, uint pipelineStateId);
+    internal unsafe delegate bool CreateShaderParametersDelegate(IntPtr context, uint graphicsResourceId, uint pipelineStateId, GraphicsShaderParameterDescriptor*parameters, int parametersLength);
     internal unsafe delegate uint CreateCopyCommandListDelegate(IntPtr context);
     internal unsafe delegate void ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
@@ -38,6 +38,32 @@ namespace CoreEngine.HostServices.Interop
                 return this.getRenderSizeDelegate(this.context);
             else
                 return default(Vector2);
+        }
+
+        private CreateGraphicsBufferDelegate createGraphicsBufferDelegate
+        {
+            get;
+        }
+
+        public unsafe bool CreateGraphicsBuffer(uint graphicsResourceId, int length)
+        {
+            if (this.context != null && this.createGraphicsBufferDelegate != null)
+                return this.createGraphicsBufferDelegate(this.context, graphicsResourceId, length);
+            else
+                return default(bool);
+        }
+
+        private CreateTextureDelegate createTextureDelegate
+        {
+            get;
+        }
+
+        public unsafe bool CreateTexture(uint graphicsResourceId, int width, int height)
+        {
+            if (this.context != null && this.createTextureDelegate != null)
+                return this.createTextureDelegate(this.context, graphicsResourceId, width, height);
+            else
+                return default(bool);
         }
 
         private CreatePipelineStateDelegate createPipelineStateDelegate
@@ -70,36 +96,11 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3)
+        public unsafe bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters)
         {
             if (this.context != null && this.createShaderParametersDelegate != null)
-                return this.createShaderParametersDelegate(this.context, graphicsResourceId, pipelineStateId, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
-            else
-                return default(bool);
-        }
-
-        private CreateGraphicsBufferDelegate createGraphicsBufferDelegate
-        {
-            get;
-        }
-
-        public unsafe bool CreateGraphicsBuffer(uint graphicsResourceId, int length)
-        {
-            if (this.context != null && this.createGraphicsBufferDelegate != null)
-                return this.createGraphicsBufferDelegate(this.context, graphicsResourceId, length);
-            else
-                return default(bool);
-        }
-
-        private CreateTextureDelegate createTextureDelegate
-        {
-            get;
-        }
-
-        public unsafe bool CreateTexture(uint graphicsResourceId, int width, int height)
-        {
-            if (this.context != null && this.createTextureDelegate != null)
-                return this.createTextureDelegate(this.context, graphicsResourceId, width, height);
+                fixed (GraphicsShaderParameterDescriptor*parametersPinned = parameters)
+                    return this.createShaderParametersDelegate(this.context, graphicsResourceId, pipelineStateId, parametersPinned, parameters.Length);
             else
                 return default(bool);
         }

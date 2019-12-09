@@ -5,6 +5,16 @@ func getRenderSizeInterop(context: UnsafeMutableRawPointer?) -> Vector2 {
     return contextObject.getRenderSize()
 }
 
+func createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ length: Int32) -> Int32 {
+    let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.createGraphicsBuffer(UInt(graphicsResourceId), Int(length)) ? 1 : 0)
+}
+
+func createTextureInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ width: Int32, _ height: Int32) -> Int32 {
+    let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.createTexture(UInt(graphicsResourceId), Int(width), Int(height)) ? 1 : 0)
+}
+
 func createPipelineStateInterop(context: UnsafeMutableRawPointer?, _ shaderByteCode: UnsafeMutableRawPointer?, _ shaderByteCodeLength: Int32) -> UInt32 {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
     return UInt32(contextObject.createPipelineState(shaderByteCode!, Int(shaderByteCodeLength)))
@@ -15,19 +25,9 @@ func removePipelineStateInterop(context: UnsafeMutableRawPointer?, _ pipelineSta
     contextObject.removePipelineState(UInt(pipelineStateId))
 }
 
-func createShaderParametersInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ pipelineStateId: UInt32, _ graphicsBuffer1: UInt32, _ graphicsBuffer2: UInt32, _ graphicsBuffer3: UInt32) -> Int32 {
+func createShaderParametersInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ pipelineStateId: UInt32, _ parameters: UnsafeMutablePointer<GraphicsShaderParameterDescriptor>?, _ parametersLength: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createShaderParameters(UInt(graphicsResourceId), UInt(pipelineStateId), UInt(graphicsBuffer1), UInt(graphicsBuffer2), UInt(graphicsBuffer3)) ? 1 : 0)
-}
-
-func createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ length: Int32) -> Int32 {
-    let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createGraphicsBuffer(UInt(graphicsResourceId), Int(length)) ? 1 : 0)
-}
-
-func createTextureInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ width: Int32, _ height: Int32) -> Int32 {
-    let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createTexture(UInt(graphicsResourceId), Int(width), Int(height)) ? 1 : 0)
+    return Int32(contextObject.createShaderParameters(UInt(graphicsResourceId), UInt(pipelineStateId), Array(UnsafeBufferPointer(start: parameters, count: Int(parametersLength)))) ? 1 : 0)
 }
 
 func createCopyCommandListInterop(context: UnsafeMutableRawPointer?) -> UInt32 {
@@ -88,11 +88,11 @@ func presentScreenBufferInterop(context: UnsafeMutableRawPointer?) {
 func initGraphicsService(_ context: MetalRenderer, _ service: inout GraphicsService) {
     service.Context = Unmanaged.passUnretained(context).toOpaque()
     service.GetRenderSize = getRenderSizeInterop
+    service.CreateGraphicsBuffer = createGraphicsBufferInterop
+    service.CreateTexture = createTextureInterop
     service.CreatePipelineState = createPipelineStateInterop
     service.RemovePipelineState = removePipelineStateInterop
     service.CreateShaderParameters = createShaderParametersInterop
-    service.CreateGraphicsBuffer = createGraphicsBufferInterop
-    service.CreateTexture = createTextureInterop
     service.CreateCopyCommandList = createCopyCommandListInterop
     service.ExecuteCopyCommandList = executeCopyCommandListInterop
     service.UploadDataToGraphicsBuffer = uploadDataToGraphicsBufferInterop

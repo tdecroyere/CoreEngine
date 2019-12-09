@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
@@ -28,17 +29,30 @@ namespace CoreEngine.Graphics
         public readonly Matrix4x4 ProjectionMatrix { get; }
     }
 
+    // TODO: Find a way to auto align fields to 16 (Required by shaders)
     readonly struct SurfaceProperties
     {
-        public SurfaceProperties(Matrix4x4 worldMatrix, Texture texture)
+        public SurfaceProperties(Matrix4x4 worldMatrix, uint textureIndex)
         {
             this.WorldMatrix = worldMatrix;
-            // this.TextureId = texture.TextureId;
+            this.TextureIndex = textureIndex;
+            this.Reserved = 1;
+            this.Reserved2 = 2;
+            this.Reserved3 = 3;
         }
 
         public readonly Matrix4x4 WorldMatrix { get; }
-        // public readonly uint TextureId { get; }
+        public readonly uint TextureIndex { get; }
+        public readonly uint Reserved { get; }
+        public readonly uint Reserved2 { get; }
+        public readonly uint Reserved3 { get; }
     }
+
+    // class ShaderInputParameters
+    // {
+    //     public IList<SurfaceProperties> SurfaceProperties { get; }
+    //     public IList<Texture> Textures { get; }
+    // }
 
     public class Graphics2DRenderer : SystemManager
     {
@@ -128,20 +142,7 @@ namespace CoreEngine.Graphics
             var size = maxPoint - minPoint;
             var worldMatrix = Matrix4x4.CreateScale(new Vector3(size, 0)) * Matrix4x4.CreateTranslation(new Vector3(minPoint, 0));
 
-            this.surfaceProperties[this.currentSurfaceCount] = new SurfaceProperties(worldMatrix, texture);
-
-            // this.vertexData[vertexOffset] = new Graphics2DVertex(new Vector2(minPoint.X, minPoint.Y), new Vector2(0, 0));
-            // this.vertexData[vertexOffset + 1] = new Graphics2DVertex(new Vector2(maxPoint.X, minPoint.Y), new Vector2(1, 0));
-            // this.vertexData[vertexOffset + 2] = new Graphics2DVertex(new Vector2(minPoint.X, maxPoint.Y), new Vector2(0, 1));
-            // this.vertexData[vertexOffset + 3] = new Graphics2DVertex(new Vector2(maxPoint.X, maxPoint.Y), new Vector2(1, 1));
-
-            // this.indexData[indexOffset] = (uint)vertexOffset;
-            // this.indexData[indexOffset + 1] = (uint)vertexOffset + 1;
-            // this.indexData[indexOffset + 2] = (uint)vertexOffset + 2;
-            // this.indexData[indexOffset + 3] = (uint)vertexOffset + 2;
-            // this.indexData[indexOffset + 4] = (uint)vertexOffset + 1;
-            // this.indexData[indexOffset + 5] = (uint)vertexOffset + 3;
-
+            this.surfaceProperties[this.currentSurfaceCount] = new SurfaceProperties(worldMatrix, 0);
             this.currentSurfaceCount++;
         }
 

@@ -3,7 +3,7 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
-    public class Texture : Resource
+    public class Texture : Resource, IGraphicsResource
     {
         private readonly GraphicsManager graphicsManager;
 
@@ -25,7 +25,7 @@ namespace CoreEngine.Graphics
             this.ResourceType = GraphicsResourceType.Static;
         }
 
-        public uint TextureId 
+        public uint Id 
         { 
             get
             {
@@ -40,13 +40,13 @@ namespace CoreEngine.Graphics
             }
         }
 
-        internal uint SystemId
+        public uint SystemId
         {
             get;
             set;
         }
 
-        internal uint? SystemId2
+        public uint? SystemId2
         {
             get;
             set;

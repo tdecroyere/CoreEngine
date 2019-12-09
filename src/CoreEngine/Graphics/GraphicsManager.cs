@@ -46,32 +46,47 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Allow the creation of linked graphics buffers from a struct?
-        public GraphicsBuffer CreateShaderParameters(Shader shader, GraphicsBuffer graphicsBuffer1, GraphicsBuffer graphicsBuffer2, GraphicsBuffer graphicsBuffer3)
+        // TODO: Allow the specification of dynamic or static?
+        // TODO: Don't return a GraphicsBuffer but a specific struct
+        public GraphicsBuffer CreateShaderParameters(Shader shader, ReadOnlySpan<ShaderParameterDescriptor> parameterDescriptors)
         {
             if (shader == null)
             {
                 throw new ArgumentNullException(nameof(shader));
             }
 
+            var nativeParameterDescriptors = new GraphicsShaderParameterDescriptor[parameterDescriptors.Length];
+
+            for (var i = 0; i < parameterDescriptors.Length; i++)
+            {
+                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(parameterDescriptors[i].GraphicsResource.SystemId, (GraphicsShaderParameterType)(int)parameterDescriptors[i].ParameterType, parameterDescriptors[i].Slot);
+            }
+
             var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.PipelineStateId, graphicsBuffer1.SystemId, graphicsBuffer2.SystemId, graphicsBuffer3.SystemId);
+            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.PipelineStateId, nativeParameterDescriptors);
             
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
             }
             
-            uint? graphicsBufferId2 = null;
+            var graphicsBufferId2 = GetNextGraphicsResourceId();
 
-            if (graphicsBuffer1.SystemId2 != null && graphicsBuffer2.SystemId2 != null && graphicsBuffer3.SystemId2 != null)
+            nativeParameterDescriptors = new GraphicsShaderParameterDescriptor[parameterDescriptors.Length];
+
+            for (var i = 0; i < parameterDescriptors.Length; i++)
             {
-                graphicsBufferId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateShaderParameters(graphicsBufferId2.Value, shader.PipelineStateId, graphicsBuffer1.SystemId2.Value, graphicsBuffer2.SystemId2.Value, graphicsBuffer3.SystemId2.Value);
+                var parameterDescriptor = parameterDescriptors[i];
+                var resourceId = parameterDescriptor.GraphicsResource.SystemId2 != null ? parameterDescriptor.GraphicsResource.SystemId2.Value : parameterDescriptor.GraphicsResource.SystemId;
 
-                if (!result)
-                {
-                    throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
-                }
+                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(resourceId, (GraphicsShaderParameterType)(int)parameterDescriptor.ParameterType, parameterDescriptor.Slot);
+            }
+
+            result = this.graphicsService.CreateShaderParameters(graphicsBufferId2, shader.PipelineStateId, nativeParameterDescriptors);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
             }
 
             return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, 0, GraphicsResourceType.Dynamic);
@@ -150,6 +165,7 @@ namespace CoreEngine.Graphics
 
         public void UploadDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer graphicsBuffer, ReadOnlySpan<T> data) where T : struct
         {
+            // TODO: Do something for memory alignement of data in the shaders?
             var rawData = MemoryMarshal.Cast<T, byte>(data);
             this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.Id, rawData);
         }
@@ -157,7 +173,7 @@ namespace CoreEngine.Graphics
         public void UploadDataToTexture<T>(CommandList commandList, Texture texture, ReadOnlySpan<T> data) where T : struct
         {
             var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToTexture(commandList.Id, texture.TextureId, texture.Width, texture.Height, rawData);
+            this.graphicsService.UploadDataToTexture(commandList.Id, texture.Id, texture.Width, texture.Height, rawData);
         }
 
         public CommandList CreateRenderCommandList()
@@ -193,7 +209,7 @@ namespace CoreEngine.Graphics
 
         public void SetTexture(CommandList commandList, Texture texture, GraphicsBindStage bindStage, uint slot)
         {
-            this.graphicsService.SetTexture(commandList.Id, texture.TextureId, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
+            this.graphicsService.SetTexture(commandList.Id, texture.Id, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
         }
 
         public void DrawGeometryInstances(CommandList commandList, GeometryInstance geometryInstance, int instanceCount, int baseInstanceId)

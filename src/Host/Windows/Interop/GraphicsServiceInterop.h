@@ -8,6 +8,18 @@ struct Vector2 GetRenderSizeInterop(void* context)
     return contextObject->GetRenderSize()
 }
 
+int CreateGraphicsBufferInterop(void* context, unsigned int graphicsResourceId, int length)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->CreateGraphicsBuffer(graphicsResourceId, length)
+}
+
+int CreateTextureInterop(void* context, unsigned int graphicsResourceId, int width, int height)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->CreateTexture(graphicsResourceId, width, height)
+}
+
 unsigned int CreatePipelineStateInterop(void* context, void* shaderByteCode, int shaderByteCodeLength)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -20,22 +32,10 @@ void RemovePipelineStateInterop(void* context, unsigned int pipelineStateId)
     contextObject->RemovePipelineState(pipelineStateId)
 }
 
-int CreateShaderParametersInterop(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3)
+int CreateShaderParametersInterop(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, struct ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateShaderParameters(graphicsResourceId, pipelineStateId, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3)
-}
-
-int CreateGraphicsBufferInterop(void* context, unsigned int graphicsResourceId, int length)
-{
-    auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateGraphicsBuffer(graphicsResourceId, length)
-}
-
-int CreateTextureInterop(void* context, unsigned int graphicsResourceId, int width, int height)
-{
-    auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(graphicsResourceId, width, height)
+    return contextObject->CreateShaderParameters(graphicsResourceId, pipelineStateId, parameters)
 }
 
 unsigned int CreateCopyCommandListInterop(void* context)
@@ -108,11 +108,11 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
 {
     service->Context = context;
     service->GetRenderSize = GetRenderSizeInterop;
+    service->CreateGraphicsBuffer = CreateGraphicsBufferInterop;
+    service->CreateTexture = CreateTextureInterop;
     service->CreatePipelineState = CreatePipelineStateInterop;
     service->RemovePipelineState = RemovePipelineStateInterop;
     service->CreateShaderParameters = CreateShaderParametersInterop;
-    service->CreateGraphicsBuffer = CreateGraphicsBufferInterop;
-    service->CreateTexture = CreateTextureInterop;
     service->CreateCopyCommandList = CreateCopyCommandListInterop;
     service->ExecuteCopyCommandList = ExecuteCopyCommandListInterop;
     service->UploadDataToGraphicsBuffer = UploadDataToGraphicsBufferInterop;

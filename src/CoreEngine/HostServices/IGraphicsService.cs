@@ -15,15 +15,37 @@ namespace CoreEngine.HostServices
         Line
     }
 
+    public enum GraphicsShaderParameterType
+    {
+        Buffer,
+        Texture,
+        TextureArray
+    }
+
+    public readonly struct GraphicsShaderParameterDescriptor
+    {
+        public GraphicsShaderParameterDescriptor(uint graphicsResourceId, GraphicsShaderParameterType parameterType, uint slot)
+        {
+            this.GraphicsResourceId = graphicsResourceId;
+            this.ParameterType = parameterType;
+            this.Slot = slot;
+        }
+
+        public readonly uint GraphicsResourceId { get; }
+        public readonly GraphicsShaderParameterType ParameterType { get; }
+        public readonly uint Slot { get; }
+    }
+
     public interface IGraphicsService
     {
         Vector2 GetRenderSize();
         
-        uint CreatePipelineState(ReadOnlySpan<byte> shaderByteCode);
-        void RemovePipelineState(uint pipelineStateId);
-        bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
         bool CreateGraphicsBuffer(uint graphicsResourceId, int length);
         bool CreateTexture(uint graphicsResourceId, int width, int height);
+
+        uint CreatePipelineState(ReadOnlySpan<byte> shaderByteCode);
+        void RemovePipelineState(uint pipelineStateId);
+        bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters);
         
         uint CreateCopyCommandList();
         void ExecuteCopyCommandList(uint commandListId);

@@ -165,7 +165,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
     }
 
     // TODO: Use a more precise structure to define buffer layouts
-    public func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ graphicsBuffer1: UInt, _ graphicsBuffer2: UInt, _ graphicsBuffer3: UInt) -> Bool {
+    public func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ parameters: [GraphicsShaderParameterDescriptor]) -> Bool {
         // TODO: Check for errors
         // TODO: Use the correct vertex function associated with the pipeline state
 
@@ -174,15 +174,15 @@ public class MetalRenderer: GraphicsServiceProtocol {
             return false
         }
 
-        let graphicsBufferIdList = [UInt(graphicsBuffer1), UInt(graphicsBuffer2), UInt(graphicsBuffer3)]
         let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 1)
         self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
         self.argumentBuffer.label = "Vertex Argument Buffer"
 
         argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
 
-        for i in 0..<graphicsBufferIdList.count {
-            let graphicsBuffer = self.graphicsBuffers[graphicsBufferIdList[i]]
+        for i in 0..<parameters.count {
+            let parameter = parameters[i]
+            let graphicsBuffer = self.graphicsBuffers[UInt(parameter.GraphicsResourceId)]
             argumentEncoder.setBuffer(graphicsBuffer, offset: 0, index: i)
         }
 

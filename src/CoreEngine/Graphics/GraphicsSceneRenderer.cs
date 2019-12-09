@@ -34,6 +34,9 @@ namespace CoreEngine.Graphics
         private ObjectProperties[] objectProperties;
         internal int currentObjectPropertyIndex = 0;
 
+        // TODO: Abstract the fact that shader parameter binding is a buffer
+        GraphicsBuffer argumentBuffer;
+
         public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
             if (graphicsManager == null)
@@ -57,6 +60,15 @@ namespace CoreEngine.Graphics
 
             this.meshGeometryInstances = new List<GeometryInstance>();
             this.meshGeometryInstancesParamIdList = new List<uint>();
+
+            var shaderParameterDescriptors = new ShaderParameterDescriptor[3]
+            {
+                new ShaderParameterDescriptor(this.renderPassParametersGraphicsBuffer, ShaderParameterType.Buffer, 0),
+                new ShaderParameterDescriptor(this.objectPropertiesGraphicsBuffer, ShaderParameterType.Buffer, 1),
+                new ShaderParameterDescriptor(this.vertexShaderParametersGraphicsBuffer, ShaderParameterType.Buffer, 2)
+            };
+
+            this.argumentBuffer = this.graphicsManager.CreateShaderParameters(this.graphicsManager.testShader, shaderParameterDescriptors);
         }
 
         public void Render()
@@ -83,11 +95,7 @@ namespace CoreEngine.Graphics
             var renderCommandList = this.graphicsManager.CreateRenderCommandList();
 
             this.graphicsManager.SetShader(renderCommandList, this.graphicsManager.testShader);
-
-            if (this.argumentBuffer != null)
-            {
-                this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.argumentBuffer.Value, GraphicsBindStage.Vertex, 1);
-            }
+            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.argumentBuffer, GraphicsBindStage.Vertex, 1);
 
             DrawGeometryInstances(renderCommandList);
 
@@ -121,14 +129,8 @@ namespace CoreEngine.Graphics
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
         }
 
-        GraphicsBuffer? argumentBuffer = null;
         private void CopyRenderPassConstantsToGpu(CommandList commandList, RenderPassConstants renderPassConstants)
         {
-            if (argumentBuffer == null)
-            {
-                argumentBuffer = this.graphicsManager.CreateShaderParameters(this.graphicsManager.testShader, this.renderPassParametersGraphicsBuffer, this.objectPropertiesGraphicsBuffer, this.vertexShaderParametersGraphicsBuffer);
-            }
-
             // TODO: Switch to configurable render pass constants
             this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants>(commandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants[] {renderPassConstants});
         }

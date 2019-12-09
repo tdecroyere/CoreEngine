@@ -13,12 +13,27 @@ enum GraphicsPrimitiveType : int
     Line
 };
 
+enum GraphicsShaderParameterType : int
+{
+    Buffer, 
+    Texture, 
+    TextureArray
+};
+
+struct GraphicsShaderParameterDescriptor
+{
+    unsigned int GraphicsResourceId;
+    enum GraphicsShaderParameterType ParameterType;
+    unsigned int Slot;
+
+};
+
 typedef struct Vector2 (*GetRenderSizePtr)(void* context);
-typedef unsigned int (*CreatePipelineStatePtr)(void* context, void* shaderByteCode, int shaderByteCodeLength);
-typedef void (*RemovePipelineStatePtr)(void* context, unsigned int pipelineStateId);
-typedef int (*CreateShaderParametersPtr)(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
 typedef int (*CreateGraphicsBufferPtr)(void* context, unsigned int graphicsResourceId, int length);
 typedef int (*CreateTexturePtr)(void* context, unsigned int graphicsResourceId, int width, int height);
+typedef unsigned int (*CreatePipelineStatePtr)(void* context, void* shaderByteCode, int shaderByteCodeLength);
+typedef void (*RemovePipelineStatePtr)(void* context, unsigned int pipelineStateId);
+typedef int (*CreateShaderParametersPtr)(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, struct GraphicsShaderParameterDescriptor* parameters, int parametersLength);
 typedef unsigned int (*CreateCopyCommandListPtr)(void* context);
 typedef void (*ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
@@ -35,11 +50,11 @@ struct GraphicsService
 {
     void* Context;
     GetRenderSizePtr GetRenderSize;
+    CreateGraphicsBufferPtr CreateGraphicsBuffer;
+    CreateTexturePtr CreateTexture;
     CreatePipelineStatePtr CreatePipelineState;
     RemovePipelineStatePtr RemovePipelineState;
     CreateShaderParametersPtr CreateShaderParameters;
-    CreateGraphicsBufferPtr CreateGraphicsBuffer;
-    CreateTexturePtr CreateTexture;
     CreateCopyCommandListPtr CreateCopyCommandList;
     ExecuteCopyCommandListPtr ExecuteCopyCommandList;
     UploadDataToGraphicsBufferPtr UploadDataToGraphicsBuffer;

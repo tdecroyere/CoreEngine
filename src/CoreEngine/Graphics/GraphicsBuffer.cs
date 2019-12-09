@@ -2,7 +2,7 @@ using System;
 
 namespace CoreEngine.Graphics
 {
-    public readonly struct GraphicsBuffer
+    public readonly struct GraphicsBuffer : IGraphicsResource
     {
         private readonly GraphicsManager graphicsManager;
 
@@ -30,12 +30,12 @@ namespace CoreEngine.Graphics
             }
         }
 
-        internal readonly uint SystemId
+        public readonly uint SystemId
         {
             get;
         }
 
-        internal readonly uint? SystemId2
+        public readonly uint? SystemId2
         {
             get;
         }

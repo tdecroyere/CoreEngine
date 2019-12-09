@@ -52,7 +52,7 @@ namespace CoreEngine.Graphics
             var textureDataLength = reader.ReadInt32();
             var textureData = reader.ReadBytes(textureDataLength);
 
-            if (texture.TextureId != 0)
+            if (texture.Id != 0)
             {
                 // TODO: Implement remove texture
                 //this.graphicsService.RemoveTexture(texture.TextureId);

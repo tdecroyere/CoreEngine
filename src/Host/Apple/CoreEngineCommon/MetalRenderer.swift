@@ -32,11 +32,9 @@ public class MetalRenderer: GraphicsServiceProtocol {
     var renderCommandBuffers: [UInt: MTLCommandBuffer]
     var renderCommandEncoders: [UInt: MTLRenderCommandEncoder]
 
-    var currentGraphicsBufferId: UInt
     var graphicsBuffers: [UInt: MTLBuffer]
     var cpuGraphicsBuffers: [UInt: MTLBuffer]
 
-    var currentTextureId: UInt
     var textures: [UInt: MTLTexture]
 
     public init(view: MetalView, renderWidth: Int, renderHeight: Int) {
@@ -76,10 +74,8 @@ public class MetalRenderer: GraphicsServiceProtocol {
 
         self.graphicsBuffers = [:]
         self.cpuGraphicsBuffers = [:]
-        self.currentGraphicsBufferId = 0
 
         self.textures = [:]
-        self.currentTextureId = 0
 
         let depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .less
@@ -169,17 +165,13 @@ public class MetalRenderer: GraphicsServiceProtocol {
     }
 
     // TODO: Use a more precise structure to define buffer layouts
-    public func createShaderParameters(_ pipelineStateId: UInt, _ graphicsBuffer1: UInt, _ graphicsBuffer2: UInt, _ graphicsBuffer3: UInt) -> UInt {
-        var currentGraphicsBufferId: UInt = 0
-
-        serialQueue.sync {
-            self.currentGraphicsBufferId += 1
-            currentGraphicsBufferId = self.currentGraphicsBufferId
-        }
+    public func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ graphicsBuffer1: UInt, _ graphicsBuffer2: UInt, _ graphicsBuffer3: UInt) -> Bool {
+        // TODO: Check for errors
+        // TODO: Use the correct vertex function associated with the pipeline state
 
         //let pipelineState = self.pipelineStates[self.currentPipelineStateId];
         guard let vertexFunction = self.vertexFunction else {
-            return 0
+            return false
         }
 
         let graphicsBufferIdList = [UInt(graphicsBuffer1), UInt(graphicsBuffer2), UInt(graphicsBuffer3)]
@@ -194,18 +186,13 @@ public class MetalRenderer: GraphicsServiceProtocol {
             argumentEncoder.setBuffer(graphicsBuffer, offset: 0, index: i)
         }
 
-        self.graphicsBuffers[currentGraphicsBufferId] = argumentBuffer
-        return currentGraphicsBufferId
+        self.graphicsBuffers[graphicsResourceId] = argumentBuffer
+        return true
     }
 
-    public func createGraphicsBuffer(_ length: Int) -> UInt {
+    public func createGraphicsBuffer(_ graphicsResourceId: UInt, _ length: Int) -> Bool {
         // TODO: Page Align the length to avoid the copy of the buffer later
-        var currentGraphicsBufferId: UInt = 0
-
-        serialQueue.sync {
-            self.currentGraphicsBufferId += 1
-            currentGraphicsBufferId = self.currentGraphicsBufferId
-        }
+        // TODO: Check for errors
 
         // Create a the metal buffer on the CPU
         let cpuBuffer = self.device.makeBuffer(length: length, options: .cpuCacheModeWriteCombined)!
@@ -215,20 +202,14 @@ public class MetalRenderer: GraphicsServiceProtocol {
         let gpuBuffer = self.globalHeap.makeBuffer(length: length, options: .storageModePrivate)!
         gpuBuffer.label = "Dynamic Graphics Buffer"
 
-        self.graphicsBuffers[currentGraphicsBufferId] = gpuBuffer
-        self.cpuGraphicsBuffers[currentGraphicsBufferId] = cpuBuffer
+        self.graphicsBuffers[graphicsResourceId] = gpuBuffer
+        self.cpuGraphicsBuffers[graphicsResourceId] = cpuBuffer
 
-        return currentGraphicsBufferId
+        return true
     }
 
-    public func createTexture(_ width: Int, _ height: Int) -> UInt {
-        var currentTextureId: UInt = 0
-
-        serialQueue.sync {
-            self.currentTextureId += 1
-            currentTextureId = self.currentTextureId
-        }
-
+    public func createTexture(_ graphicsResourceId: UInt, _ width: Int, _ height: Int) -> Bool {
+        // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
         descriptor.textureType = .type2D
@@ -243,10 +224,8 @@ public class MetalRenderer: GraphicsServiceProtocol {
         let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor)!
         gpuTexture.label = "Texture Graphics Buffer"
 
-        self.textures[currentTextureId] = gpuTexture
-
-        print("CREATE TEXTURE")
-        return currentTextureId
+        self.textures[graphicsResourceId] = gpuTexture
+        return true
     }
 
     public func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ length: Int) {
@@ -485,7 +464,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
         }
     }
 
-    public func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt, _ indexCount: UInt, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ baseInstanceId: UInt) {
+    public func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ instanceCount: Int, _ baseInstanceId: Int) {
         guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
             print("drawPrimitives: Render command encoder is nil.")
             return
@@ -509,7 +488,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
                                                    indexType: .uint32, 
                                                    indexBuffer: indexGraphicsBuffer!, 
                                                    indexBufferOffset: startIndexOffset, 
-                                                   instanceCount: 1, 
+                                                   instanceCount: instanceCount, 
                                                    baseVertex: 0, 
                                                    baseInstance: Int(baseInstanceId))
     }

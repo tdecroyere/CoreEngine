@@ -10,12 +10,10 @@ namespace CoreEngine.Graphics
     public class TextureResourceLoader : ResourceLoader
     {
         private readonly GraphicsManager graphicsManager;
-        private readonly IGraphicsService graphicsService;
 
-        public TextureResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager, IGraphicsService graphicsService) : base(resourcesManager)
+        public TextureResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
             this.graphicsManager = graphicsManager;
-            this.graphicsService = graphicsService;
         }
 
         public override string Name => "Texture Loader";
@@ -60,8 +58,9 @@ namespace CoreEngine.Graphics
                 //this.graphicsService.RemoveTexture(texture.TextureId);
             }
 
-            var textureId = this.graphicsService.CreateTexture(texture.Width, texture.Height);
-            texture.SystemId = textureId;
+            var createdTexture = this.graphicsManager.CreateTexture(texture.Width, texture.Height);
+            texture.SystemId = createdTexture.SystemId;
+            texture.SystemId2 = createdTexture.SystemId2;
 
             // TODO: Make only one frame copy command list for all resource loaders
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();

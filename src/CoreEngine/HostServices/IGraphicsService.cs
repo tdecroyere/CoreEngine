@@ -21,9 +21,9 @@ namespace CoreEngine.HostServices
         
         uint CreatePipelineState(ReadOnlySpan<byte> shaderByteCode);
         void RemovePipelineState(uint pipelineStateId);
-        uint CreateShaderParameters(uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
-        uint CreateGraphicsBuffer(int length);
-        uint CreateTexture(int width, int height);
+        bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
+        bool CreateGraphicsBuffer(uint graphicsResourceId, int length);
+        bool CreateTexture(uint graphicsResourceId, int width, int height);
         
         uint CreateCopyCommandList();
         void ExecuteCopyCommandList(uint commandListId);
@@ -35,7 +35,7 @@ namespace CoreEngine.HostServices
         void SetPipelineState(uint commandListId, uint pipelineStateId);
         void SetGraphicsBuffer(uint commandListId, uint graphicsBufferId, GraphicsBindStage graphicsBindStage, uint slot);
         void SetTexture(uint commandListId, uint textureId, GraphicsBindStage graphicsBindStage, uint slot);
-        void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+        void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, uint vertexBufferId, uint indexBufferId, int instanceCount, int baseInstanceId);
 
         void PresentScreenBuffer();
     }

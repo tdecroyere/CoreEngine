@@ -15,19 +15,19 @@ func removePipelineStateInterop(context: UnsafeMutableRawPointer?, _ pipelineSta
     contextObject.removePipelineState(UInt(pipelineStateId))
 }
 
-func createShaderParametersInterop(context: UnsafeMutableRawPointer?, _ pipelineStateId: UInt32, _ graphicsBuffer1: UInt32, _ graphicsBuffer2: UInt32, _ graphicsBuffer3: UInt32) -> UInt32 {
+func createShaderParametersInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ pipelineStateId: UInt32, _ graphicsBuffer1: UInt32, _ graphicsBuffer2: UInt32, _ graphicsBuffer3: UInt32) -> Int32 {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    return UInt32(contextObject.createShaderParameters(UInt(pipelineStateId), UInt(graphicsBuffer1), UInt(graphicsBuffer2), UInt(graphicsBuffer3)))
+    return Int32(contextObject.createShaderParameters(UInt(graphicsResourceId), UInt(pipelineStateId), UInt(graphicsBuffer1), UInt(graphicsBuffer2), UInt(graphicsBuffer3)) ? 1 : 0)
 }
 
-func createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ length: Int32) -> UInt32 {
+func createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ length: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    return UInt32(contextObject.createGraphicsBuffer(Int(length)))
+    return Int32(contextObject.createGraphicsBuffer(UInt(graphicsResourceId), Int(length)) ? 1 : 0)
 }
 
-func createTextureInterop(context: UnsafeMutableRawPointer?, _ width: Int32, _ height: Int32) -> UInt32 {
+func createTextureInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ width: Int32, _ height: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    return UInt32(contextObject.createTexture(Int(width), Int(height)))
+    return Int32(contextObject.createTexture(UInt(graphicsResourceId), Int(width), Int(height)) ? 1 : 0)
 }
 
 func createCopyCommandListInterop(context: UnsafeMutableRawPointer?) -> UInt32 {
@@ -75,9 +75,9 @@ func setTextureInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt3
     contextObject.setTexture(UInt(commandListId), UInt(textureId), graphicsBindStage, UInt(slot))
 }
 
-func drawPrimitivesInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ primitiveType: GraphicsPrimitiveType, _ startIndex: UInt32, _ indexCount: UInt32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ baseInstanceId: UInt32) {
+func drawPrimitivesInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int32, _ indexCount: Int32, _ vertexBufferId: UInt32, _ indexBufferId: UInt32, _ instanceCount: Int32, _ baseInstanceId: Int32) {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.drawPrimitives(UInt(commandListId), primitiveType, UInt(startIndex), UInt(indexCount), UInt(vertexBufferId), UInt(indexBufferId), UInt(baseInstanceId))
+    contextObject.drawPrimitives(UInt(commandListId), primitiveType, Int(startIndex), Int(indexCount), UInt(vertexBufferId), UInt(indexBufferId), Int(instanceCount), Int(baseInstanceId))
 }
 
 func presentScreenBufferInterop(context: UnsafeMutableRawPointer?) {

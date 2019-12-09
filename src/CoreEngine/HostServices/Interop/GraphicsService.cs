@@ -6,9 +6,9 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate Vector2 GetRenderSizeDelegate(IntPtr context);
     internal unsafe delegate uint CreatePipelineStateDelegate(IntPtr context, byte *shaderByteCode, int shaderByteCodeLength);
     internal unsafe delegate void RemovePipelineStateDelegate(IntPtr context, uint pipelineStateId);
-    internal unsafe delegate uint CreateShaderParametersDelegate(IntPtr context, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
-    internal unsafe delegate uint CreateGraphicsBufferDelegate(IntPtr context, int length);
-    internal unsafe delegate uint CreateTextureDelegate(IntPtr context, int width, int height);
+    internal unsafe delegate bool CreateShaderParametersDelegate(IntPtr context, uint graphicsResourceId, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3);
+    internal unsafe delegate bool CreateGraphicsBufferDelegate(IntPtr context, uint graphicsResourceId, int length);
+    internal unsafe delegate bool CreateTextureDelegate(IntPtr context, uint graphicsResourceId, int width, int height);
     internal unsafe delegate uint CreateCopyCommandListDelegate(IntPtr context);
     internal unsafe delegate void ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
@@ -18,7 +18,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void SetPipelineStateDelegate(IntPtr context, uint commandListId, uint pipelineStateId);
     internal unsafe delegate void SetGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, GraphicsBindStage graphicsBindStage, uint slot);
     internal unsafe delegate void SetTextureDelegate(IntPtr context, uint commandListId, uint textureId, GraphicsBindStage graphicsBindStage, uint slot);
-    internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId);
+    internal unsafe delegate void DrawPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, uint vertexBufferId, uint indexBufferId, int instanceCount, int baseInstanceId);
     internal unsafe delegate void PresentScreenBufferDelegate(IntPtr context);
     public struct GraphicsService : IGraphicsService
     {
@@ -70,12 +70,12 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe uint CreateShaderParameters(uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3)
+        public unsafe bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, uint graphicsBuffer1, uint graphicsBuffer2, uint graphicsBuffer3)
         {
             if (this.context != null && this.createShaderParametersDelegate != null)
-                return this.createShaderParametersDelegate(this.context, pipelineStateId, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
+                return this.createShaderParametersDelegate(this.context, graphicsResourceId, pipelineStateId, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3);
             else
-                return default(uint);
+                return default(bool);
         }
 
         private CreateGraphicsBufferDelegate createGraphicsBufferDelegate
@@ -83,12 +83,12 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe uint CreateGraphicsBuffer(int length)
+        public unsafe bool CreateGraphicsBuffer(uint graphicsResourceId, int length)
         {
             if (this.context != null && this.createGraphicsBufferDelegate != null)
-                return this.createGraphicsBufferDelegate(this.context, length);
+                return this.createGraphicsBufferDelegate(this.context, graphicsResourceId, length);
             else
-                return default(uint);
+                return default(bool);
         }
 
         private CreateTextureDelegate createTextureDelegate
@@ -96,12 +96,12 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe uint CreateTexture(int width, int height)
+        public unsafe bool CreateTexture(uint graphicsResourceId, int width, int height)
         {
             if (this.context != null && this.createTextureDelegate != null)
-                return this.createTextureDelegate(this.context, width, height);
+                return this.createTextureDelegate(this.context, graphicsResourceId, width, height);
             else
-                return default(uint);
+                return default(bool);
         }
 
         private CreateCopyCommandListDelegate createCopyCommandListDelegate
@@ -214,10 +214,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, uint startIndex, uint indexCount, uint vertexBufferId, uint indexBufferId, uint baseInstanceId)
+        public unsafe void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, uint vertexBufferId, uint indexBufferId, int instanceCount, int baseInstanceId)
         {
             if (this.context != null && this.drawPrimitivesDelegate != null)
-                this.drawPrimitivesDelegate(this.context, commandListId, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId);
+                this.drawPrimitivesDelegate(this.context, commandListId, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, instanceCount, baseInstanceId);
         }
 
         private PresentScreenBufferDelegate presentScreenBufferDelegate

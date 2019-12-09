@@ -16,9 +16,9 @@ enum GraphicsPrimitiveType : int
 typedef struct Vector2 (*GetRenderSizePtr)(void* context);
 typedef unsigned int (*CreatePipelineStatePtr)(void* context, void* shaderByteCode, int shaderByteCodeLength);
 typedef void (*RemovePipelineStatePtr)(void* context, unsigned int pipelineStateId);
-typedef unsigned int (*CreateShaderParametersPtr)(void* context, unsigned int pipelineStateId, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
-typedef unsigned int (*CreateGraphicsBufferPtr)(void* context, int length);
-typedef unsigned int (*CreateTexturePtr)(void* context, int width, int height);
+typedef int (*CreateShaderParametersPtr)(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3);
+typedef int (*CreateGraphicsBufferPtr)(void* context, unsigned int graphicsResourceId, int length);
+typedef int (*CreateTexturePtr)(void* context, unsigned int graphicsResourceId, int width, int height);
 typedef unsigned int (*CreateCopyCommandListPtr)(void* context);
 typedef void (*ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
@@ -28,7 +28,7 @@ typedef void (*ExecuteRenderCommandListPtr)(void* context, unsigned int commandL
 typedef void (*SetPipelineStatePtr)(void* context, unsigned int commandListId, unsigned int pipelineStateId);
 typedef void (*SetGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, enum GraphicsBindStage graphicsBindStage, unsigned int slot);
 typedef void (*SetTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsBindStage graphicsBindStage, unsigned int slot);
-typedef void (*DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId);
+typedef void (*DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, int instanceCount, int baseInstanceId);
 typedef void (*PresentScreenBufferPtr)(void* context);
 
 struct GraphicsService

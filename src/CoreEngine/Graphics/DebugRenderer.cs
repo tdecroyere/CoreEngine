@@ -41,8 +41,8 @@ namespace CoreEngine.Graphics
             var maxLineCount = 10000;
             var vertexLayout = new VertexLayout(VertexElementType.Float3, VertexElementType.Float3);
 
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(Vector3)) * 2 * (maxLineCount * 2), GraphicsResourceType.Dynamic);
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(uint)) * maxLineCount * 2, GraphicsResourceType.Dynamic);
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(2 * (maxLineCount * 2), GraphicsResourceType.Dynamic);
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, GraphicsResourceType.Dynamic);
             
             return new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
         }
@@ -93,8 +93,8 @@ namespace CoreEngine.Graphics
 
                 this.graphicsManager.SetShader(commandList, this.shader);
 
-                var geometryInstance = new GeometryInstance(this.debugGeometryPacket, new Material(), 0, (uint)this.currentDebugLineIndex * 2, new BoundingBox(), GeometryPrimitiveType.Line);
-                this.graphicsManager.DrawPrimitives(commandList, geometryInstance, 0);
+                var geometryInstance = new GeometryInstance(this.debugGeometryPacket, new Material(), 0, this.currentDebugLineIndex * 2, new BoundingBox(), GeometryPrimitiveType.Line);
+                this.graphicsManager.DrawGeometryInstances(commandList, geometryInstance, 1, 0);
                 
                 if (renderCommandList == null)
                 {

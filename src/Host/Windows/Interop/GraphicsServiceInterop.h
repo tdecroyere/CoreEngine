@@ -20,22 +20,22 @@ void RemovePipelineStateInterop(void* context, unsigned int pipelineStateId)
     contextObject->RemovePipelineState(pipelineStateId)
 }
 
-unsigned int CreateShaderParametersInterop(void* context, unsigned int pipelineStateId, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3)
+int CreateShaderParametersInterop(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, unsigned int graphicsBuffer1, unsigned int graphicsBuffer2, unsigned int graphicsBuffer3)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateShaderParameters(pipelineStateId, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3)
+    return contextObject->CreateShaderParameters(graphicsResourceId, pipelineStateId, graphicsBuffer1, graphicsBuffer2, graphicsBuffer3)
 }
 
-unsigned int CreateGraphicsBufferInterop(void* context, int length)
+int CreateGraphicsBufferInterop(void* context, unsigned int graphicsResourceId, int length)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateGraphicsBuffer(length)
+    return contextObject->CreateGraphicsBuffer(graphicsResourceId, length)
 }
 
-unsigned int CreateTextureInterop(void* context, int width, int height)
+int CreateTextureInterop(void* context, unsigned int graphicsResourceId, int width, int height)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(width, height)
+    return contextObject->CreateTexture(graphicsResourceId, width, height)
 }
 
 unsigned int CreateCopyCommandListInterop(void* context)
@@ -92,10 +92,10 @@ void SetTextureInterop(void* context, unsigned int commandListId, unsigned int t
     contextObject->SetTexture(commandListId, textureId, graphicsBindStage, slot)
 }
 
-void DrawPrimitivesInterop(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, unsigned int startIndex, unsigned int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, unsigned int baseInstanceId)
+void DrawPrimitivesInterop(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, unsigned int vertexBufferId, unsigned int indexBufferId, int instanceCount, int baseInstanceId)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->DrawPrimitives(commandListId, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, baseInstanceId)
+    contextObject->DrawPrimitives(commandListId, primitiveType, startIndex, indexCount, vertexBufferId, indexBufferId, instanceCount, baseInstanceId)
 }
 
 void PresentScreenBufferInterop(void* context)

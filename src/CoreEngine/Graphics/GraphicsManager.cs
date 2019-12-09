@@ -12,6 +12,9 @@ namespace CoreEngine.Graphics
     {
         private readonly IGraphicsService graphicsService;
         private readonly ResourcesManager resourcesManager;
+
+        private static object syncObject = new object();
+        private uint currentGraphicsResourceId;
         
         public Shader testShader;
 
@@ -24,6 +27,7 @@ namespace CoreEngine.Graphics
 
             this.graphicsService = graphicsService;
             this.resourcesManager = resourcesManager;
+            this.currentGraphicsResourceId = 0;
 
             InitResourceLoaders();
 
@@ -41,6 +45,7 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetRenderSize();
         }
 
+        // TODO: Allow the creation of linked graphics buffers from a struct?
         public GraphicsBuffer CreateShaderParameters(Shader shader, GraphicsBuffer graphicsBuffer1, GraphicsBuffer graphicsBuffer2, GraphicsBuffer graphicsBuffer3)
         {
             if (shader == null)
@@ -48,28 +53,83 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(shader));
             }
 
-            var graphicsBufferId = this.graphicsService.CreateShaderParameters(shader.PipelineStateId, graphicsBuffer1.SystemId, graphicsBuffer2.SystemId, graphicsBuffer3.SystemId);
+            var graphicsBufferId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.PipelineStateId, graphicsBuffer1.SystemId, graphicsBuffer2.SystemId, graphicsBuffer3.SystemId);
+            
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
+            }
+            
             uint? graphicsBufferId2 = null;
 
             if (graphicsBuffer1.SystemId2 != null && graphicsBuffer2.SystemId2 != null && graphicsBuffer3.SystemId2 != null)
             {
-                graphicsBufferId2 = this.graphicsService.CreateShaderParameters(shader.PipelineStateId, graphicsBuffer1.SystemId2.Value, graphicsBuffer2.SystemId2.Value, graphicsBuffer3.SystemId2.Value);
+                graphicsBufferId2 = GetNextGraphicsResourceId();
+                result = this.graphicsService.CreateShaderParameters(graphicsBufferId2.Value, shader.PipelineStateId, graphicsBuffer1.SystemId2.Value, graphicsBuffer2.SystemId2.Value, graphicsBuffer3.SystemId2.Value);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
+                }
             }
 
             return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, 0, GraphicsResourceType.Dynamic);
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static)
+        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static) where T : struct
         {
-            var graphicsBufferId = graphicsService.CreateGraphicsBuffer(length);
+            var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
+
+            var graphicsBufferId = GetNextGraphicsResourceId();
+            var result = graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
+            }
+
             uint? graphicsBufferId2 = null;
 
             if (resourceType == GraphicsResourceType.Dynamic)
             {
-                graphicsBufferId2 = graphicsService.CreateGraphicsBuffer(length);
+                graphicsBufferId2 = GetNextGraphicsResourceId();
+                result = graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
+                }
             }
 
-            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, length, resourceType);
+            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, resourceType);
+        }
+
+        // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
+        public Texture CreateTexture(int width, int height, GraphicsResourceType resourceType = GraphicsResourceType.Static)
+        {
+            var textureId = GetNextGraphicsResourceId();
+            var result = graphicsService.CreateTexture(textureId, width, height);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the texture resource.");
+            }
+
+            uint? textureId2 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                textureId2 = GetNextGraphicsResourceId();
+                result = graphicsService.CreateTexture(textureId2.Value, width, height);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the texture resource.");
+                }
+            }
+
+            return new Texture(this, textureId, textureId2, width, height, resourceType);
         }
 
         public CommandList CreateCopyCommandList()
@@ -136,24 +196,37 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetTexture(commandList.Id, texture.TextureId, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
         }
 
-        public void DrawPrimitives(CommandList commandList, GeometryInstance geometryInstance, uint baseInstanceId)
+        public void DrawGeometryInstances(CommandList commandList, GeometryInstance geometryInstance, int instanceCount, int baseInstanceId)
+        {
+            if (geometryInstance.IndexCount == 0)
+            {
+                throw new InvalidOperationException("Index count must non-zero.");
+            }
+
+            this.DrawPrimitives(commandList, 
+                                geometryInstance.PrimitiveType, 
+                                geometryInstance.StartIndex, 
+                                geometryInstance.IndexCount, 
+                                geometryInstance.GeometryPacket.VertexBuffer, 
+                                geometryInstance.GeometryPacket.IndexBuffer, 
+                                instanceCount,
+                                baseInstanceId);
+        }
+
+        public void DrawPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, int startIndex, int indexCount, GraphicsBuffer vertexBuffer, GraphicsBuffer indexBuffer, int instanceCount, int baseInstanceId)
         {
             if (commandList.Type != CommandListType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            if (geometryInstance.IndexCount == 0)
-            {
-                throw new InvalidOperationException("Index count must non-zero.");
-            }
-
             this.graphicsService.DrawPrimitives(commandList.Id, 
-                                                (GraphicsPrimitiveType)(int)geometryInstance.PrimitiveType, 
-                                                geometryInstance.StartIndex, 
-                                                geometryInstance.IndexCount, 
-                                                geometryInstance.GeometryPacket.VertexBuffer.Id, 
-                                                geometryInstance.GeometryPacket.IndexBuffer.Id, 
+                                                (GraphicsPrimitiveType)(int)primitiveType, 
+                                                startIndex, 
+                                                indexCount, 
+                                                vertexBuffer.Id, 
+                                                indexBuffer.Id, 
+                                                instanceCount,
                                                 baseInstanceId);
         }
 
@@ -167,10 +240,22 @@ namespace CoreEngine.Graphics
 
         private void InitResourceLoaders()
         {
-            this.resourcesManager.AddResourceLoader(new TextureResourceLoader(this.resourcesManager, this, this.graphicsService));
+            this.resourcesManager.AddResourceLoader(new TextureResourceLoader(this.resourcesManager, this));
             this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this.graphicsService));
             this.resourcesManager.AddResourceLoader(new MaterialResourceLoader(this.resourcesManager, this));
             this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this));
+        }
+
+        private uint GetNextGraphicsResourceId()
+        {
+            uint result = 0;
+
+            lock (syncObject)
+            {
+                result = ++this.currentGraphicsResourceId;
+            }
+
+            return result;
         }
     }
 }

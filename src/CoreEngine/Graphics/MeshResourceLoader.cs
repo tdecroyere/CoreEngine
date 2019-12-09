@@ -61,8 +61,8 @@ namespace CoreEngine.Graphics
             var vertexBufferData = reader.ReadBytes(vertexBufferSize);
             var indexBufferData = reader.ReadBytes(indexBufferSize);
 
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer(vertexBufferData.Length);
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer(indexBufferData.Length);
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferData.Length);
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferData.Length);
 
             // TODO: Refactor that
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();
@@ -79,8 +79,8 @@ namespace CoreEngine.Graphics
             for (var i = 0; i < geometryInstancesCount; i++)
             {
                 var materialPath = reader.ReadString();
-                var startIndex = reader.ReadUInt32();
-                var indexCount = reader.ReadUInt32();
+                var startIndex = reader.ReadInt32();
+                var indexCount = reader.ReadInt32();
 
                 var x = reader.ReadSingle();
                 var y = reader.ReadSingle();

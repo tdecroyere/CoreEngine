@@ -46,14 +46,14 @@ namespace CoreEngine.Graphics
             this.sceneQueue = sceneQueue;
 
             this.renderPassConstants = new RenderPassConstants();
-            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(RenderPassConstants)), GraphicsResourceType.Dynamic);
+            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, GraphicsResourceType.Dynamic);
 
             this.vertexShaderParameters = new uint[1024];
-            this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(int)) * 1024, GraphicsResourceType.Dynamic);
+            this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<int>(1024, GraphicsResourceType.Dynamic);
 
             this.objectPropertiesMapping = new Dictionary<ItemIdentifier, int>();
             this.objectProperties = new ObjectProperties[1024];
-            this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer(Marshal.SizeOf(typeof(Matrix4x4)) * 1024, GraphicsResourceType.Dynamic);
+            this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<Matrix4x4>(1024, GraphicsResourceType.Dynamic);
 
             this.meshGeometryInstances = new List<GeometryInstance>();
             this.meshGeometryInstancesParamIdList = new List<uint>();
@@ -173,6 +173,7 @@ namespace CoreEngine.Graphics
                 this.vertexShaderParameters[i] = this.meshGeometryInstancesParamIdList[i];
             }
 
+            // argument buffer per shader?
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(commandList, this.vertexShaderParametersGraphicsBuffer, this.vertexShaderParameters);
         }
 
@@ -183,7 +184,7 @@ namespace CoreEngine.Graphics
                 // TODO: Calculate base instanceid based on the previous batch size
 
                 var geometryInstance = this.meshGeometryInstances[i];
-                this.graphicsManager.DrawPrimitives(commandList, geometryInstance, (uint)i);
+                this.graphicsManager.DrawGeometryInstances(commandList, geometryInstance, 1, i);
             }
         }
 

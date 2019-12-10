@@ -74,8 +74,17 @@ namespace CoreEngine.Graphics
         private Texture? testTexture;
         private Texture? testTexture2;
 
+        private IList<Texture> textures;
+
+        private GraphicsBuffer vertexShaderParameters;
+
         public Graphics2DRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
             if (resourcesManager == null)
             {
                 throw new ArgumentNullException(nameof(resourcesManager));
@@ -86,6 +95,12 @@ namespace CoreEngine.Graphics
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/Graphics2DRender.shader");
             this.testTexture = resourcesManager.LoadResourceAsync<Texture>("/pokemon.texture");
             this.testTexture2 = resourcesManager.LoadResourceAsync<Texture>("/pokemon2.texture");
+            
+            textures = new Texture[]
+            {
+                this.testTexture,
+                this.testTexture2
+            };
 
             var maxSurfaceCount = 10000;
             this.surfaceProperties = new SurfaceProperties[maxSurfaceCount];
@@ -115,6 +130,15 @@ namespace CoreEngine.Graphics
 
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic);
             this.surfacePropertiesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<SurfaceProperties>(maxSurfaceCount, GraphicsResourceType.Dynamic);
+
+            var shaderParameterDescriptors = new ShaderParameterDescriptor[]
+            {
+                new ShaderParameterDescriptor(this.surfacePropertiesGraphicsBuffer, ShaderParameterType.Buffer, 0),
+                new ShaderParameterDescriptor(new IGraphicsResource[] { this.testTexture, this.testTexture2 }, ShaderParameterType.Texture, 1)
+            };
+
+            // TODO: Store the shader parameter descriptors in the shader file so that we can have
+            this.vertexShaderParameters = this.graphicsManager.CreateShaderParameters(this.shader, 2, shaderParameterDescriptors);
         }
 
         public override void PreUpdate()
@@ -127,6 +151,11 @@ namespace CoreEngine.Graphics
 
         public void DrawRectangleTexture(Vector2 position, Texture texture)
         {
+            if (texture == null)
+            {
+                throw new ArgumentNullException(nameof(texture));
+            }
+            
             DrawRectangleSurface(position, position + new Vector2(texture.Width, texture.Height), texture);
         }
 
@@ -142,7 +171,8 @@ namespace CoreEngine.Graphics
             var size = maxPoint - minPoint;
             var worldMatrix = Matrix4x4.CreateScale(new Vector3(size, 0)) * Matrix4x4.CreateTranslation(new Vector3(minPoint, 0));
 
-            this.surfaceProperties[this.currentSurfaceCount] = new SurfaceProperties(worldMatrix, 0);
+            var textureIndex = this.textures.IndexOf(texture);
+            this.surfaceProperties[this.currentSurfaceCount] = new SurfaceProperties(worldMatrix, (uint)textureIndex);
             this.currentSurfaceCount++;
         }
 
@@ -166,15 +196,9 @@ namespace CoreEngine.Graphics
                 var commandList = this.graphicsManager.CreateRenderCommandList();
 
                 this.graphicsManager.SetShader(commandList, this.shader);
-                this.graphicsManager.SetGraphicsBuffer(commandList, this.renderPassParametersGraphicsBuffer, GraphicsBindStage.Vertex, 1);
-                this.graphicsManager.SetGraphicsBuffer(commandList, this.surfacePropertiesGraphicsBuffer, GraphicsBindStage.Vertex, 2);
-
-                if (this.testTexture != null)
-                {
-                    this.graphicsManager.SetTexture(commandList, this.testTexture, GraphicsBindStage.Pixel, 1);
-                }
-
-                this.graphicsManager.SetGraphicsBuffer(commandList, this.surfacePropertiesGraphicsBuffer, GraphicsBindStage.Pixel, 2);
+                this.graphicsManager.SetGraphicsBuffer(commandList, this.renderPassParametersGraphicsBuffer, ShaderBindStage.Vertex, 1);
+                this.graphicsManager.SetGraphicsBuffer(commandList, this.vertexShaderParameters, ShaderBindStage.Vertex, 2);
+                this.graphicsManager.SetGraphicsBuffer(commandList, this.vertexShaderParameters, ShaderBindStage.Pixel, 1);
 
                 this.graphicsManager.DrawPrimitives(commandList, GeometryPrimitiveType.Triangle, 0, 6, this.vertexBuffer, this.indexBuffer, 2, 0);
 

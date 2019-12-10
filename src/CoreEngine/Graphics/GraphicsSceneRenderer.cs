@@ -34,8 +34,9 @@ namespace CoreEngine.Graphics
         private ObjectProperties[] objectProperties;
         internal int currentObjectPropertyIndex = 0;
 
+        private Shader testShader;
         // TODO: Abstract the fact that shader parameter binding is a buffer
-        GraphicsBuffer argumentBuffer;
+        private GraphicsBuffer shaderParameters;
 
         public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
@@ -47,6 +48,8 @@ namespace CoreEngine.Graphics
             this.graphicsManager = graphicsManager;
             this.debugRenderer = new DebugRenderer(graphicsManager, resourcesManager);
             this.sceneQueue = sceneQueue;
+
+            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/BasicRender.shader");
 
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, GraphicsResourceType.Dynamic);
@@ -68,7 +71,9 @@ namespace CoreEngine.Graphics
                 new ShaderParameterDescriptor(this.vertexShaderParametersGraphicsBuffer, ShaderParameterType.Buffer, 2)
             };
 
-            this.argumentBuffer = this.graphicsManager.CreateShaderParameters(this.graphicsManager.testShader, shaderParameterDescriptors);
+            // TODO: Store the shader parameter descriptors in the shader file so that we can have
+            // this.argumentBuffer = this.graphicsManager.CreateShaderParameters(this.graphicsManager.testShader);
+            this.shaderParameters = this.graphicsManager.CreateShaderParameters(this.testShader, 1, shaderParameterDescriptors);
         }
 
         public void Render()
@@ -94,8 +99,8 @@ namespace CoreEngine.Graphics
         {
             var renderCommandList = this.graphicsManager.CreateRenderCommandList();
 
-            this.graphicsManager.SetShader(renderCommandList, this.graphicsManager.testShader);
-            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.argumentBuffer, GraphicsBindStage.Vertex, 1);
+            this.graphicsManager.SetShader(renderCommandList, this.testShader);
+            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.shaderParameters, ShaderBindStage.Vertex, 1);
 
             DrawGeometryInstances(renderCommandList);
 
@@ -103,7 +108,7 @@ namespace CoreEngine.Graphics
             DrawCameraBoundingFrustum(scene);
             DrawGeometryInstancesBoundingBox(scene);
 
-            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.renderPassParametersGraphicsBuffer, GraphicsBindStage.Vertex, 1);
+            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.renderPassParametersGraphicsBuffer, ShaderBindStage.Vertex, 1);
             this.debugRenderer.Render(renderCommandList);
             
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);

@@ -8,7 +8,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate bool CreateTextureDelegate(IntPtr context, uint graphicsResourceId, int width, int height);
     internal unsafe delegate uint CreatePipelineStateDelegate(IntPtr context, byte *shaderByteCode, int shaderByteCodeLength);
     internal unsafe delegate void RemovePipelineStateDelegate(IntPtr context, uint pipelineStateId);
-    internal unsafe delegate bool CreateShaderParametersDelegate(IntPtr context, uint graphicsResourceId, uint pipelineStateId, GraphicsShaderParameterDescriptor*parameters, int parametersLength);
+    internal unsafe delegate bool CreateShaderParametersDelegate(IntPtr context, uint graphicsResourceId, uint pipelineStateId, uint slot, uint *graphicsResourceIdList, int graphicsResourceIdListLength, GraphicsShaderParameterDescriptor*parameters, int parametersLength);
     internal unsafe delegate uint CreateCopyCommandListDelegate(IntPtr context);
     internal unsafe delegate void ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
@@ -96,11 +96,12 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters)
+        public unsafe bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, uint slot, ReadOnlySpan<uint> graphicsResourceIdList, ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters)
         {
             if (this.context != null && this.createShaderParametersDelegate != null)
                 fixed (GraphicsShaderParameterDescriptor*parametersPinned = parameters)
-                    return this.createShaderParametersDelegate(this.context, graphicsResourceId, pipelineStateId, parametersPinned, parameters.Length);
+                    fixed (uint *graphicsResourceIdListPinned = graphicsResourceIdList)
+                        return this.createShaderParametersDelegate(this.context, graphicsResourceId, pipelineStateId, slot, graphicsResourceIdListPinned, graphicsResourceIdList.Length, parametersPinned, parameters.Length);
             else
                 return default(bool);
         }

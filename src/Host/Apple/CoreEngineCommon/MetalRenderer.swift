@@ -3,6 +3,18 @@ import QuartzCore.CAMetalLayer
 import simd
 import CoreEngineCommonInterop
 
+class Shader {
+    var pipelineState: MTLRenderPipelineState
+    var vertexFunction: MTLFunction
+    var fragmentFunction: MTLFunction
+
+    init(_ pipelineState: MTLRenderPipelineState, _ vertexFunction: MTLFunction, _ fragmentFunction: MTLFunction) {
+        self.pipelineState = pipelineState
+        self.vertexFunction = vertexFunction
+        self.fragmentFunction = fragmentFunction
+    }
+}
+
 public class MetalRenderer: GraphicsServiceProtocol {
     let device: MTLDevice
     let metalLayer: CAMetalLayer
@@ -20,7 +32,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
     var depthStencilState: MTLDepthStencilState!
 
     var currentPipelineStateId: UInt
-    var pipelineStates: [UInt: MTLRenderPipelineState]
+    var shaders: [UInt: Shader]
 
     var argumentBuffer: MTLBuffer!
 
@@ -61,7 +73,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
         self.depthTextures = []
         self.currentDepthTextureIndex = 0
 
-        self.pipelineStates = [:]
+        self.shaders = [:]
         self.currentPipelineStateId = 0
 
         self.copyCommandBuffers = [:]
@@ -105,8 +117,6 @@ public class MetalRenderer: GraphicsServiceProtocol {
         createDepthBuffers()
     }
 
-    var vertexFunction: MTLFunction?
-
     public func createPipelineState(_ shaderByteCodeData: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> UInt {
         var currentPipelineStateId: UInt = 0
 
@@ -118,12 +128,8 @@ public class MetalRenderer: GraphicsServiceProtocol {
         let dispatchData = DispatchData(bytes: UnsafeRawBufferPointer(start: shaderByteCodeData, count: shaderByteCodeLength))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
-        let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")
-        let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
-
-        if (self.vertexFunction == nil) {
-            self.vertexFunction = vertexFunction
-        }
+        let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")!
+        let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")!
 
         // Init vertex layout
         // TODO: Pass the layout to the create method
@@ -151,7 +157,7 @@ public class MetalRenderer: GraphicsServiceProtocol {
 
         do {
             let pipelineState = try self.device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
-            self.pipelineStates[currentPipelineStateId] = pipelineState
+            self.shaders[currentPipelineStateId] = Shader(pipelineState, vertexFunction, fragmentFunction)
             return currentPipelineStateId
         } catch {
             print("Failed to created pipeline state, \(error)")
@@ -161,29 +167,40 @@ public class MetalRenderer: GraphicsServiceProtocol {
     }
 
     public func removePipelineState(_ pipelineStateId: UInt) {
-        self.pipelineStates[self.currentPipelineStateId] = nil
+        self.shaders[self.currentPipelineStateId] = nil
     }
 
     // TODO: Use a more precise structure to define buffer layouts
-    public func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ parameters: [GraphicsShaderParameterDescriptor]) -> Bool {
-        // TODO: Check for errors
-        // TODO: Use the correct vertex function associated with the pipeline state
-
-        //let pipelineState = self.pipelineStates[self.currentPipelineStateId];
-        guard let vertexFunction = self.vertexFunction else {
+    // TODO: Don't use slot and create the structure by hand for makeArgumentEncoder
+    public func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ slot: UInt, _ graphicsResourceIdList: [UInt32], _ parameters: [GraphicsShaderParameterDescriptor]) -> Bool {
+        guard let shader = self.shaders[pipelineStateId] else {
+            print("drawPrimitives: Shader is nil.")
             return false
         }
 
-        let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 1)
+        // TODO: Make it compatible for pixel shaders
+        let argumentEncoder = shader.vertexFunction.makeArgumentEncoder(bufferIndex: Int(slot))
         self.argumentBuffer = self.device.makeBuffer(length: argumentEncoder.encodedLength)!
         self.argumentBuffer.label = "Vertex Argument Buffer"
 
         argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
+        var currentResourceIdIndex = 0
 
         for i in 0..<parameters.count {
             let parameter = parameters[i]
-            let graphicsBuffer = self.graphicsBuffers[UInt(parameter.GraphicsResourceId)]
-            argumentEncoder.setBuffer(graphicsBuffer, offset: 0, index: i)
+            let resourceIdCount = Int(parameter.ResourceIdCount)
+
+            if (parameter.ParameterType.rawValue == 0) {
+                let graphicsBuffer = self.graphicsBuffers[UInt(graphicsResourceIdList[currentResourceIdIndex])]
+                argumentEncoder.setBuffer(graphicsBuffer, offset: 0, index: i)
+            } else if (parameter.ParameterType.rawValue == 1) {
+                for j in 0..<resourceIdCount {
+                    let texture = self.textures[UInt(graphicsResourceIdList[currentResourceIdIndex + j])]
+                    argumentEncoder.setTexture(texture, index: i + j)
+                }
+            }
+
+            currentResourceIdIndex += resourceIdCount
         }
 
         self.graphicsBuffers[graphicsResourceId] = argumentBuffer
@@ -420,12 +437,12 @@ public class MetalRenderer: GraphicsServiceProtocol {
             return
         }
 
-        guard let pipelineState = self.pipelineStates[pipelineStateId] else {
-            print("drawPrimitives: Pipelinestate is nil.")
+        guard let shader = self.shaders[pipelineStateId] else {
+            print("drawPrimitives: Shader is nil.")
             return
         }
 
-        renderCommandEncoder.setRenderPipelineState(pipelineState)
+        renderCommandEncoder.setRenderPipelineState(shader.pipelineState)
     }
 
     public func setGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ graphicsBindStage: GraphicsBindStage, _ slot: UInt) {

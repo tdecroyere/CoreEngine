@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace CoreEngine.HostServices
@@ -24,14 +25,14 @@ namespace CoreEngine.HostServices
 
     public readonly struct GraphicsShaderParameterDescriptor
     {
-        public GraphicsShaderParameterDescriptor(uint graphicsResourceId, GraphicsShaderParameterType parameterType, uint slot)
+        public GraphicsShaderParameterDescriptor(int resourceIdCount, GraphicsShaderParameterType parameterType, uint slot)
         {
-            this.GraphicsResourceId = graphicsResourceId;
+            this.ResourceIdCount = resourceIdCount;
             this.ParameterType = parameterType;
             this.Slot = slot;
         }
 
-        public readonly uint GraphicsResourceId { get; }
+        public readonly int ResourceIdCount { get; }
         public readonly GraphicsShaderParameterType ParameterType { get; }
         public readonly uint Slot { get; }
     }
@@ -45,7 +46,7 @@ namespace CoreEngine.HostServices
 
         uint CreatePipelineState(ReadOnlySpan<byte> shaderByteCode);
         void RemovePipelineState(uint pipelineStateId);
-        bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters);
+        bool CreateShaderParameters(uint graphicsResourceId, uint pipelineStateId, uint slot, ReadOnlySpan<uint> graphicsResourceIdList, ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters);
         
         uint CreateCopyCommandList();
         void ExecuteCopyCommandList(uint commandListId);

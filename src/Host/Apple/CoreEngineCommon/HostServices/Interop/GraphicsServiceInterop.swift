@@ -25,9 +25,9 @@ func removePipelineStateInterop(context: UnsafeMutableRawPointer?, _ pipelineSta
     contextObject.removePipelineState(UInt(pipelineStateId))
 }
 
-func createShaderParametersInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ pipelineStateId: UInt32, _ parameters: UnsafeMutablePointer<GraphicsShaderParameterDescriptor>?, _ parametersLength: Int32) -> Int32 {
+func createShaderParametersInterop(context: UnsafeMutableRawPointer?, _ graphicsResourceId: UInt32, _ pipelineStateId: UInt32, _ slot: UInt32, _ graphicsResourceIdList: UnsafeMutablePointer<UInt32>?, _ graphicsResourceIdListLength: Int32, _ parameters: UnsafeMutablePointer<GraphicsShaderParameterDescriptor>?, _ parametersLength: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalRenderer>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createShaderParameters(UInt(graphicsResourceId), UInt(pipelineStateId), Array(UnsafeBufferPointer(start: parameters, count: Int(parametersLength)))) ? 1 : 0)
+    return Int32(contextObject.createShaderParameters(UInt(graphicsResourceId), UInt(pipelineStateId), UInt(slot), Array(UnsafeBufferPointer(start: graphicsResourceIdList, count: Int(graphicsResourceIdListLength))), Array(UnsafeBufferPointer(start: parameters, count: Int(parametersLength)))) ? 1 : 0)
 }
 
 func createCopyCommandListInterop(context: UnsafeMutableRawPointer?) -> UInt32 {

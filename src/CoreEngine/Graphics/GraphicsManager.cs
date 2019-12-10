@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
@@ -15,8 +16,6 @@ namespace CoreEngine.Graphics
 
         private static object syncObject = new object();
         private uint currentGraphicsResourceId;
-        
-        public Shader testShader;
 
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
@@ -30,8 +29,6 @@ namespace CoreEngine.Graphics
             this.currentGraphicsResourceId = 0;
 
             InitResourceLoaders();
-
-            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/BasicRender.shader");
         }
 
         public uint CurrentFrameNumber
@@ -48,7 +45,7 @@ namespace CoreEngine.Graphics
         // TODO: Allow the creation of linked graphics buffers from a struct?
         // TODO: Allow the specification of dynamic or static?
         // TODO: Don't return a GraphicsBuffer but a specific struct
-        public GraphicsBuffer CreateShaderParameters(Shader shader, ReadOnlySpan<ShaderParameterDescriptor> parameterDescriptors)
+        public GraphicsBuffer CreateShaderParameters(Shader shader, uint slot, ReadOnlySpan<ShaderParameterDescriptor> parameterDescriptors)
         {
             if (shader == null)
             {
@@ -56,14 +53,24 @@ namespace CoreEngine.Graphics
             }
 
             var nativeParameterDescriptors = new GraphicsShaderParameterDescriptor[parameterDescriptors.Length];
+            var fullResourceIdList = new List<uint>();
 
             for (var i = 0; i < parameterDescriptors.Length; i++)
             {
-                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(parameterDescriptors[i].GraphicsResource.SystemId, (GraphicsShaderParameterType)(int)parameterDescriptors[i].ParameterType, parameterDescriptors[i].Slot);
+                var parameterDescriptor = parameterDescriptors[i];
+                var resourceIdList = new uint[parameterDescriptor.GraphicsResourceList.Count];
+
+                for (var j = 0; j < parameterDescriptor.GraphicsResourceList.Count; j++)
+                {
+                    resourceIdList[j] = parameterDescriptor.GraphicsResourceList[j].SystemId;
+                }
+
+                fullResourceIdList.AddRange(resourceIdList);
+                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(resourceIdList.Length, (GraphicsShaderParameterType)(int)parameterDescriptor.ParameterType, parameterDescriptor.Slot);
             }
 
             var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.PipelineStateId, nativeParameterDescriptors);
+            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.PipelineStateId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
             
             if (!result)
             {
@@ -73,16 +80,24 @@ namespace CoreEngine.Graphics
             var graphicsBufferId2 = GetNextGraphicsResourceId();
 
             nativeParameterDescriptors = new GraphicsShaderParameterDescriptor[parameterDescriptors.Length];
+            fullResourceIdList = new List<uint>();
 
             for (var i = 0; i < parameterDescriptors.Length; i++)
             {
                 var parameterDescriptor = parameterDescriptors[i];
-                var resourceId = parameterDescriptor.GraphicsResource.SystemId2 != null ? parameterDescriptor.GraphicsResource.SystemId2.Value : parameterDescriptor.GraphicsResource.SystemId;
+                var resourceIdList = new uint[parameterDescriptor.GraphicsResourceList.Count];
 
-                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(resourceId, (GraphicsShaderParameterType)(int)parameterDescriptor.ParameterType, parameterDescriptor.Slot);
+                for (var j = 0; j < parameterDescriptor.GraphicsResourceList.Count; j++)
+                {
+                    var graphicsResource = parameterDescriptor.GraphicsResourceList[j];
+                    resourceIdList[j] = (graphicsResource.SystemId2 != null) ? graphicsResource.SystemId2.Value : graphicsResource.SystemId;
+                }
+
+                fullResourceIdList.AddRange(resourceIdList);
+                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(resourceIdList.Length, (GraphicsShaderParameterType)(int)parameterDescriptor.ParameterType, parameterDescriptor.Slot);
             }
 
-            result = this.graphicsService.CreateShaderParameters(graphicsBufferId2, shader.PipelineStateId, nativeParameterDescriptors);
+            result = this.graphicsService.CreateShaderParameters(graphicsBufferId2, shader.PipelineStateId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
 
             if (!result)
             {
@@ -172,6 +187,11 @@ namespace CoreEngine.Graphics
 
         public void UploadDataToTexture<T>(CommandList commandList, Texture texture, ReadOnlySpan<T> data) where T : struct
         {
+            if (texture == null)
+            {
+                throw new ArgumentNullException(nameof(texture));
+            }
+
             var rawData = MemoryMarshal.Cast<T, byte>(data);
             this.graphicsService.UploadDataToTexture(commandList.Id, texture.Id, texture.Width, texture.Height, rawData);
         }
@@ -202,13 +222,18 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetPipelineState(commandList.Id, shader.PipelineStateId);
         }
 
-        public void SetGraphicsBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, GraphicsBindStage bindStage, uint slot)
+        public void SetGraphicsBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, ShaderBindStage bindStage, uint slot)
         {
             this.graphicsService.SetGraphicsBuffer(commandList.Id, graphicsBuffer.Id, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
         }
 
-        public void SetTexture(CommandList commandList, Texture texture, GraphicsBindStage bindStage, uint slot)
+        public void SetTexture(CommandList commandList, Texture texture, ShaderBindStage bindStage, uint slot)
         {
+            if (texture == null)
+            {
+                throw new ArgumentNullException(nameof(texture));
+            }
+
             this.graphicsService.SetTexture(commandList.Id, texture.Id, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
         }
 

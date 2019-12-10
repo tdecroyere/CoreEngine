@@ -22,7 +22,7 @@ enum GraphicsShaderParameterType : int
 
 struct GraphicsShaderParameterDescriptor
 {
-    unsigned int GraphicsResourceId;
+    int ResourceIdCount;
     enum GraphicsShaderParameterType ParameterType;
     unsigned int Slot;
 
@@ -33,7 +33,7 @@ typedef int (*CreateGraphicsBufferPtr)(void* context, unsigned int graphicsResou
 typedef int (*CreateTexturePtr)(void* context, unsigned int graphicsResourceId, int width, int height);
 typedef unsigned int (*CreatePipelineStatePtr)(void* context, void* shaderByteCode, int shaderByteCodeLength);
 typedef void (*RemovePipelineStatePtr)(void* context, unsigned int pipelineStateId);
-typedef int (*CreateShaderParametersPtr)(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, struct GraphicsShaderParameterDescriptor* parameters, int parametersLength);
+typedef int (*CreateShaderParametersPtr)(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, unsigned int slot, unsigned int* graphicsResourceIdList, int graphicsResourceIdListLength, struct GraphicsShaderParameterDescriptor* parameters, int parametersLength);
 typedef unsigned int (*CreateCopyCommandListPtr)(void* context);
 typedef void (*ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);

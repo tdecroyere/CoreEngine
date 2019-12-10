@@ -6,7 +6,7 @@ public protocol GraphicsServiceProtocol {
     func createTexture(_ graphicsResourceId: UInt, _ width: Int, _ height: Int) -> Bool
     func createPipelineState(_ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> UInt
     func removePipelineState(_ pipelineStateId: UInt)
-    func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ parameters: [GraphicsShaderParameterDescriptor]) -> Bool
+    func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ slot: UInt, _ graphicsResourceIdList: [UInt32], _ parameters: [GraphicsShaderParameterDescriptor]) -> Bool
     func createCopyCommandList() -> UInt
     func executeCopyCommandList(_ commandListId: UInt)
     func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ dataLength: Int)

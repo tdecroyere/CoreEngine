@@ -32,10 +32,10 @@ void RemovePipelineStateInterop(void* context, unsigned int pipelineStateId)
     contextObject->RemovePipelineState(pipelineStateId)
 }
 
-int CreateShaderParametersInterop(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, struct ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters)
+int CreateShaderParametersInterop(void* context, unsigned int graphicsResourceId, unsigned int pipelineStateId, unsigned int slot, struct ReadOnlySpan<uint> graphicsResourceIdList, struct ReadOnlySpan<GraphicsShaderParameterDescriptor> parameters)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateShaderParameters(graphicsResourceId, pipelineStateId, parameters)
+    return contextObject->CreateShaderParameters(graphicsResourceId, pipelineStateId, slot, graphicsResourceIdList, parameters)
 }
 
 unsigned int CreateCopyCommandListInterop(void* context)

@@ -130,12 +130,12 @@ struct InputsState
 
 };
 
-typedef struct InputsState (*GetInputsStatePtr)(void* context);
-typedef void (*SendVibrationCommandPtr)(void* context, unsigned int playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, unsigned int duration10ms);
+typedef struct InputsState (*InputsService_GetInputsStatePtr)(void* context);
+typedef void (*InputsService_SendVibrationCommandPtr)(void* context, unsigned int playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, unsigned int duration10ms);
 
 struct InputsService
 {
     void* Context;
-    GetInputsStatePtr GetInputsState;
-    SendVibrationCommandPtr SendVibrationCommand;
+    InputsService_GetInputsStatePtr InputsService_GetInputsState;
+    InputsService_SendVibrationCommandPtr InputsService_SendVibrationCommand;
 };

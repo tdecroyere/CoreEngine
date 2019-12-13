@@ -3,16 +3,16 @@ import CoreEngineCommonInterop
 
 public class CoreEngineHost {
     public var hostPlatform: HostPlatform!
-    let renderer: MetalRenderer
+    let graphicsService: MetalGraphicsService
     let inputsManager: InputsManager
 
     var startEnginePointer: StartEnginePtr?
     var updateEnginePointer: UpdateEnginePtr?
     var renderPointer: RenderPtr?
 
-    public init(renderer: MetalRenderer, inputsManager: InputsManager) {
+    public init(graphicsService: MetalGraphicsService, inputsManager: InputsManager) {
         self.hostPlatform = HostPlatform()
-        self.renderer = renderer
+        self.graphicsService = graphicsService
         self.inputsManager = inputsManager
     }
 
@@ -25,7 +25,7 @@ public class CoreEngineHost {
             appNameUnsafe = strdup(appName)
         }
         
-        initGraphicsService(self.renderer, &self.hostPlatform.GraphicsService)
+        initGraphicsService(self.graphicsService, &self.hostPlatform.GraphicsService)
         initInputsService(self.inputsManager, &self.hostPlatform.InputsService)
 
         guard let startEngineInterop = self.startEnginePointer else {

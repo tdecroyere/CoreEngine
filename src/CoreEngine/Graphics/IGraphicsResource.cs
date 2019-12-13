@@ -2,8 +2,8 @@ namespace CoreEngine.Graphics
 {
     public interface IGraphicsResource
     {
-        uint Id { get; }
-        uint SystemId { get; }
-        uint? SystemId2 { get; }
+        uint GraphicsResourceId { get; }
+        uint GraphicsResourceSystemId { get; }
+        uint? GraphicsResourceSystemId2 { get; }
     }
 }

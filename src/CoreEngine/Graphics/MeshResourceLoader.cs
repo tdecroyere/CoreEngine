@@ -45,16 +45,13 @@ namespace CoreEngine.Graphics
                 return Task.FromResult(resource);
             }
 
-            // TODO: Read the vertex format from the mesh file
-            var vertexLayout = new VertexLayout(VertexElementType.Float3, VertexElementType.Float3);
-
             var geometryPacketVertexCount = reader.ReadInt32();
             var geometryPacketIndexCount = reader.ReadInt32();
 
             //Logger.WriteMessage($"Vertices Count: {vertexCount}, Indices Count: {indexCount}");
 
             // TODO: Change the calculation of the vertex size (current is fixed to Position, Normal)
-            var vertexSize = sizeof(float) * 6;
+            var vertexSize = sizeof(float) * 8;
             var vertexBufferSize = geometryPacketVertexCount * vertexSize;
             var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
 
@@ -70,7 +67,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, indexBufferData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
             
-            var geometryPacket = new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
+            var geometryPacket = new GeometryPacket(vertexBuffer, indexBuffer);
             mesh.GeometryPacket = geometryPacket;
 
             var geometryInstancesCount = reader.ReadInt32();

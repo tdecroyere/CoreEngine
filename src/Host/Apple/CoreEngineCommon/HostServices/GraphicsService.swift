@@ -2,20 +2,22 @@ import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
     func getRenderSize() -> Vector2
-    func createGraphicsBuffer(_ graphicsResourceId: UInt, _ length: Int) -> Bool
-    func createTexture(_ graphicsResourceId: UInt, _ width: Int, _ height: Int) -> Bool
-    func createPipelineState(_ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> UInt
-    func removePipelineState(_ pipelineStateId: UInt)
-    func createShaderParameters(_ graphicsResourceId: UInt, _ pipelineStateId: UInt, _ slot: UInt, _ graphicsResourceIdList: [UInt32], _ parameters: [GraphicsShaderParameterDescriptor]) -> Bool
-    func createCopyCommandList() -> UInt
+    func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int) -> Bool
+    func createTexture(_ textureId: UInt, _ width: Int, _ height: Int) -> Bool
+    func createShader(_ shaderId: UInt, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> Bool
+    func removeShader(_ shaderId: UInt)
+    func createCopyCommandList(_ commandListId: UInt) -> Bool
     func executeCopyCommandList(_ commandListId: UInt)
     func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ dataLength: Int)
     func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ width: Int, _ height: Int, _ data: UnsafeMutableRawPointer, _ dataLength: Int)
-    func createRenderCommandList() -> UInt
+    func createRenderCommandList(_ commandListId: UInt) -> Bool
     func executeRenderCommandList(_ commandListId: UInt)
-    func setPipelineState(_ commandListId: UInt, _ pipelineStateId: UInt)
-    func setGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ graphicsBindStage: GraphicsBindStage, _ slot: UInt)
-    func setTexture(_ commandListId: UInt, _ textureId: UInt, _ graphicsBindStage: GraphicsBindStage, _ slot: UInt)
-    func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ vertexBufferId: UInt, _ indexBufferId: UInt, _ instanceCount: Int, _ baseInstanceId: Int)
+    func setShader(_ commandListId: UInt, _ shaderId: UInt)
+    func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ index: Int)
+    func setShaderBuffers(_ commandListId: UInt, _ graphicsBufferIdList: [UInt32], _ slot: Int, _ index: Int)
+    func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ index: Int)
+    func setShaderTextures(_ commandListId: UInt, _ textureIdList: [UInt32], _ slot: Int, _ index: Int)
+    func setIndexBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt)
+    func drawIndexedPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ instanceCount: Int, _ baseInstanceId: Int)
     func presentScreenBuffer()
 }

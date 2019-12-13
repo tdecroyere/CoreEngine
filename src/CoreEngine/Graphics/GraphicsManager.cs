@@ -42,10 +42,83 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetRenderSize();
         }
 
+        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static) where T : struct
+        {
+            var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
+
+            var graphicsBufferId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
+            }
+
+            uint? graphicsBufferId2 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                graphicsBufferId2 = GetNextGraphicsResourceId();
+                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
+                }
+            }
+
+            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, resourceType);
+        }
+
+        // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
+        public Texture CreateTexture(int width, int height, GraphicsResourceType resourceType = GraphicsResourceType.Static)
+        {
+            var textureId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateTexture(textureId, width, height);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the texture resource.");
+            }
+
+            uint? textureId2 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                textureId2 = GetNextGraphicsResourceId();
+                result = this.graphicsService.CreateTexture(textureId2.Value, width, height);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the texture resource.");
+                }
+            }
+
+            return new Texture(this, textureId, textureId2, width, height, resourceType);
+        }
+
+        internal Shader CreateShader(ReadOnlySpan<byte> shaderByteCode)
+        {
+            var shaderId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateShader(shaderId, shaderByteCode);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the shader resource.");
+            }
+
+            return new Shader(shaderId);
+        }
+
+        internal void RemoveShader(Shader shader)
+        {
+            this.graphicsService.RemoveShader(shader.ShaderId);
+        }
+
         // TODO: Allow the creation of linked graphics buffers from a struct?
         // TODO: Allow the specification of dynamic or static?
         // TODO: Don't return a GraphicsBuffer but a specific struct
-        public GraphicsBuffer CreateShaderParameters(Shader shader, uint slot, ReadOnlySpan<ShaderParameterDescriptor> parameterDescriptors)
+        /*public GraphicsBuffer CreateShaderParameters(Shader shader, uint slot, ReadOnlySpan<ShaderParameterDescriptor> parameterDescriptors)
         {
             if (shader == null)
             {
@@ -70,7 +143,7 @@ namespace CoreEngine.Graphics
             }
 
             var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.PipelineStateId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
+            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.ShaderId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
             
             if (!result)
             {
@@ -97,7 +170,7 @@ namespace CoreEngine.Graphics
                 nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(resourceIdList.Length, (GraphicsShaderParameterType)(int)parameterDescriptor.ParameterType, parameterDescriptor.Slot);
             }
 
-            result = this.graphicsService.CreateShaderParameters(graphicsBufferId2, shader.PipelineStateId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
+            result = this.graphicsService.CreateShaderParameters(graphicsBufferId2, shader.ShaderId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
 
             if (!result)
             {
@@ -105,66 +178,18 @@ namespace CoreEngine.Graphics
             }
 
             return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, 0, GraphicsResourceType.Dynamic);
-        }
-
-        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static) where T : struct
-        {
-            var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
-
-            var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes);
-
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
-            }
-
-            uint? graphicsBufferId2 = null;
-
-            if (resourceType == GraphicsResourceType.Dynamic)
-            {
-                graphicsBufferId2 = GetNextGraphicsResourceId();
-                result = graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes);
-
-                if (!result)
-                {
-                    throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
-                }
-            }
-
-            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, resourceType);
-        }
-
-        // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
-        public Texture CreateTexture(int width, int height, GraphicsResourceType resourceType = GraphicsResourceType.Static)
-        {
-            var textureId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateTexture(textureId, width, height);
-
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the texture resource.");
-            }
-
-            uint? textureId2 = null;
-
-            if (resourceType == GraphicsResourceType.Dynamic)
-            {
-                textureId2 = GetNextGraphicsResourceId();
-                result = graphicsService.CreateTexture(textureId2.Value, width, height);
-
-                if (!result)
-                {
-                    throw new InvalidOperationException("There was an error while creating the texture resource.");
-                }
-            }
-
-            return new Texture(this, textureId, textureId2, width, height, resourceType);
-        }
+        }*/
 
         public CommandList CreateCopyCommandList()
         {
-            var commandListId = graphicsService.CreateCopyCommandList();
+            var commandListId = GetNextGraphicsResourceId();
+            var result = graphicsService.CreateCopyCommandList(commandListId);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the copy command list resource.");
+            }
+
             return new CommandList(commandListId, CommandListType.Copy);
         }
 
@@ -182,7 +207,7 @@ namespace CoreEngine.Graphics
         {
             // TODO: Do something for memory alignement of data in the shaders?
             var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.Id, rawData);
+            this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, rawData);
         }
 
         public void UploadDataToTexture<T>(CommandList commandList, Texture texture, ReadOnlySpan<T> data) where T : struct
@@ -193,12 +218,19 @@ namespace CoreEngine.Graphics
             }
 
             var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToTexture(commandList.Id, texture.Id, texture.Width, texture.Height, rawData);
+            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, texture.Width, texture.Height, rawData);
         }
 
         public CommandList CreateRenderCommandList()
         {
-            var commandListId = graphicsService.CreateRenderCommandList();
+            var commandListId = GetNextGraphicsResourceId();
+            var result = graphicsService.CreateRenderCommandList(commandListId);
+
+            // if (!result)
+            // {
+            //     throw new InvalidOperationException("There was an error while creating the render command list resource.");
+            // }
+
             return new CommandList(commandListId, CommandListType.Render);
         }
 
@@ -219,22 +251,61 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(shader));
             }
 
-            this.graphicsService.SetPipelineState(commandList.Id, shader.PipelineStateId);
+            this.graphicsService.SetShader(commandList.Id, shader.ShaderId);
         }
 
-        public void SetGraphicsBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, ShaderBindStage bindStage, uint slot)
+        public void SetShaderBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, int slot, int index = 0)
         {
-            this.graphicsService.SetGraphicsBuffer(commandList.Id, graphicsBuffer.Id, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
+            this.graphicsService.SetShaderBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, slot, index);
         }
 
-        public void SetTexture(CommandList commandList, Texture texture, ShaderBindStage bindStage, uint slot)
+        public void SetShaderBuffers(CommandList commandList, ReadOnlySpan<GraphicsBuffer> graphicsBuffers, int slot, int index = 0)
+        {
+            if (graphicsBuffers == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsBuffers));
+            }
+
+            var graphicsBufferIdsList = new uint[graphicsBuffers.Length];
+
+            for (var i = 0; i < graphicsBuffers.Length; i++)
+            {
+                graphicsBufferIdsList[i] = graphicsBuffers[i].GraphicsResourceId;
+            }
+
+            this.graphicsService.SetShaderBuffers(commandList.Id, graphicsBufferIdsList.AsSpan(), slot, index);
+        }
+
+        public void SetShaderTexture(CommandList commandList, Texture texture, int slot, int index = 0)
         {
             if (texture == null)
             {
                 throw new ArgumentNullException(nameof(texture));
             }
 
-            this.graphicsService.SetTexture(commandList.Id, texture.Id, (CoreEngine.HostServices.GraphicsBindStage)(int)bindStage, slot);
+            this.graphicsService.SetShaderTexture(commandList.Id, texture.GraphicsResourceId, slot, index);
+        }
+
+        public void SetShaderTextures(CommandList commandList, ReadOnlySpan<Texture> textures, int slot, int index = 0)
+        {
+            if (textures == null)
+            {
+                throw new ArgumentNullException(nameof(textures));
+            }
+
+            var textureIdsList = new uint[textures.Length];
+
+            for (var i = 0; i < textures.Length; i++)
+            {
+                textureIdsList[i] = textures[i].GraphicsResourceId;
+            }
+
+            this.graphicsService.SetShaderTextures(commandList.Id, textureIdsList.AsSpan(), slot, index);
+        }
+
+        public void SetIndexBuffer(CommandList commandList, GraphicsBuffer indexBuffer)
+        {
+            this.graphicsService.SetIndexBuffer(commandList.Id, indexBuffer.GraphicsResourceId);
         }
 
         public void DrawGeometryInstances(CommandList commandList, GeometryInstance geometryInstance, int instanceCount, int baseInstanceId)
@@ -244,29 +315,28 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("Index count must non-zero.");
             }
 
-            this.DrawPrimitives(commandList, 
-                                geometryInstance.PrimitiveType, 
-                                geometryInstance.StartIndex, 
-                                geometryInstance.IndexCount, 
-                                geometryInstance.GeometryPacket.VertexBuffer, 
-                                geometryInstance.GeometryPacket.IndexBuffer, 
-                                instanceCount,
-                                baseInstanceId);
+            this.SetShaderBuffer(commandList, geometryInstance.GeometryPacket.VertexBuffer, 0);
+            this.SetIndexBuffer(commandList, geometryInstance.GeometryPacket.IndexBuffer);
+
+            this.DrawIndexedPrimitives(commandList, 
+                                        geometryInstance.PrimitiveType, 
+                                        geometryInstance.StartIndex, 
+                                        geometryInstance.IndexCount, 
+                                        instanceCount,
+                                        baseInstanceId);
         }
 
-        public void DrawPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, int startIndex, int indexCount, GraphicsBuffer vertexBuffer, GraphicsBuffer indexBuffer, int instanceCount, int baseInstanceId)
+        public void DrawIndexedPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
         {
             if (commandList.Type != CommandListType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            this.graphicsService.DrawPrimitives(commandList.Id, 
+            this.graphicsService.DrawIndexedPrimitives(commandList.Id, 
                                                 (GraphicsPrimitiveType)(int)primitiveType, 
                                                 startIndex, 
-                                                indexCount, 
-                                                vertexBuffer.Id, 
-                                                indexBuffer.Id, 
+                                                indexCount,
                                                 instanceCount,
                                                 baseInstanceId);
         }
@@ -282,12 +352,12 @@ namespace CoreEngine.Graphics
         private void InitResourceLoaders()
         {
             this.resourcesManager.AddResourceLoader(new TextureResourceLoader(this.resourcesManager, this));
-            this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this.graphicsService));
+            this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this));
             this.resourcesManager.AddResourceLoader(new MaterialResourceLoader(this.resourcesManager, this));
             this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this));
         }
 
-        private uint GetNextGraphicsResourceId()
+        internal uint GetNextGraphicsResourceId()
         {
             uint result = 0;
 

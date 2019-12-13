@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Numerics;
 
 namespace CoreEngine.Graphics
 {
@@ -6,41 +8,41 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal GraphicsBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int sizeInBytes, GraphicsResourceType resourceType)
+        internal GraphicsBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int length, GraphicsResourceType resourceType)
         {
             this.graphicsManager = graphicsManager;
-            this.SystemId = systemId;
-            this.SystemId2 = systemId2;
-            this.SizeInBytes = sizeInBytes;
+            this.GraphicsResourceSystemId = systemId;
+            this.GraphicsResourceSystemId2 = systemId2;
+            this.Length = length;
             this.ResourceType = resourceType;
         }
 
-        public readonly uint Id 
+        public uint GraphicsResourceId 
         { 
             get
             {
-                var result = this.SystemId;
+                var result = this.GraphicsResourceSystemId;
 
-                if (ResourceType == GraphicsResourceType.Dynamic && this.SystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
                 {
-                    result = this.SystemId2.Value;
+                    result = this.GraphicsResourceSystemId2.Value;
                 }
 
                 return result;
             }
         }
 
-        public readonly uint SystemId
+        public uint GraphicsResourceSystemId
         {
             get;
         }
 
-        public readonly uint? SystemId2
+        public uint? GraphicsResourceSystemId2
         {
             get;
         }
 
-        public readonly int SizeInBytes { get; }
-        public readonly GraphicsResourceType ResourceType { get; }
+        public int Length { get; }
+        public GraphicsResourceType ResourceType { get; }
     }
 }

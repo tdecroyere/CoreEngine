@@ -52,15 +52,15 @@ namespace CoreEngine.Graphics
             var textureDataLength = reader.ReadInt32();
             var textureData = reader.ReadBytes(textureDataLength);
 
-            if (texture.Id != 0)
+            if (texture.GraphicsResourceId != 0)
             {
                 // TODO: Implement remove texture
                 //this.graphicsService.RemoveTexture(texture.TextureId);
             }
 
             var createdTexture = this.graphicsManager.CreateTexture(texture.Width, texture.Height);
-            texture.SystemId = createdTexture.SystemId;
-            texture.SystemId2 = createdTexture.SystemId2;
+            texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
+            texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 
             // TODO: Make only one frame copy command list for all resource loaders
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();

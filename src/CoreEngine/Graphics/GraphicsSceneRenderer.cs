@@ -22,21 +22,18 @@ namespace CoreEngine.Graphics
         private readonly GraphicsSceneQueue sceneQueue;
 
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
-        private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
         private GraphicsBuffer objectPropertiesGraphicsBuffer;
+        private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
 
         private RenderPassConstants renderPassConstants;
+
         private List<GeometryInstance> meshGeometryInstances;
         private List<uint> meshGeometryInstancesParamIdList;
         private uint[] vertexShaderParameters;
-
         private Dictionary<ItemIdentifier, int> objectPropertiesMapping;
         private ObjectProperties[] objectProperties;
         internal int currentObjectPropertyIndex = 0;
-
         private Shader testShader;
-        // TODO: Abstract the fact that shader parameter binding is a buffer
-        private GraphicsBuffer shaderParameters;
 
         public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
@@ -54,26 +51,15 @@ namespace CoreEngine.Graphics
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, GraphicsResourceType.Dynamic);
 
-            this.vertexShaderParameters = new uint[1024];
-            this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<int>(1024, GraphicsResourceType.Dynamic);
-
             this.objectPropertiesMapping = new Dictionary<ItemIdentifier, int>();
             this.objectProperties = new ObjectProperties[1024];
             this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<Matrix4x4>(1024, GraphicsResourceType.Dynamic);
+            
+            this.vertexShaderParameters = new uint[1024];
+            this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<int>(1024, GraphicsResourceType.Dynamic);
 
             this.meshGeometryInstances = new List<GeometryInstance>();
             this.meshGeometryInstancesParamIdList = new List<uint>();
-
-            var shaderParameterDescriptors = new ShaderParameterDescriptor[3]
-            {
-                new ShaderParameterDescriptor(this.renderPassParametersGraphicsBuffer, ShaderParameterType.Buffer, 0),
-                new ShaderParameterDescriptor(this.objectPropertiesGraphicsBuffer, ShaderParameterType.Buffer, 1),
-                new ShaderParameterDescriptor(this.vertexShaderParametersGraphicsBuffer, ShaderParameterType.Buffer, 2)
-            };
-
-            // TODO: Store the shader parameter descriptors in the shader file so that we can have
-            // this.argumentBuffer = this.graphicsManager.CreateShaderParameters(this.graphicsManager.testShader);
-            this.shaderParameters = this.graphicsManager.CreateShaderParameters(this.testShader, 1, shaderParameterDescriptors);
         }
 
         public void Render()
@@ -100,16 +86,13 @@ namespace CoreEngine.Graphics
             var renderCommandList = this.graphicsManager.CreateRenderCommandList();
 
             this.graphicsManager.SetShader(renderCommandList, this.testShader);
-            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.shaderParameters, ShaderBindStage.Vertex, 1);
-
             DrawGeometryInstances(renderCommandList);
 
             this.debugRenderer.ClearDebugLines();
             DrawCameraBoundingFrustum(scene);
             DrawGeometryInstancesBoundingBox(scene);
 
-            this.graphicsManager.SetGraphicsBuffer(renderCommandList, this.renderPassParametersGraphicsBuffer, ShaderBindStage.Vertex, 1);
-            this.debugRenderer.Render(renderCommandList);
+            this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, renderCommandList);
             
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
         }
@@ -127,17 +110,12 @@ namespace CoreEngine.Graphics
             this.meshGeometryInstances.Clear();
             this.meshGeometryInstancesParamIdList.Clear();
 
-            CopyRenderPassConstantsToGpu(copyCommandList, this.renderPassConstants);
+            this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants[] {renderPassConstants});
+
             CopyObjectPropertiesToGpu(copyCommandList, scene.MeshInstances);
             CopyDrawParametersToGpu(copyCommandList);
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
-        }
-
-        private void CopyRenderPassConstantsToGpu(CommandList commandList, RenderPassConstants renderPassConstants)
-        {
-            // TODO: Switch to configurable render pass constants
-            this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants>(commandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants[] {renderPassConstants});
         }
 
         private void CopyObjectPropertiesToGpu(CommandList commandList, ItemCollection<MeshInstance> meshInstances)
@@ -173,14 +151,11 @@ namespace CoreEngine.Graphics
         private void CopyDrawParametersToGpu(CommandList commandList)
         {
             // Prepare draw parameters
-            this.vertexShaderParameters.Initialize();
-
             for (var i = 0; i < this.meshGeometryInstances.Count; i++)
             {
                 this.vertexShaderParameters[i] = this.meshGeometryInstancesParamIdList[i];
             }
 
-            // argument buffer per shader?
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(commandList, this.vertexShaderParametersGraphicsBuffer, this.vertexShaderParameters);
         }
 
@@ -190,6 +165,10 @@ namespace CoreEngine.Graphics
             {
                 // TODO: Calculate base instanceid based on the previous batch size
 
+                this.graphicsManager.SetShaderBuffer(commandList, this.renderPassParametersGraphicsBuffer, 1);
+                this.graphicsManager.SetShaderBuffer(commandList, this.objectPropertiesGraphicsBuffer, 2);
+                this.graphicsManager.SetShaderBuffer(commandList, this.vertexShaderParametersGraphicsBuffer, 3);
+                
                 var geometryInstance = this.meshGeometryInstances[i];
                 this.graphicsManager.DrawGeometryInstances(commandList, geometryInstance, 1, i);
             }

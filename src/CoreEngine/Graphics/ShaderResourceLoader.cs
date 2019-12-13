@@ -11,11 +11,11 @@ namespace CoreEngine.Graphics
     
     public class ShaderResourceLoader : ResourceLoader
     {
-        private readonly IGraphicsService graphicsService;
+        private readonly GraphicsManager graphicsManager;
 
-        public ShaderResourceLoader(ResourcesManager resourcesManager, IGraphicsService graphicsService) : base(resourcesManager)
+        public ShaderResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
-            this.graphicsService = graphicsService;
+            this.graphicsManager = graphicsManager;
         }
 
         public override string Name => "Shader Loader";
@@ -50,13 +50,13 @@ namespace CoreEngine.Graphics
             var shaderByteCodeLength = reader.ReadInt32();
             var shaderByteCode = reader.ReadBytes(shaderByteCodeLength);
 
-            if (shader.PipelineStateId != 0)
+            if (shader.ShaderId != 0)
             {
-                this.graphicsService.RemovePipelineState(shader.PipelineStateId);
+                this.graphicsManager.RemoveShader(shader);
             }
 
-            var shaderId = this.graphicsService.CreatePipelineState(shaderByteCode);
-            shader.PipelineStateId = shaderId;
+            var createdShader = this.graphicsManager.CreateShader(shaderByteCode);
+            shader.ShaderId = createdShader.ShaderId;
 
             return Task.FromResult((Resource)shader);
         }

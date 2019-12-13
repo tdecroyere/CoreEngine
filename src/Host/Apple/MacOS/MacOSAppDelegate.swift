@@ -4,7 +4,7 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
     public var mainWindow: NSWindow!
     var metalView: MacOSMetalView!
     var mainWindowDelegate: MacOSWindowDelegate!
-    public var renderer: MetalRenderer!
+    public var renderer: MetalGraphicsService!
 
     // TODO: Catch activate/inactivate events to interrupt game update
 
@@ -31,7 +31,7 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
         size.width *= scale;
         size.height *= scale;
 
-        self.renderer = MetalRenderer(view: metalView, renderWidth: Int(size.width), renderHeight: Int(size.height))
+        self.renderer = MetalGraphicsService(view: metalView, renderWidth: Int(size.width), renderHeight: Int(size.height))
 
         self.mainWindowDelegate = MacOSWindowDelegate(window: self.mainWindow, metalView: self.metalView, renderer: self.renderer)
         self.mainWindow.delegate = self.mainWindowDelegate
@@ -55,9 +55,9 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
 class MacOSWindowDelegate: NSObject, NSWindowDelegate {
     let window: NSWindow
     let metalView: MacOSMetalView
-    let renderer: MetalRenderer
+    let renderer: MetalGraphicsService
 
-    init(window: NSWindow, metalView: MacOSMetalView, renderer: MetalRenderer) {
+    init(window: NSWindow, metalView: MacOSMetalView, renderer: MetalGraphicsService) {
         self.window = window
         self.metalView = metalView
         self.renderer = renderer

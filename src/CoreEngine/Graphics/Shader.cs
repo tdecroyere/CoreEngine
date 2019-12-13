@@ -7,13 +7,13 @@ namespace CoreEngine.Graphics
     {
         internal Shader(uint shaderId) : base(shaderId, string.Empty)
         {
-            this.PipelineStateId = shaderId;
+            this.ShaderId = shaderId;
         }
 
         internal Shader(uint resourceId, string path) : base(resourceId, path)
         {
         }
 
-        public uint PipelineStateId { get; internal set; }
+        public uint ShaderId { get; internal set; }
     }
 }

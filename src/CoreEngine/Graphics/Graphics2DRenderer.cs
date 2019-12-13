@@ -11,12 +11,12 @@ namespace CoreEngine.Graphics
     {
         public Graphics2DVertex(Vector2 position, Vector2 textureCoordinates)
         {
-            this.Position = new Vector3(position, 0);
-            this.TextureCoordinates = new Vector3(textureCoordinates, 0);
+            this.Position = position;
+            this.TextureCoordinates = textureCoordinates;
         }
 
-        public readonly Vector3 Position { get; }
-        public readonly Vector3 TextureCoordinates { get; }
+        public readonly Vector2 Position { get; }
+        public readonly Vector2 TextureCoordinates { get; }
     }
 
     readonly struct RenderPassConstants2D
@@ -30,9 +30,9 @@ namespace CoreEngine.Graphics
     }
 
     // TODO: Find a way to auto align fields to 16 (Required by shaders)
-    readonly struct SurfaceProperties
+    readonly struct RectangleSurface
     {
-        public SurfaceProperties(Matrix4x4 worldMatrix, uint textureIndex)
+        public RectangleSurface(Matrix4x4 worldMatrix, uint textureIndex)
         {
             this.WorldMatrix = worldMatrix;
             this.TextureIndex = textureIndex;
@@ -48,35 +48,27 @@ namespace CoreEngine.Graphics
         public readonly uint Reserved3 { get; }
     }
 
-    // class ShaderInputParameters
-    // {
-    //     public IList<SurfaceProperties> SurfaceProperties { get; }
-    //     public IList<Texture> Textures { get; }
-    // }
-
     public class Graphics2DRenderer : SystemManager
     {
         private readonly GraphicsManager graphicsManager;
+        
+        private int currentSurfaceCount;
+        private float scaleFactor = 1.0f;
+
+        private Shader shader;
 
         private GraphicsBuffer vertexBuffer;
         private GraphicsBuffer indexBuffer;
-        private Shader shader;
-        private int currentSurfaceCount;
-
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
+        private GraphicsBuffer rectangleSurfacesGraphicsBuffer;
+
         private RenderPassConstants2D renderPassConstants;
-
-        private GraphicsBuffer surfacePropertiesGraphicsBuffer;
-        private SurfaceProperties[] surfaceProperties;
-
-        private float scaleFactor = 1.0f;
+        private RectangleSurface[] rectangleSurfaces;
 
         private Texture? testTexture;
         private Texture? testTexture2;
 
-        private IList<Texture> textures;
-
-        private GraphicsBuffer vertexShaderParameters;
+        private Texture[] textures;
 
         public Graphics2DRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
@@ -95,15 +87,15 @@ namespace CoreEngine.Graphics
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/Graphics2DRender.shader");
             this.testTexture = resourcesManager.LoadResourceAsync<Texture>("/pokemon.texture");
             this.testTexture2 = resourcesManager.LoadResourceAsync<Texture>("/pokemon2.texture");
-            
-            textures = new Texture[]
+
+            this.textures = new Texture[]
             {
                 this.testTexture,
                 this.testTexture2
             };
 
             var maxSurfaceCount = 10000;
-            this.surfaceProperties = new SurfaceProperties[maxSurfaceCount];
+            this.rectangleSurfaces = new RectangleSurface[maxSurfaceCount];
 
             var vertexData = new Graphics2DVertex[4];
             var indexData = new uint[6];
@@ -122,23 +114,14 @@ namespace CoreEngine.Graphics
 
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length);
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length);
-            
+
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();
             this.graphicsManager.UploadDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, vertexData);
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic);
-            this.surfacePropertiesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<SurfaceProperties>(maxSurfaceCount, GraphicsResourceType.Dynamic);
-
-            var shaderParameterDescriptors = new ShaderParameterDescriptor[]
-            {
-                new ShaderParameterDescriptor(this.surfacePropertiesGraphicsBuffer, ShaderParameterType.Buffer, 0),
-                new ShaderParameterDescriptor(new IGraphicsResource[] { this.testTexture, this.testTexture2 }, ShaderParameterType.Texture, 1)
-            };
-
-            // TODO: Store the shader parameter descriptors in the shader file so that we can have
-            this.vertexShaderParameters = this.graphicsManager.CreateShaderParameters(this.shader, 2, shaderParameterDescriptors);
+            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, GraphicsResourceType.Dynamic);
         }
 
         public override void PreUpdate()
@@ -171,8 +154,10 @@ namespace CoreEngine.Graphics
             var size = maxPoint - minPoint;
             var worldMatrix = Matrix4x4.CreateScale(new Vector3(size, 0)) * Matrix4x4.CreateTranslation(new Vector3(minPoint, 0));
 
-            var textureIndex = this.textures.IndexOf(texture);
-            this.surfaceProperties[this.currentSurfaceCount] = new SurfaceProperties(worldMatrix, (uint)textureIndex);
+            var list = new List<Texture>(this.textures);
+            var textureIndex = (uint)list.IndexOf(texture);
+
+            this.rectangleSurfaces[this.currentSurfaceCount] = new RectangleSurface(worldMatrix, (uint)textureIndex);
             this.currentSurfaceCount++;
         }
 
@@ -184,23 +169,28 @@ namespace CoreEngine.Graphics
                 this.DrawRectangleTexture(new Vector2(0, 0), testTexture);
 
             if (this.testTexture2 != null)
+            {
                 this.DrawRectangleTexture(new Vector2(2000, 100), testTexture2);
+                this.DrawRectangleTexture(new Vector2(1000, 1000), testTexture2);
+            }
 
             if (this.currentSurfaceCount > 0)
             {
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList();
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
-                this.graphicsManager.UploadDataToGraphicsBuffer<SurfaceProperties>(copyCommandList, this.surfacePropertiesGraphicsBuffer, this.surfaceProperties);
+                this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces);
                 this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
                 var commandList = this.graphicsManager.CreateRenderCommandList();
 
                 this.graphicsManager.SetShader(commandList, this.shader);
-                this.graphicsManager.SetGraphicsBuffer(commandList, this.renderPassParametersGraphicsBuffer, ShaderBindStage.Vertex, 1);
-                this.graphicsManager.SetGraphicsBuffer(commandList, this.vertexShaderParameters, ShaderBindStage.Vertex, 2);
-                this.graphicsManager.SetGraphicsBuffer(commandList, this.vertexShaderParameters, ShaderBindStage.Pixel, 1);
+                this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
+                this.graphicsManager.SetShaderBuffer(commandList, this.renderPassParametersGraphicsBuffer, 1);
+                this.graphicsManager.SetShaderBuffer(commandList, this.rectangleSurfacesGraphicsBuffer, 2);
+                this.graphicsManager.SetShaderTextures(commandList, this.textures, 3);
 
-                this.graphicsManager.DrawPrimitives(commandList, GeometryPrimitiveType.Triangle, 0, 6, this.vertexBuffer, this.indexBuffer, 2, 0);
+                this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
+                this.graphicsManager.DrawIndexedPrimitives(commandList, GeometryPrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
                 this.graphicsManager.ExecuteRenderCommandList(commandList);
             }

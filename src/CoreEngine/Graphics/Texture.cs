@@ -10,8 +10,8 @@ namespace CoreEngine.Graphics
         internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int width, int height, GraphicsResourceType resourceType) : base(0, string.Empty)
         {
             this.graphicsManager = graphicsManager;
-            this.SystemId = systemId;
-            this.SystemId2 = systemId2;
+            this.GraphicsResourceSystemId = systemId;
+            this.GraphicsResourceSystemId2 = systemId2;
             this.Width = width;
             this.Height = height;
             this.ResourceType = resourceType;
@@ -25,28 +25,28 @@ namespace CoreEngine.Graphics
             this.ResourceType = GraphicsResourceType.Static;
         }
 
-        public uint Id 
+        public uint GraphicsResourceId 
         { 
             get
             {
-                var result = this.SystemId;
+                var result = this.GraphicsResourceSystemId;
 
-                if (ResourceType == GraphicsResourceType.Dynamic && this.SystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
                 {
-                    result = this.SystemId2.Value;
+                    result = this.GraphicsResourceSystemId2.Value;
                 }
 
                 return result;
             }
         }
 
-        public uint SystemId
+        public uint GraphicsResourceSystemId
         {
             get;
             set;
         }
 
-        public uint? SystemId2
+        public uint? GraphicsResourceSystemId2
         {
             get;
             set;

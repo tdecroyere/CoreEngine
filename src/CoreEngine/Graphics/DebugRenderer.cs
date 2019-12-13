@@ -11,14 +11,19 @@ namespace CoreEngine.Graphics
         private readonly GraphicsManager graphicsManager;
 
         private Shader shader;
-        private GeometryPacket debugGeometryPacket;
+        private GraphicsBuffer vertexBuffer;
+        private GraphicsBuffer indexBuffer;
+
         private int currentDebugLineIndex;
-        private Vector3[] debugVertexData;
-        private uint[] debugIndexData;
+        private Vector4[] vertexData;
+        private uint[] indexData;
 
         public DebugRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
-            // TODO: Refactor code like in Graphics2DRenderer
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
 
             if (resourcesManager == null)
             {
@@ -30,21 +35,13 @@ namespace CoreEngine.Graphics
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/DebugRender.shader");
 
             var maxLineCount = 10000;
-            this.debugVertexData = new Vector3[maxLineCount * 4];
-            this.debugIndexData = new uint[maxLineCount * 2];
-            this.debugGeometryPacket = SetupDebugGeometryPacket();
+            this.vertexData = new Vector4[maxLineCount * 4];
+            this.indexData = new uint[maxLineCount * 2];
+
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, GraphicsResourceType.Dynamic);
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, GraphicsResourceType.Dynamic);
+
             this.currentDebugLineIndex = 0;
-        }
-
-        private GeometryPacket SetupDebugGeometryPacket()
-        {
-            var maxLineCount = 10000;
-            var vertexLayout = new VertexLayout(VertexElementType.Float3, VertexElementType.Float3);
-
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(2 * (maxLineCount * 2), GraphicsResourceType.Dynamic);
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, GraphicsResourceType.Dynamic);
-            
-            return new GeometryPacket(vertexLayout, vertexBuffer, indexBuffer);
         }
 
         public void ClearDebugLines()
@@ -59,24 +56,24 @@ namespace CoreEngine.Graphics
 
         public void DrawLine(Vector3 point1, Vector3 point2, Vector3 color)
         {
-            this.debugVertexData[this.currentDebugLineIndex * 4] = point1;
-            this.debugVertexData[this.currentDebugLineIndex * 4 + 1] = color;
-            this.debugVertexData[this.currentDebugLineIndex * 4 + 2] = point2;
-            this.debugVertexData[this.currentDebugLineIndex * 4 + 3] = color;
+            this.vertexData[this.currentDebugLineIndex * 4] = new Vector4(point1, 0);
+            this.vertexData[this.currentDebugLineIndex * 4 + 1] = new Vector4(color, 0);
+            this.vertexData[this.currentDebugLineIndex * 4 + 2] = new Vector4(point2, 0);
+            this.vertexData[this.currentDebugLineIndex * 4 + 3] = new Vector4(color, 0);
 
-            this.debugIndexData[this.currentDebugLineIndex * 2] = (uint)this.currentDebugLineIndex * 2;
-            this.debugIndexData[this.currentDebugLineIndex * 2 + 1] = (uint)this.currentDebugLineIndex * 2 + 1;
+            this.indexData[this.currentDebugLineIndex * 2] = (uint)this.currentDebugLineIndex * 2;
+            this.indexData[this.currentDebugLineIndex * 2 + 1] = (uint)this.currentDebugLineIndex * 2 + 1;
 
             this.currentDebugLineIndex++;
         }
 
-        public void Render(CommandList? renderCommandList = null)
+        public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList? renderCommandList = null)
         {
             if (this.currentDebugLineIndex > 0)
             {
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList();
-                this.graphicsManager.UploadDataToGraphicsBuffer<Vector3>(copyCommandList, this.debugGeometryPacket.VertexBuffer, this.debugVertexData);
-                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.debugGeometryPacket.IndexBuffer, this.debugIndexData);
+                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
+                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
                 this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
                 CommandList commandList;
@@ -92,9 +89,11 @@ namespace CoreEngine.Graphics
                 }
 
                 this.graphicsManager.SetShader(commandList, this.shader);
+                this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
+                this.graphicsManager.SetShaderBuffer(commandList, renderPassParametersGraphicsBuffer, 1);
 
-                var geometryInstance = new GeometryInstance(this.debugGeometryPacket, new Material(), 0, this.currentDebugLineIndex * 2, new BoundingBox(), GeometryPrimitiveType.Line);
-                this.graphicsManager.DrawGeometryInstances(commandList, geometryInstance, 1, 0);
+                this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
+                this.graphicsManager.DrawIndexedPrimitives(commandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
                 
                 if (renderCommandList == null)
                 {

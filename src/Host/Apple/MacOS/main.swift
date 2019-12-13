@@ -59,7 +59,7 @@ autoreleasepool {
         appName = CommandLine.arguments[1]
     }
 
-    let coreEngineHost = CoreEngineHost(renderer: renderer, inputsManager: inputsManager)
+    let coreEngineHost = CoreEngineHost(graphicsService: renderer, inputsManager: inputsManager)
 
     autoreleasepool {
         coreEngineHost.startEngine(appName)
@@ -76,6 +76,7 @@ autoreleasepool {
             if (!isGamePaused) {
                 inputsManager.processGamepadControllers()
 
+                // TODO: Merge the 2 calls into one
                 coreEngineHost.updateEngine(stepTimeInSeconds)
                 coreEngineHost.render()
             }

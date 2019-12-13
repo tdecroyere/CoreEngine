@@ -78,33 +78,16 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList? renderCommandList = null)
+        public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList renderCommandList)
         {
             if (this.currentDebugLineIndex > 0)
             {
-                CommandList commandList;
+                this.graphicsManager.SetShader(renderCommandList, this.shader);
+                this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
+                this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
 
-                if (renderCommandList == null)
-                {
-                    commandList = this.graphicsManager.CreateRenderCommandList("DebugRenderCommandList");
-                }
-
-                else
-                {
-                    commandList = renderCommandList.Value;
-                }
-
-                this.graphicsManager.SetShader(commandList, this.shader);
-                this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
-                this.graphicsManager.SetShaderBuffer(commandList, renderPassParametersGraphicsBuffer, 1);
-
-                this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
-                this.graphicsManager.DrawIndexedPrimitives(commandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
-                
-                if (renderCommandList == null)
-                {
-                    this.graphicsManager.ExecuteRenderCommandList(commandList);
-                }
+                this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
+                this.graphicsManager.DrawIndexedPrimitives(renderCommandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
             }
         }
     }

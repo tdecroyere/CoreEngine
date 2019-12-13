@@ -10,14 +10,19 @@ func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointe
     return Int32(contextObject.createGraphicsBuffer(UInt(graphicsBufferId), Int(length), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
-func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32, _ width: Int32, _ height: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
+func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32, _ width: Int32, _ height: Int32, _ isRenderTarget: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createTexture(UInt(textureId), Int(width), Int(height), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
+    return Int32(contextObject.createTexture(UInt(textureId), Int(width), Int(height), Bool(isRenderTarget == 1), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
-func GraphicsService_createShaderInterop(context: UnsafeMutableRawPointer?, _ shaderId: UInt32, _ shaderByteCode: UnsafeMutableRawPointer?, _ shaderByteCodeLength: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
+func GraphicsService_removeTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createShader(UInt(shaderId), shaderByteCode!, Int(shaderByteCodeLength), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
+    contextObject.removeTexture(UInt(textureId))
+}
+
+func GraphicsService_createShaderInterop(context: UnsafeMutableRawPointer?, _ shaderId: UInt32, _ shaderByteCode: UnsafeMutableRawPointer?, _ shaderByteCodeLength: Int32, _ useDepthBuffer: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.createShader(UInt(shaderId), shaderByteCode!, Int(shaderByteCodeLength), Bool(useDepthBuffer == 1), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
 func GraphicsService_removeShaderInterop(context: UnsafeMutableRawPointer?, _ shaderId: UInt32) {
@@ -45,9 +50,9 @@ func GraphicsService_uploadDataToTextureInterop(context: UnsafeMutableRawPointer
     contextObject.uploadDataToTexture(UInt(commandListId), UInt(textureId), Int(width), Int(height), data!, Int(dataLength))
 }
 
-func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
+func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createRenderCommandList(UInt(commandListId), (debugName != nil) ? String(cString: debugName!) : nil, Bool(createNewCommandBuffer == 1)) ? 1 : 0)
+    return Int32(contextObject.createRenderCommandList(UInt(commandListId), renderDescriptor, (debugName != nil) ? String(cString: debugName!) : nil, Bool(createNewCommandBuffer == 1)) ? 1 : 0)
 }
 
 func GraphicsService_executeRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
@@ -100,6 +105,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_GetRenderSize = GraphicsService_getRenderSizeInterop
     service.GraphicsService_CreateGraphicsBuffer = GraphicsService_createGraphicsBufferInterop
     service.GraphicsService_CreateTexture = GraphicsService_createTextureInterop
+    service.GraphicsService_RemoveTexture = GraphicsService_removeTextureInterop
     service.GraphicsService_CreateShader = GraphicsService_createShaderInterop
     service.GraphicsService_RemoveShader = GraphicsService_removeShaderInterop
     service.GraphicsService_CreateCopyCommandList = GraphicsService_createCopyCommandListInterop

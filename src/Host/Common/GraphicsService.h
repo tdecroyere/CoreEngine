@@ -7,16 +7,28 @@ enum GraphicsPrimitiveType : int
     Line
 };
 
+struct GraphicsRenderPassDescriptor
+{
+    struct Nullableuint ColorTextureId;
+    struct NullableVector4 ClearColor;
+    struct Nullableuint DepthTextureId;
+    int DepthCompare;
+    int DepthWrite;
+    int BackfaceCulling;
+
+};
+
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
 typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, char* debugName);
-typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, int width, int height, char* debugName);
-typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength, char* debugName);
+typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, int width, int height, int isRenderTarget, char* debugName);
+typedef void (*GraphicsService_RemoveTexturePtr)(void* context, unsigned int textureId);
+typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength, int useDepthBuffer, char* debugName);
 typedef void (*GraphicsService_RemoveShaderPtr)(void* context, unsigned int shaderId);
 typedef int (*GraphicsService_CreateCopyCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*GraphicsService_UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
 typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, void* data, int dataLength);
-typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
+typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteRenderCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*GraphicsService_SetShaderPtr)(void* context, unsigned int commandListId, unsigned int shaderId);
 typedef void (*GraphicsService_SetShaderBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int index);
@@ -33,6 +45,7 @@ struct GraphicsService
     GraphicsService_GetRenderSizePtr GraphicsService_GetRenderSize;
     GraphicsService_CreateGraphicsBufferPtr GraphicsService_CreateGraphicsBuffer;
     GraphicsService_CreateTexturePtr GraphicsService_CreateTexture;
+    GraphicsService_RemoveTexturePtr GraphicsService_RemoveTexture;
     GraphicsService_CreateShaderPtr GraphicsService_CreateShader;
     GraphicsService_RemoveShaderPtr GraphicsService_RemoveShader;
     GraphicsService_CreateCopyCommandListPtr GraphicsService_CreateCopyCommandList;

@@ -10,12 +10,29 @@ struct Vector3
     float X, Y, Z;
 };
 
+struct Vector4
+{
+    float X, Y, Z, W;
+};
+
 struct Matrix4x4
 {
     float M11, M12, M13, M14;
     float M21, M22, M23, M24;
     float M31, M32, M33, M34;
     float M41, M42, M43, M44;
+};
+
+struct Nullableuint
+{
+    int HasValue;
+    unsigned int Value;
+};
+
+struct NullableVector4
+{
+    int HasValue;
+    struct Vector4 Value;
 };
 
 #include "GraphicsService.h"
@@ -29,8 +46,6 @@ struct HostPlatform
 
 typedef void (*StartEnginePtr)(char* appName, struct HostPlatform* hostPlatform);
 typedef void (*UpdateEnginePtr)(float deltaTime);
-typedef void (*RenderPtr)();
-
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,
             const char* appDomainFriendlyName,

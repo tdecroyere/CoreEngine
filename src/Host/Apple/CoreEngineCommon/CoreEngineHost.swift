@@ -8,7 +8,6 @@ public class CoreEngineHost {
 
     var startEnginePointer: StartEnginePtr?
     var updateEnginePointer: UpdateEnginePtr?
-    var renderPointer: RenderPtr?
 
     public init(graphicsService: MetalGraphicsService, inputsManager: InputsManager) {
         self.hostPlatform = HostPlatform()
@@ -44,15 +43,6 @@ public class CoreEngineHost {
         }
 
         updateEngineInterop(deltaTime)
-    }
-
-    public func render() {
-        guard let renderPointer = self.renderPointer else {
-            print("CoreEngine Render method is not initialized")
-            return
-        }
-
-        renderPointer()
     }
 
     func initCoreClrSwift() {
@@ -126,17 +116,6 @@ public class CoreEngineHost {
 
             if (result == 0) {
                 self.updateEnginePointer = unsafeBitCast(managedDelegate!, to: UpdateEnginePtr.self)
-            }
-
-            result = coreclr_create_delegate(hostHandle!, 
-                                            domainId,
-                                            "CoreEngine",
-                                            "CoreEngine.Bootloader",
-                                            "Render",
-                                            &managedDelegate)
-
-            if (result == 0) {
-                self.renderPointer = unsafeBitCast(managedDelegate!, to: RenderPtr.self)
             }
         }
         

@@ -7,7 +7,7 @@ class Shader {
     let pipelineState: MTLRenderPipelineState
     let argumentEncoder: MTLArgumentEncoder
     var argumentBuffers: [MTLBuffer]
-    let argumentBuffersMaxCount = 1000
+    let argumentBuffersMaxCount = 2000
     var argumentBufferCurrentIndex = 0
     var currentArgumentBuffer: MTLBuffer
 
@@ -17,6 +17,7 @@ class Shader {
 
         self.argumentBuffers = []
 
+        // TODO: Use anothe allocation strategie
         for i in 0..<argumentBuffersMaxCount {
             let argumentBuffer = device.makeBuffer(length: argumentEncoder.encodedLength)!
             argumentBuffer.label = (pipelineState.label != nil) ? "\(pipelineState.label!)Buffer\(i)" : "ShaderBuffer\(i)"
@@ -56,7 +57,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var commandBuffer: MTLCommandBuffer!
     var globalHeap: MTLHeap!
 
-    var depthStencilState: MTLDepthStencilState!
+    var depthCompareWriteState: MTLDepthStencilState!
+    var depthCompareNoWriteState: MTLDepthStencilState!
+    var depthNoCompareWriteState: MTLDepthStencilState!
+    var depthNoCompareNoWriteState: MTLDepthStencilState!
 
     var shaders: [UInt: Shader]
 
@@ -104,10 +108,25 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.graphicsBufferEncoders = [:]
         self.textures = [:]
 
-        let depthStencilDescriptor = MTLDepthStencilDescriptor()
+        var depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .less
         depthStencilDescriptor.isDepthWriteEnabled = true
-        self.depthStencilState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+        self.depthCompareWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+
+        depthStencilDescriptor = MTLDepthStencilDescriptor()
+        depthStencilDescriptor.depthCompareFunction = .less
+        depthStencilDescriptor.isDepthWriteEnabled = false
+        self.depthCompareNoWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+
+        depthStencilDescriptor = MTLDepthStencilDescriptor()
+        depthStencilDescriptor.depthCompareFunction = .always
+        depthStencilDescriptor.isDepthWriteEnabled = true
+        self.depthNoCompareWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+
+        depthStencilDescriptor = MTLDepthStencilDescriptor()
+        depthStencilDescriptor.depthCompareFunction = .always
+        depthStencilDescriptor.isDepthWriteEnabled = false
+        self.depthNoCompareNoWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         self.commandQueue = self.device.makeCommandQueue()
         self.commandBuffer = self.commandQueue.makeCommandBuffer()
@@ -151,7 +170,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
-    public func createTexture(_ textureId: UInt, _ width: Int, _ height: Int, _ debugName: String?) -> Bool {
+    public func createTexture(_ textureId: UInt, _ width: Int, _ height: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool {
         // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
@@ -164,14 +183,27 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         descriptor.arrayLength = 1
         descriptor.storageMode = .private
 
-        let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor)!
+        if (isRenderTarget) {
+            descriptor.pixelFormat = .bgra8Unorm_srgb
+            descriptor.usage = [.renderTarget, .shaderRead]
+        }
+
+        guard let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor) else {
+            print("createTexture: Creation failed.")
+            return false
+        }
+
         gpuTexture.label = (debugName != nil) ? debugName! : "Texture\(textureId)"
 
         self.textures[textureId] = gpuTexture
         return true
     }
 
-    public func createShader(_ shaderId: UInt, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ debugName: String?) -> Bool {
+    public func removeTexture(_ textureId: UInt) {
+        self.textures[textureId] = nil
+    }
+
+    public func createShader(_ shaderId: UInt, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ useDepthBuffer: Bool, _ debugName: String?) -> Bool {
         let dispatchData = DispatchData(bytes: UnsafeRawBufferPointer(start: shaderByteCode, count: shaderByteCodeLength))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
@@ -184,8 +216,21 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         pipelineStateDescriptor.label = (debugName != nil) ? debugName! : "Shader\(shaderId)"
         pipelineStateDescriptor.vertexFunction = vertexFunction
         pipelineStateDescriptor.fragmentFunction = fragmentFunction
+
+        // TODO
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat
-        pipelineStateDescriptor.depthAttachmentPixelFormat = .depth32Float
+        pipelineStateDescriptor.colorAttachments[0].isBlendingEnabled = true
+        pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation = .add
+        pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation = .add
+        pipelineStateDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+        pipelineStateDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha;
+        pipelineStateDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+        pipelineStateDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+
+        // TODO
+        if (useDepthBuffer) {
+            pipelineStateDescriptor.depthAttachmentPixelFormat = .depth32Float
+        }
 
         do {
             let pipelineState = try self.device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
@@ -302,7 +347,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                                 destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
     }
 
-    public func createRenderCommandList(_ commandListId: UInt, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool {
+    public func createRenderCommandList(_ commandListId: UInt, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool {
         var commandBuffer = self.commandBuffer!
 
         if (createNewCommandBuffer) {
@@ -318,27 +363,76 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         // Create render command encoder
         // TODO: Move that static declarations to other functions
-        guard let currentMetalDrawable = self.currentMetalDrawable else {
-            return false
+        var renderTargetTexture: MTLTexture
+
+        if (renderDescriptor.ColorTextureId.HasValue == 0) {
+            guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
+                return false
+            }
+
+            self.currentMetalDrawable = nextCurrentMetalDrawable
+            renderTargetTexture = nextCurrentMetalDrawable.texture
+        } else {
+            guard let colorTexture = self.textures[UInt(renderDescriptor.ColorTextureId.Value)] else {
+                print("createRenderCommandList: Color Texture is nil.")
+                return false
+            }
+            renderTargetTexture = colorTexture
         }
 
         let depthTexture = self.depthTextures[0]
 
         let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = currentMetalDrawable.texture
-        renderPassDescriptor.colorAttachments[0].loadAction = .load // TODO: Use don't care for the final render target
-        renderPassDescriptor.colorAttachments[0].storeAction = .store
-        renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
-        renderPassDescriptor.depthAttachment.texture = depthTexture
-        renderPassDescriptor.depthAttachment.loadAction = .clear // TODO: Use a separate pass for depth buffer
-        renderPassDescriptor.depthAttachment.storeAction = .dontCare
-        renderPassDescriptor.depthAttachment.clearDepth = 1.0
+        renderPassDescriptor.colorAttachments[0].texture = renderTargetTexture
+
+        if (renderDescriptor.ColorTextureId.HasValue == 0) {
+            renderPassDescriptor.colorAttachments[0].loadAction = .dontCare
+        }else if (renderDescriptor.ClearColor.HasValue == 1) {
+            renderPassDescriptor.colorAttachments[0].loadAction = .clear
+            renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
+        } else {
+            renderPassDescriptor.colorAttachments[0].loadAction = .load
+        }
+
+        if (renderDescriptor.ColorTextureId.HasValue == 0) {
+            renderPassDescriptor.colorAttachments[0].storeAction = .dontCare
+        } else {
+            renderPassDescriptor.colorAttachments[0].storeAction = .store
+        }
+
+        if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
+            renderPassDescriptor.depthAttachment.texture = depthTexture
+
+            if (renderDescriptor.DepthCompare == 1) {
+                renderPassDescriptor.depthAttachment.loadAction = .clear // TODO: Use a separate pass for depth buffer
+                renderPassDescriptor.depthAttachment.clearDepth = 1.0
+            }
+
+            if (renderDescriptor.DepthWrite == 1) {
+                renderPassDescriptor.depthAttachment.storeAction = .store
+            }
+        } else {
+            renderPassDescriptor.depthAttachment.storeAction = .store
+        }
         
-        let renderCommandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
-        renderCommandEncoder.label = (debugName != nil) ? debugName! : "Render Command Encoder \(commandListId)"
+        guard let renderCommandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
+            print("createRenderCommandList: Render command encoder creation failed.")
+            return false
+        }
+
+        renderCommandEncoder.label = (debugName != nil) ? debugName! : "RenderCommandEncoder\(commandListId)"
         self.renderCommandEncoders[commandListId] = renderCommandEncoder
 
-        renderCommandEncoder.setDepthStencilState(self.depthStencilState)
+        if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 1) {
+            renderCommandEncoder.setDepthStencilState(self.depthCompareWriteState)
+        } else if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 0) {
+            renderCommandEncoder.setDepthStencilState(self.depthCompareNoWriteState)
+        } else if (renderDescriptor.DepthCompare == 0 && renderDescriptor.DepthWrite == 1) {
+            renderCommandEncoder.setDepthStencilState(self.depthNoCompareWriteState)
+        } else {
+            renderCommandEncoder.setDepthStencilState(self.depthNoCompareNoWriteState)
+        }
+
         renderCommandEncoder.setCullMode(.back)
 
         let renderSize = getRenderSize()
@@ -492,14 +586,9 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             self.commandBuffer.present(currentMetalDrawable)
             self.commandBuffer.commit()
 
+            // TODO: Can we reuse the same command buffer?
             self.commandBuffer = self.commandQueue.makeCommandBuffer()
         }
-
-        guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
-            return
-        }
-
-        self.currentMetalDrawable = nextCurrentMetalDrawable
     }
 
     private func createDepthBuffers() {
@@ -507,8 +596,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         let depthTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .depth32Float, width: self.renderWidth, height: self.renderHeight, mipmapped: false)
         depthTextureDescriptor.storageMode = .private
-        depthTextureDescriptor.usage = .renderTarget
+        depthTextureDescriptor.usage = [.renderTarget, .shaderRead]
         let depthTexture = self.globalHeap.makeTexture(descriptor: depthTextureDescriptor)!
+        depthTexture.label = "Depth Texture"
+
         self.depthTextures = []
         self.depthTextures.append(depthTexture)
     }

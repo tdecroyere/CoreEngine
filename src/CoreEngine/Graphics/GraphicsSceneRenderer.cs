@@ -83,7 +83,8 @@ namespace CoreEngine.Graphics
 
         private void RunRenderPipeline(GraphicsScene scene)
         {
-            var renderCommandList = this.graphicsManager.CreateRenderCommandList("SceneRenderCommandList");
+            var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.FinalRenderTargetTexture, new Vector4(0, 1, 0, 0), null, true, true, true);
+            var renderCommandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "SceneRenderCommandList");
 
             this.graphicsManager.SetShader(renderCommandList, this.testShader);
             DrawGeometryInstances(renderCommandList);

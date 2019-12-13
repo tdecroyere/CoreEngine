@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using CoreEngine.Graphics;
 
 namespace CoreEngine.HostServices
 {
@@ -12,14 +13,46 @@ namespace CoreEngine.HostServices
         Line
     }
 
+    public readonly struct GraphicsRenderPassDescriptor
+    {
+        public GraphicsRenderPassDescriptor(RenderPassDescriptor renderPassDescriptor)
+        {
+            this.ColorTextureId = renderPassDescriptor.ColorTexture.GraphicsResourceId;
+            this.ClearColor = renderPassDescriptor.ClearColor;
+            this.DepthTextureId = renderPassDescriptor.DepthTexture?.GraphicsResourceId;
+            this.DepthCompare = renderPassDescriptor.DepthCompare;
+            this.DepthWrite = renderPassDescriptor.DepthWrite;
+            this.BackfaceCulling = renderPassDescriptor.BackfaceCulling;
+        }
+        
+        public GraphicsRenderPassDescriptor(Texture? colorTexture, Vector4? clearColor, Texture? depthTexture, bool depthCompare, bool depthWrite, bool backfaceCulling)
+        {
+            this.ColorTextureId = colorTexture?.GraphicsResourceId;
+            this.ClearColor = clearColor;
+            this.DepthTextureId = depthTexture?.GraphicsResourceId;
+            this.DepthCompare = depthCompare;
+            this.DepthWrite = depthWrite;
+            this.BackfaceCulling = backfaceCulling;
+        }
+
+        public readonly uint? ColorTextureId { get; }
+        public readonly Vector4? ClearColor { get; }
+        public readonly uint? DepthTextureId { get; }
+        public readonly bool DepthCompare { get; }
+        public readonly bool DepthWrite { get; }
+        public readonly bool BackfaceCulling { get; }
+    }
+
     public interface IGraphicsService
     {
         Vector2 GetRenderSize();
         
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, string? debugName);
-        bool CreateTexture(uint textureId, int width, int height, string? debugName);
 
-        bool CreateShader(uint shaderId, ReadOnlySpan<byte> shaderByteCode, string? debugName);
+        bool CreateTexture(uint textureId, int width, int height, bool isRenderTarget, string? debugName);
+        void RemoveTexture(uint textureId);
+
+        bool CreateShader(uint shaderId, ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName);
         void RemoveShader(uint shaderId);
         
         bool CreateCopyCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
@@ -27,7 +60,7 @@ namespace CoreEngine.HostServices
         void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
         void UploadDataToTexture(uint commandListId, uint textureId, int width, int height, ReadOnlySpan<byte> data);
         
-        bool CreateRenderCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
+        bool CreateRenderCommandList(uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName, bool createNewCommandBuffer);
         void ExecuteRenderCommandList(uint commandListId);
 
         void SetShader(uint commandListId, uint shaderId);

@@ -68,7 +68,7 @@ namespace CoreEngine.Graphics
         private Texture? testTexture;
         private Texture? testTexture2;
 
-        private Texture[] textures;
+        private List<Texture> textures;
 
         public Graphics2DRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
@@ -85,14 +85,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager = graphicsManager;
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/Graphics2DRender.shader");
-            this.testTexture = resourcesManager.LoadResourceAsync<Texture>("/pokemon.texture");
-            this.testTexture2 = resourcesManager.LoadResourceAsync<Texture>("/pokemon2.texture");
-
-            this.textures = new Texture[]
-            {
-                this.testTexture,
-                this.testTexture2
-            };
+            this.textures = new List<Texture>();
 
             var maxSurfaceCount = 10000;
             this.rectangleSurfaces = new RectangleSurface[maxSurfaceCount];
@@ -126,6 +119,7 @@ namespace CoreEngine.Graphics
 
         public override void PreUpdate()
         {
+            this.textures.Clear();
             var renderSize = this.graphicsManager.GetRenderSize();
 
             this.currentSurfaceCount = 0;
@@ -142,7 +136,6 @@ namespace CoreEngine.Graphics
             DrawRectangleSurface(position, position + new Vector2(texture.Width, texture.Height), texture);
         }
 
-        // TODO: Use an argument buffer to store the texture reference list in gpu memory
         public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture)
         {
             var vertexOffset = this.currentSurfaceCount * 4;
@@ -154,45 +147,59 @@ namespace CoreEngine.Graphics
             var size = maxPoint - minPoint;
             var worldMatrix = Matrix4x4.CreateScale(new Vector3(size, 0)) * Matrix4x4.CreateTranslation(new Vector3(minPoint, 0));
 
-            var list = new List<Texture>(this.textures);
-            var textureIndex = (uint)list.IndexOf(texture);
+            var textureIndex = this.textures.IndexOf(texture);
+
+            if (textureIndex == -1)
+            {
+                textureIndex = this.textures.Count;
+                this.textures.Add(texture);
+            }
 
             this.rectangleSurfaces[this.currentSurfaceCount] = new RectangleSurface(worldMatrix, (uint)textureIndex);
             this.currentSurfaceCount++;
         }
 
-        public void Render()
+        public void CopyDataToGpu()
         {
-            // TODO: Disable depth test
-
-            if (this.testTexture != null)
-                this.DrawRectangleTexture(new Vector2(0, 0), testTexture);
-
-            if (this.testTexture2 != null)
-            {
-                this.DrawRectangleTexture(new Vector2(2000, 100), testTexture2);
-                this.DrawRectangleTexture(new Vector2(1000, 1000), testTexture2);
-            }
-
             if (this.currentSurfaceCount > 0)
             {
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList("Graphics2DCopyCommandList");
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
                 this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces);
                 this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+            }
+        }
 
-                var commandList = this.graphicsManager.CreateRenderCommandList("Graphics2DRenderCommandList");
+        public void Render(CommandList? renderCommandList = null)
+        {
+            if (this.currentSurfaceCount > 0)
+            {
+                CommandList commandList;
+
+                if (renderCommandList == null)
+                {
+                    var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.FinalRenderTargetTexture, null, null, false, false, true);
+                    commandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "Graphics2DRenderCommandList");
+                }
+
+                else
+                {
+                    commandList = renderCommandList.Value;
+                }
 
                 this.graphicsManager.SetShader(commandList, this.shader);
                 this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
                 this.graphicsManager.SetShaderBuffer(commandList, this.renderPassParametersGraphicsBuffer, 1);
                 this.graphicsManager.SetShaderBuffer(commandList, this.rectangleSurfacesGraphicsBuffer, 2);
-                this.graphicsManager.SetShaderTextures(commandList, this.textures, 3);
+                this.graphicsManager.SetShaderTextures(commandList, this.textures.ToArray(), 3);
 
                 this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
                 this.graphicsManager.DrawIndexedPrimitives(commandList, GeometryPrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
-                this.graphicsManager.ExecuteRenderCommandList(commandList);
+                if (renderCommandList == null)
+                {
+                    this.graphicsManager.ExecuteRenderCommandList(commandList);
+                }
             }
         }
     }

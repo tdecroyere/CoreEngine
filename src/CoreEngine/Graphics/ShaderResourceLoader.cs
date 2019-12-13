@@ -55,7 +55,10 @@ namespace CoreEngine.Graphics
                 this.graphicsManager.RemoveShader(shader);
             }
 
-            var createdShader = this.graphicsManager.CreateShader(shaderByteCode, $"{Path.GetFileNameWithoutExtension(shader.Path)}Shader");
+            // TODO: Don't set this flags based on the shader name
+            var useDepthBuffer = Path.GetFileNameWithoutExtension(shader.Path) != "Graphics2DRender";
+
+            var createdShader = this.graphicsManager.CreateShader(shaderByteCode, useDepthBuffer, $"{Path.GetFileNameWithoutExtension(shader.Path)}Shader");
             shader.ShaderId = createdShader.ShaderId;
 
             return Task.FromResult((Resource)shader);

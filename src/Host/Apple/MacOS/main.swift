@@ -75,10 +75,7 @@ autoreleasepool {
 
             if (!isGamePaused) {
                 inputsManager.processGamepadControllers()
-
-                // TODO: Merge the 2 calls into one
                 coreEngineHost.updateEngine(stepTimeInSeconds)
-                coreEngineHost.render()
             }
         }
     }

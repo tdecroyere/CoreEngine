@@ -14,16 +14,22 @@ int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, in
     return contextObject->CreateGraphicsBuffer(graphicsBufferId, length, debugName)
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, int width, int height, struct string? debugName)
+int CreateTextureInterop(void* context, unsigned int textureId, int width, int height, int isRenderTarget, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(textureId, width, height, debugName)
+    return contextObject->CreateTexture(textureId, width, height, isRenderTarget, debugName)
 }
 
-int CreateShaderInterop(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength, struct string? debugName)
+void RemoveTextureInterop(void* context, unsigned int textureId)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateShader(shaderId, shaderByteCode, shaderByteCodeLength, debugName)
+    contextObject->RemoveTexture(textureId)
+}
+
+int CreateShaderInterop(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength, int useDepthBuffer, struct string? debugName)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->CreateShader(shaderId, shaderByteCode, shaderByteCodeLength, useDepthBuffer, debugName)
 }
 
 void RemoveShaderInterop(void* context, unsigned int shaderId)
@@ -56,10 +62,10 @@ void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsig
     contextObject->UploadDataToTexture(commandListId, textureId, width, height, data, dataLength)
 }
 
-int CreateRenderCommandListInterop(void* context, unsigned int commandListId, struct string? debugName, int createNewCommandBuffer)
+int CreateRenderCommandListInterop(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, struct string? debugName, int createNewCommandBuffer)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateRenderCommandList(commandListId, debugName, createNewCommandBuffer)
+    return contextObject->CreateRenderCommandList(commandListId, renderDescriptor, debugName, createNewCommandBuffer)
 }
 
 void ExecuteRenderCommandListInterop(void* context, unsigned int commandListId)
@@ -122,6 +128,7 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->GetRenderSize = GetRenderSizeInterop;
     service->CreateGraphicsBuffer = CreateGraphicsBufferInterop;
     service->CreateTexture = CreateTextureInterop;
+    service->RemoveTexture = RemoveTextureInterop;
     service->CreateShader = CreateShaderInterop;
     service->RemoveShader = RemoveShaderInterop;
     service->CreateCopyCommandList = CreateCopyCommandListInterop;

@@ -7,11 +7,12 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int width, int height, GraphicsResourceType resourceType) : base(0, string.Empty)
+        internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, uint? systemId3, int width, int height, GraphicsResourceType resourceType) : base(0, string.Empty)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsResourceSystemId = systemId;
             this.GraphicsResourceSystemId2 = systemId2;
+            this.GraphicsResourceSystemId3 = systemId3;
             this.Width = width;
             this.Height = height;
             this.ResourceType = resourceType;
@@ -31,9 +32,14 @@ namespace CoreEngine.Graphics
             {
                 var result = this.GraphicsResourceSystemId;
 
-                if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 3) == 1))
                 {
                     result = this.GraphicsResourceSystemId2.Value;
+                }
+
+                else if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId3 != null && ((this.graphicsManager.CurrentFrameNumber % 3) == 2))
+                {
+                    result = this.GraphicsResourceSystemId3.Value;
                 }
 
                 return result;
@@ -47,6 +53,12 @@ namespace CoreEngine.Graphics
         }
 
         public uint? GraphicsResourceSystemId2
+        {
+            get;
+            set;
+        }
+
+        public uint? GraphicsResourceSystemId3
         {
             get;
             set;

@@ -12,23 +12,30 @@ namespace CoreEngine.Graphics
     public class GraphicsManager : SystemManager
     {
         private readonly IGraphicsService graphicsService;
-        private readonly ResourcesManager resourcesManager;
+        private readonly Graphics2DRenderer internal2DRenderer;
 
         private static object syncObject = new object();
         private uint currentGraphicsResourceId;
+        private Vector2 currentFrameSize;
 
-        public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
+        public GraphicsManager(IGraphicsService graphicsService, GraphicsSceneQueue graphicsSceneQueue, ResourcesManager resourcesManager)
         {
             if (resourcesManager == null)
             {
                 throw new ArgumentNullException(nameof(resourcesManager));
             }
 
+            InitResourceLoaders(resourcesManager);
+
             this.graphicsService = graphicsService;
-            this.resourcesManager = resourcesManager;
             this.currentGraphicsResourceId = 0;
 
-            InitResourceLoaders();
+            this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, graphicsSceneQueue, resourcesManager);
+            this.Graphics2DRenderer = new Graphics2DRenderer(this, resourcesManager);
+            this.internal2DRenderer = new Graphics2DRenderer(this, resourcesManager);
+
+            this.currentFrameSize = graphicsService.GetRenderSize();
+            this.FinalRenderTargetTexture = CreateTexture((int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "FinalRenderTarget");
         }
 
         public uint CurrentFrameNumber
@@ -36,6 +43,15 @@ namespace CoreEngine.Graphics
             get;
             private set;
         }
+
+        public Texture FinalRenderTargetTexture
+        {
+            get;
+            private set;
+        }
+
+        public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
+        public Graphics2DRenderer Graphics2DRenderer { get; }
 
         public Vector2 GetRenderSize()
         {
@@ -67,14 +83,27 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, resourceType);
+            uint? graphicsBufferId3 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                graphicsBufferId3 = GetNextGraphicsResourceId();
+                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId3.Value, sizeInBytes, debugName);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
+                }
+            }
+
+            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, graphicsBufferId3, sizeInBytes, resourceType);
         }
 
         // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
-        public Texture CreateTexture(int width, int height, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
+        public Texture CreateTexture(int width, int height, bool isRenderTarget = false, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
         {
             var textureId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateTexture(textureId, width, height, debugName);
+            var result = this.graphicsService.CreateTexture(textureId, width, height, isRenderTarget, debugName);
 
             if (!result)
             {
@@ -86,7 +115,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId2.Value, width, height, debugName);
+                result = this.graphicsService.CreateTexture(textureId2.Value, width, height, isRenderTarget, debugName);
 
                 if (!result)
                 {
@@ -94,13 +123,44 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new Texture(this, textureId, textureId2, width, height, resourceType);
+            uint? textureId3 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                textureId3 = GetNextGraphicsResourceId();
+                result = this.graphicsService.CreateTexture(textureId3.Value, width, height, isRenderTarget, debugName);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the texture resource.");
+                }
+            }
+
+            return new Texture(this, textureId, textureId2, textureId3, width, height, resourceType);
         }
 
-        internal Shader CreateShader(ReadOnlySpan<byte> shaderByteCode, string? debugName = null)
+        public void RemoveTexture(Texture texture)
+        {
+            this.graphicsService.RemoveTexture(texture.GraphicsResourceSystemId);
+
+            if (texture.ResourceType == GraphicsResourceType.Dynamic)
+            {
+                if (texture.GraphicsResourceSystemId2 != null)
+                {
+                    this.graphicsService.RemoveTexture(texture.GraphicsResourceSystemId2.Value);
+                }
+                
+                if (texture.GraphicsResourceSystemId3 != null)
+                {
+                    this.graphicsService.RemoveTexture(texture.GraphicsResourceSystemId3.Value);
+                }
+            }
+        }
+
+        internal Shader CreateShader(ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName = null)
         {
             var shaderId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShader(shaderId, shaderByteCode, debugName);
+            var result = this.graphicsService.CreateShader(shaderId, shaderByteCode, useDepthBuffer, debugName);
 
             if (!result)
             {
@@ -156,10 +216,10 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, texture.Width, texture.Height, rawData);
         }
 
-        public CommandList CreateRenderCommandList(string? debugName = null, bool createNewCommandBuffer = false)
+        public CommandList CreateRenderCommandList(RenderPassDescriptor renderPassDescriptor, string? debugName = null, bool createNewCommandBuffer = false)
         {
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateRenderCommandList(commandListId, debugName, createNewCommandBuffer);
+            var result = graphicsService.CreateRenderCommandList(commandListId, new GraphicsRenderPassDescriptor(renderPassDescriptor), debugName, createNewCommandBuffer);
 
             // if (!result)
             // {
@@ -278,18 +338,55 @@ namespace CoreEngine.Graphics
 
         public void PresentScreenBuffer()
         {
+            if (this.Graphics2DRenderer != null)
+            {
+                // TODO: Is there a way to load the final render target texture and to store it directly in the hardware?
+                this.internal2DRenderer.PreUpdate();
+                this.internal2DRenderer.DrawRectangleSurface(Vector2.Zero, this.GetRenderSize(), this.FinalRenderTargetTexture);
+                this.internal2DRenderer.CopyDataToGpu();
+
+                var renderPassDescriptor = new GraphicsRenderPassDescriptor(null, null, null, false, false, true);
+
+                var commandListId = GetNextGraphicsResourceId();
+                var result = this.graphicsService.CreateRenderCommandList(commandListId, renderPassDescriptor, "PresentRenderCommandList", false);
+
+                this.internal2DRenderer.Render(new CommandList(commandListId, CommandListType.Render));
+                this.graphicsService.ExecuteRenderCommandList(commandListId);
+            }
+
             this.graphicsService.PresentScreenBuffer();
 
             // TODO: A modulo here with Int.MaxValue
             this.CurrentFrameNumber++;
         }
 
-        private void InitResourceLoaders()
+        internal void Render()
         {
-            this.resourcesManager.AddResourceLoader(new TextureResourceLoader(this.resourcesManager, this));
-            this.resourcesManager.AddResourceLoader(new ShaderResourceLoader(this.resourcesManager, this));
-            this.resourcesManager.AddResourceLoader(new MaterialResourceLoader(this.resourcesManager, this));
-            this.resourcesManager.AddResourceLoader(new MeshResourceLoader(this.resourcesManager, this));
+            var frameSize = graphicsService.GetRenderSize();
+
+            if (frameSize != this.currentFrameSize)
+            {
+                Logger.WriteMessage("Recreating final render target");
+                this.currentFrameSize = frameSize;
+                
+                RemoveTexture(this.FinalRenderTargetTexture);
+                this.FinalRenderTargetTexture = CreateTexture((int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "FinalRenderTarget");
+            }
+
+            this.GraphicsSceneRenderer.Render();
+
+            this.Graphics2DRenderer.CopyDataToGpu();
+            this.Graphics2DRenderer.Render();
+
+            this.PresentScreenBuffer();
+        }
+
+        private void InitResourceLoaders(ResourcesManager resourcesManager)
+        {
+            resourcesManager.AddResourceLoader(new TextureResourceLoader(resourcesManager, this));
+            resourcesManager.AddResourceLoader(new ShaderResourceLoader(resourcesManager, this));
+            resourcesManager.AddResourceLoader(new MaterialResourceLoader(resourcesManager, this));
+            resourcesManager.AddResourceLoader(new MeshResourceLoader(resourcesManager, this));
         }
 
         internal uint GetNextGraphicsResourceId()

@@ -2,15 +2,15 @@ import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
     func getRenderSize() -> Vector2
-    func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int) -> Bool
-    func createTexture(_ textureId: UInt, _ width: Int, _ height: Int) -> Bool
-    func createShader(_ shaderId: UInt, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> Bool
+    func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int, _ debugName: String?) -> Bool
+    func createTexture(_ textureId: UInt, _ width: Int, _ height: Int, _ debugName: String?) -> Bool
+    func createShader(_ shaderId: UInt, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ debugName: String?) -> Bool
     func removeShader(_ shaderId: UInt)
-    func createCopyCommandList(_ commandListId: UInt) -> Bool
+    func createCopyCommandList(_ commandListId: UInt, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool
     func executeCopyCommandList(_ commandListId: UInt)
     func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ dataLength: Int)
     func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ width: Int, _ height: Int, _ data: UnsafeMutableRawPointer, _ dataLength: Int)
-    func createRenderCommandList(_ commandListId: UInt) -> Bool
+    func createRenderCommandList(_ commandListId: UInt, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool
     func executeRenderCommandList(_ commandListId: UInt)
     func setShader(_ commandListId: UInt, _ shaderId: UInt)
     func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ index: Int)

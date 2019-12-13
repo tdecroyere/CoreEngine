@@ -16,18 +16,18 @@ namespace CoreEngine.HostServices
     {
         Vector2 GetRenderSize();
         
-        bool CreateGraphicsBuffer(uint graphicsBufferId, int length);
-        bool CreateTexture(uint textureId, int width, int height);
+        bool CreateGraphicsBuffer(uint graphicsBufferId, int length, string? debugName);
+        bool CreateTexture(uint textureId, int width, int height, string? debugName);
 
-        bool CreateShader(uint shaderId, ReadOnlySpan<byte> shaderByteCode);
+        bool CreateShader(uint shaderId, ReadOnlySpan<byte> shaderByteCode, string? debugName);
         void RemoveShader(uint shaderId);
         
-        bool CreateCopyCommandList(uint commandListId);
+        bool CreateCopyCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
         void ExecuteCopyCommandList(uint commandListId);
         void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
         void UploadDataToTexture(uint commandListId, uint textureId, int width, int height, ReadOnlySpan<byte> data);
         
-        bool CreateRenderCommandList(uint commandListId);
+        bool CreateRenderCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
         void ExecuteRenderCommandList(uint commandListId);
 
         void SetShader(uint commandListId, uint shaderId);

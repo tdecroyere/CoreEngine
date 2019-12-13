@@ -8,15 +8,15 @@ enum GraphicsPrimitiveType : int
 };
 
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
-typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length);
-typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, int width, int height);
-typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength);
+typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, char* debugName);
+typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, int width, int height, char* debugName);
+typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength, char* debugName);
 typedef void (*GraphicsService_RemoveShaderPtr)(void* context, unsigned int shaderId);
-typedef int (*GraphicsService_CreateCopyCommandListPtr)(void* context, unsigned int commandListId);
+typedef int (*GraphicsService_CreateCopyCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*GraphicsService_UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
 typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, void* data, int dataLength);
-typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId);
+typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteRenderCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*GraphicsService_SetShaderPtr)(void* context, unsigned int commandListId, unsigned int shaderId);
 typedef void (*GraphicsService_SetShaderBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int index);

@@ -42,12 +42,12 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetRenderSize();
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static) where T : struct
+        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null) where T : struct
         {
             var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
 
             var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes);
+            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes, debugName);
 
             if (!result)
             {
@@ -59,7 +59,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 graphicsBufferId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes);
+                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes, debugName);
 
                 if (!result)
                 {
@@ -71,10 +71,10 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
-        public Texture CreateTexture(int width, int height, GraphicsResourceType resourceType = GraphicsResourceType.Static)
+        public Texture CreateTexture(int width, int height, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
         {
             var textureId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateTexture(textureId, width, height);
+            var result = this.graphicsService.CreateTexture(textureId, width, height, debugName);
 
             if (!result)
             {
@@ -86,7 +86,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId2.Value, width, height);
+                result = this.graphicsService.CreateTexture(textureId2.Value, width, height, debugName);
 
                 if (!result)
                 {
@@ -97,10 +97,10 @@ namespace CoreEngine.Graphics
             return new Texture(this, textureId, textureId2, width, height, resourceType);
         }
 
-        internal Shader CreateShader(ReadOnlySpan<byte> shaderByteCode)
+        internal Shader CreateShader(ReadOnlySpan<byte> shaderByteCode, string? debugName = null)
         {
             var shaderId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShader(shaderId, shaderByteCode);
+            var result = this.graphicsService.CreateShader(shaderId, shaderByteCode, debugName);
 
             if (!result)
             {
@@ -115,75 +115,10 @@ namespace CoreEngine.Graphics
             this.graphicsService.RemoveShader(shader.ShaderId);
         }
 
-        // TODO: Allow the creation of linked graphics buffers from a struct?
-        // TODO: Allow the specification of dynamic or static?
-        // TODO: Don't return a GraphicsBuffer but a specific struct
-        /*public GraphicsBuffer CreateShaderParameters(Shader shader, uint slot, ReadOnlySpan<ShaderParameterDescriptor> parameterDescriptors)
-        {
-            if (shader == null)
-            {
-                throw new ArgumentNullException(nameof(shader));
-            }
-
-            var nativeParameterDescriptors = new GraphicsShaderParameterDescriptor[parameterDescriptors.Length];
-            var fullResourceIdList = new List<uint>();
-
-            for (var i = 0; i < parameterDescriptors.Length; i++)
-            {
-                var parameterDescriptor = parameterDescriptors[i];
-                var resourceIdList = new uint[parameterDescriptor.GraphicsResourceList.Count];
-
-                for (var j = 0; j < parameterDescriptor.GraphicsResourceList.Count; j++)
-                {
-                    resourceIdList[j] = parameterDescriptor.GraphicsResourceList[j].SystemId;
-                }
-
-                fullResourceIdList.AddRange(resourceIdList);
-                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(resourceIdList.Length, (GraphicsShaderParameterType)(int)parameterDescriptor.ParameterType, parameterDescriptor.Slot);
-            }
-
-            var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShaderParameters(graphicsBufferId, shader.ShaderId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
-            
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
-            }
-            
-            var graphicsBufferId2 = GetNextGraphicsResourceId();
-
-            nativeParameterDescriptors = new GraphicsShaderParameterDescriptor[parameterDescriptors.Length];
-            fullResourceIdList = new List<uint>();
-
-            for (var i = 0; i < parameterDescriptors.Length; i++)
-            {
-                var parameterDescriptor = parameterDescriptors[i];
-                var resourceIdList = new uint[parameterDescriptor.GraphicsResourceList.Count];
-
-                for (var j = 0; j < parameterDescriptor.GraphicsResourceList.Count; j++)
-                {
-                    var graphicsResource = parameterDescriptor.GraphicsResourceList[j];
-                    resourceIdList[j] = (graphicsResource.SystemId2 != null) ? graphicsResource.SystemId2.Value : graphicsResource.SystemId;
-                }
-
-                fullResourceIdList.AddRange(resourceIdList);
-                nativeParameterDescriptors[i] = new GraphicsShaderParameterDescriptor(resourceIdList.Length, (GraphicsShaderParameterType)(int)parameterDescriptor.ParameterType, parameterDescriptor.Slot);
-            }
-
-            result = this.graphicsService.CreateShaderParameters(graphicsBufferId2, shader.ShaderId, slot, fullResourceIdList.ToArray(), nativeParameterDescriptors);
-
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
-            }
-
-            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, 0, GraphicsResourceType.Dynamic);
-        }*/
-
-        public CommandList CreateCopyCommandList()
+        public CommandList CreateCopyCommandList(string? debugName = null, bool createNewCommandBuffer = false)
         {
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateCopyCommandList(commandListId);
+            var result = graphicsService.CreateCopyCommandList(commandListId, debugName, createNewCommandBuffer);
 
             if (!result)
             {
@@ -221,10 +156,10 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, texture.Width, texture.Height, rawData);
         }
 
-        public CommandList CreateRenderCommandList()
+        public CommandList CreateRenderCommandList(string? debugName = null, bool createNewCommandBuffer = false)
         {
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateRenderCommandList(commandListId);
+            var result = graphicsService.CreateRenderCommandList(commandListId, debugName, createNewCommandBuffer);
 
             // if (!result)
             // {

@@ -83,7 +83,7 @@ namespace CoreEngine.Graphics
 
         private void RunRenderPipeline(GraphicsScene scene)
         {
-            var renderCommandList = this.graphicsManager.CreateRenderCommandList();
+            var renderCommandList = this.graphicsManager.CreateRenderCommandList("SceneRenderCommandList");
 
             this.graphicsManager.SetShader(renderCommandList, this.testShader);
             DrawGeometryInstances(renderCommandList);
@@ -105,7 +105,7 @@ namespace CoreEngine.Graphics
 
         private void CopyGpuData(GraphicsScene scene)
         {
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("SceneCopyCommandList");
 
             this.meshGeometryInstances.Clear();
             this.meshGeometryInstancesParamIdList.Clear();
@@ -116,6 +116,8 @@ namespace CoreEngine.Graphics
             CopyDrawParametersToGpu(copyCommandList);
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+
+            this.debugRenderer.CopyDataToGpu();
         }
 
         private void CopyObjectPropertiesToGpu(CommandList commandList, ItemCollection<MeshInstance> meshInstances)

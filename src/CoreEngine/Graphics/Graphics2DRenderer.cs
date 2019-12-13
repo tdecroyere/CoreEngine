@@ -112,16 +112,16 @@ namespace CoreEngine.Graphics
             indexData[4] = 1;
             indexData[5] = 3;
 
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length);
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length);
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, GraphicsResourceType.Static, "Graphics2DVertexBuffer");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, GraphicsResourceType.Static, "Graphics2DIndexBuffer");
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();
             this.graphicsManager.UploadDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, vertexData);
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic);
-            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, GraphicsResourceType.Dynamic);
+            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic, "Graphics2DRenderPassBuffer");
+            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, GraphicsResourceType.Dynamic, "Graphics2DRectanbleSurfacesBuffer");
         }
 
         public override void PreUpdate()
@@ -176,12 +176,12 @@ namespace CoreEngine.Graphics
 
             if (this.currentSurfaceCount > 0)
             {
-                var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+                var copyCommandList = this.graphicsManager.CreateCopyCommandList("Graphics2DCopyCommandList");
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
                 this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces);
                 this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-                var commandList = this.graphicsManager.CreateRenderCommandList();
+                var commandList = this.graphicsManager.CreateRenderCommandList("Graphics2DRenderCommandList");
 
                 this.graphicsManager.SetShader(commandList, this.shader);
                 this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);

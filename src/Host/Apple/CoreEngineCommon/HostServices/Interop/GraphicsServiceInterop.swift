@@ -5,19 +5,19 @@ func GraphicsService_getRenderSizeInterop(context: UnsafeMutableRawPointer?) -> 
     return contextObject.getRenderSize()
 }
 
-func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32, _ length: Int32) -> Int32 {
+func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32, _ length: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createGraphicsBuffer(UInt(graphicsBufferId), Int(length)) ? 1 : 0)
+    return Int32(contextObject.createGraphicsBuffer(UInt(graphicsBufferId), Int(length), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
-func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32, _ width: Int32, _ height: Int32) -> Int32 {
+func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32, _ width: Int32, _ height: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createTexture(UInt(textureId), Int(width), Int(height)) ? 1 : 0)
+    return Int32(contextObject.createTexture(UInt(textureId), Int(width), Int(height), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
-func GraphicsService_createShaderInterop(context: UnsafeMutableRawPointer?, _ shaderId: UInt32, _ shaderByteCode: UnsafeMutableRawPointer?, _ shaderByteCodeLength: Int32) -> Int32 {
+func GraphicsService_createShaderInterop(context: UnsafeMutableRawPointer?, _ shaderId: UInt32, _ shaderByteCode: UnsafeMutableRawPointer?, _ shaderByteCodeLength: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createShader(UInt(shaderId), shaderByteCode!, Int(shaderByteCodeLength)) ? 1 : 0)
+    return Int32(contextObject.createShader(UInt(shaderId), shaderByteCode!, Int(shaderByteCodeLength), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
 func GraphicsService_removeShaderInterop(context: UnsafeMutableRawPointer?, _ shaderId: UInt32) {
@@ -25,9 +25,9 @@ func GraphicsService_removeShaderInterop(context: UnsafeMutableRawPointer?, _ sh
     contextObject.removeShader(UInt(shaderId))
 }
 
-func GraphicsService_createCopyCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) -> Int32 {
+func GraphicsService_createCopyCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createCopyCommandList(UInt(commandListId)) ? 1 : 0)
+    return Int32(contextObject.createCopyCommandList(UInt(commandListId), (debugName != nil) ? String(cString: debugName!) : nil, Bool(createNewCommandBuffer == 1)) ? 1 : 0)
 }
 
 func GraphicsService_executeCopyCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
@@ -45,9 +45,9 @@ func GraphicsService_uploadDataToTextureInterop(context: UnsafeMutableRawPointer
     contextObject.uploadDataToTexture(UInt(commandListId), UInt(textureId), Int(width), Int(height), data!, Int(dataLength))
 }
 
-func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) -> Int32 {
+func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createRenderCommandList(UInt(commandListId)) ? 1 : 0)
+    return Int32(contextObject.createRenderCommandList(UInt(commandListId), (debugName != nil) ? String(cString: debugName!) : nil, Bool(createNewCommandBuffer == 1)) ? 1 : 0)
 }
 
 func GraphicsService_executeRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {

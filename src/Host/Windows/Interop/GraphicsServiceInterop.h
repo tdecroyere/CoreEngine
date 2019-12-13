@@ -8,22 +8,22 @@ struct Vector2 GetRenderSizeInterop(void* context)
     return contextObject->GetRenderSize()
 }
 
-int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, int length)
+int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, int length, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateGraphicsBuffer(graphicsBufferId, length)
+    return contextObject->CreateGraphicsBuffer(graphicsBufferId, length, debugName)
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, int width, int height)
+int CreateTextureInterop(void* context, unsigned int textureId, int width, int height, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(textureId, width, height)
+    return contextObject->CreateTexture(textureId, width, height, debugName)
 }
 
-int CreateShaderInterop(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength)
+int CreateShaderInterop(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateShader(shaderId, shaderByteCode, shaderByteCodeLength)
+    return contextObject->CreateShader(shaderId, shaderByteCode, shaderByteCodeLength, debugName)
 }
 
 void RemoveShaderInterop(void* context, unsigned int shaderId)
@@ -32,10 +32,10 @@ void RemoveShaderInterop(void* context, unsigned int shaderId)
     contextObject->RemoveShader(shaderId)
 }
 
-int CreateCopyCommandListInterop(void* context, unsigned int commandListId)
+int CreateCopyCommandListInterop(void* context, unsigned int commandListId, struct string? debugName, int createNewCommandBuffer)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateCopyCommandList(commandListId)
+    return contextObject->CreateCopyCommandList(commandListId, debugName, createNewCommandBuffer)
 }
 
 void ExecuteCopyCommandListInterop(void* context, unsigned int commandListId)
@@ -56,10 +56,10 @@ void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsig
     contextObject->UploadDataToTexture(commandListId, textureId, width, height, data, dataLength)
 }
 
-int CreateRenderCommandListInterop(void* context, unsigned int commandListId)
+int CreateRenderCommandListInterop(void* context, unsigned int commandListId, struct string? debugName, int createNewCommandBuffer)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateRenderCommandList(commandListId)
+    return contextObject->CreateRenderCommandList(commandListId, debugName, createNewCommandBuffer)
 }
 
 void ExecuteRenderCommandListInterop(void* context, unsigned int commandListId)

@@ -38,8 +38,8 @@ namespace CoreEngine.Graphics
             this.vertexData = new Vector4[maxLineCount * 4];
             this.indexData = new uint[maxLineCount * 2];
 
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, GraphicsResourceType.Dynamic);
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, GraphicsResourceType.Dynamic);
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, GraphicsResourceType.Dynamic, "DebugVertexBuffer");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, GraphicsResourceType.Dynamic, "DebugIndexBuffer");
 
             this.currentDebugLineIndex = 0;
         }
@@ -67,20 +67,26 @@ namespace CoreEngine.Graphics
             this.currentDebugLineIndex++;
         }
 
+        public void CopyDataToGpu()
+        {
+            if (this.currentDebugLineIndex > 0)
+            {
+                var copyCommandList = this.graphicsManager.CreateCopyCommandList("DebugCopyCommandList");
+                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
+                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
+                this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+            }
+        }
+
         public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList? renderCommandList = null)
         {
             if (this.currentDebugLineIndex > 0)
             {
-                var copyCommandList = this.graphicsManager.CreateCopyCommandList();
-                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
-                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
-                this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
-
                 CommandList commandList;
 
                 if (renderCommandList == null)
                 {
-                    commandList = this.graphicsManager.CreateRenderCommandList();
+                    commandList = this.graphicsManager.CreateRenderCommandList("DebugRenderCommandList");
                 }
 
                 else

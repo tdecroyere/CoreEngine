@@ -55,7 +55,7 @@ namespace CoreEngine.Graphics
                 this.graphicsManager.RemoveShader(shader);
             }
 
-            var createdShader = this.graphicsManager.CreateShader(shaderByteCode);
+            var createdShader = this.graphicsManager.CreateShader(shaderByteCode, $"{Path.GetFileNameWithoutExtension(shader.Path)}Shader");
             shader.ShaderId = createdShader.ShaderId;
 
             return Task.FromResult((Resource)shader);

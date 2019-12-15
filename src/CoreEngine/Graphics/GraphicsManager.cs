@@ -35,7 +35,7 @@ namespace CoreEngine.Graphics
             this.internal2DRenderer = new Graphics2DRenderer(this, resourcesManager);
 
             this.currentFrameSize = graphicsService.GetRenderSize();
-            this.FinalRenderTargetTexture = CreateTexture((int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "FinalRenderTarget");
+            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Bgra8UnormSrgb, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
         }
 
         public uint CurrentFrameNumber
@@ -44,7 +44,7 @@ namespace CoreEngine.Graphics
             private set;
         }
 
-        public Texture FinalRenderTargetTexture
+        public Texture MainRenderTargetTexture
         {
             get;
             private set;
@@ -100,10 +100,10 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
-        public Texture CreateTexture(int width, int height, bool isRenderTarget = false, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
+        public Texture CreateTexture(TextureFormat textureFormat, int width, int height, bool isRenderTarget = false, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
         {
             var textureId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateTexture(textureId, width, height, isRenderTarget, debugName);
+            var result = this.graphicsService.CreateTexture(textureId, (GraphicsTextureFormat)(int)textureFormat, width, height, isRenderTarget, debugName);
 
             if (!result)
             {
@@ -115,7 +115,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId2.Value, width, height, isRenderTarget, debugName);
+                result = this.graphicsService.CreateTexture(textureId2.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, isRenderTarget, debugName);
 
                 if (!result)
                 {
@@ -128,7 +128,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId3 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId3.Value, width, height, isRenderTarget, debugName);
+                result = this.graphicsService.CreateTexture(textureId3.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, isRenderTarget, debugName);
 
                 if (!result)
                 {
@@ -221,10 +221,10 @@ namespace CoreEngine.Graphics
             var commandListId = GetNextGraphicsResourceId();
             var result = graphicsService.CreateRenderCommandList(commandListId, new GraphicsRenderPassDescriptor(renderPassDescriptor), debugName, createNewCommandBuffer);
 
-            // if (!result)
-            // {
-            //     throw new InvalidOperationException("There was an error while creating the render command list resource.");
-            // }
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the render command list resource.");
+            }
 
             return new CommandList(commandListId, CommandListType.Render);
         }
@@ -338,21 +338,18 @@ namespace CoreEngine.Graphics
 
         public void PresentScreenBuffer()
         {
-            if (this.Graphics2DRenderer != null)
-            {
-                // TODO: Is there a way to load the final render target texture and to store it directly in the hardware?
-                this.internal2DRenderer.PreUpdate();
-                this.internal2DRenderer.DrawRectangleSurface(Vector2.Zero, this.GetRenderSize(), this.FinalRenderTargetTexture);
-                this.internal2DRenderer.CopyDataToGpu();
+            // TODO: Is there a way to load the final render target texture and to store it directly in the hardware?
+            this.internal2DRenderer.PreUpdate();
+            this.internal2DRenderer.DrawRectangleSurface(Vector2.Zero, this.GetRenderSize(), this.MainRenderTargetTexture);
+            this.internal2DRenderer.CopyDataToGpu();
 
-                var renderPassDescriptor = new GraphicsRenderPassDescriptor(null, null, null, false, false, true);
+            var renderPassDescriptor = new GraphicsRenderPassDescriptor(null, null, null, false, false, true);
 
-                var commandListId = GetNextGraphicsResourceId();
-                var result = this.graphicsService.CreateRenderCommandList(commandListId, renderPassDescriptor, "PresentRenderCommandList", false);
+            var commandListId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateRenderCommandList(commandListId, renderPassDescriptor, "PresentRenderCommandList", false);
 
-                this.internal2DRenderer.Render(new CommandList(commandListId, CommandListType.Render));
-                this.graphicsService.ExecuteRenderCommandList(commandListId);
-            }
+            this.internal2DRenderer.Render(new CommandList(commandListId, CommandListType.Render));
+            this.graphicsService.ExecuteRenderCommandList(commandListId);
 
             this.graphicsService.PresentScreenBuffer();
 
@@ -369,11 +366,11 @@ namespace CoreEngine.Graphics
                 Logger.WriteMessage("Recreating final render target");
                 this.currentFrameSize = frameSize;
                 
-                RemoveTexture(this.FinalRenderTargetTexture);
-                this.FinalRenderTargetTexture = CreateTexture((int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "FinalRenderTarget");
+                RemoveTexture(this.MainRenderTargetTexture);
+                this.MainRenderTargetTexture = CreateTexture(TextureFormat.Bgra8UnormSrgb, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
             }
 
-            this.GraphicsSceneRenderer.Render();
+            this.GraphicsSceneRenderer.CopyDataToGpuAndRender();
 
             this.Graphics2DRenderer.CopyDataToGpu();
             this.Graphics2DRenderer.Render();

@@ -3,7 +3,7 @@ import CoreEngineCommonInterop
 public protocol GraphicsServiceProtocol {
     func getRenderSize() -> Vector2
     func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int, _ debugName: String?) -> Bool
-    func createTexture(_ textureId: UInt, _ width: Int, _ height: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool
+    func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool
     func removeTexture(_ textureId: UInt)
     func createShader(_ shaderId: UInt, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ useDepthBuffer: Bool, _ debugName: String?) -> Bool
     func removeShader(_ shaderId: UInt)

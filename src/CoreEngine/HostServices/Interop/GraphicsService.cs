@@ -5,7 +5,7 @@ namespace CoreEngine.HostServices.Interop
 {
     internal unsafe delegate Vector2 GraphicsService_GetRenderSizeDelegate(IntPtr context);
     internal unsafe delegate bool GraphicsService_CreateGraphicsBufferDelegate(IntPtr context, uint graphicsBufferId, int length, string? debugName);
-    internal unsafe delegate bool GraphicsService_CreateTextureDelegate(IntPtr context, uint textureId, int width, int height, bool isRenderTarget, string? debugName);
+    internal unsafe delegate bool GraphicsService_CreateTextureDelegate(IntPtr context, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, bool isRenderTarget, string? debugName);
     internal unsafe delegate void GraphicsService_RemoveTextureDelegate(IntPtr context, uint textureId);
     internal unsafe delegate bool GraphicsService_CreateShaderDelegate(IntPtr context, uint shaderId, byte *shaderByteCode, int shaderByteCodeLength, bool useDepthBuffer, string? debugName);
     internal unsafe delegate void GraphicsService_RemoveShaderDelegate(IntPtr context, uint shaderId);
@@ -61,10 +61,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe bool CreateTexture(uint textureId, int width, int height, bool isRenderTarget, string? debugName)
+        public unsafe bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, bool isRenderTarget, string? debugName)
         {
             if (this.context != null && this.graphicsService_CreateTextureDelegate != null)
-                return this.graphicsService_CreateTextureDelegate(this.context, textureId, width, height, isRenderTarget, debugName);
+                return this.graphicsService_CreateTextureDelegate(this.context, textureId, textureFormat, width, height, isRenderTarget, debugName);
             else
                 return default(bool);
         }

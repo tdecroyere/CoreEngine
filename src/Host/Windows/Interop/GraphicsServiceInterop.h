@@ -14,10 +14,10 @@ int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, in
     return contextObject->CreateGraphicsBuffer(graphicsBufferId, length, debugName)
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, int width, int height, int isRenderTarget, struct string? debugName)
+int CreateTextureInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int isRenderTarget, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(textureId, width, height, isRenderTarget, debugName)
+    return contextObject->CreateTexture(textureId, textureFormat, width, height, isRenderTarget, debugName)
 }
 
 void RemoveTextureInterop(void* context, unsigned int textureId)

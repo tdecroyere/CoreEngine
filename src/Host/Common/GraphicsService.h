@@ -7,6 +7,13 @@ enum GraphicsPrimitiveType : int
     Line
 };
 
+enum GraphicsTextureFormat : int
+{
+    Rgba8UnormSrgb, 
+    Bgra8UnormSrgb, 
+    Depth32Float
+};
+
 struct GraphicsRenderPassDescriptor
 {
     struct Nullableuint ColorTextureId;
@@ -20,7 +27,7 @@ struct GraphicsRenderPassDescriptor
 
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
 typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, char* debugName);
-typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, int width, int height, int isRenderTarget, char* debugName);
+typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int isRenderTarget, char* debugName);
 typedef void (*GraphicsService_RemoveTexturePtr)(void* context, unsigned int textureId);
 typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, void* shaderByteCode, int shaderByteCodeLength, int useDepthBuffer, char* debugName);
 typedef void (*GraphicsService_RemoveShaderPtr)(void* context, unsigned int shaderId);

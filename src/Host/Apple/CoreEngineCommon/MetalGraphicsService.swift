@@ -170,12 +170,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
-    public func createTexture(_ textureId: UInt, _ width: Int, _ height: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool {
+    public func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool {
         // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
         descriptor.textureType = .type2D
-        descriptor.pixelFormat = .rgba8Unorm_srgb
         descriptor.width = width
         descriptor.height = height
         descriptor.depth = 1
@@ -183,8 +182,15 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         descriptor.arrayLength = 1
         descriptor.storageMode = .private
 
-        if (isRenderTarget) {
+        if (textureFormat == Bgra8UnormSrgb) {
             descriptor.pixelFormat = .bgra8Unorm_srgb
+        } else if (textureFormat == Depth32Float) {
+            descriptor.pixelFormat = .depth32Float
+        } else {
+            descriptor.pixelFormat = .rgba8Unorm_srgb
+        }
+
+        if (isRenderTarget) {
             descriptor.usage = [.renderTarget, .shaderRead]
         }
 
@@ -210,15 +216,15 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")!
         let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")!
 
-        // Configure a pipeline descriptor that is used to create a pipeline state
-        // TODO: Pass values from the function parameters
         let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
         pipelineStateDescriptor.label = (debugName != nil) ? debugName! : "Shader\(shaderId)"
         pipelineStateDescriptor.vertexFunction = vertexFunction
         pipelineStateDescriptor.fragmentFunction = fragmentFunction
 
-        // TODO
+        // TODO: Use the correct render target format
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat
+
+        // TODO: Add an option to disable blending
         pipelineStateDescriptor.colorAttachments[0].isBlendingEnabled = true
         pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation = .add
         pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation = .add
@@ -380,14 +386,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderTargetTexture = colorTexture
         }
 
-        let depthTexture = self.depthTextures[0]
-
         let renderPassDescriptor = MTLRenderPassDescriptor()
         renderPassDescriptor.colorAttachments[0].texture = renderTargetTexture
 
         if (renderDescriptor.ColorTextureId.HasValue == 0) {
             renderPassDescriptor.colorAttachments[0].loadAction = .dontCare
-        }else if (renderDescriptor.ClearColor.HasValue == 1) {
+        } else if (renderDescriptor.ClearColor.HasValue == 1) {
             renderPassDescriptor.colorAttachments[0].loadAction = .clear
             renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
         } else {
@@ -400,9 +404,16 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderPassDescriptor.colorAttachments[0].storeAction = .store
         }
 
-        if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
+        // TODO
+        if (renderDescriptor.DepthTextureId.HasValue == 1) {
+            guard let depthTexture = self.textures[UInt(renderDescriptor.DepthTextureId.Value)] else {
+                print("createRenderCommandList: Depth Texture is nil.")
+                return false
+            }
             renderPassDescriptor.depthAttachment.texture = depthTexture
+        }
 
+        if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
             if (renderDescriptor.DepthCompare == 1) {
                 renderPassDescriptor.depthAttachment.loadAction = .clear // TODO: Use a separate pass for depth buffer
                 renderPassDescriptor.depthAttachment.clearDepth = 1.0
@@ -412,7 +423,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 renderPassDescriptor.depthAttachment.storeAction = .store
             }
         } else {
-            renderPassDescriptor.depthAttachment.storeAction = .store
+            renderPassDescriptor.depthAttachment.storeAction = .dontCare
         }
         
         guard let renderCommandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {

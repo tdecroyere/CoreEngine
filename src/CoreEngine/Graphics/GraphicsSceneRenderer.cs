@@ -35,6 +35,9 @@ namespace CoreEngine.Graphics
         internal int currentObjectPropertyIndex = 0;
         private Shader testShader;
 
+        private Texture depthBufferTexture;
+        private Vector2 currentFrameSize;
+
         public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
             if (graphicsManager == null)
@@ -47,6 +50,9 @@ namespace CoreEngine.Graphics
             this.sceneQueue = sceneQueue;
 
             this.testShader = resourcesManager.LoadResourceAsync<Shader>("/BasicRender.shader");
+
+            this.currentFrameSize = this.graphicsManager.GetRenderSize();
+            this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
 
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, GraphicsResourceType.Dynamic);
@@ -62,8 +68,19 @@ namespace CoreEngine.Graphics
             this.meshGeometryInstancesParamIdList = new List<uint>();
         }
 
-        public void Render()
+        public void CopyDataToGpuAndRender()
         {
+            var frameSize = this.graphicsManager.GetRenderSize();
+
+            if (frameSize != this.currentFrameSize)
+            {
+                Logger.WriteMessage("Recreating final render target");
+                this.currentFrameSize = frameSize;
+                
+                this.graphicsManager.RemoveTexture(this.depthBufferTexture);
+                this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
+            }
+
             var scene = this.sceneQueue.WaitForNextScene();
             var camera = scene.DebugCamera;
 
@@ -83,7 +100,7 @@ namespace CoreEngine.Graphics
 
         private void RunRenderPipeline(GraphicsScene scene)
         {
-            var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.FinalRenderTargetTexture, new Vector4(0, 1, 0, 0), null, true, true, true);
+            var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, new Vector4(0, 1, 0, 0), this.depthBufferTexture, true, true, true);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "SceneRenderCommandList");
 
             this.graphicsManager.SetShader(renderCommandList, this.testShader);

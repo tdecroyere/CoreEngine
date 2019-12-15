@@ -58,7 +58,7 @@ namespace CoreEngine.Graphics
                 //this.graphicsService.RemoveTexture(texture.TextureId);
             }
 
-            var createdTexture = this.graphicsManager.CreateTexture(texture.Width, texture.Height);
+            var createdTexture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, texture.Width, texture.Height);
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 

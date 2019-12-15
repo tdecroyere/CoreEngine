@@ -65,9 +65,6 @@ namespace CoreEngine.Graphics
         private RenderPassConstants2D renderPassConstants;
         private RectangleSurface[] rectangleSurfaces;
 
-        private Texture? testTexture;
-        private Texture? testTexture2;
-
         private List<Texture> textures;
 
         public Graphics2DRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
@@ -178,7 +175,7 @@ namespace CoreEngine.Graphics
 
                 if (renderCommandList == null)
                 {
-                    var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.FinalRenderTargetTexture, null, null, false, false, true);
+                    var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, null, null, false, false, true);
                     commandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "Graphics2DRenderCommandList");
                 }
 

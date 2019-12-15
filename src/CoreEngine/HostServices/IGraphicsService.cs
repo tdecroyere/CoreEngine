@@ -13,6 +13,13 @@ namespace CoreEngine.HostServices
         Line
     }
 
+    public enum GraphicsTextureFormat
+    {
+        Rgba8UnormSrgb,
+        Bgra8UnormSrgb,
+        Depth32Float
+    }
+
     public readonly struct GraphicsRenderPassDescriptor
     {
         public GraphicsRenderPassDescriptor(RenderPassDescriptor renderPassDescriptor)
@@ -49,7 +56,7 @@ namespace CoreEngine.HostServices
         
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, string? debugName);
 
-        bool CreateTexture(uint textureId, int width, int height, bool isRenderTarget, string? debugName);
+        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, bool isRenderTarget, string? debugName);
         void RemoveTexture(uint textureId);
 
         bool CreateShader(uint shaderId, ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName);

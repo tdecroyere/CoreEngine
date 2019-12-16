@@ -45,8 +45,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     let device: MTLDevice
     let metalLayer: CAMetalLayer
     var currentMetalDrawable: CAMetalDrawable?
-    var depthTextures: [MTLTexture]
-    var currentDepthTextureIndex: Int
     var currentIndexBuffer: MTLBuffer!
     var currentShader: Shader? = nil
 
@@ -72,7 +70,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     var graphicsBuffers: [UInt: MTLBuffer]
     var cpuGraphicsBuffers: [UInt: MTLBuffer]
-    var graphicsBufferEncoders: [UInt: MTLArgumentEncoder]
 
     var textures: [UInt: MTLTexture]
 
@@ -95,9 +92,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.metalLayer.maximumDrawableCount = 3
         self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
 
-        self.depthTextures = []
-        self.currentDepthTextureIndex = 0
-
         self.shaders = [:]
         self.copyCommandBuffers = [:]
         self.copyCommandEncoders = [:]
@@ -105,7 +99,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.renderCommandEncoders = [:]
         self.graphicsBuffers = [:]
         self.cpuGraphicsBuffers = [:]
-        self.graphicsBufferEncoders = [:]
         self.textures = [:]
 
         var depthStencilDescriptor = MTLDepthStencilDescriptor()
@@ -136,8 +129,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
         heapDescriptor.size = 1024 * 1024 * 1024; // Allocate 1GB for now
         self.globalHeap = self.device.makeHeap(descriptor: heapDescriptor)!
-
-        createDepthBuffers()
     }
 
     public func getRenderSize() -> Vector2 {
@@ -149,7 +140,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.renderHeight = renderHeight
         
         self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
-        createDepthBuffers()
     }
 
     public func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int, _ debugName: String?) -> Bool {
@@ -413,7 +403,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderPassDescriptor.depthAttachment.texture = depthTexture
         }
 
-        if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
+        if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
             if (renderDescriptor.DepthCompare == 1) {
                 renderPassDescriptor.depthAttachment.loadAction = .clear // TODO: Use a separate pass for depth buffer
                 renderPassDescriptor.depthAttachment.clearDepth = 1.0
@@ -434,11 +424,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         renderCommandEncoder.label = (debugName != nil) ? debugName! : "RenderCommandEncoder\(commandListId)"
         self.renderCommandEncoders[commandListId] = renderCommandEncoder
 
-        if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 1) {
+        if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 1) {
             renderCommandEncoder.setDepthStencilState(self.depthCompareWriteState)
-        } else if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 0) {
+        } else if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 0) {
             renderCommandEncoder.setDepthStencilState(self.depthCompareNoWriteState)
-        } else if (renderDescriptor.DepthCompare == 0 && renderDescriptor.DepthWrite == 1) {
+        } else if (renderDescriptor.DepthCompare == 0 && renderDescriptor.DepthWrite == 1) {
             renderCommandEncoder.setDepthStencilState(self.depthNoCompareWriteState)
         } else {
             renderCommandEncoder.setDepthStencilState(self.depthNoCompareNoWriteState)
@@ -600,18 +590,5 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             // TODO: Can we reuse the same command buffer?
             self.commandBuffer = self.commandQueue.makeCommandBuffer()
         }
-    }
-
-    private func createDepthBuffers() {
-        // TODO: Create an array per render buffer count
-
-        let depthTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .depth32Float, width: self.renderWidth, height: self.renderHeight, mipmapped: false)
-        depthTextureDescriptor.storageMode = .private
-        depthTextureDescriptor.usage = [.renderTarget, .shaderRead]
-        let depthTexture = self.globalHeap.makeTexture(descriptor: depthTextureDescriptor)!
-        depthTexture.label = "Depth Texture"
-
-        self.depthTextures = []
-        self.depthTextures.append(depthTexture)
     }
 }

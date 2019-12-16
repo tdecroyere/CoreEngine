@@ -20,6 +20,11 @@ namespace CoreEngine.Graphics
 
         public GraphicsManager(IGraphicsService graphicsService, GraphicsSceneQueue graphicsSceneQueue, ResourcesManager resourcesManager)
         {
+            if (graphicsService == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsService));
+            }
+
             if (resourcesManager == null)
             {
                 throw new ArgumentNullException(nameof(resourcesManager));
@@ -141,6 +146,11 @@ namespace CoreEngine.Graphics
 
         public void RemoveTexture(Texture texture)
         {
+            if (texture == null)
+            {
+                throw new ArgumentNullException(nameof(texture));
+            }
+
             this.graphicsService.RemoveTexture(texture.GraphicsResourceSystemId);
 
             if (texture.ResourceType == GraphicsResourceType.Dynamic)

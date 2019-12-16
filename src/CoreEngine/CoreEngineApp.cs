@@ -4,9 +4,9 @@ namespace CoreEngine
 {
     public abstract class CoreEngineApp
     {
-        protected CoreEngineApp()
+        protected CoreEngineApp(SystemManagerContainer systemManagerContainer)
         {
-            this.SystemManagerContainer = new SystemManagerContainer(this);
+            this.SystemManagerContainer = systemManagerContainer;
         }
 
         public abstract string Name
@@ -19,7 +19,6 @@ namespace CoreEngine
             get;
         }
 
-        public abstract void Init();
         public abstract void Update(float deltaTime);
     }
 }

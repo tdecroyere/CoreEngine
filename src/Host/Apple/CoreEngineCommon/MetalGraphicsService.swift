@@ -365,7 +365,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
                 return false
             }
-
+            
             self.currentMetalDrawable = nextCurrentMetalDrawable
             renderTargetTexture = nextCurrentMetalDrawable.texture
         } else {

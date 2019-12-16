@@ -32,9 +32,11 @@ namespace CoreEngine.Graphics
     // TODO: Find a way to auto align fields to 16 (Required by shaders)
     readonly struct RectangleSurface
     {
-        public RectangleSurface(Matrix4x4 worldMatrix, uint textureIndex)
+        public RectangleSurface(Matrix4x4 worldMatrix, Vector2 textureMinPoint, Vector2 textureMaxPoint, uint textureIndex)
         {
             this.WorldMatrix = worldMatrix;
+            this.TextureMinPoint = textureMinPoint;
+            this.TextureMaxPoint = textureMaxPoint;
             this.TextureIndex = textureIndex;
             this.Reserved = 1;
             this.Reserved2 = 2;
@@ -42,6 +44,8 @@ namespace CoreEngine.Graphics
         }
 
         public readonly Matrix4x4 WorldMatrix { get; }
+        public readonly Vector2 TextureMinPoint { get; }
+        public readonly Vector2 TextureMaxPoint { get; }
         public readonly uint TextureIndex { get; }
         public readonly uint Reserved { get; }
         public readonly uint Reserved2 { get; }
@@ -56,6 +60,7 @@ namespace CoreEngine.Graphics
         private float scaleFactor = 1.0f;
 
         private Shader shader;
+        private Font systemFont;
 
         private GraphicsBuffer vertexBuffer;
         private GraphicsBuffer indexBuffer;
@@ -82,11 +87,13 @@ namespace CoreEngine.Graphics
             this.graphicsManager = graphicsManager;
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/Graphics2DRender.shader");
+            this.systemFont = resourcesManager.LoadResourceAsync<Font>("/SystemFont.font");
             this.textures = new List<Texture>();
 
             var maxSurfaceCount = 10000;
             this.rectangleSurfaces = new RectangleSurface[maxSurfaceCount];
 
+            // TODO: Use a compute shader to compute vertex and index buffer
             var vertexData = new Graphics2DVertex[4];
             var indexData = new uint[6];
 
@@ -133,7 +140,33 @@ namespace CoreEngine.Graphics
             DrawRectangleSurface(position, position + new Vector2(texture.Width, texture.Height), texture);
         }
 
+        public void DrawText(string text, Vector2 position, Font? font = null)
+        {
+            if (text == null)
+            {
+                return;
+            }
+            
+            if (font == null)
+            {
+                font = this.systemFont;
+            }
+
+            for (var i = 0; i < text.Length; i++)
+            {
+                var glyphInfo = font.GlyphInfos[text[i]];
+
+                DrawRectangleSurface(position, position + new Vector2(glyphInfo.Width, glyphInfo.Height), font.Texture, glyphInfo.TextureMinPoint, glyphInfo.TextureMaxPoint);
+                position.X += glyphInfo.Width;
+            }
+        }
+
         public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture)
+        {
+            DrawRectangleSurface(minPoint, maxPoint, texture, Vector2.Zero, new Vector2(1, 1));
+        }
+
+        public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, Vector2 textureMinPoint, Vector2 textureMaxPoint)
         {
             var vertexOffset = this.currentSurfaceCount * 4;
             var indexOffset = this.currentSurfaceCount * 6;
@@ -152,7 +185,7 @@ namespace CoreEngine.Graphics
                 this.textures.Add(texture);
             }
 
-            this.rectangleSurfaces[this.currentSurfaceCount] = new RectangleSurface(worldMatrix, (uint)textureIndex);
+            this.rectangleSurfaces[this.currentSurfaceCount] = new RectangleSurface(worldMatrix, textureMinPoint, textureMaxPoint, (uint)textureIndex);
             this.currentSurfaceCount++;
         }
 

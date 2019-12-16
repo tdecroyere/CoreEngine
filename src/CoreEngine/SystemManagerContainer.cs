@@ -5,12 +5,10 @@ namespace CoreEngine
 {
     public class SystemManagerContainer
     {
-        private readonly CoreEngineApp coreEngineApp;
         private IDictionary<Type, SystemManager> systemManagerList = new Dictionary<Type, SystemManager>();
 
-        public SystemManagerContainer(CoreEngineApp coreEngineApp)
+        public SystemManagerContainer()
         {
-            this.coreEngineApp = coreEngineApp;
         }
 
         public void RegisterSystemManager<T>(T systemManager) where T : SystemManager

@@ -25,30 +25,30 @@ namespace CoreEngine
 
             if (appName != null)
             {
+                var resourcesManager = new ResourcesManager();
+                    
+                // TODO: Get the config from the host using hardcoded values for the moment
+                resourcesManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
+                resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
+
+                sceneQueue = new GraphicsSceneQueue();
+                sceneManager = new GraphicsSceneManager(sceneQueue);
+
+                graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, sceneQueue, resourcesManager);
+                var systemManagerContainer = new SystemManagerContainer();
+
+                // Register managers
+                systemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
+                systemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
+                systemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
+                systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(graphicsManager.Graphics2DRenderer);
+                systemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
+
                 Logger.BeginAction($"Loading CoreEngineApp '{appName}'");
-                coreEngineApp = LoadCoreEngineApp(appName).Result;
+                coreEngineApp = LoadCoreEngineApp(appName, systemManagerContainer).Result;
 
                 if (coreEngineApp != null)
                 {
-                    var resourcesManager = new ResourcesManager();
-                    
-                    // TODO: Get the config from the host using hardcoded values for the moment
-                    resourcesManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
-                    resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
-
-                    sceneQueue = new GraphicsSceneQueue();
-                    sceneManager = new GraphicsSceneManager(sceneQueue);
-
-                    graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, sceneQueue, resourcesManager);
-
-                    // Register managers
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(graphicsManager.Graphics2DRenderer);
-                    coreEngineApp.SystemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
-
-                    coreEngineApp.Init();
                     Logger.EndAction();
                 }
 
@@ -77,7 +77,7 @@ namespace CoreEngine
         }
 
         // TODO: Use the isolated app domain new feature to be able to do hot build of the app dll
-        private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName)
+        private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName, SystemManagerContainer systemManagerContainer)
         {
             // TODO: Check if dll exists
             var currentAssemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -92,7 +92,7 @@ namespace CoreEngine
                 {
                     if (type.IsSubclassOf(typeof(CoreEngineApp)))
                     {
-                        return (CoreEngineApp?)Activator.CreateInstance(type);
+                        return (CoreEngineApp?)Activator.CreateInstance(type, systemManagerContainer);
                     }
                 }
             }

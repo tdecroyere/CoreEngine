@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
@@ -17,6 +18,11 @@ namespace CoreEngine.Graphics
         private static object syncObject = new object();
         private uint currentGraphicsResourceId;
         private Vector2 currentFrameSize;
+        private Stopwatch stopwatch;
+        private int drawCount;
+        private Stopwatch globalStopwatch;
+        private uint startMeasureFrameNumber;
+        int framePerSeconds = 0;
 
         public GraphicsManager(IGraphicsService graphicsService, GraphicsSceneQueue graphicsSceneQueue, ResourcesManager resourcesManager)
         {
@@ -34,6 +40,11 @@ namespace CoreEngine.Graphics
 
             this.graphicsService = graphicsService;
             this.currentGraphicsResourceId = 0;
+            this.drawCount = 0;
+            this.stopwatch = new Stopwatch();
+            this.stopwatch.Start();
+            this.globalStopwatch = new Stopwatch();
+            this.globalStopwatch.Start();
 
             this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, graphicsSceneQueue, resourcesManager);
             this.Graphics2DRenderer = new Graphics2DRenderer(this, resourcesManager);
@@ -344,6 +355,8 @@ namespace CoreEngine.Graphics
                                                 indexCount,
                                                 instanceCount,
                                                 baseInstanceId);
+
+            this.drawCount++;
         }
 
         public void PresentScreenBuffer()
@@ -365,6 +378,7 @@ namespace CoreEngine.Graphics
 
             // TODO: A modulo here with Int.MaxValue
             this.CurrentFrameNumber++;
+            this.drawCount = 0;
         }
 
         internal void Render()
@@ -382,15 +396,33 @@ namespace CoreEngine.Graphics
 
             this.GraphicsSceneRenderer.CopyDataToGpuAndRender();
 
+            DrawDebugMessages();
             this.Graphics2DRenderer.CopyDataToGpu();
             this.Graphics2DRenderer.Render();
 
             this.PresentScreenBuffer();
+            this.stopwatch.Restart();
+        }
+
+        private void DrawDebugMessages()
+        {
+            var frameDuration = (float)this.stopwatch.ElapsedTicks / Stopwatch.Frequency * 1000;
+            
+            if (this.globalStopwatch.ElapsedMilliseconds > 1000)
+            {
+                framePerSeconds = (int)(this.CurrentFrameNumber - startMeasureFrameNumber);
+                this.globalStopwatch.Restart();
+                this.startMeasureFrameNumber = this.CurrentFrameNumber;
+            }
+
+            this.Graphics2DRenderer.DrawText($"Cpu Frame duration: {frameDuration.ToString("0.00")} ms - FPS: {framePerSeconds}", new Vector2(10, 10));
+            this.Graphics2DRenderer.DrawText($"Draw Count: {this.drawCount}", new Vector2(10, 50));
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)
         {
             resourcesManager.AddResourceLoader(new TextureResourceLoader(resourcesManager, this));
+            resourcesManager.AddResourceLoader(new FontResourceLoader(resourcesManager, this));
             resourcesManager.AddResourceLoader(new ShaderResourceLoader(resourcesManager, this));
             resourcesManager.AddResourceLoader(new MaterialResourceLoader(resourcesManager, this));
             resourcesManager.AddResourceLoader(new MeshResourceLoader(resourcesManager, this));

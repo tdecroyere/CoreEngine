@@ -58,7 +58,7 @@ namespace CoreEngine.Resources
             return (T)this.resourceIdList[resourceId];
         }
 
-        public T LoadResourceAsync<T>(string path) where T : Resource
+        public T LoadResourceAsync<T>(string path, params string[] parameters) where T : Resource
         {
             if (this.resources.ContainsKey(path))
             {
@@ -76,6 +76,7 @@ namespace CoreEngine.Resources
 
             var resource = resourceLoader.CreateEmptyResource(this.currentResourceId, path);
             resource.ResourceLoader = resourceLoader;
+            resource.Parameters = parameters;
 
             this.resources.Add(path, resource);
             this.resourceIdList.Add(currentResourceId, resource);

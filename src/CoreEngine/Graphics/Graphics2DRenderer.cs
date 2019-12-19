@@ -93,7 +93,7 @@ namespace CoreEngine.Graphics
             var maxSurfaceCount = 10000;
             this.rectangleSurfaces = new RectangleSurface[maxSurfaceCount];
 
-            // TODO: Use a compute shader to compute vertex and index buffer
+            // TODO: Use a compute shader to compute vertex and index buffer because UVs are computed on the fly
             var vertexData = new Graphics2DVertex[4];
             var indexData = new uint[6];
 
@@ -146,7 +146,7 @@ namespace CoreEngine.Graphics
             {
                 return;
             }
-            
+
             if (font == null)
             {
                 font = this.systemFont;

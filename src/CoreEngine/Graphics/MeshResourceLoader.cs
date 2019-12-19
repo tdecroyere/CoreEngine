@@ -68,7 +68,6 @@ namespace CoreEngine.Graphics
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
             
             var geometryPacket = new GeometryPacket(vertexBuffer, indexBuffer);
-            mesh.GeometryPacket = geometryPacket;
 
             var geometryInstancesCount = reader.ReadInt32();
             Logger.WriteMessage($"GeometryInstances Count: {geometryInstancesCount}");

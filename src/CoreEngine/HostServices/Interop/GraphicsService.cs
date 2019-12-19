@@ -7,19 +7,27 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate bool GraphicsService_CreateGraphicsBufferDelegate(IntPtr context, uint graphicsBufferId, int length, string? debugName);
     internal unsafe delegate bool GraphicsService_CreateTextureDelegate(IntPtr context, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, bool isRenderTarget, string? debugName);
     internal unsafe delegate void GraphicsService_RemoveTextureDelegate(IntPtr context, uint textureId);
-    internal unsafe delegate bool GraphicsService_CreateShaderDelegate(IntPtr context, uint shaderId, byte *shaderByteCode, int shaderByteCodeLength, bool useDepthBuffer, string? debugName);
+    internal unsafe delegate bool GraphicsService_CreateShaderDelegate(IntPtr context, uint shaderId, string? computeShaderFunction, byte *shaderByteCode, int shaderByteCodeLength, bool useDepthBuffer, string? debugName);
     internal unsafe delegate void GraphicsService_RemoveShaderDelegate(IntPtr context, uint shaderId);
     internal unsafe delegate bool GraphicsService_CreateCopyCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void GraphicsService_UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
     internal unsafe delegate void GraphicsService_UploadDataToTextureDelegate(IntPtr context, uint commandListId, uint textureId, int width, int height, byte *data, int dataLength);
+    internal unsafe delegate void GraphicsService_ResetIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
+    internal unsafe delegate void GraphicsService_OptimizeIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
+    internal unsafe delegate bool GraphicsService_CreateComputeCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
+    internal unsafe delegate void GraphicsService_ExecuteComputeCommandListDelegate(IntPtr context, uint commandListId);
+    internal unsafe delegate void GraphicsService_DispatchThreadGroupsDelegate(IntPtr context, uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
     internal unsafe delegate bool GraphicsService_CreateRenderCommandListDelegate(IntPtr context, uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteRenderCommandListDelegate(IntPtr context, uint commandListId);
+    internal unsafe delegate bool GraphicsService_CreateIndirectCommandListDelegate(IntPtr context, uint commandListId, int maxCommandCount, string? debugName);
     internal unsafe delegate void GraphicsService_SetShaderDelegate(IntPtr context, uint commandListId, uint shaderId);
     internal unsafe delegate void GraphicsService_SetShaderBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, int slot, int index);
     internal unsafe delegate void GraphicsService_SetShaderBuffersDelegate(IntPtr context, uint commandListId, uint *graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index);
     internal unsafe delegate void GraphicsService_SetShaderTextureDelegate(IntPtr context, uint commandListId, uint textureId, int slot, int index);
     internal unsafe delegate void GraphicsService_SetShaderTexturesDelegate(IntPtr context, uint commandListId, uint *textureIdList, int textureIdListLength, int slot, int index);
+    internal unsafe delegate void GraphicsService_SetShaderIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int slot, int index);
+    internal unsafe delegate void GraphicsService_ExecuteIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate void GraphicsService_SetIndexBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId);
     internal unsafe delegate void GraphicsService_DrawIndexedPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
     internal unsafe delegate void GraphicsService_PresentScreenBufferDelegate(IntPtr context);
@@ -85,11 +93,11 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe bool CreateShader(uint shaderId, ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName)
+        public unsafe bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName)
         {
             if (this.context != null && this.graphicsService_CreateShaderDelegate != null)
                 fixed (byte *shaderByteCodePinned = shaderByteCode)
-                    return this.graphicsService_CreateShaderDelegate(this.context, shaderId, shaderByteCodePinned, shaderByteCode.Length, useDepthBuffer, debugName);
+                    return this.graphicsService_CreateShaderDelegate(this.context, shaderId, computeShaderFunction, shaderByteCodePinned, shaderByteCode.Length, useDepthBuffer, debugName);
             else
                 return default(bool);
         }
@@ -153,6 +161,63 @@ namespace CoreEngine.HostServices.Interop
                     this.graphicsService_UploadDataToTextureDelegate(this.context, commandListId, textureId, width, height, dataPinned, data.Length);
         }
 
+        private GraphicsService_ResetIndirectCommandListDelegate graphicsService_ResetIndirectCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount)
+        {
+            if (this.context != null && this.graphicsService_ResetIndirectCommandListDelegate != null)
+                this.graphicsService_ResetIndirectCommandListDelegate(this.context, commandListId, indirectCommandListId, maxCommandCount);
+        }
+
+        private GraphicsService_OptimizeIndirectCommandListDelegate graphicsService_OptimizeIndirectCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount)
+        {
+            if (this.context != null && this.graphicsService_OptimizeIndirectCommandListDelegate != null)
+                this.graphicsService_OptimizeIndirectCommandListDelegate(this.context, commandListId, indirectCommandListId, maxCommandCount);
+        }
+
+        private GraphicsService_CreateComputeCommandListDelegate graphicsService_CreateComputeCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe bool CreateComputeCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer)
+        {
+            if (this.context != null && this.graphicsService_CreateComputeCommandListDelegate != null)
+                return this.graphicsService_CreateComputeCommandListDelegate(this.context, commandListId, debugName, createNewCommandBuffer);
+            else
+                return default(bool);
+        }
+
+        private GraphicsService_ExecuteComputeCommandListDelegate graphicsService_ExecuteComputeCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe void ExecuteComputeCommandList(uint commandListId)
+        {
+            if (this.context != null && this.graphicsService_ExecuteComputeCommandListDelegate != null)
+                this.graphicsService_ExecuteComputeCommandListDelegate(this.context, commandListId);
+        }
+
+        private GraphicsService_DispatchThreadGroupsDelegate graphicsService_DispatchThreadGroupsDelegate
+        {
+            get;
+        }
+
+        public unsafe void DispatchThreadGroups(uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        {
+            if (this.context != null && this.graphicsService_DispatchThreadGroupsDelegate != null)
+                this.graphicsService_DispatchThreadGroupsDelegate(this.context, commandListId, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+        }
+
         private GraphicsService_CreateRenderCommandListDelegate graphicsService_CreateRenderCommandListDelegate
         {
             get;
@@ -175,6 +240,19 @@ namespace CoreEngine.HostServices.Interop
         {
             if (this.context != null && this.graphicsService_ExecuteRenderCommandListDelegate != null)
                 this.graphicsService_ExecuteRenderCommandListDelegate(this.context, commandListId);
+        }
+
+        private GraphicsService_CreateIndirectCommandListDelegate graphicsService_CreateIndirectCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe bool CreateIndirectCommandList(uint commandListId, int maxCommandCount, string? debugName)
+        {
+            if (this.context != null && this.graphicsService_CreateIndirectCommandListDelegate != null)
+                return this.graphicsService_CreateIndirectCommandListDelegate(this.context, commandListId, maxCommandCount, debugName);
+            else
+                return default(bool);
         }
 
         private GraphicsService_SetShaderDelegate graphicsService_SetShaderDelegate
@@ -232,6 +310,28 @@ namespace CoreEngine.HostServices.Interop
             if (this.context != null && this.graphicsService_SetShaderTexturesDelegate != null)
                 fixed (uint *textureIdListPinned = textureIdList)
                     this.graphicsService_SetShaderTexturesDelegate(this.context, commandListId, textureIdListPinned, textureIdList.Length, slot, index);
+        }
+
+        private GraphicsService_SetShaderIndirectCommandListDelegate graphicsService_SetShaderIndirectCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe void SetShaderIndirectCommandList(uint commandListId, uint indirectCommandListId, int slot, int index)
+        {
+            if (this.context != null && this.graphicsService_SetShaderIndirectCommandListDelegate != null)
+                this.graphicsService_SetShaderIndirectCommandListDelegate(this.context, commandListId, indirectCommandListId, slot, index);
+        }
+
+        private GraphicsService_ExecuteIndirectCommandListDelegate graphicsService_ExecuteIndirectCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe void ExecuteIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount)
+        {
+            if (this.context != null && this.graphicsService_ExecuteIndirectCommandListDelegate != null)
+                this.graphicsService_ExecuteIndirectCommandListDelegate(this.context, commandListId, indirectCommandListId, maxCommandCount);
         }
 
         private GraphicsService_SetIndexBufferDelegate graphicsService_SetIndexBufferDelegate

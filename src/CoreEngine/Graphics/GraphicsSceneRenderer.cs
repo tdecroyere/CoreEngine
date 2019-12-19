@@ -14,6 +14,68 @@ namespace CoreEngine.Graphics
         public Matrix4x4 WorldMatrix { get; set; }
     }
 
+    internal struct ShaderBoundingBox
+    {
+        public Vector3 MinPoint;
+        public float Reserved1;
+        public Vector3 MaxPoint;
+        public float Reserved2;
+    }
+
+    internal struct ShaderBoundingFrustum
+    {
+        public Vector4 LeftPlane;
+        public Vector4 RightPlane;
+        public Vector4 TopPlane;
+        public Vector4 BottomPlane;
+        public Vector4 NearPlane;
+        public Vector4 FarPlane;
+    }
+
+    internal struct ShaderCamera
+    {
+        public Matrix4x4 ViewMatrix;
+        public Matrix4x4 ProjectionMatrix;
+        public ShaderBoundingFrustum BoundingFrustum;
+    }
+
+    internal struct ShaderSceneProperties
+    {
+        public ShaderCamera ActiveCamera;
+        public ShaderCamera DebugCamera;
+        public bool IsDebugCameraActive;
+    }
+
+    internal struct ShaderGeometryPacket
+    {
+        public uint VertexBufferIndex;
+        public uint IndexBufferIndex;
+    }
+
+    internal struct ShaderGeometryInstance
+    {
+        public uint GeometryPacketIndex;
+        public int StartIndex;
+        public int IndexCount;
+        public int Reserved1;
+        public Matrix4x4 WorldMatrix;
+        public ShaderBoundingBox WorldBoundingBox;
+    }
+
+    internal struct ShaderMesh
+    {
+        public uint GeometryInstanceStartIndex;
+        public uint GeometryInstancesCount;
+        public int Reserved1, Reserved2;
+    }
+
+    internal struct ShaderMeshInstance
+    {
+        public uint MeshIndex;
+        public int Reserved1, Reserved2, Reserved3;
+        public Matrix4x4 WorldMatrix;
+    }
+
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
     public class GraphicsSceneRenderer
     {
@@ -21,22 +83,20 @@ namespace CoreEngine.Graphics
         private readonly DebugRenderer debugRenderer;
         private readonly GraphicsSceneQueue sceneQueue;
 
+        private Shader drawMeshInstancesComputeShader;
+        private Shader renderMeshInstancesShader;
+
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
-        private GraphicsBuffer objectPropertiesGraphicsBuffer;
-        private GraphicsBuffer vertexShaderParametersGraphicsBuffer;
-
         private RenderPassConstants renderPassConstants;
-
-        private List<GeometryInstance> meshGeometryInstances;
-        private List<uint> meshGeometryInstancesParamIdList;
-        private uint[] vertexShaderParameters;
-        private Dictionary<ItemIdentifier, int> objectPropertiesMapping;
-        private ObjectProperties[] objectProperties;
-        internal int currentObjectPropertyIndex = 0;
-        private Shader testShader;
 
         private Texture depthBufferTexture;
         private Vector2 currentFrameSize;
+
+        // Compute shaders data structures
+        private GraphicsBuffer scenePropertiesBuffer;
+        private GraphicsBuffer geometryPacketsBuffer;
+        private GraphicsBuffer geometryInstancesBuffer;
+        private CommandList indirectCommandList;
 
         public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
@@ -49,7 +109,8 @@ namespace CoreEngine.Graphics
             this.debugRenderer = new DebugRenderer(graphicsManager, resourcesManager);
             this.sceneQueue = sceneQueue;
 
-            this.testShader = resourcesManager.LoadResourceAsync<Shader>("/BasicRender.shader");
+            this.drawMeshInstancesComputeShader = resourcesManager.LoadResourceAsync<Shader>("/ComputeDrawMeshInstances.shader", "DrawMeshInstances");
+            this.renderMeshInstancesShader = resourcesManager.LoadResourceAsync<Shader>("/RenderMeshInstance.shader");
 
             this.currentFrameSize = this.graphicsManager.GetRenderSize();
             this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
@@ -57,15 +118,11 @@ namespace CoreEngine.Graphics
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, GraphicsResourceType.Dynamic);
 
-            this.objectPropertiesMapping = new Dictionary<ItemIdentifier, int>();
-            this.objectProperties = new ObjectProperties[1024];
-            this.objectPropertiesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<Matrix4x4>(1024, GraphicsResourceType.Dynamic);
-            
-            this.vertexShaderParameters = new uint[1024];
-            this.vertexShaderParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<int>(1024, GraphicsResourceType.Dynamic);
-
-            this.meshGeometryInstances = new List<GeometryInstance>();
-            this.meshGeometryInstancesParamIdList = new List<uint>();
+            // Compute buffers
+            this.scenePropertiesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderSceneProperties>(1, GraphicsResourceType.Dynamic, "ComputeSceneProperties");
+            this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(1000, GraphicsResourceType.Dynamic, "ComputeGeometryPackets");
+            this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(1000, GraphicsResourceType.Dynamic, "ComputeGeometryInstances");
+            this.indirectCommandList = this.graphicsManager.CreateIndirectCommandList(65536, "ComputeIndirectCommandList");
         }
 
         public void CopyDataToGpuAndRender()
@@ -74,7 +131,7 @@ namespace CoreEngine.Graphics
 
             if (frameSize != this.currentFrameSize)
             {
-                Logger.WriteMessage("Recreating final render target");
+                Logger.WriteMessage("Recreating Scene Renderer Depth Buffer");
                 this.currentFrameSize = frameSize;
                 
                 this.graphicsManager.RemoveTexture(this.depthBufferTexture);
@@ -94,26 +151,194 @@ namespace CoreEngine.Graphics
                 SetupCamera(camera);
             }
 
+            //CullGeometryInstances(scene, scene.ActiveCamera);
+
+            CopyComputeGpuData(scene);
             CopyGpuData(scene);
-            RunRenderPipeline(scene);
+            RunRenderPipeline(scene, scene.ActiveCamera);
         }
 
-        private void RunRenderPipeline(GraphicsScene scene)
+        List<GraphicsBuffer> vertexBuffersList = new List<GraphicsBuffer>();
+        List<GraphicsBuffer> indexBuffersList = new List<GraphicsBuffer>();
+        List<ShaderGeometryInstance> geometryInstanceList = new List<ShaderGeometryInstance>();
+
+        private void CopyComputeGpuData(GraphicsScene scene)
         {
-            var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, new Vector4(0, 1, 0, 0), this.depthBufferTexture, true, true, true);
+            var sceneProperties = new ShaderSceneProperties();
+
+            // Fill Data
+            if (scene.ActiveCamera != null)
+            {
+                var camera = scene.ActiveCamera;
+
+                var boundingFrutum = new ShaderBoundingFrustum()
+                {
+                    LeftPlane = new Vector4(camera.BoundingFrustum.LeftPlane.Normal, camera.BoundingFrustum.LeftPlane.D),
+                    RightPlane = new Vector4(camera.BoundingFrustum.RightPlane.Normal, camera.BoundingFrustum.RightPlane.D),
+                    TopPlane = new Vector4(camera.BoundingFrustum.TopPlane.Normal, camera.BoundingFrustum.TopPlane.D),
+                    BottomPlane = new Vector4(camera.BoundingFrustum.BottomPlane.Normal, camera.BoundingFrustum.BottomPlane.D),
+                    NearPlane = new Vector4(camera.BoundingFrustum.NearPlane.Normal, camera.BoundingFrustum.NearPlane.D),
+                    FarPlane = new Vector4(camera.BoundingFrustum.FarPlane.Normal, camera.BoundingFrustum.FarPlane.D)
+                };
+
+                sceneProperties.ActiveCamera = new ShaderCamera()
+                {
+                    ViewMatrix = scene.ActiveCamera.ViewMatrix,
+                    ProjectionMatrix = scene.ActiveCamera.ProjectionMatrix,
+                    BoundingFrustum = boundingFrutum
+                };
+            }
+
+            if (scene.DebugCamera != null)
+            {
+                sceneProperties.DebugCamera = new ShaderCamera()
+                {
+                    ViewMatrix = scene.DebugCamera.ViewMatrix,
+                    ProjectionMatrix = scene.DebugCamera.ProjectionMatrix
+                };
+            }
+
+            sceneProperties.IsDebugCameraActive = (scene.DebugCamera != null);
+
+            vertexBuffersList = new List<GraphicsBuffer>();
+            indexBuffersList = new List<GraphicsBuffer>();
+            var geometryPacketList = new List<ShaderGeometryPacket>();
+
+            geometryInstanceList.Clear();
+
+            // TODO: For the moment it only work if the mesh instances list is sorted by meshes!
+            for (var i = 0; i < scene.MeshInstances.Count; i++)
+            {
+                var meshInstance = scene.MeshInstances[i];
+                var mesh = meshInstance.Mesh;
+
+                for (var j = 0; j < mesh.GeometryInstances.Count; j++)
+                {
+                    var geometryInstance = mesh.GeometryInstances[j];
+                    var geometryPacket = geometryInstance.GeometryPacket;
+
+                    if (!vertexBuffersList.Contains(geometryPacket.VertexBuffer))
+                    {
+                        vertexBuffersList.Add(geometryPacket.VertexBuffer);
+                    }
+
+                    if (!indexBuffersList.Contains(geometryPacket.IndexBuffer))
+                    {
+                        indexBuffersList.Add(geometryPacket.IndexBuffer);
+                    }
+
+                    var shaderGeometryPacket = new ShaderGeometryPacket()
+                    {
+                        VertexBufferIndex = (uint)vertexBuffersList.IndexOf(geometryPacket.VertexBuffer),
+                        IndexBufferIndex = (uint)indexBuffersList.IndexOf(geometryPacket.IndexBuffer)
+                    };
+
+                    if (!geometryPacketList.Contains(shaderGeometryPacket))
+                    {
+                        geometryPacketList.Add(shaderGeometryPacket);
+                    }
+
+                    var worldBoundingBox = new ShaderBoundingBox()
+                    {
+                        MinPoint = meshInstance.WorldBoundingBoxList[j].MinPoint,
+                        MaxPoint = meshInstance.WorldBoundingBoxList[j].MaxPoint
+                    };
+
+                    var shaderGeometryInstance = new ShaderGeometryInstance()
+                    {
+                        GeometryPacketIndex = (uint)geometryPacketList.IndexOf(shaderGeometryPacket),
+                        StartIndex = geometryInstance.StartIndex,
+                        IndexCount = geometryInstance.IndexCount,
+                        WorldMatrix = meshInstance.WorldMatrix,
+                        WorldBoundingBox = worldBoundingBox
+                    };
+
+                    geometryInstanceList.Add(shaderGeometryInstance);
+                }
+            }
+
+            // Copy buffers
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("SceneComputeCopyCommandList", true);
+
+            this.graphicsManager.UploadDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, new ShaderSceneProperties[] { sceneProperties });
+            this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, geometryPacketList.ToArray());
+            this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, geometryInstanceList.ToArray());
+            this.graphicsManager.ResetIndirectCommandList(copyCommandList, this.indirectCommandList, 65536);
+
+            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+        }
+
+        private void RunRenderPipeline(GraphicsScene scene, Camera camera)
+        {
+            var computeCommandList = this.graphicsManager.CreateComputeCommandList("ComputeRenderGeometryInstances", true);
+            
+            this.graphicsManager.SetShader(computeCommandList, this.drawMeshInstancesComputeShader);
+            this.graphicsManager.SetShaderBuffer(computeCommandList, this.scenePropertiesBuffer, 0);
+            this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryPacketsBuffer, 1);
+            this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryInstancesBuffer, 2);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, this.vertexBuffersList.ToArray(), 5);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, this.indexBuffersList.ToArray(), 1005);
+            this.graphicsManager.SetShaderIndirectCommandList(computeCommandList, this.indirectCommandList, 2005);
+
+            this.graphicsManager.DispatchThreadGroups(computeCommandList, (uint)geometryInstanceList.Count, 1, 1);
+            this.graphicsManager.ExecuteComputeCommandList(computeCommandList);
+
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("ComputeOptimizeRenderCommandList", true);
+            this.graphicsManager.OptimizeIndirectCommandList(copyCommandList, this.indirectCommandList, 65536);
+            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+
+            var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, new Vector4(0.0f, 0.215f, 1.0f, 1), this.depthBufferTexture, true, true, true);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "SceneRenderCommandList");
 
-            this.graphicsManager.SetShader(renderCommandList, this.testShader);
-            DrawGeometryInstances(renderCommandList);
+            this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstancesShader);
+            this.graphicsManager.ExecuteIndirectCommandList(renderCommandList, this.indirectCommandList, 65536);
+            this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
+
+            var debugRenderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, null, this.depthBufferTexture, true, false, true);
+            var debugRenderCommandList = this.graphicsManager.CreateRenderCommandList(debugRenderPassDescriptor, "DebugRenderCommandList");
 
             this.debugRenderer.ClearDebugLines();
             DrawCameraBoundingFrustum(scene);
             DrawGeometryInstancesBoundingBox(scene);
 
-            this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, renderCommandList);
-            
-            this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
+            this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, debugRenderCommandList);
+
+            this.graphicsManager.ExecuteRenderCommandList(debugRenderCommandList);
         }
+
+        // private void CullGeometryInstances(GraphicsScene scene, Camera camera)
+        // {
+        //     this.currentObjectPropertyIndex = 0;
+        //     this.objectPropertiesMapping.Clear();
+        //     this.meshGeometryInstances.Clear();
+        //     this.meshGeometryInstancesParamIdList.Clear();
+
+        //     for (var i = 0; i < scene.MeshInstances.Count; i++)
+        //     {
+        //         var meshInstance = scene.MeshInstances[i];
+
+        //         this.objectProperties[i] = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
+        //         this.objectPropertiesMapping.Add(meshInstance.Id, i);
+
+        //         for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
+        //         {
+        //             var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
+        //             var worldBoundingBox = meshInstance.WorldBoundingBoxList[j];
+
+        //             if (BoundingIntersectUtils.Intersect(camera.BoundingFrustum, worldBoundingBox))
+        //             {
+        //                 this.meshGeometryInstances.Add(geometryInstance);
+        //                 this.meshGeometryInstancesParamIdList.Add((uint)this.objectPropertiesMapping[meshInstance.Id]);
+        //             }
+        //         }
+        //     }
+
+        //     // Prepare draw parameters
+        //     for (var i = 0; i < this.meshGeometryInstances.Count; i++)
+        //     {
+        //         this.vertexShaderParameters[i] = this.meshGeometryInstancesParamIdList[i];
+        //     }
+        // }
 
         private void SetupCamera(Camera camera)
         {
@@ -125,73 +350,10 @@ namespace CoreEngine.Graphics
         {
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("SceneCopyCommandList");
 
-            this.meshGeometryInstances.Clear();
-            this.meshGeometryInstancesParamIdList.Clear();
-
             this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants[] {renderPassConstants});
 
-            CopyObjectPropertiesToGpu(copyCommandList, scene.MeshInstances);
-            CopyDrawParametersToGpu(copyCommandList);
-
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
-
             this.debugRenderer.CopyDataToGpu();
-        }
-
-        private void CopyObjectPropertiesToGpu(CommandList commandList, ItemCollection<MeshInstance> meshInstances)
-        {
-            for (var i = 0; i < meshInstances.Count; i++)
-            {
-                var meshInstance = meshInstances[i];
-
-                if (!this.objectPropertiesMapping.ContainsKey(meshInstance.Id))
-                {
-                    this.objectPropertiesMapping.Add(meshInstance.Id, this.currentObjectPropertyIndex++);
-                }
-
-                if (meshInstance.IsDirty)
-                {
-                    this.objectProperties[this.objectPropertiesMapping[meshInstance.Id]] = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
-                }
-
-                var mesh = meshInstance.Mesh;
-
-                for (var j = 0; j < mesh.GeometryInstances.Count; j++)
-                {
-                    var geometryInstance = mesh.GeometryInstances[j];
-                    this.meshGeometryInstances.Add(geometryInstance);
-                    this.meshGeometryInstancesParamIdList.Add((uint)this.objectPropertiesMapping[meshInstance.Id]);
-                }
-            }
-
-            // TODO: Only update partially the buffer?
-            this.graphicsManager.UploadDataToGraphicsBuffer<ObjectProperties>(commandList, this.objectPropertiesGraphicsBuffer, this.objectProperties);
-        }
-
-        private void CopyDrawParametersToGpu(CommandList commandList)
-        {
-            // Prepare draw parameters
-            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
-            {
-                this.vertexShaderParameters[i] = this.meshGeometryInstancesParamIdList[i];
-            }
-
-            this.graphicsManager.UploadDataToGraphicsBuffer<uint>(commandList, this.vertexShaderParametersGraphicsBuffer, this.vertexShaderParameters);
-        }
-
-        private void DrawGeometryInstances(CommandList commandList)
-        {
-            for (var i = 0; i < this.meshGeometryInstances.Count; i++)
-            {
-                // TODO: Calculate base instanceid based on the previous batch size
-
-                this.graphicsManager.SetShaderBuffer(commandList, this.renderPassParametersGraphicsBuffer, 1);
-                this.graphicsManager.SetShaderBuffer(commandList, this.objectPropertiesGraphicsBuffer, 2);
-                this.graphicsManager.SetShaderBuffer(commandList, this.vertexShaderParametersGraphicsBuffer, 3);
-                
-                var geometryInstance = this.meshGeometryInstances[i];
-                this.graphicsManager.DrawGeometryInstances(commandList, geometryInstance, 1, i);
-            }
         }
 
         private void DrawCameraBoundingFrustum(GraphicsScene scene)

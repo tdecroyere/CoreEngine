@@ -9,6 +9,7 @@ namespace CoreEngine.Resources
         {
             this.ResourceId = resourceId;
             this.Path = path;
+            this.Parameters = Array.Empty<string>();
             this.ReferenceCount = 1;
             this.LastUpdateDateTime = DateTime.Now;
             this.DependentResources = new List<Resource>();
@@ -42,6 +43,12 @@ namespace CoreEngine.Resources
         }
 
         public ResourceLoader? ResourceLoader
+        {
+            get;
+            internal set;
+        }
+
+        public string[] Parameters
         {
             get;
             internal set;

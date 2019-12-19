@@ -4,40 +4,65 @@ import simd
 import CoreEngineCommonInterop
 
 class Shader {
-    let pipelineState: MTLRenderPipelineState
-    let argumentEncoder: MTLArgumentEncoder
+    var pipelineState: MTLRenderPipelineState!
+    var computePipelineState: MTLComputePipelineState!
+    let argumentEncoder: MTLArgumentEncoder?
     var argumentBuffers: [MTLBuffer]
     let argumentBuffersMaxCount = 2000
     var argumentBufferCurrentIndex = 0
-    var currentArgumentBuffer: MTLBuffer
+    var currentArgumentBuffer: MTLBuffer?
 
-    init(_ device: MTLDevice, _ pipelineState: MTLRenderPipelineState, _ argumentEncoder: MTLArgumentEncoder) {
+    init(_ device: MTLDevice, _ pipelineState: MTLRenderPipelineState, _ argumentEncoder: MTLArgumentEncoder?) {
         self.pipelineState = pipelineState
         self.argumentEncoder = argumentEncoder
 
         self.argumentBuffers = []
+        self.currentArgumentBuffer = nil
 
-        // TODO: Use anothe allocation strategie
-        for i in 0..<argumentBuffersMaxCount {
-            let argumentBuffer = device.makeBuffer(length: argumentEncoder.encodedLength)!
-            argumentBuffer.label = (pipelineState.label != nil) ? "\(pipelineState.label!)Buffer\(i)" : "ShaderBuffer\(i)"
-            self.argumentBuffers.append(argumentBuffer)
+        if (argumentEncoder != nil) {
+            // TODO: Use another allocation strategie
+            for i in 0..<argumentBuffersMaxCount {
+                let argumentBuffer = device.makeBuffer(length: argumentEncoder!.encodedLength)!
+                argumentBuffer.label = (pipelineState.label != nil) ? "\(pipelineState.label!)Buffer\(i)" : "ShaderBuffer\(i)"
+                self.argumentBuffers.append(argumentBuffer)
+            }
+
+            self.currentArgumentBuffer = argumentBuffers[0]
+            argumentEncoder!.setArgumentBuffer(self.currentArgumentBuffer, offset: 0)
         }
-
-        self.currentArgumentBuffer = argumentBuffers[0]
-        argumentEncoder.setArgumentBuffer(self.currentArgumentBuffer, offset: 0)
     }
 
-    func setupArgumentBuffer()
-    {
-        argumentBufferCurrentIndex += 1
+    init(_ device: MTLDevice, _ pipelineState: MTLComputePipelineState, _ argumentEncoder: MTLArgumentEncoder?) {
+        self.computePipelineState = pipelineState
+        self.argumentEncoder = argumentEncoder
 
-        if (argumentBufferCurrentIndex == argumentBuffersMaxCount) {
-            argumentBufferCurrentIndex = 0
+        self.argumentBuffers = []
+        self.currentArgumentBuffer = nil
+
+        if (argumentEncoder != nil) {
+            // TODO: Use another allocation strategie
+            for i in 0..<argumentBuffersMaxCount {
+                let argumentBuffer = device.makeBuffer(length: argumentEncoder!.encodedLength)!
+                argumentBuffer.label = (pipelineState.label != nil) ? "\(pipelineState.label!)Buffer\(i)" : "ComputeShaderBuffer\(i)"
+                self.argumentBuffers.append(argumentBuffer)
+            }
+
+            self.currentArgumentBuffer = argumentBuffers[0]
+            argumentEncoder!.setArgumentBuffer(self.currentArgumentBuffer, offset: 0)
         }
+    }
 
-        self.currentArgumentBuffer = argumentBuffers[argumentBufferCurrentIndex]
-        argumentEncoder.setArgumentBuffer(self.currentArgumentBuffer, offset: 0)
+    func setupArgumentBuffer() {
+        if (argumentEncoder != nil) {
+            argumentBufferCurrentIndex += 1
+
+            if (argumentBufferCurrentIndex == argumentBuffersMaxCount) {
+                argumentBufferCurrentIndex = 0
+            }
+
+            self.currentArgumentBuffer = argumentBuffers[argumentBufferCurrentIndex]
+            argumentEncoder!.setArgumentBuffer(self.currentArgumentBuffer, offset: 0)
+        }
     }
 }
 
@@ -65,13 +90,16 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var copyCommandBuffers: [UInt: MTLCommandBuffer]
     var copyCommandEncoders: [UInt: MTLBlitCommandEncoder]
 
+    var computeCommandBuffers: [UInt: MTLCommandBuffer]
+    var computeCommandEncoders: [UInt: MTLComputeCommandEncoder]
+
     var renderCommandBuffers: [UInt: MTLCommandBuffer]
     var renderCommandEncoders: [UInt: MTLRenderCommandEncoder]
 
     var graphicsBuffers: [UInt: MTLBuffer]
     var cpuGraphicsBuffers: [UInt: MTLBuffer]
-
     var textures: [UInt: MTLTexture]
+    var indirectCommandBuffers: [UInt: MTLIndirectCommandBuffer]
 
     public init(view: MetalView, renderWidth: Int, renderHeight: Int) {
         let defaultDevice = MTLCreateSystemDefaultDevice()!
@@ -95,11 +123,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.shaders = [:]
         self.copyCommandBuffers = [:]
         self.copyCommandEncoders = [:]
+        self.computeCommandBuffers = [:]
+        self.computeCommandEncoders = [:]
         self.renderCommandBuffers = [:]
         self.renderCommandEncoders = [:]
         self.graphicsBuffers = [:]
         self.cpuGraphicsBuffers = [:]
         self.textures = [:]
+        self.indirectCommandBuffers = [:]
 
         var depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .less
@@ -199,43 +230,66 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.textures[textureId] = nil
     }
 
-    public func createShader(_ shaderId: UInt, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ useDepthBuffer: Bool, _ debugName: String?) -> Bool {
+    public func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ useDepthBuffer: Bool, _ debugName: String?) -> Bool {
         let dispatchData = DispatchData(bytes: UnsafeRawBufferPointer(start: shaderByteCode, count: shaderByteCodeLength))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
-        let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")!
-        let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")!
+        if (computeShaderFunction == nil) {
+            let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
+            pipelineStateDescriptor.label = (debugName != nil) ? debugName! : "RenderShader\(shaderId)"
 
-        let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
-        pipelineStateDescriptor.label = (debugName != nil) ? debugName! : "Shader\(shaderId)"
-        pipelineStateDescriptor.vertexFunction = vertexFunction
-        pipelineStateDescriptor.fragmentFunction = fragmentFunction
+            let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")!
+            let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")!
+            
+            pipelineStateDescriptor.vertexFunction = vertexFunction
+            pipelineStateDescriptor.fragmentFunction = fragmentFunction
+            pipelineStateDescriptor.supportIndirectCommandBuffers = true
 
-        // TODO: Use the correct render target format
-        pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat
+            // TODO: Use the correct render target format
+            pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat
 
-        // TODO: Add an option to disable blending
-        pipelineStateDescriptor.colorAttachments[0].isBlendingEnabled = true
-        pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation = .add
-        pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation = .add
-        pipelineStateDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-        pipelineStateDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha;
-        pipelineStateDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-        pipelineStateDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            // TODO: Add an option to disable blending
+            pipelineStateDescriptor.colorAttachments[0].isBlendingEnabled = true
+            pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation = .add
+            pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation = .add
+            pipelineStateDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+            pipelineStateDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha;
+            pipelineStateDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+            pipelineStateDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
 
-        // TODO
-        if (useDepthBuffer) {
-            pipelineStateDescriptor.depthAttachmentPixelFormat = .depth32Float
-        }
+            // TODO
+            if (useDepthBuffer) {
+                pipelineStateDescriptor.depthAttachmentPixelFormat = .depth32Float
+            }
 
-        do {
-            let pipelineState = try self.device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
-            let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 0)
+            do {
+                let pipelineState = try self.device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
 
-            self.shaders[shaderId] = Shader(self.device, pipelineState, argumentEncoder)
-            return true
-        } catch {
-            print("Failed to created pipeline state, \(error)")
+                // TODO: Remove that hack
+                if (debugName != nil && debugName != "RenderMeshInstanceShader") {
+                    let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 0)
+                    self.shaders[shaderId] = Shader(self.device, pipelineState, argumentEncoder)
+                } else {
+                    self.shaders[shaderId] = Shader(self.device, pipelineState, nil)
+                }
+
+                return true
+            } catch {
+                print("Failed to created pipeline state, \(error)")
+            }
+        } else {
+            let computeFunction = defaultLibrary.makeFunction(name: computeShaderFunction!)!
+
+            do {
+                let pipelineState = try self.device.makeComputePipelineState(function: computeFunction)
+                let argumentEncoder = computeFunction.makeArgumentEncoder(bufferIndex: 0)
+
+                self.shaders[shaderId] = Shader(self.device, pipelineState, argumentEncoder)
+                return true
+            }
+            catch {
+                print("Failed to created pipeline state, \(error)")
+            }
         }
 
         return false
@@ -343,6 +397,96 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                                 destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
     }
 
+    public func resetIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int) {
+        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
+            print("resetIndirectCommandList: Copy command encoder is nil.")
+            return
+        }
+
+        guard let indirectBuffer = self.indirectCommandBuffers[indirectCommandListId] else {
+            print("setShaderIndirectCommandList: Indirect buffer is nil.")
+            return
+        }
+
+        copyCommandEncoder.resetCommandsInBuffer(indirectBuffer, range: 0..<maxCommandCount)
+    }
+
+    public func optimizeIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int) {
+        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
+            print("resetIndirectCommandList: Copy command encoder is nil.")
+            return
+        }
+
+        guard let indirectBuffer = self.indirectCommandBuffers[indirectCommandListId] else {
+            print("setShaderIndirectCommandList: Indirect buffer is nil.")
+            return
+        }
+
+        copyCommandEncoder.optimizeIndirectCommandBuffer(indirectBuffer, range: 0..<maxCommandCount)
+    }
+
+    public func createComputeCommandList(_ commandListId: UInt, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool {
+        var commandBuffer = self.commandBuffer!
+
+        if (createNewCommandBuffer) {
+            guard let computeCommandBuffer = self.commandQueue.makeCommandBuffer() else {
+                print("ERROR creating compute command buffer.")
+                return false
+            }
+
+            commandBuffer = computeCommandBuffer
+            commandBuffer.label = "Compute Command Buffer \(commandListId)"
+            self.computeCommandBuffers[commandListId] = commandBuffer
+        }
+
+        guard let computeCommandEncoder = commandBuffer.makeComputeCommandEncoder() else {
+            print("ERROR creating compute command encoder.")
+            return false
+        }
+
+        computeCommandEncoder.label = (debugName != nil) ? debugName! : "ComputeCommandEncoder\(commandListId)"
+        self.computeCommandEncoders[commandListId] = computeCommandEncoder
+
+        return true
+    }
+
+    public func executeComputeCommandList(_ commandListId: UInt) {
+        guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
+            print("executeComputeCommandList: Compute command encoder is nil.")
+            return
+        }
+
+        computeCommandEncoder.endEncoding()
+        self.computeCommandEncoders[commandListId] = nil
+
+        if (self.computeCommandBuffers[commandListId] != nil) {
+            let commandBuffer = self.computeCommandBuffers[commandListId]!
+            commandBuffer.commit()
+            self.computeCommandBuffers[commandListId] = nil
+        }
+    }
+
+    public func dispatchThreadGroups(_ commandListId: UInt, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt) {
+        guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
+            print("dispatchThreadGroups: Compute command encoder is nil.")
+            return
+        }
+
+        if (self.currentShader != nil) {
+            computeCommandEncoder.setBuffer(self.currentShader!.currentArgumentBuffer, offset: 0, index: 0)
+        }
+
+        var w = self.currentShader!.computePipelineState.threadExecutionWidth
+        var h = (threadGroupCountY > 1) ? self.currentShader!.computePipelineState.maxTotalThreadsPerThreadgroup / w : 1
+        let threadsPerGroup = MTLSizeMake(w, h, 1)
+
+        computeCommandEncoder.dispatchThreads(MTLSize(width: Int(threadGroupCountX), height: Int(threadGroupCountY), depth: Int(threadGroupCountZ)), threadsPerThreadgroup: threadsPerGroup)
+
+        if (self.currentShader != nil) {
+            self.currentShader!.setupArgumentBuffer()
+        }
+    }
+
     public func createRenderCommandList(_ commandListId: UInt, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool {
         var commandBuffer = self.commandBuffer!
 
@@ -383,7 +527,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderPassDescriptor.colorAttachments[0].loadAction = .dontCare
         } else if (renderDescriptor.ClearColor.HasValue == 1) {
             renderPassDescriptor.colorAttachments[0].loadAction = .clear
-            renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: 0.0, green: 0.215, blue: 1.0, alpha: 1.0)
+            renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: Double(renderDescriptor.ClearColor.Value.X), green: Double(renderDescriptor.ClearColor.Value.Y), blue: Double(renderDescriptor.ClearColor.Value.Z), alpha: Double(renderDescriptor.ClearColor.Value.W))
         } else {
             renderPassDescriptor.colorAttachments[0].loadAction = .load
         }
@@ -404,9 +548,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
-            if (renderDescriptor.DepthCompare == 1) {
+            if (renderDescriptor.DepthWrite == 1) {
                 renderPassDescriptor.depthAttachment.loadAction = .clear // TODO: Use a separate pass for depth buffer
                 renderPassDescriptor.depthAttachment.clearDepth = 1.0
+            } else {
+                renderPassDescriptor.depthAttachment.loadAction = .load // TODO: Use a separate pass for depth buffer
             }
 
             if (renderDescriptor.DepthWrite == 1) {
@@ -460,20 +606,63 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
     }
 
-    public func setShader(_ commandListId: UInt, _ shaderId: UInt) {
-        guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
-            print("setShader: Render command encoder is nil.")
-            return
-        }
-
-        guard let shader = self.shaders[shaderId] else {
-            print("setShader: Shader is nil.")
-            return
-        }
-
-        self.currentShader = shader
+    public func createIndirectCommandList(_ commandListId: UInt, _ maxCommandCount: Int, _ debugName: String?) -> Bool {
+        let indirectCommandBufferDescriptor = MTLIndirectCommandBufferDescriptor()
         
-        renderCommandEncoder.setRenderPipelineState(shader.pipelineState)
+        indirectCommandBufferDescriptor.commandTypes = [.drawIndexed]
+
+        // Indicate that buffers will be set for each command in the indirect command buffer.
+        indirectCommandBufferDescriptor.inheritBuffers = false
+
+        // Indicate that a maximum of 3 buffers will be set for each command.
+        indirectCommandBufferDescriptor.maxVertexBufferBindCount = 5
+        indirectCommandBufferDescriptor.maxFragmentBufferBindCount = 5
+
+        // TODO: Change that when we will set material in the compute shader
+        indirectCommandBufferDescriptor.inheritPipelineState = true
+
+        // Create indirect command buffer using private storage mode; since only the GPU will
+        // write to and read from the indirect command buffer, the CPU never needs to access the
+        // memory
+        var indirectCommandBuffer = self.device.makeIndirectCommandBuffer(descriptor: indirectCommandBufferDescriptor,
+                                                                          maxCommandCount: maxCommandCount,
+                                                                          options: .storageModePrivate)!
+
+        indirectCommandBuffer.label = (debugName != nil) ? debugName! : "IndirectCommandBuffer\(commandListId)"
+
+        self.indirectCommandBuffers[commandListId] = indirectCommandBuffer
+
+        return true
+    }
+
+    public func setShader(_ commandListId: UInt, _ shaderId: UInt) {
+        if (self.renderCommandEncoders[commandListId] != nil) {
+            guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+                print("setShader: Render command encoder is nil.")
+                return
+            }
+
+            guard let shader = self.shaders[shaderId] else {
+                print("setShader: Shader is nil.")
+                return
+            }
+
+            self.currentShader = shader
+            renderCommandEncoder.setRenderPipelineState(shader.pipelineState)
+        } else if (self.computeCommandEncoders[commandListId] != nil) {
+            guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
+                print("setShader: Compute command encoder is nil.")
+                return
+            }
+
+            guard let shader = self.shaders[shaderId] else {
+                print("setShader: Shader is nil.")
+                return
+            }
+
+            self.currentShader = shader
+            computeCommandEncoder.setComputePipelineState(shader.computePipelineState)
+        }
     }
 
     public func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ index: Int) {
@@ -487,12 +676,20 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
-        shader.argumentEncoder.setBuffer(graphicsBuffer, offset: index, index: slot)
+        guard let argumentEncoder = shader.argumentEncoder else {
+            return
+        }
+
+        argumentEncoder.setBuffer(graphicsBuffer, offset: index, index: slot)
     }
 
     public func setShaderBuffers(_ commandListId: UInt, _ graphicsBufferIdList: [UInt32], _ slot: Int, _ index: Int) {
         guard let shader = self.currentShader else {
             print("setShaderBuffers: Shader is nil.")
+            return
+        }
+
+        guard let argumentEncoder = shader.argumentEncoder else {
             return
         }
 
@@ -504,7 +701,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             offsets.append(0)
         }
 
-        shader.argumentEncoder.setBuffers(bufferList, offsets: offsets, range: (slot + index)..<(slot + index) + graphicsBufferIdList.count)
+        argumentEncoder.setBuffers(bufferList, offsets: offsets, range: (slot + index)..<(slot + index) + graphicsBufferIdList.count)
     }
 
     public func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ index: Int) {
@@ -518,12 +715,20 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
-        shader.argumentEncoder.setTexture(texture, index: slot)
+        guard let argumentEncoder = shader.argumentEncoder else {
+            return
+        }
+
+        argumentEncoder.setTexture(texture, index: slot)
     }
 
     public func setShaderTextures(_ commandListId: UInt, _ textureIdList: [UInt32], _ slot: Int, _ index: Int) {
         guard let shader = self.currentShader else {
             print("setShaderTextures: Shader is nil.")
+            return
+        }
+
+        guard let argumentEncoder = shader.argumentEncoder else {
             return
         }
 
@@ -533,7 +738,51 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             textureList.append(self.textures[UInt(textureIdList[i])]!)
         }
 
-        shader.argumentEncoder.setTextures(textureList, range: (slot + index)..<(slot + index) + textureIdList.count)
+        argumentEncoder.setTextures(textureList, range: (slot + index)..<(slot + index) + textureIdList.count)
+    }
+
+    public func setShaderIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ slot: Int, _ index: Int) {
+        guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
+            print("setShader: Compute command encoder is nil.")
+            return
+        }
+
+        guard let shader = self.currentShader else {
+            print("setShaderIndirectCommandList: Shader is nil.")
+            return
+        }
+
+        guard let indirectBuffer = self.indirectCommandBuffers[indirectCommandListId] else {
+            print("setShaderIndirectCommandList: Indirect buffer is nil.")
+            return
+        }
+
+        guard let argumentEncoder = shader.argumentEncoder else {
+            return
+        }
+
+        argumentEncoder.setIndirectCommandBuffer(indirectBuffer, index: slot)
+        computeCommandEncoder.useResource(indirectBuffer, usage: .write)
+    }
+
+    public func executeIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int) {
+        if (self.currentShader == nil) {
+            return
+        }
+
+        guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+            print("executeIndirectCommandList: Render command encoder is nil.")
+            return
+        }
+
+        guard let indirectBuffer = self.indirectCommandBuffers[indirectCommandListId] else {
+            print("setShaderIndirectCommandList: Indirect buffer is nil.")
+            return
+        }
+
+        renderCommandEncoder.setVertexBuffer(nil, offset: 0, index: 0)
+        renderCommandEncoder.setFragmentBuffer(nil, offset: 0, index: 0)
+        renderCommandEncoder.executeCommandsInBuffer(indirectBuffer, range: 0..<maxCommandCount)
     }
 
     public func setIndexBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt) {

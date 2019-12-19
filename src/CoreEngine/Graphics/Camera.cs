@@ -43,6 +43,5 @@ namespace CoreEngine.Graphics
         }
 
         public BoundingFrustum BoundingFrustum { get; set; }
-        public ItemIdentifier? DebugBoundingFrustum { get; set; }
     }
 }

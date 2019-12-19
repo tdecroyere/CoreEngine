@@ -20,6 +20,7 @@ namespace CoreEngine.Graphics
         private Vector2 currentFrameSize;
         private Stopwatch stopwatch;
         private int drawCount;
+        private int dispatchCount;
         private Stopwatch globalStopwatch;
         private uint startMeasureFrameNumber;
         int framePerSeconds = 0;
@@ -41,6 +42,7 @@ namespace CoreEngine.Graphics
             this.graphicsService = graphicsService;
             this.currentGraphicsResourceId = 0;
             this.drawCount = 0;
+            this.dispatchCount = 0;
             this.stopwatch = new Stopwatch();
             this.stopwatch.Start();
             this.globalStopwatch = new Stopwatch();
@@ -178,10 +180,10 @@ namespace CoreEngine.Graphics
             }
         }
 
-        internal Shader CreateShader(ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName = null)
+        internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName = null)
         {
             var shaderId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShader(shaderId, shaderByteCode, useDepthBuffer, debugName);
+            var result = this.graphicsService.CreateShader(shaderId, computeShaderFunction, shaderByteCode, useDepthBuffer, debugName);
 
             if (!result)
             {
@@ -237,6 +239,60 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, texture.Width, texture.Height, rawData);
         }
 
+        public void ResetIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
+        {
+            if (indirectCommandList.Type != CommandListType.Indirect)
+            {
+                throw new InvalidOperationException("The specified command list is not an indirect command list.");
+            }
+            
+            this.graphicsService.ResetIndirectCommandList(commandList.Id, indirectCommandList.Id, maxCommandCount);
+        }
+
+        public void OptimizeIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
+        {
+            if (indirectCommandList.Type != CommandListType.Indirect)
+            {
+                throw new InvalidOperationException("The specified command list is not an indirect command list.");
+            }
+
+            this.graphicsService.OptimizeIndirectCommandList(commandList.Id, indirectCommandList.Id, maxCommandCount);
+        }
+
+        public CommandList CreateComputeCommandList(string? debugName = null, bool createNewCommandBuffer = false)
+        {
+            var commandListId = GetNextGraphicsResourceId();
+            var result = graphicsService.CreateComputeCommandList(commandListId, debugName, createNewCommandBuffer);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the compute command list resource.");
+            }
+
+            return new CommandList(commandListId, CommandListType.Compute);
+        }
+
+        public void ExecuteComputeCommandList(CommandList commandList)
+        {
+            if (commandList.Type != CommandListType.Compute)
+            {
+                throw new InvalidOperationException("The specified command list is not a compute command list.");
+            }
+
+            this.graphicsService.ExecuteComputeCommandList(commandList.Id);
+        }
+
+        public void DispatchThreadGroups(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        {
+            if (commandList.Type != CommandListType.Compute)
+            {
+                throw new InvalidOperationException("The specified command list is not a compute command list.");
+            }
+
+            this.graphicsService.DispatchThreadGroups(commandList.Id, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+            this.dispatchCount++;
+        }
+
         public CommandList CreateRenderCommandList(RenderPassDescriptor renderPassDescriptor, string? debugName = null, bool createNewCommandBuffer = false)
         {
             var commandListId = GetNextGraphicsResourceId();
@@ -258,6 +314,19 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService.ExecuteRenderCommandList(commandList.Id);
+        }
+
+        public CommandList CreateIndirectCommandList(int maxCommandCount, string? debugName = null)
+        {
+            var commandListId = GetNextGraphicsResourceId();
+            var result = graphicsService.CreateIndirectCommandList(commandListId, maxCommandCount, debugName);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the indirect command list resource.");
+            }
+
+            return new CommandList(commandListId, CommandListType.Indirect);
         }
 
         public void SetShader(CommandList commandList, Shader shader)
@@ -317,6 +386,31 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService.SetShaderTextures(commandList.Id, textureIdsList.AsSpan(), slot, index);
+        }
+
+        public void SetShaderIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int slot, int index = 0)
+        {
+            if (indirectCommandList.Type != CommandListType.Indirect)
+            {
+                throw new InvalidOperationException("The specified command list is not an indirect command list.");
+            }
+
+            this.graphicsService.SetShaderIndirectCommandList(commandList.Id, indirectCommandList.Id, slot, index);
+        }
+
+        public void ExecuteIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
+        {
+            if (commandList.Type != CommandListType.Render)
+            {
+                throw new InvalidOperationException("The specified command list is not a render command list.");
+            }
+
+            if (indirectCommandList.Type != CommandListType.Indirect)
+            {
+                throw new InvalidOperationException("The specified command list is not an indirect command list.");
+            }
+
+            this.graphicsService.ExecuteIndirectCommandList(commandList.Id, indirectCommandList.Id, maxCommandCount);
         }
 
         public void SetIndexBuffer(CommandList commandList, GraphicsBuffer indexBuffer)
@@ -379,6 +473,7 @@ namespace CoreEngine.Graphics
             // TODO: A modulo here with Int.MaxValue
             this.CurrentFrameNumber++;
             this.drawCount = 0;
+            this.dispatchCount = 0;
         }
 
         internal void Render()
@@ -410,13 +505,14 @@ namespace CoreEngine.Graphics
             
             if (this.globalStopwatch.ElapsedMilliseconds > 1000)
             {
-                framePerSeconds = (int)(this.CurrentFrameNumber - startMeasureFrameNumber);
+                framePerSeconds = (int)(this.CurrentFrameNumber - startMeasureFrameNumber - 1);
                 this.globalStopwatch.Restart();
                 this.startMeasureFrameNumber = this.CurrentFrameNumber;
             }
 
             this.Graphics2DRenderer.DrawText($"Cpu Frame duration: {frameDuration.ToString("0.00")} ms - FPS: {framePerSeconds}", new Vector2(10, 10));
-            this.Graphics2DRenderer.DrawText($"Draw Count: {this.drawCount}", new Vector2(10, 50));
+            this.Graphics2DRenderer.DrawText($"Gpu Dispatch Count: {this.dispatchCount}", new Vector2(10, 50));
+            this.Graphics2DRenderer.DrawText($"Gpu Draw Count: {this.drawCount}", new Vector2(10, 90));
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)
@@ -428,7 +524,7 @@ namespace CoreEngine.Graphics
             resourcesManager.AddResourceLoader(new MeshResourceLoader(resourcesManager, this));
         }
 
-        internal uint GetNextGraphicsResourceId()
+        private uint GetNextGraphicsResourceId()
         {
             uint result = 0;
 

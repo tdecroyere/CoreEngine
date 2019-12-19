@@ -22,6 +22,7 @@ struct GraphicsRenderPassDescriptor
     int DepthCompare;
     int DepthWrite;
     int BackfaceCulling;
+    int WriteToHardwareRenderTarget;
 
 };
 

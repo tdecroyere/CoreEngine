@@ -32,7 +32,7 @@ namespace CoreEngine.Graphics
 
             this.graphicsManager = graphicsManager;
 
-            this.shader = resourcesManager.LoadResourceAsync<Shader>("/DebugRender.shader");
+            this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/DebugRender.shader");
 
             var maxLineCount = 10000;
             this.vertexData = new Vector4[maxLineCount * 4];

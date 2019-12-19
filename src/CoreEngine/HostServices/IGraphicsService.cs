@@ -30,9 +30,10 @@ namespace CoreEngine.HostServices
             this.DepthCompare = renderPassDescriptor.DepthCompare;
             this.DepthWrite = renderPassDescriptor.DepthWrite;
             this.BackfaceCulling = renderPassDescriptor.BackfaceCulling;
+            this.WriteToHardwareRenderTarget = renderPassDescriptor.WriteToHardwareRenderTarget;
         }
         
-        public GraphicsRenderPassDescriptor(Texture? colorTexture, Vector4? clearColor, Texture? depthTexture, bool depthCompare, bool depthWrite, bool backfaceCulling)
+        public GraphicsRenderPassDescriptor(Texture? colorTexture, Vector4? clearColor, Texture? depthTexture, bool depthCompare, bool depthWrite, bool backfaceCulling, bool writeToHardwareRenderTarget)
         {
             this.ColorTextureId = colorTexture?.GraphicsResourceId;
             this.ClearColor = clearColor;
@@ -40,6 +41,7 @@ namespace CoreEngine.HostServices
             this.DepthCompare = depthCompare;
             this.DepthWrite = depthWrite;
             this.BackfaceCulling = backfaceCulling;
+            this.WriteToHardwareRenderTarget = writeToHardwareRenderTarget;
         }
 
         public readonly uint? ColorTextureId { get; }
@@ -48,6 +50,7 @@ namespace CoreEngine.HostServices
         public readonly bool DepthCompare { get; }
         public readonly bool DepthWrite { get; }
         public readonly bool BackfaceCulling { get; }
+        public readonly bool WriteToHardwareRenderTarget { get; }
     }
 
     public interface IGraphicsService

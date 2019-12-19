@@ -86,8 +86,8 @@ namespace CoreEngine.Graphics
 
             this.graphicsManager = graphicsManager;
 
-            this.shader = resourcesManager.LoadResourceAsync<Shader>("/Graphics2DRender.shader");
-            this.systemFont = resourcesManager.LoadResourceAsync<Font>("/SystemFont.font");
+            this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/Graphics2DRender.shader");
+            this.systemFont = resourcesManager.LoadResourceAsync<Font>("/System/Fonts/SystemFont.font");
             this.textures = new List<Texture>();
 
             var maxSurfaceCount = 10000;
@@ -208,7 +208,7 @@ namespace CoreEngine.Graphics
 
                 if (renderCommandList == null)
                 {
-                    var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, null, null, false, false, true);
+                    var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, null, null, false, false, true, false);
                     commandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "Graphics2DRenderCommandList");
                 }
 

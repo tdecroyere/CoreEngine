@@ -455,19 +455,11 @@ namespace CoreEngine.Graphics
 
         public void PresentScreenBuffer()
         {
-            // TODO: Is there a way to load the final render target texture and to store it directly in the hardware?
-            this.internal2DRenderer.PreUpdate();
-            this.internal2DRenderer.DrawRectangleSurface(Vector2.Zero, this.GetRenderSize(), this.MainRenderTargetTexture);
-            this.internal2DRenderer.CopyDataToGpu();
-
-            var renderPassDescriptor = new GraphicsRenderPassDescriptor(null, null, null, false, false, true);
+            var renderPassDescriptor = new GraphicsRenderPassDescriptor(this.MainRenderTargetTexture, null, null, false, false, true, true);
 
             var commandListId = GetNextGraphicsResourceId();
             var result = this.graphicsService.CreateRenderCommandList(commandListId, renderPassDescriptor, "PresentRenderCommandList", false);
-
-            this.internal2DRenderer.Render(new CommandList(commandListId, CommandListType.Render));
             this.graphicsService.ExecuteRenderCommandList(commandListId);
-
             this.graphicsService.PresentScreenBuffer();
 
             // TODO: A modulo here with Int.MaxValue

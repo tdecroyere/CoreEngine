@@ -4,7 +4,7 @@ namespace CoreEngine.Graphics
 {
     public readonly struct RenderPassDescriptor
     {
-        public RenderPassDescriptor(Texture colorTexture, Vector4? clearColor, Texture? depthTexture, bool depthCompare, bool depthWrite, bool backfaceCulling)
+        public RenderPassDescriptor(Texture colorTexture, Vector4? clearColor, Texture? depthTexture, bool depthCompare, bool depthWrite, bool backfaceCulling, bool writeToHardwareRenderTarget)
         {
             this.ColorTexture = colorTexture;
             this.ClearColor = clearColor;
@@ -12,6 +12,7 @@ namespace CoreEngine.Graphics
             this.DepthCompare = depthCompare;
             this.DepthWrite = depthWrite;
             this.BackfaceCulling = backfaceCulling;
+            this.WriteToHardwareRenderTarget = writeToHardwareRenderTarget;
         }
 
         public readonly Texture ColorTexture { get; }
@@ -20,5 +21,6 @@ namespace CoreEngine.Graphics
         public readonly bool DepthCompare { get; }
         public readonly bool DepthWrite { get; }
         public readonly bool BackfaceCulling { get; }
+        public readonly bool WriteToHardwareRenderTarget { get; }
     }
 }

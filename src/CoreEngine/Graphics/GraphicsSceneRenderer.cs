@@ -48,18 +48,23 @@ namespace CoreEngine.Graphics
 
     internal struct ShaderGeometryPacket
     {
-        public uint VertexBufferIndex;
-        public uint IndexBufferIndex;
+        public int VertexBufferIndex;
+        public int IndexBufferIndex;
     }
 
     internal struct ShaderGeometryInstance
     {
-        public uint GeometryPacketIndex;
+        public int GeometryPacketIndex;
         public int StartIndex;
         public int IndexCount;
-        public int Reserved1;
+        public int MaterialIndex;
         public Matrix4x4 WorldMatrix;
         public ShaderBoundingBox WorldBoundingBox;
+    }
+
+    internal struct SimpleMaterial
+    {
+        public Vector4 DiffuseColor;
     }
 
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
@@ -84,6 +89,9 @@ namespace CoreEngine.Graphics
         private GraphicsBuffer geometryInstancesBuffer;
         private CommandList indirectCommandList;
 
+        // TEST
+        private GraphicsBuffer simpleMaterial;
+
         public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
             if (graphicsManager == null)
@@ -95,8 +103,8 @@ namespace CoreEngine.Graphics
             this.debugRenderer = new DebugRenderer(graphicsManager, resourcesManager);
             this.sceneQueue = sceneQueue;
 
-            this.drawMeshInstancesComputeShader = resourcesManager.LoadResourceAsync<Shader>("/ComputeDrawMeshInstances.shader", "DrawMeshInstances");
-            this.renderMeshInstancesShader = resourcesManager.LoadResourceAsync<Shader>("/RenderMeshInstance.shader");
+            this.drawMeshInstancesComputeShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDrawMeshInstances.shader", "DrawMeshInstances");
+            this.renderMeshInstancesShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
 
             this.currentFrameSize = this.graphicsManager.GetRenderSize();
             this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
@@ -109,6 +117,9 @@ namespace CoreEngine.Graphics
             this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, GraphicsResourceType.Dynamic, "ComputeGeometryPackets");
             this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(10000, GraphicsResourceType.Dynamic, "ComputeGeometryInstances");
             this.indirectCommandList = this.graphicsManager.CreateIndirectCommandList(65536, "ComputeIndirectCommandList");
+
+            // TEST
+            this.simpleMaterial = this.graphicsManager.CreateGraphicsBuffer<SimpleMaterial>(1, GraphicsResourceType.Dynamic, "SimpleMaterialBuffer");
         }
 
         public void CopyDataToGpuAndRender()
@@ -219,8 +230,8 @@ namespace CoreEngine.Graphics
 
                         var shaderGeometryPacket = new ShaderGeometryPacket()
                         {
-                            VertexBufferIndex = (uint)currentVertexBufferIndex - 1,
-                            IndexBufferIndex = (uint)currentIndexBufferIndex - 1
+                            VertexBufferIndex = currentVertexBufferIndex - 1,
+                            IndexBufferIndex = currentIndexBufferIndex - 1
                         };
 
                         this.geometryPacketList[currentGeometryPacketIndex++] = shaderGeometryPacket;
@@ -234,9 +245,10 @@ namespace CoreEngine.Graphics
 
                     var shaderGeometryInstance = new ShaderGeometryInstance()
                     {
-                        GeometryPacketIndex = (uint)currentGeometryPacketIndex - 1,
+                        GeometryPacketIndex = currentGeometryPacketIndex - 1,
                         StartIndex = geometryInstance.StartIndex,
                         IndexCount = geometryInstance.IndexCount,
+                        MaterialIndex = -1,
                         WorldMatrix = meshInstance.WorldMatrix,
                         WorldBoundingBox = worldBoundingBox
                     };
@@ -251,6 +263,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, new ShaderSceneProperties[] { sceneProperties });
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.geometryPacketList.AsSpan().Slice(0, this.currentGeometryPacketIndex));
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, geometryInstanceList.AsSpan().Slice(0, this.currentGeometryInstanceIndex));
+            this.graphicsManager.UploadDataToGraphicsBuffer<SimpleMaterial>(copyCommandList, this.simpleMaterial, new SimpleMaterial[] { new SimpleMaterial() { DiffuseColor = new Vector4(1, 0, 0, 1) } });
             this.graphicsManager.ResetIndirectCommandList(copyCommandList, this.indirectCommandList, 65536);
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
@@ -264,9 +277,10 @@ namespace CoreEngine.Graphics
             this.graphicsManager.SetShaderBuffer(computeCommandList, this.scenePropertiesBuffer, 0);
             this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryPacketsBuffer, 1);
             this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryInstancesBuffer, 2);
-            this.graphicsManager.SetShaderBuffers(computeCommandList, this.vertexBuffersList.AsSpan().Slice(0, this.currentVertexBufferIndex), 5);
-            this.graphicsManager.SetShaderBuffers(computeCommandList, this.indexBuffersList.AsSpan().Slice(0, this.currentIndexBufferIndex), 10005);
-            this.graphicsManager.SetShaderIndirectCommandList(computeCommandList, this.indirectCommandList, 20005);
+            this.graphicsManager.SetShaderIndirectCommandList(computeCommandList, this.indirectCommandList, 3);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, this.vertexBuffersList.AsSpan().Slice(0, this.currentVertexBufferIndex), 4);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, this.indexBuffersList.AsSpan().Slice(0, this.currentIndexBufferIndex), 10004);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, new GraphicsBuffer[] { this.simpleMaterial }, 20004);
 
             this.graphicsManager.DispatchThreadGroups(computeCommandList, (uint)this.currentGeometryInstanceIndex, 1, 1);
             this.graphicsManager.ExecuteComputeCommandList(computeCommandList);
@@ -275,14 +289,14 @@ namespace CoreEngine.Graphics
             this.graphicsManager.OptimizeIndirectCommandList(copyCommandList, this.indirectCommandList, 65536);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-            var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, new Vector4(0.0f, 0.215f, 1.0f, 1), this.depthBufferTexture, true, true, true);
+            var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, new Vector4(0.0f, 0.215f, 1.0f, 1), this.depthBufferTexture, true, true, true, false);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "SceneRenderCommandList");
 
             this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstancesShader);
             this.graphicsManager.ExecuteIndirectCommandList(renderCommandList, this.indirectCommandList, 65536);
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
 
-            var debugRenderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, null, this.depthBufferTexture, true, false, true);
+            var debugRenderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, null, this.depthBufferTexture, true, false, true, false);
             var debugRenderCommandList = this.graphicsManager.CreateRenderCommandList(debugRenderPassDescriptor, "DebugRenderCommandList");
 
             this.debugRenderer.ClearDebugLines();

@@ -8,7 +8,7 @@ class Shader {
     var computePipelineState: MTLComputePipelineState!
     let argumentEncoder: MTLArgumentEncoder?
     var argumentBuffers: [MTLBuffer]
-    let argumentBuffersMaxCount = 2000
+    let argumentBuffersMaxCount = 100
     var argumentBufferCurrentIndex = 0
     var currentArgumentBuffer: MTLBuffer?
 
@@ -75,6 +75,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     var renderWidth: Int
     var renderHeight: Int
+    var multisampleCount: Int = 4
 
     var commandQueue: MTLCommandQueue!
     var commandBuffer: MTLCommandBuffer!
@@ -195,7 +196,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
-        descriptor.textureType = .type2D
         descriptor.width = width
         descriptor.height = height
         descriptor.depth = 1
@@ -212,7 +212,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         if (isRenderTarget) {
+            descriptor.textureType = .type2DMultisample
+            descriptor.sampleCount = self.multisampleCount
             descriptor.usage = [.renderTarget, .shaderRead]
+        } else {
+            descriptor.textureType = .type2D
         }
 
         guard let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor) else {
@@ -244,6 +248,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             pipelineStateDescriptor.vertexFunction = vertexFunction
             pipelineStateDescriptor.fragmentFunction = fragmentFunction
             pipelineStateDescriptor.supportIndirectCommandBuffers = true
+            pipelineStateDescriptor.sampleCount = self.multisampleCount
 
             // TODO: Use the correct render target format
             pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat
@@ -501,41 +506,35 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             self.renderCommandBuffers[commandListId] = commandBuffer
         }
 
-        // Create render command encoder
-        // TODO: Move that static declarations to other functions
-        var renderTargetTexture: MTLTexture
-
-        if (renderDescriptor.ColorTextureId.HasValue == 0) {
-            guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
-                return false
-            }
-            
-            self.currentMetalDrawable = nextCurrentMetalDrawable
-            renderTargetTexture = nextCurrentMetalDrawable.texture
-        } else {
-            guard let colorTexture = self.textures[UInt(renderDescriptor.ColorTextureId.Value)] else {
-                print("createRenderCommandList: Color Texture is nil.")
-                return false
-            }
-            renderTargetTexture = colorTexture
+        // Create render command encoder        
+        guard let colorTexture = self.textures[UInt(renderDescriptor.ColorTextureId.Value)] else {
+            print("createRenderCommandList: Color Texture is nil.")
+            return false
         }
 
         let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = renderTargetTexture
-
-        if (renderDescriptor.ColorTextureId.HasValue == 0) {
-            renderPassDescriptor.colorAttachments[0].loadAction = .dontCare
-        } else if (renderDescriptor.ClearColor.HasValue == 1) {
+        renderPassDescriptor.colorAttachments[0].texture = colorTexture
+        
+        if (renderDescriptor.ClearColor.HasValue == 1) {
             renderPassDescriptor.colorAttachments[0].loadAction = .clear
             renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: Double(renderDescriptor.ClearColor.Value.X), green: Double(renderDescriptor.ClearColor.Value.Y), blue: Double(renderDescriptor.ClearColor.Value.Z), alpha: Double(renderDescriptor.ClearColor.Value.W))
         } else {
             renderPassDescriptor.colorAttachments[0].loadAction = .load
         }
 
-        if (renderDescriptor.ColorTextureId.HasValue == 0) {
-            renderPassDescriptor.colorAttachments[0].storeAction = .dontCare
+        if (renderDescriptor.WriteToHardwareRenderTarget == 1) {
+            renderPassDescriptor.colorAttachments[0].storeAction = .multisampleResolve
         } else {
             renderPassDescriptor.colorAttachments[0].storeAction = .store
+        }
+
+        if (renderDescriptor.WriteToHardwareRenderTarget == 1) {
+            guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
+                return false
+            }
+            
+            self.currentMetalDrawable = nextCurrentMetalDrawable
+            renderPassDescriptor.colorAttachments[0].resolveTexture = nextCurrentMetalDrawable.texture
         }
 
         // TODO

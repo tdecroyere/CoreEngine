@@ -62,20 +62,6 @@ namespace CoreEngine.Graphics
         public ShaderBoundingBox WorldBoundingBox;
     }
 
-    internal struct ShaderMesh
-    {
-        public uint GeometryInstanceStartIndex;
-        public uint GeometryInstancesCount;
-        public int Reserved1, Reserved2;
-    }
-
-    internal struct ShaderMeshInstance
-    {
-        public uint MeshIndex;
-        public int Reserved1, Reserved2, Reserved3;
-        public Matrix4x4 WorldMatrix;
-    }
-
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
     public class GraphicsSceneRenderer
     {
@@ -120,8 +106,8 @@ namespace CoreEngine.Graphics
 
             // Compute buffers
             this.scenePropertiesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderSceneProperties>(1, GraphicsResourceType.Dynamic, "ComputeSceneProperties");
-            this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(1000, GraphicsResourceType.Dynamic, "ComputeGeometryPackets");
-            this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(1000, GraphicsResourceType.Dynamic, "ComputeGeometryInstances");
+            this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, GraphicsResourceType.Dynamic, "ComputeGeometryPackets");
+            this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(10000, GraphicsResourceType.Dynamic, "ComputeGeometryInstances");
             this.indirectCommandList = this.graphicsManager.CreateIndirectCommandList(65536, "ComputeIndirectCommandList");
         }
 
@@ -151,16 +137,22 @@ namespace CoreEngine.Graphics
                 SetupCamera(camera);
             }
 
-            //CullGeometryInstances(scene, scene.ActiveCamera);
-
             CopyComputeGpuData(scene);
             CopyGpuData(scene);
             RunRenderPipeline(scene, scene.ActiveCamera);
         }
 
-        List<GraphicsBuffer> vertexBuffersList = new List<GraphicsBuffer>();
-        List<GraphicsBuffer> indexBuffersList = new List<GraphicsBuffer>();
-        List<ShaderGeometryInstance> geometryInstanceList = new List<ShaderGeometryInstance>();
+        GraphicsBuffer[] vertexBuffersList = new GraphicsBuffer[10000];
+        int currentVertexBufferIndex = 0;
+
+        GraphicsBuffer[] indexBuffersList = new GraphicsBuffer[10000];
+        int currentIndexBufferIndex = 0;
+
+        ShaderGeometryPacket[] geometryPacketList = new ShaderGeometryPacket[10000];
+        int currentGeometryPacketIndex = 0;
+
+        ShaderGeometryInstance[] geometryInstanceList = new ShaderGeometryInstance[10000];
+        int currentGeometryInstanceIndex = 0;
 
         private void CopyComputeGpuData(GraphicsScene scene)
         {
@@ -200,11 +192,12 @@ namespace CoreEngine.Graphics
 
             sceneProperties.IsDebugCameraActive = (scene.DebugCamera != null);
 
-            vertexBuffersList = new List<GraphicsBuffer>();
-            indexBuffersList = new List<GraphicsBuffer>();
-            var geometryPacketList = new List<ShaderGeometryPacket>();
+            this.currentVertexBufferIndex = 0;
+            uint currentVertexBufferId = (uint)0;
 
-            geometryInstanceList.Clear();
+            this.currentIndexBufferIndex = 0;
+            this.currentGeometryPacketIndex = 0;
+            this.currentGeometryInstanceIndex = 0;
 
             // TODO: For the moment it only work if the mesh instances list is sorted by meshes!
             for (var i = 0; i < scene.MeshInstances.Count; i++)
@@ -217,25 +210,20 @@ namespace CoreEngine.Graphics
                     var geometryInstance = mesh.GeometryInstances[j];
                     var geometryPacket = geometryInstance.GeometryPacket;
 
-                    if (!vertexBuffersList.Contains(geometryPacket.VertexBuffer))
+                    if (currentVertexBufferId != geometryPacket.VertexBuffer.GraphicsResourceId)
                     {
-                        vertexBuffersList.Add(geometryPacket.VertexBuffer);
-                    }
+                        this.vertexBuffersList[currentVertexBufferIndex++] = geometryPacket.VertexBuffer;
+                        currentVertexBufferId = geometryPacket.VertexBuffer.GraphicsResourceId;
 
-                    if (!indexBuffersList.Contains(geometryPacket.IndexBuffer))
-                    {
-                        indexBuffersList.Add(geometryPacket.IndexBuffer);
-                    }
+                        this.indexBuffersList[currentIndexBufferIndex++] = geometryPacket.IndexBuffer;
 
-                    var shaderGeometryPacket = new ShaderGeometryPacket()
-                    {
-                        VertexBufferIndex = (uint)vertexBuffersList.IndexOf(geometryPacket.VertexBuffer),
-                        IndexBufferIndex = (uint)indexBuffersList.IndexOf(geometryPacket.IndexBuffer)
-                    };
+                        var shaderGeometryPacket = new ShaderGeometryPacket()
+                        {
+                            VertexBufferIndex = (uint)currentVertexBufferIndex - 1,
+                            IndexBufferIndex = (uint)currentIndexBufferIndex - 1
+                        };
 
-                    if (!geometryPacketList.Contains(shaderGeometryPacket))
-                    {
-                        geometryPacketList.Add(shaderGeometryPacket);
+                        this.geometryPacketList[currentGeometryPacketIndex++] = shaderGeometryPacket;
                     }
 
                     var worldBoundingBox = new ShaderBoundingBox()
@@ -246,14 +234,14 @@ namespace CoreEngine.Graphics
 
                     var shaderGeometryInstance = new ShaderGeometryInstance()
                     {
-                        GeometryPacketIndex = (uint)geometryPacketList.IndexOf(shaderGeometryPacket),
+                        GeometryPacketIndex = (uint)currentGeometryPacketIndex - 1,
                         StartIndex = geometryInstance.StartIndex,
                         IndexCount = geometryInstance.IndexCount,
                         WorldMatrix = meshInstance.WorldMatrix,
                         WorldBoundingBox = worldBoundingBox
                     };
 
-                    geometryInstanceList.Add(shaderGeometryInstance);
+                    geometryInstanceList[this.currentGeometryInstanceIndex++] = shaderGeometryInstance;
                 }
             }
 
@@ -261,8 +249,8 @@ namespace CoreEngine.Graphics
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("SceneComputeCopyCommandList", true);
 
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, new ShaderSceneProperties[] { sceneProperties });
-            this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, geometryPacketList.ToArray());
-            this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, geometryInstanceList.ToArray());
+            this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.geometryPacketList.AsSpan().Slice(0, this.currentGeometryPacketIndex));
+            this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, geometryInstanceList.AsSpan().Slice(0, this.currentGeometryInstanceIndex));
             this.graphicsManager.ResetIndirectCommandList(copyCommandList, this.indirectCommandList, 65536);
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
@@ -276,11 +264,11 @@ namespace CoreEngine.Graphics
             this.graphicsManager.SetShaderBuffer(computeCommandList, this.scenePropertiesBuffer, 0);
             this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryPacketsBuffer, 1);
             this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryInstancesBuffer, 2);
-            this.graphicsManager.SetShaderBuffers(computeCommandList, this.vertexBuffersList.ToArray(), 5);
-            this.graphicsManager.SetShaderBuffers(computeCommandList, this.indexBuffersList.ToArray(), 1005);
-            this.graphicsManager.SetShaderIndirectCommandList(computeCommandList, this.indirectCommandList, 2005);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, this.vertexBuffersList.AsSpan().Slice(0, this.currentVertexBufferIndex), 5);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, this.indexBuffersList.AsSpan().Slice(0, this.currentIndexBufferIndex), 10005);
+            this.graphicsManager.SetShaderIndirectCommandList(computeCommandList, this.indirectCommandList, 20005);
 
-            this.graphicsManager.DispatchThreadGroups(computeCommandList, (uint)geometryInstanceList.Count, 1, 1);
+            this.graphicsManager.DispatchThreadGroups(computeCommandList, (uint)this.currentGeometryInstanceIndex, 1, 1);
             this.graphicsManager.ExecuteComputeCommandList(computeCommandList);
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("ComputeOptimizeRenderCommandList", true);
@@ -305,40 +293,6 @@ namespace CoreEngine.Graphics
 
             this.graphicsManager.ExecuteRenderCommandList(debugRenderCommandList);
         }
-
-        // private void CullGeometryInstances(GraphicsScene scene, Camera camera)
-        // {
-        //     this.currentObjectPropertyIndex = 0;
-        //     this.objectPropertiesMapping.Clear();
-        //     this.meshGeometryInstances.Clear();
-        //     this.meshGeometryInstancesParamIdList.Clear();
-
-        //     for (var i = 0; i < scene.MeshInstances.Count; i++)
-        //     {
-        //         var meshInstance = scene.MeshInstances[i];
-
-        //         this.objectProperties[i] = new ObjectProperties() { WorldMatrix = meshInstance.WorldMatrix };
-        //         this.objectPropertiesMapping.Add(meshInstance.Id, i);
-
-        //         for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
-        //         {
-        //             var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
-        //             var worldBoundingBox = meshInstance.WorldBoundingBoxList[j];
-
-        //             if (BoundingIntersectUtils.Intersect(camera.BoundingFrustum, worldBoundingBox))
-        //             {
-        //                 this.meshGeometryInstances.Add(geometryInstance);
-        //                 this.meshGeometryInstancesParamIdList.Add((uint)this.objectPropertiesMapping[meshInstance.Id]);
-        //             }
-        //         }
-        //     }
-
-        //     // Prepare draw parameters
-        //     for (var i = 0; i < this.meshGeometryInstances.Count; i++)
-        //     {
-        //         this.vertexShaderParameters[i] = this.meshGeometryInstancesParamIdList[i];
-        //     }
-        // }
 
         private void SetupCamera(Camera camera)
         {

@@ -75,7 +75,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     var renderWidth: Int
     var renderHeight: Int
-    var multisampleCount: Int = 4
+    var multisampleCount: Int = 2
 
     var commandQueue: MTLCommandQueue!
     var commandBuffer: MTLCommandBuffer!

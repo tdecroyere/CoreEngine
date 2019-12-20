@@ -35,31 +35,38 @@ namespace CoreEngine.Graphics.EntitySystems
             var transformArray = this.GetComponentDataArray<TransformComponent>();
             var meshArray = this.GetComponentDataArray<MeshComponent>();
 
+            var currentScene = sceneManager.CurrentScene;
+
             for (var i = 0; i < entityArray.Length; i++)
             {
                 var entity = entityArray[i];
                 ref var transformComponent = ref transformArray[i];
                 ref var meshComponent = ref meshArray[i];
+                Material? material = null;
+
+                if (entityManager.HasComponent<MaterialComponent>(entity))
+                {
+                    var materialComponent = entityManager.GetComponentData<MaterialComponent>(entity);
+
+                    if (materialComponent.MaterialResourceId != 0)
+                    {
+                        material = this.resourcesManager.GetResourceById<Material>(materialComponent.MaterialResourceId);
+                    }
+                }
 
                 if (meshComponent.MeshResourceId != 0)
                 {
-                    var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
-
-                    if (mesh != null)
+                    if (!currentScene.MeshInstances.Contains(meshComponent.MeshInstance))
                     {
-                        var currentScene = sceneManager.CurrentScene;
+                        var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
+                        var meshInstance = new MeshInstance(mesh, material, transformComponent.WorldMatrix, false);
+                        meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
+                    }
 
-                        if (!currentScene.MeshInstances.Contains(meshComponent.MeshInstance))
-                        {
-                            var meshInstance = new MeshInstance(mesh, transformComponent.WorldMatrix, false);
-                            meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
-                        }
-
-                        else
-                        {
-                            var meshInstance = currentScene.MeshInstances[meshComponent.MeshInstance];
-                            meshInstance.WorldMatrix = transformComponent.WorldMatrix;
-                        }
+                    else
+                    {
+                        var meshInstance = currentScene.MeshInstances[meshComponent.MeshInstance];
+                        meshInstance.WorldMatrix = transformComponent.WorldMatrix;
                     }
                 }
             }

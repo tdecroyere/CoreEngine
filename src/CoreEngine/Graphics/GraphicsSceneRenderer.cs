@@ -87,10 +87,8 @@ namespace CoreEngine.Graphics
         private GraphicsBuffer scenePropertiesBuffer;
         private GraphicsBuffer geometryPacketsBuffer;
         private GraphicsBuffer geometryInstancesBuffer;
+        private GraphicsBuffer materialOffsetBuffer;
         private CommandList indirectCommandList;
-
-        // TEST
-        private GraphicsBuffer simpleMaterial;
 
         public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
@@ -117,9 +115,8 @@ namespace CoreEngine.Graphics
             this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, GraphicsResourceType.Dynamic, "ComputeGeometryPackets");
             this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(10000, GraphicsResourceType.Dynamic, "ComputeGeometryInstances");
             this.indirectCommandList = this.graphicsManager.CreateIndirectCommandList(65536, "ComputeIndirectCommandList");
-
-            // TEST
-            this.simpleMaterial = this.graphicsManager.CreateGraphicsBuffer<SimpleMaterial>(1, GraphicsResourceType.Dynamic, "SimpleMaterialBuffer");
+            
+            this.materialOffsetBuffer = this.graphicsManager.CreateGraphicsBuffer<int>(10000, GraphicsResourceType.Dynamic, "MaterialOffsets");
         }
 
         public void CopyDataToGpuAndRender()
@@ -164,6 +161,13 @@ namespace CoreEngine.Graphics
 
         ShaderGeometryInstance[] geometryInstanceList = new ShaderGeometryInstance[10000];
         int currentGeometryInstanceIndex = 0;
+
+        GraphicsBuffer[] materialList = new GraphicsBuffer[10000];
+        int[] materialOffsetList = new int[10000];
+        int currentMaterialIndex = 0;
+
+        Texture[] materialTextureList = new Texture[10000];
+        int currentMaterialTextureIndex = 0;
 
         private void CopyComputeGpuData(GraphicsScene scene)
         {
@@ -210,11 +214,32 @@ namespace CoreEngine.Graphics
             this.currentGeometryPacketIndex = 0;
             this.currentGeometryInstanceIndex = 0;
 
+            this.currentMaterialIndex = 0;
+            uint currentMaterialId = (uint)0;
+
+            this.currentMaterialTextureIndex = 0;
+
             // TODO: For the moment it only work if the mesh instances list is sorted by meshes!
             for (var i = 0; i < scene.MeshInstances.Count; i++)
             {
                 var meshInstance = scene.MeshInstances[i];
                 var mesh = meshInstance.Mesh;
+
+                if (meshInstance.Material != null && meshInstance.Material.MaterialData != null && currentMaterialId != meshInstance.Material.MaterialData.Value.GraphicsResourceId)
+                {
+                    currentMaterialId = meshInstance.Material.MaterialData.Value.GraphicsResourceId;
+                    
+                    this.materialList[this.currentMaterialIndex] = meshInstance.Material.MaterialData.Value;
+                    this.materialOffsetList[this.currentMaterialIndex] = this.currentMaterialTextureIndex;
+                    this.currentMaterialIndex++;
+
+                    var textureList = meshInstance.Material.TextureList.Span;
+
+                    for (var j = 0; j < textureList.Length; j++)
+                    {
+                        this.materialTextureList[this.currentMaterialTextureIndex++] = textureList[j];
+                    }
+                }
 
                 for (var j = 0; j < mesh.GeometryInstances.Count; j++)
                 {
@@ -248,7 +273,7 @@ namespace CoreEngine.Graphics
                         GeometryPacketIndex = currentGeometryPacketIndex - 1,
                         StartIndex = geometryInstance.StartIndex,
                         IndexCount = geometryInstance.IndexCount,
-                        MaterialIndex = -1,
+                        MaterialIndex = (meshInstance.Material != null) ? currentMaterialIndex - 1 : -1,
                         WorldMatrix = meshInstance.WorldMatrix,
                         WorldBoundingBox = worldBoundingBox
                     };
@@ -263,7 +288,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, new ShaderSceneProperties[] { sceneProperties });
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.geometryPacketList.AsSpan().Slice(0, this.currentGeometryPacketIndex));
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, geometryInstanceList.AsSpan().Slice(0, this.currentGeometryInstanceIndex));
-            this.graphicsManager.UploadDataToGraphicsBuffer<SimpleMaterial>(copyCommandList, this.simpleMaterial, new SimpleMaterial[] { new SimpleMaterial() { DiffuseColor = new Vector4(1, 0, 0, 1) } });
+            this.graphicsManager.UploadDataToGraphicsBuffer<int>(copyCommandList, this.materialOffsetBuffer, this.materialOffsetList.AsSpan().Slice(0, this.currentMaterialIndex));
             this.graphicsManager.ResetIndirectCommandList(copyCommandList, this.indirectCommandList, 65536);
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
@@ -280,7 +305,9 @@ namespace CoreEngine.Graphics
             this.graphicsManager.SetShaderIndirectCommandList(computeCommandList, this.indirectCommandList, 3);
             this.graphicsManager.SetShaderBuffers(computeCommandList, this.vertexBuffersList.AsSpan().Slice(0, this.currentVertexBufferIndex), 4);
             this.graphicsManager.SetShaderBuffers(computeCommandList, this.indexBuffersList.AsSpan().Slice(0, this.currentIndexBufferIndex), 10004);
-            this.graphicsManager.SetShaderBuffers(computeCommandList, new GraphicsBuffer[] { this.simpleMaterial }, 20004);
+            this.graphicsManager.SetShaderBuffers(computeCommandList, this.materialList.AsSpan().Slice(0, this.currentMaterialIndex), 20004);
+            this.graphicsManager.SetShaderTextures(computeCommandList, this.materialTextureList.AsSpan().Slice(0, this.currentMaterialTextureIndex), 30004);
+            this.graphicsManager.SetShaderBuffer(computeCommandList, this.materialOffsetBuffer, 40004);
 
             this.graphicsManager.DispatchThreadGroups(computeCommandList, (uint)this.currentGeometryInstanceIndex, 1, 1);
             this.graphicsManager.ExecuteComputeCommandList(computeCommandList);

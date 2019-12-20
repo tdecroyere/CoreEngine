@@ -7,12 +7,15 @@ namespace CoreEngine.Graphics
     {
         public Material() : base(0, string.Empty)
         {
+            this.TextureList = Array.Empty<Texture>();
         }
 
         internal Material(uint resourceId, string path) : base(resourceId, path)
         {
+            this.TextureList = Array.Empty<Texture>();
         }
 
-        public Shader? Shader { get; }
+        public GraphicsBuffer? MaterialData { get; internal set; }
+        public Memory<Texture> TextureList { get; internal set; }
     }
 }

@@ -65,7 +65,7 @@ namespace CoreEngine.Graphics
 
             for (var i = 0; i < this.MeshInstances.Count; i++)
             {
-                var meshInstanceCopy = new MeshInstance(this.MeshInstances[i].Mesh, this.MeshInstances[i].WorldMatrix);
+                var meshInstanceCopy = new MeshInstance(this.MeshInstances[i].Mesh, this.MeshInstances[i].Material, this.MeshInstances[i].WorldMatrix);
                 
                 for (var j = 0; j < this.MeshInstances[i].WorldBoundingBoxList.Count; j++)
                 {

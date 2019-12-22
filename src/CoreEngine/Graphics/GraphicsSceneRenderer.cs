@@ -105,7 +105,7 @@ namespace CoreEngine.Graphics
             this.renderMeshInstancesShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
 
             this.currentFrameSize = this.graphicsManager.GetRenderSize();
-            this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
+            this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
 
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, GraphicsResourceType.Dynamic);
@@ -129,7 +129,7 @@ namespace CoreEngine.Graphics
                 this.currentFrameSize = frameSize;
                 
                 this.graphicsManager.RemoveTexture(this.depthBufferTexture);
-                this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
+                this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
             }
 
             var scene = this.sceneQueue.WaitForNextScene();
@@ -218,6 +218,7 @@ namespace CoreEngine.Graphics
             uint currentMaterialId = (uint)0;
 
             this.currentMaterialTextureIndex = 0;
+            var currentMeshMaterialIndex = -1;
 
             // TODO: For the moment it only work if the mesh instances list is sorted by meshes!
             for (var i = 0; i < scene.MeshInstances.Count; i++)
@@ -239,12 +240,30 @@ namespace CoreEngine.Graphics
                     {
                         this.materialTextureList[this.currentMaterialTextureIndex++] = textureList[j];
                     }
+
+                    currentMeshMaterialIndex = this.currentMaterialIndex - 1;
                 }
 
                 for (var j = 0; j < mesh.GeometryInstances.Count; j++)
                 {
                     var geometryInstance = mesh.GeometryInstances[j];
                     var geometryPacket = geometryInstance.GeometryPacket;
+
+                    if (geometryInstance.Material != null && geometryInstance.Material.MaterialData != null && currentMaterialId != geometryInstance.Material.MaterialData.Value.GraphicsResourceId)
+                    {
+                        currentMaterialId = geometryInstance.Material.MaterialData.Value.GraphicsResourceId;
+                        
+                        this.materialList[this.currentMaterialIndex] = geometryInstance.Material.MaterialData.Value;
+                        this.materialOffsetList[this.currentMaterialIndex] = this.currentMaterialTextureIndex;
+                        this.currentMaterialIndex++;
+
+                        var textureList = geometryInstance.Material.TextureList.Span;
+
+                        for (var k = 0; k < textureList.Length; k++)
+                        {
+                            this.materialTextureList[this.currentMaterialTextureIndex++] = textureList[k];
+                        }
+                    }
 
                     if (currentVertexBufferId != geometryPacket.VertexBuffer.GraphicsResourceId)
                     {
@@ -273,7 +292,7 @@ namespace CoreEngine.Graphics
                         GeometryPacketIndex = currentGeometryPacketIndex - 1,
                         StartIndex = geometryInstance.StartIndex,
                         IndexCount = geometryInstance.IndexCount,
-                        MaterialIndex = (meshInstance.Material != null) ? currentMaterialIndex - 1 : -1,
+                        MaterialIndex = (meshInstance.Material != null) ? currentMeshMaterialIndex : ((geometryInstance.Material != null) ? (currentMaterialIndex - 1) : -1),
                         WorldMatrix = meshInstance.WorldMatrix,
                         WorldBoundingBox = worldBoundingBox
                     };

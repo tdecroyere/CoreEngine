@@ -91,8 +91,13 @@ namespace CoreEngine.Graphics
                 var maxPoint = new Vector3(x, y, z);
                 var boundingBox = new BoundingBox(minPoint, maxPoint);
 
-                var material = this.ResourcesManager.LoadResourceAsync<Material>(materialPath);
-                resource.DependentResources.Add(material);
+                Material? material = null;
+
+                if (!string.IsNullOrEmpty(materialPath))
+                {
+                    material = this.ResourcesManager.LoadResourceAsync<Material>($"{Path.GetDirectoryName(resource.Path)}/{materialPath}");
+                    resource.DependentResources.Add(material);
+                }
 
                 var geometryInstance = new GeometryInstance(geometryPacket, material, startIndex, indexCount, boundingBox);
                 mesh.GeometryInstances.Add(geometryInstance);

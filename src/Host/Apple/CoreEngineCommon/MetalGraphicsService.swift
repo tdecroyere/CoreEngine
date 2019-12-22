@@ -192,14 +192,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
-    public func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool {
+    public func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ mipLevels: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool {
         // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
         descriptor.width = width
         descriptor.height = height
         descriptor.depth = 1
-        descriptor.mipmapLevelCount = 1
+        descriptor.mipmapLevelCount = mipLevels
         descriptor.arrayLength = 1
         descriptor.storageMode = .private
 
@@ -368,7 +368,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: length)
     }
 
-    public func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ width: Int, _ height: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
+    public func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ width: Int, _ height: Int, _ mipLevel: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
         guard let gpuTexture = self.textures[textureId] else {
             print("ERROR: GPU texture was not found")
             return
@@ -398,7 +398,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                                 sourceSize: MTLSize(width: width, height: height , depth: 1),
                                 to: gpuTexture, 
                                 destinationSlice: 0,
-                                destinationLevel: 0,
+                                destinationLevel: mipLevel,
                                 destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
     }
 

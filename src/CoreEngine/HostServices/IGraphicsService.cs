@@ -59,7 +59,7 @@ namespace CoreEngine.HostServices
         
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, string? debugName);
 
-        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, bool isRenderTarget, string? debugName);
+        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, bool isRenderTarget, string? debugName);
         void RemoveTexture(uint textureId);
 
         bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, bool useDepthBuffer, string? debugName);
@@ -68,7 +68,7 @@ namespace CoreEngine.HostServices
         bool CreateCopyCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
         void ExecuteCopyCommandList(uint commandListId);
         void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void UploadDataToTexture(uint commandListId, uint textureId, int width, int height, ReadOnlySpan<byte> data);
+        void UploadDataToTexture(uint commandListId, uint textureId, int width, int height, int mipLevel, ReadOnlySpan<byte> data);
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
         void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
 

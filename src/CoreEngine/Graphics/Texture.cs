@@ -66,6 +66,7 @@ namespace CoreEngine.Graphics
 
         public int Width { get; internal set; }
         public int Height { get; internal set; }
+        public int MipLevels { get; internal set; }
         public GraphicsResourceType ResourceType { get; }
     }
 }

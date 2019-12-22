@@ -28,14 +28,14 @@ struct GraphicsRenderPassDescriptor
 
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
 typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, char* debugName);
-typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int isRenderTarget, char* debugName);
+typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int isRenderTarget, char* debugName);
 typedef void (*GraphicsService_RemoveTexturePtr)(void* context, unsigned int textureId);
 typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, int useDepthBuffer, char* debugName);
 typedef void (*GraphicsService_RemoveShaderPtr)(void* context, unsigned int shaderId);
 typedef int (*GraphicsService_CreateCopyCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*GraphicsService_UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
-typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, void* data, int dataLength);
+typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, int mipLevel, void* data, int dataLength);
 typedef void (*GraphicsService_ResetIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef void (*GraphicsService_OptimizeIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef int (*GraphicsService_CreateComputeCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);

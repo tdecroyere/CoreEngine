@@ -14,10 +14,10 @@ int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, in
     return contextObject->CreateGraphicsBuffer(graphicsBufferId, length, debugName)
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int isRenderTarget, struct string? debugName)
+int CreateTextureInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int isRenderTarget, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(textureId, textureFormat, width, height, isRenderTarget, debugName)
+    return contextObject->CreateTexture(textureId, textureFormat, width, height, mipLevels, isRenderTarget, debugName)
 }
 
 void RemoveTextureInterop(void* context, unsigned int textureId)
@@ -56,10 +56,10 @@ void UploadDataToGraphicsBufferInterop(void* context, unsigned int commandListId
     contextObject->UploadDataToGraphicsBuffer(commandListId, graphicsBufferId, data, dataLength)
 }
 
-void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, void* data, int dataLength)
+void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, int mipLevel, void* data, int dataLength)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->UploadDataToTexture(commandListId, textureId, width, height, data, dataLength)
+    contextObject->UploadDataToTexture(commandListId, textureId, width, height, mipLevel, data, dataLength)
 }
 
 void ResetIndirectCommandListInterop(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount)

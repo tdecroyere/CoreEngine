@@ -37,8 +37,6 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(resourcesManager));
             }
 
-            InitResourceLoaders(resourcesManager);
-
             this.graphicsService = graphicsService;
             this.currentGraphicsResourceId = 0;
             this.drawCount = 0;
@@ -48,12 +46,14 @@ namespace CoreEngine.Graphics
             this.globalStopwatch = new Stopwatch();
             this.globalStopwatch.Start();
 
+            InitResourceLoaders(resourcesManager);
+
             this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, graphicsSceneQueue, resourcesManager);
             this.Graphics2DRenderer = new Graphics2DRenderer(this, resourcesManager);
             this.internal2DRenderer = new Graphics2DRenderer(this, resourcesManager);
 
             this.currentFrameSize = graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Bgra8UnormSrgb, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
+            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Bgra8UnormSrgb, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
         }
 
         public uint CurrentFrameNumber
@@ -118,10 +118,10 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
-        public Texture CreateTexture(TextureFormat textureFormat, int width, int height, bool isRenderTarget = false, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
+        public Texture CreateTexture(TextureFormat textureFormat, int width, int height, int mipLevels, bool isRenderTarget = false, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
         {
             var textureId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateTexture(textureId, (GraphicsTextureFormat)(int)textureFormat, width, height, isRenderTarget, debugName);
+            var result = this.graphicsService.CreateTexture(textureId, (GraphicsTextureFormat)(int)textureFormat, width, height, mipLevels, isRenderTarget, debugName);
 
             if (!result)
             {
@@ -133,7 +133,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId2.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, isRenderTarget, debugName);
+                result = this.graphicsService.CreateTexture(textureId2.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, mipLevels, isRenderTarget, debugName);
 
                 if (!result)
                 {
@@ -146,7 +146,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId3 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId3.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, isRenderTarget, debugName);
+                result = this.graphicsService.CreateTexture(textureId3.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, mipLevels, isRenderTarget, debugName);
 
                 if (!result)
                 {
@@ -228,7 +228,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, rawData);
         }
 
-        public void UploadDataToTexture<T>(CommandList commandList, Texture texture, ReadOnlySpan<T> data) where T : struct
+        public void UploadDataToTexture<T>(CommandList commandList, Texture texture, int width, int height, int mipLevel, ReadOnlySpan<T> data) where T : struct
         {
             if (texture == null)
             {
@@ -236,7 +236,7 @@ namespace CoreEngine.Graphics
             }
 
             var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, texture.Width, texture.Height, rawData);
+            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, width, height, mipLevel, rawData);
         }
 
         public void ResetIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
@@ -478,7 +478,7 @@ namespace CoreEngine.Graphics
                 this.currentFrameSize = frameSize;
                 
                 RemoveTexture(this.MainRenderTargetTexture);
-                this.MainRenderTargetTexture = CreateTexture(TextureFormat.Bgra8UnormSrgb, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
+                this.MainRenderTargetTexture = CreateTexture(TextureFormat.Bgra8UnormSrgb, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
             }
 
             this.GraphicsSceneRenderer.CopyDataToGpuAndRender();

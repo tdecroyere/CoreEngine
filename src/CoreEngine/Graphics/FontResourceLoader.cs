@@ -82,11 +82,11 @@ namespace CoreEngine.Graphics
                 //this.graphicsService.RemoveTexture(texture.TextureId);
             }
 
-            font.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height);
+            font.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height, 1);
 
             // TODO: Make only one frame copy command list for all resource loaders
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();
-            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, font.Texture, textureData);
+            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, font.Texture, font.Texture.Width, font.Texture.Height, 0, textureData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
             // TODO: Upload data

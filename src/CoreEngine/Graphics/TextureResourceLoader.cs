@@ -10,10 +10,19 @@ namespace CoreEngine.Graphics
     public class TextureResourceLoader : ResourceLoader
     {
         private readonly GraphicsManager graphicsManager;
+        private Texture emptyTexture;
 
         public TextureResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
             this.graphicsManager = graphicsManager;
+            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, false, GraphicsResourceType.Static, "EmptyTexture");
+
+            var textureData = new byte[256 * 256 * 4];
+            Array.Fill<byte>(textureData, 255);
+
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, textureData);
+            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
         }
 
         public override string Name => "Texture Loader";
@@ -21,9 +30,9 @@ namespace CoreEngine.Graphics
 
         public override Resource CreateEmptyResource(uint resourceId, string path)
         {
-            // TODO: Provide a default visible texture
-
-            return new Texture(this.graphicsManager, 256, 256, resourceId, path);
+            var texture = new Texture(this.graphicsManager, 256, 256, resourceId, path);
+            texture.GraphicsResourceSystemId = this.emptyTexture.GraphicsResourceSystemId;
+            return texture;
         }
 
         public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
@@ -49,8 +58,7 @@ namespace CoreEngine.Graphics
 
             texture.Width = reader.ReadInt32();
             texture.Height = reader.ReadInt32();
-            var textureDataLength = reader.ReadInt32();
-            var textureData = reader.ReadBytes(textureDataLength);
+            texture.MipLevels = reader.ReadInt32();
 
             if (texture.GraphicsResourceId != 0)
             {
@@ -58,17 +66,32 @@ namespace CoreEngine.Graphics
                 //this.graphicsService.RemoveTexture(texture.TextureId);
             }
 
-            var createdTexture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, texture.Width, texture.Height);
+            var createdTexture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, texture.Width, texture.Height, texture.MipLevels);
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
+            texture.GraphicsResourceSystemId3 = createdTexture.GraphicsResourceSystemId3;
 
-            // TODO: Make only one frame copy command list for all resource loaders
             var copyCommandList = this.graphicsManager.CreateCopyCommandList();
-            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, texture, textureData);
-            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-            // TODO: Upload data
-            //textureData
+            var textureWidth = texture.Width;
+            var textureHeight = texture.Height;
+
+            for (var i = 0; i < texture.MipLevels; i++)
+            {
+                var textureDataLength = reader.ReadInt32();
+                var textureData = reader.ReadBytes(textureDataLength);
+
+                if (i > 0)
+                {
+                    textureWidth = (textureWidth > 1) ? textureWidth / 2 : 1;
+                    textureHeight = (textureHeight > 1) ? textureHeight / 2 : 1;
+                }
+
+                // TODO: Make only one frame copy command list for all resource loaders
+                this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, texture, textureWidth, textureHeight, i, textureData);
+            }
+
+            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
             return Task.FromResult((Resource)texture);
         }

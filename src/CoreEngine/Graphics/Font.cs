@@ -24,7 +24,7 @@ namespace CoreEngine.Graphics
         internal Font(GraphicsManager graphicsManager, int width, int height, uint resourceId, string path) : base(resourceId, path)
         {
             this.graphicsManager = graphicsManager;
-            this.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height);
+            this.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height, 1);
             this.GlyphInfos = new Dictionary<char, FontGlyphInfo>();
         }
 

@@ -48,7 +48,7 @@ namespace CoreEngine.Resources
             internal set;
         }
 
-        public string[] Parameters
+        public Memory<string> Parameters
         {
             get;
             internal set;

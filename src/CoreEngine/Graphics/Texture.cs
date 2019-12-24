@@ -16,6 +16,7 @@ namespace CoreEngine.Graphics
             this.Width = width;
             this.Height = height;
             this.ResourceType = resourceType;
+            this.IsLoaded = true;
         }
 
         internal Texture(GraphicsManager graphicsManager, int width, int height, uint resourceId, string path) : base(resourceId, path)

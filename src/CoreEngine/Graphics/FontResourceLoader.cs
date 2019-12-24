@@ -25,13 +25,13 @@ namespace CoreEngine.Graphics
             return new Font(this.graphicsManager, 256, 256, resourceId, path);
         }
 
-        public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
+        public override Resource LoadResourceData(Resource resource, byte[] data)
         {
             var font = resource as Font;
 
             if (font == null)
             {
-                throw new ArgumentException("Resource is not a Texture resource.", nameof(resource));
+                throw new ArgumentException("Resource is not a Font resource.", nameof(resource));
             }
 
             using var memoryStream = new MemoryStream(data);
@@ -43,7 +43,7 @@ namespace CoreEngine.Graphics
             if (textureSignature.ToString() != "FONT" && textureVersion != 1)
             {
                 Logger.WriteMessage($"ERROR: Wrong signature or version for Font '{resource.Path}'");
-                return Task.FromResult(resource);
+                return resource;
             }
 
             var glyphCount = reader.ReadInt32();
@@ -78,21 +78,17 @@ namespace CoreEngine.Graphics
 
             if (font.Texture.GraphicsResourceId != 0)
             {
-                // TODO: Implement remove texture
-                //this.graphicsService.RemoveTexture(texture.TextureId);
+                this.graphicsManager.RemoveTexture(font.Texture);
             }
 
             font.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height, 1);
 
             // TODO: Make only one frame copy command list for all resource loaders
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("FontLoaderCommandList", true);
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, font.Texture, font.Texture.Width, font.Texture.Height, 0, textureData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-            // TODO: Upload data
-            //textureData
-
-            return Task.FromResult((Resource)font);
+            return font;
         }
     }
 }

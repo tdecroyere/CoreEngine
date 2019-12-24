@@ -27,7 +27,7 @@ namespace CoreEngine.Resources
         }
 
         public abstract Resource CreateEmptyResource(uint resourceId, string path);
-        public abstract Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data);
+        public abstract Resource LoadResourceData(Resource resource, byte[] data);
 
         public virtual void DestroyResource(Resource resource)
         {

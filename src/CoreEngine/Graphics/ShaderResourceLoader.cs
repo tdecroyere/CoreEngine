@@ -26,7 +26,7 @@ namespace CoreEngine.Graphics
             return new Shader(resourceId, path);
         }
 
-        public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
+        public override Resource LoadResourceData(Resource resource, byte[] data)
         {
             var shader = resource as Shader;
 
@@ -44,7 +44,7 @@ namespace CoreEngine.Graphics
             if (shaderSignature.ToString() != "SHADER" && shaderVersion != 1)
             {
                 Logger.WriteMessage($"ERROR: Wrong signature or version for shader '{resource.Path}'");
-                return Task.FromResult(resource);
+                return resource;
             }
 
             var shaderByteCodeLength = reader.ReadInt32();
@@ -58,12 +58,12 @@ namespace CoreEngine.Graphics
             // TODO: Don't set this flags based on the shader name
             var useDepthBuffer = Path.GetFileNameWithoutExtension(shader.Path) != "Graphics2DRender";
 
-            var computeFunction = (resource.Parameters.Length > 0) ? resource.Parameters[0] : null;
+            var computeFunction = (resource.Parameters.Length > 0) ? resource.Parameters.Span[0] : null;
 
             var createdShader = this.graphicsManager.CreateShader(computeFunction, shaderByteCode, useDepthBuffer, $"{Path.GetFileNameWithoutExtension(shader.Path)}Shader");
             shader.ShaderId = createdShader.ShaderId;
 
-            return Task.FromResult((Resource)shader);
+            return shader;
         }
     }
 }

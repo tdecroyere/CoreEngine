@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
@@ -14,13 +15,18 @@ namespace CoreEngine.Graphics
 
         public TextureResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
             this.graphicsManager = graphicsManager;
             this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, false, GraphicsResourceType.Static, "EmptyTexture");
 
             var textureData = new byte[256 * 256 * 4];
             Array.Fill<byte>(textureData, 255);
 
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("TextureLoaderCommandList", true);
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, textureData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
         }
@@ -35,7 +41,7 @@ namespace CoreEngine.Graphics
             return texture;
         }
 
-        public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
+        public override Resource LoadResourceData(Resource resource, byte[] data)
         {
             var texture = resource as Texture;
 
@@ -53,7 +59,7 @@ namespace CoreEngine.Graphics
             if (textureSignature.ToString() != "TEXTURE" && textureVersion != 1)
             {
                 Logger.WriteMessage($"ERROR: Wrong signature or version for Texture '{resource.Path}'");
-                return Task.FromResult(resource);
+                return resource;
             }
 
             texture.Width = reader.ReadInt32();
@@ -62,8 +68,7 @@ namespace CoreEngine.Graphics
 
             if (texture.GraphicsResourceId != 0)
             {
-                // TODO: Implement remove texture
-                //this.graphicsService.RemoveTexture(texture.TextureId);
+                this.graphicsManager.RemoveTexture(texture);
             }
 
             var createdTexture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, texture.Width, texture.Height, texture.MipLevels);
@@ -71,7 +76,7 @@ namespace CoreEngine.Graphics
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
             texture.GraphicsResourceSystemId3 = createdTexture.GraphicsResourceSystemId3;
 
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("TextureLoaderCommandList", true);
 
             var textureWidth = texture.Width;
             var textureHeight = texture.Height;
@@ -92,8 +97,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
-
-            return Task.FromResult((Resource)texture);
+            return texture;
         }
     }
 }

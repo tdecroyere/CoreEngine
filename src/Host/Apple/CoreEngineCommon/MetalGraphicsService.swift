@@ -185,7 +185,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         // Create the metal buffer on the GPU
         let gpuBuffer = self.globalHeap.makeBuffer(length: length, options: .storageModePrivate)!
         gpuBuffer.label = (debugName != nil) ? "\(debugName!)Gpu" : "GraphicsBuffer\(graphicsBufferId)Gpu"
-
+    
         self.graphicsBuffers[graphicsBufferId] = gpuBuffer
         self.cpuGraphicsBuffers[graphicsBufferId] = cpuBuffer
 
@@ -225,8 +225,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         gpuTexture.label = (debugName != nil) ? debugName! : "Texture\(textureId)"
-
         self.textures[textureId] = gpuTexture
+
         return true
     }
 
@@ -471,23 +471,21 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
     }
 
-    public func dispatchThreadGroups(_ commandListId: UInt, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt) {
+    public func dispatchThreads(_ commandListId: UInt, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt) {
         guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
-            print("dispatchThreadGroups: Compute command encoder is nil.")
+            print("dispatchThreads: Compute command encoder is nil.")
             return
         }
 
         if (self.currentShader != nil) {
             computeCommandEncoder.setBuffer(self.currentShader!.currentArgumentBuffer, offset: 0, index: 0)
-        }
 
-        var w = self.currentShader!.computePipelineState.threadExecutionWidth
-        var h = (threadGroupCountY > 1) ? self.currentShader!.computePipelineState.maxTotalThreadsPerThreadgroup / w : 1
-        let threadsPerGroup = MTLSizeMake(w, h, 1)
+            var w = self.currentShader!.computePipelineState.threadExecutionWidth
+            var h = (threadGroupCountY > 1) ? self.currentShader!.computePipelineState.maxTotalThreadsPerThreadgroup / w : 1
+            let threadsPerGroup = MTLSizeMake(w, h, 1)
 
-        computeCommandEncoder.dispatchThreads(MTLSize(width: Int(threadGroupCountX), height: Int(threadGroupCountY), depth: Int(threadGroupCountZ)), threadsPerThreadgroup: threadsPerGroup)
+            computeCommandEncoder.dispatchThreads(MTLSize(width: Int(threadGroupCountX), height: Int(threadGroupCountY), depth: Int(threadGroupCountZ)), threadsPerThreadgroup: threadsPerGroup)
 
-        if (self.currentShader != nil) {
             self.currentShader!.setupArgumentBuffer()
         }
     }
@@ -584,7 +582,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         let renderSize = getRenderSize()
         renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
         
-        renderCommandEncoder.useHeap(self.globalHeap)
+            renderCommandEncoder.useHeap(self.globalHeap)
 
         return true
     }
@@ -666,7 +664,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ index: Int) {
         guard let shader = self.currentShader else {
-            print("setShaderBuffer: Shader is nil.")
             return
         }
 
@@ -684,7 +681,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func setShaderBuffers(_ commandListId: UInt, _ graphicsBufferIdList: [UInt32], _ slot: Int, _ index: Int) {
         guard let shader = self.currentShader else {
-            print("setShaderBuffers: Shader is nil.")
             return
         }
 
@@ -696,7 +692,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         var offsets: [Int] = []
 
         for i in 0..<graphicsBufferIdList.count {
-            bufferList.append(self.graphicsBuffers[UInt(graphicsBufferIdList[i])]!)
+            guard let buffer = self.graphicsBuffers[UInt(graphicsBufferIdList[i])] else {
+                return
+            }
+
+            bufferList.append(buffer)
             offsets.append(0)
         }
 
@@ -705,12 +705,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ index: Int) {
         guard let shader = self.currentShader else {
-            print("setShaderTexture: Shader is nil.")
             return
         }
 
         guard let texture = self.textures[textureId] else {
-            print("setShaderTexture: Texture is nil.")
             return
         }
 
@@ -723,7 +721,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func setShaderTextures(_ commandListId: UInt, _ textureIdList: [UInt32], _ slot: Int, _ index: Int) {
         guard let shader = self.currentShader else {
-            print("setShaderTextures: Shader is nil.")
             return
         }
 
@@ -734,7 +731,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         var textureList: [MTLTexture] = []
 
         for i in 0..<textureIdList.count {
-            textureList.append(self.textures[UInt(textureIdList[i])]!)
+            guard let texture = self.textures[UInt(textureIdList[i])] else {
+                return
+            }
+
+            textureList.append(texture)
         }
 
         argumentEncoder.setTextures(textureList, range: (slot + index)..<(slot + index) + textureIdList.count)
@@ -742,12 +743,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func setShaderIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ slot: Int, _ index: Int) {
         guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
-            print("setShader: Compute command encoder is nil.")
             return
         }
 
         guard let shader = self.currentShader else {
-            print("setShaderIndirectCommandList: Shader is nil.")
             return
         }
 

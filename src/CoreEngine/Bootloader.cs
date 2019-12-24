@@ -46,6 +46,7 @@ namespace CoreEngine
 
                 Logger.BeginAction($"Loading CoreEngineApp '{appName}'");
                 coreEngineApp = LoadCoreEngineApp(appName, systemManagerContainer).Result;
+                resourcesManager.WaitForPendingResources();
 
                 if (coreEngineApp != null)
                 {

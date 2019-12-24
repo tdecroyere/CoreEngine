@@ -17,7 +17,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void GraphicsService_OptimizeIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate bool GraphicsService_CreateComputeCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteComputeCommandListDelegate(IntPtr context, uint commandListId);
-    internal unsafe delegate void GraphicsService_DispatchThreadGroupsDelegate(IntPtr context, uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
+    internal unsafe delegate void GraphicsService_DispatchThreadsDelegate(IntPtr context, uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
     internal unsafe delegate bool GraphicsService_CreateRenderCommandListDelegate(IntPtr context, uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteRenderCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate bool GraphicsService_CreateIndirectCommandListDelegate(IntPtr context, uint commandListId, int maxCommandCount, string? debugName);
@@ -207,15 +207,15 @@ namespace CoreEngine.HostServices.Interop
                 this.graphicsService_ExecuteComputeCommandListDelegate(this.context, commandListId);
         }
 
-        private GraphicsService_DispatchThreadGroupsDelegate graphicsService_DispatchThreadGroupsDelegate
+        private GraphicsService_DispatchThreadsDelegate graphicsService_DispatchThreadsDelegate
         {
             get;
         }
 
-        public unsafe void DispatchThreadGroups(uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        public unsafe void DispatchThreads(uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
-            if (this.context != null && this.graphicsService_DispatchThreadGroupsDelegate != null)
-                this.graphicsService_DispatchThreadGroupsDelegate(this.context, commandListId, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+            if (this.context != null && this.graphicsService_DispatchThreadsDelegate != null)
+                this.graphicsService_DispatchThreadsDelegate(this.context, commandListId, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
         }
 
         private GraphicsService_CreateRenderCommandListDelegate graphicsService_CreateRenderCommandListDelegate

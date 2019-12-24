@@ -86,10 +86,10 @@ void ExecuteComputeCommandListInterop(void* context, unsigned int commandListId)
     contextObject->ExecuteComputeCommandList(commandListId)
 }
 
-void DispatchThreadGroupsInterop(void* context, unsigned int commandListId, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
+void DispatchThreadsInterop(void* context, unsigned int commandListId, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->DispatchThreadGroups(commandListId, threadGroupCountX, threadGroupCountY, threadGroupCountZ)
+    contextObject->DispatchThreads(commandListId, threadGroupCountX, threadGroupCountY, threadGroupCountZ)
 }
 
 int CreateRenderCommandListInterop(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, struct string? debugName, int createNewCommandBuffer)
@@ -187,7 +187,7 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->OptimizeIndirectCommandList = OptimizeIndirectCommandListInterop;
     service->CreateComputeCommandList = CreateComputeCommandListInterop;
     service->ExecuteComputeCommandList = ExecuteComputeCommandListInterop;
-    service->DispatchThreadGroups = DispatchThreadGroupsInterop;
+    service->DispatchThreads = DispatchThreadsInterop;
     service->CreateRenderCommandList = CreateRenderCommandListInterop;
     service->ExecuteRenderCommandList = ExecuteRenderCommandListInterop;
     service->CreateIndirectCommandList = CreateIndirectCommandListInterop;

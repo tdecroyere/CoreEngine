@@ -8,22 +8,55 @@ using CoreEngine.Diagnostics;
 
 namespace CoreEngine.Resources
 {
-    public class ResourcesManager : SystemManager
+    class ResourceLoadingParameters
+    {
+        public ResourceLoadingParameters(Resource resource, ResourceStorage resourceStorage)
+        {
+            this.Resource = resource;
+            this.ResourceStorage = resourceStorage;
+        }
+
+        public Resource Resource { get; }
+        public ResourceStorage ResourceStorage { get; }
+    }
+
+    public class ResourcesManager : SystemManager, IDisposable
     {
         private IDictionary<string, ResourceLoader> resourceLoaders;
         private IList<ResourceStorage> resourceStorages;
-        private IList<Task<Resource>> resourceLoadingList;
+        private ConcurrentQueue<Task<Resource>> resourceLoadingQueue;
         private IDictionary<string, Resource> resources;
         private IDictionary<uint, Resource> resourceIdList;
+        private Task? resourceLoadingRunner;
         private uint currentResourceId;
 
         public ResourcesManager()
         {
             this.resourceLoaders = new Dictionary<string, ResourceLoader>();
             this.resourceStorages = new List<ResourceStorage>();
-            this.resourceLoadingList = new List<Task<Resource>>();
+            this.resourceLoadingQueue = new ConcurrentQueue<Task<Resource>>();
             this.resources = new Dictionary<string, Resource>();
             this.resourceIdList = new Dictionary<uint, Resource>();
+
+            this.resourceLoadingRunner = null;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                if (this.resourceLoadingRunner != null)
+                {
+                    this.resourceLoadingRunner.Dispose();
+                    this.resourceLoadingRunner = null;
+                }
+            }
         }
 
         public void AddResourceLoader(ResourceLoader resourceLoader)
@@ -77,12 +110,17 @@ namespace CoreEngine.Resources
             var resource = resourceLoader.CreateEmptyResource(this.currentResourceId, path);
             resource.ResourceLoader = resourceLoader;
             resource.Parameters = parameters;
+            resource.ReferenceCount++;
+
+            if (this.resources.ContainsKey(path))
+            {
+                this.resources[path].ReferenceCount++;
+                return (T)this.resources[path];
+            }
 
             this.resources.Add(path, resource);
             this.resourceIdList.Add(currentResourceId, resource);
-
             this.currentResourceId++;
-            // TODO: Current resource ID is not thread-safe
 
             var resourceStorage = FindResourceStorage(path);
 
@@ -95,16 +133,19 @@ namespace CoreEngine.Resources
                 return (T)resource;
             }
 
-            // TODO: Implement data handling with stream or just byte array
-            // TODO: Move disk data reading in the loading method impl from the update method
+            var loadingTask = new Task<Resource>(parameters => {
+                var resourceLoadingParameters = parameters as ResourceLoadingParameters;
 
-            var resourceData = resourceStorage.ReadResourceDataAsync(path).Result;
+                if (resourceLoadingParameters == null)
+                {
+                    throw new ArgumentNullException(nameof(parameters));
+                }
 
-            // TODO: Add support for children hierarchical resource loading
+                var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
+                return resource.ResourceLoader.LoadResourceData(resource, resourceData);
+            }, new ResourceLoadingParameters(resource, resourceStorage));
 
-            var resourceLoadingTask = resourceLoader.LoadResourceDataAsync(resource, resourceData);
-            this.resourceLoadingList.Add(resourceLoadingTask);
-
+            this.resourceLoadingQueue.Enqueue(loadingTask);
             Logger.EndAction();
 
             return (T)resource;
@@ -116,12 +157,50 @@ namespace CoreEngine.Resources
             CheckForUpdatedResources();
             RemoveUnusedResources();
         }
+
+        public void WaitForPendingResources()
+        {
+            if (this.resourceLoadingRunner == null)
+            {
+                CheckResourceLoadingTasks();
+            }
+            
+            this.resourceLoadingRunner!.Wait();
+        }
+
+        private void CheckResourceLoadingTasks()
+        {
+            // TODO: Check if we can run async all the pending loading tasks at the same time.
+            // For the moment, it seems that there is a crash because the global heap is creating resources
+            // at the same time and at the same location
+
+            if ((this.resourceLoadingRunner == null || this.resourceLoadingRunner.IsCompleted) && this.resourceLoadingQueue.Count > 0)
+            {
+                this.resourceLoadingRunner = new Task(() => {
+                    while (this.resourceLoadingQueue.TryDequeue(out var resourceLoadingTask))
+                    {
+                        resourceLoadingTask.RunSynchronously();
+
+                        if (resourceLoadingTask.Status == TaskStatus.Faulted)
+                        {
+                            Logger.WriteMessage("Warning: Failed to load resource");
+                            Logger.WriteMessage($"{resourceLoadingTask.Exception}");
+                        }
+
+                        var resource = resourceLoadingTask.Result;
+                        resource.IsLoaded = true;
+                    }
+                });
+
+                this.resourceLoadingRunner.Start();
+            }
+        }
         
         // TODO: This check needs to be done only each seconds and not each frames!
         private void CheckForUpdatedResources()
         {
-            // TODO: Make that a background task on another thread?
-            // TODO: Try to avoid the copy?
+            // TODO: Only check for a Maximum of resources for each frame
+
             var resourcesSnapshot = new KeyValuePair<string, Resource>[this.resources.Count];
             this.resources.CopyTo(resourcesSnapshot, 0);
 
@@ -145,50 +224,26 @@ namespace CoreEngine.Resources
                             }
 
                             resource.DependentResources.Clear();
-
                             resource.LastUpdateDateTime = lastUpdateDate.Value;
-                            var resourceData = this.resourceStorages[i].ReadResourceDataAsync(resource.Path).Result;
 
-                            var resourceLoadingTask = resource.ResourceLoader.LoadResourceDataAsync(resource, resourceData);
-                            this.resourceLoadingList.Add(resourceLoadingTask);
+                            var loadingTask = new Task<Resource>(parameters => {
+                                var resourceLoadingParameters = parameters as ResourceLoadingParameters;
+
+                                if (resourceLoadingParameters == null)
+                                {
+                                    throw new ArgumentNullException(nameof(parameters));
+                                }
+
+                                var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
+                                return resource.ResourceLoader.LoadResourceData(resource, resourceData);
+                            }, new ResourceLoadingParameters(resource, this.resourceStorages[i]));
+
+
+                            this.resourceLoadingQueue.Enqueue(loadingTask);
                         }
                     }
                 }
             }
-        }
-
-        private void CheckResourceLoadingTasks()
-        {
-            // TODO: Add resource finalization for hardware dependent resources?
-            // TODO: Add notification system to parent waiting for children resources to load?
-            // TODO: Process a fixed amound of resources per frame for now
-            var maxResourceLoadingTask = 10;
-
-            var tasksToRemove = ArrayPool<Task<Resource>>.Shared.Rent(maxResourceLoadingTask);
-
-            for (var i = 0; i < tasksToRemove.Length && i < this.resourceLoadingList.Count; i++)
-            {
-                var resourceLoadingTask = this.resourceLoadingList[i];
-
-                if (resourceLoadingTask.Status == TaskStatus.Faulted)
-                {
-                    // TODO: Add more logging infos
-                    Logger.WriteMessage("Warning: Failed to load resource");
-                }
-
-                var resource = resourceLoadingTask.Result;
-                resource.IsLoaded = true;
-
-                resourceLoadingTask.Dispose();
-                tasksToRemove[i] = resourceLoadingTask;
-            }
-
-            for (var i = 0; i < tasksToRemove.Length; i++)
-            {
-                resourceLoadingList.Remove(tasksToRemove[i]);
-            }
-
-            ArrayPool<Task<Resource>>.Shared.Return(tasksToRemove);
         }
 
         private void RemoveUnusedResources()

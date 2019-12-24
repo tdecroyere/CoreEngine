@@ -24,7 +24,7 @@ namespace CoreEngine.Graphics
             return new Mesh(resourceId, path);
         }
 
-        public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
+        public override Resource LoadResourceData(Resource resource, byte[] data)
         {
             var mesh = resource as Mesh;
 
@@ -42,7 +42,7 @@ namespace CoreEngine.Graphics
             if (meshSignature.ToString() != "MESH" && meshVersion != 1)
             {
                 Logger.WriteMessage($"ERROR: Wrong signature or version for mesh '{resource.Path}'");
-                return Task.FromResult(resource);
+                return resource;
             }
 
             var geometryPacketVertexCount = reader.ReadInt32();
@@ -61,7 +61,6 @@ namespace CoreEngine.Graphics
             var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferData.Length, GraphicsResourceType.Static, $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
             var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferData.Length, GraphicsResourceType.Static, $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
 
-            // TODO: Refactor that
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("MeshLoaderCommandList", true);
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, vertexBufferData);
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, indexBufferData);
@@ -103,7 +102,7 @@ namespace CoreEngine.Graphics
                 mesh.GeometryInstances.Add(geometryInstance);
             }
 
-            return Task.FromResult((Resource)mesh);
+            return mesh;
         }
 
         public override void DestroyResource(Resource resource)

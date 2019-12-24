@@ -1,3 +1,5 @@
+using CoreEngine.Diagnostics;
+
 namespace CoreEngine.Graphics
 {
     public class GraphicsSceneManager : SystemManager

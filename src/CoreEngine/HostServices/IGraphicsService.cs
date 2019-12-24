@@ -74,7 +74,7 @@ namespace CoreEngine.HostServices
 
         bool CreateComputeCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
         void ExecuteComputeCommandList(uint commandListId);
-        void DispatchThreadGroups(uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
+        void DispatchThreads(uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
         
         bool CreateRenderCommandList(uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName, bool createNewCommandBuffer);
         void ExecuteRenderCommandList(uint commandListId);

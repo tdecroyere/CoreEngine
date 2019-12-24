@@ -1,13 +1,14 @@
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace CoreEngine.Diagnostics
 {
     public static class Logger
     {
         // TODO: This code is not thread-safe!
-        private static Stack<string> messageStack = new Stack<string>();
+        private static ConcurrentStack<string> messageStack = new ConcurrentStack<string>();
         private static int currentLevel = 0;
         private static Stack<Stopwatch> stopwatchStack = new Stack<Stopwatch>();
 
@@ -70,29 +71,33 @@ namespace CoreEngine.Diagnostics
 
         public static void EndAction()
         {
-            currentLevel--;
-            var message = messageStack.Pop();
-            var stopwatch = stopwatchStack.Pop();
-
-            WriteMessage($"{message} done. (Elapsed: {stopwatch.ElapsedMilliseconds} ms)", LogMessageTypes.Success);
+            if (messageStack.TryPop(out var message))
+            {
+                currentLevel--;
+                var stopwatch = stopwatchStack.Pop();
+                WriteMessage($"{message} done. (Elapsed: {stopwatch.ElapsedMilliseconds} ms)", LogMessageTypes.Success);
+            }
         }
 
         public static void EndActionError()
         {
-            currentLevel--;
-            var message = messageStack.Pop();
-            stopwatchStack.Pop();
-
-            WriteMessage($"{message} failed.", LogMessageTypes.Error);
+            if (messageStack.TryPop(out var message))
+            {
+                currentLevel--;
+                stopwatchStack.Pop();
+                WriteMessage($"{message} failed.", LogMessageTypes.Error);
+            }
         }
 
         public static void EndActionWarning(string message)
         {
-            currentLevel--;
-            messageStack.Pop();
-            stopwatchStack.Pop();
+            if (messageStack.TryPop(out var stackMessage))
+            {
+                currentLevel--;
+                stopwatchStack.Pop();
 
-            WriteMessage($"{message}.", LogMessageTypes.Warning);
+                WriteMessage($"{message}.", LogMessageTypes.Warning);
+            }
         }
     }
 }

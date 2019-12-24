@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace CoreEngine
@@ -6,6 +7,11 @@ namespace CoreEngine
     {
         public static bool Intersect(BoundingFrustum frustum, BoundingBox box)
         {
+            if (frustum == null)
+            {
+                throw new ArgumentNullException(nameof(frustum));
+            }
+            
             if (!Intersect(frustum.LeftPlane, box))
             {
                 return false;

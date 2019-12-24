@@ -25,7 +25,7 @@ namespace CoreEngine
             return new Scene(resourceId, path);
         }
 
-        public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
+        public override Resource LoadResourceData(Resource resource, byte[] data)
         {
             var scene = resource as Scene;
             var resourcePrefix = "resource:";
@@ -46,7 +46,7 @@ namespace CoreEngine
             if (meshSignature.ToString() != "SCENE" && meshVersion != 1)
             {
                 Logger.WriteMessage($"ERROR: Wrong signature or version for scene '{resource.Path}'");
-                return Task.FromResult(resource);
+                return resource;
             }
 
             Logger.WriteMessage("Scene Loading");
@@ -292,7 +292,7 @@ namespace CoreEngine
 
             Logger.EndAction();
 
-            return Task.FromResult((Resource)scene);
+            return scene;
         }
 
         private static Type? FindType(string fullTypeName)

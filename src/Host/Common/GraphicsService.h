@@ -40,7 +40,7 @@ typedef void (*GraphicsService_ResetIndirectCommandListPtr)(void* context, unsig
 typedef void (*GraphicsService_OptimizeIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef int (*GraphicsService_CreateComputeCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteComputeCommandListPtr)(void* context, unsigned int commandListId);
-typedef void (*GraphicsService_DispatchThreadGroupsPtr)(void* context, unsigned int commandListId, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
+typedef void (*GraphicsService_DispatchThreadsPtr)(void* context, unsigned int commandListId, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteRenderCommandListPtr)(void* context, unsigned int commandListId);
 typedef int (*GraphicsService_CreateIndirectCommandListPtr)(void* context, unsigned int commandListId, int maxCommandCount, char* debugName);
@@ -72,7 +72,7 @@ struct GraphicsService
     GraphicsService_OptimizeIndirectCommandListPtr GraphicsService_OptimizeIndirectCommandList;
     GraphicsService_CreateComputeCommandListPtr GraphicsService_CreateComputeCommandList;
     GraphicsService_ExecuteComputeCommandListPtr GraphicsService_ExecuteComputeCommandList;
-    GraphicsService_DispatchThreadGroupsPtr GraphicsService_DispatchThreadGroups;
+    GraphicsService_DispatchThreadsPtr GraphicsService_DispatchThreads;
     GraphicsService_CreateRenderCommandListPtr GraphicsService_CreateRenderCommandList;
     GraphicsService_ExecuteRenderCommandListPtr GraphicsService_ExecuteRenderCommandList;
     GraphicsService_CreateIndirectCommandListPtr GraphicsService_CreateIndirectCommandList;

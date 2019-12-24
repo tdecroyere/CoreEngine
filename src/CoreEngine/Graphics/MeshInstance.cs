@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using CoreEngine.Collections;
+using CoreEngine.Diagnostics;
 
 namespace CoreEngine.Graphics
 {
     public class MeshInstance : TrackedItem
     {
+        private bool isMeshLoaded;
         private Matrix4x4 worldMatrix;
 
         public MeshInstance(Mesh mesh, Material? material, Matrix4x4 worldMatrix, bool alwaysAlive = true)
@@ -31,6 +33,7 @@ namespace CoreEngine.Graphics
             set
             {
                 UpdateField(ref this.worldMatrix, value);
+                UpdateField(ref this.isMeshLoaded, this.Mesh.IsLoaded);
             }
         }
         

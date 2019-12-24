@@ -294,6 +294,12 @@ namespace CoreEngine
             for (var i = 0; i < compatibleLayouts.Count; i++)
             {
                 var compatibleLayout = compatibleLayouts[i];
+
+                if (!this.componentStorage.ContainsKey(compatibleLayout.ComponentLayout))
+                {
+                    continue;
+                }
+                
                 var dataStorage = this.componentStorage[compatibleLayout.ComponentLayout];
 
                 for (var j = 0; j < dataStorage.Count; j++) 

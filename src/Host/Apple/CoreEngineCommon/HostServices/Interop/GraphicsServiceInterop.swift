@@ -70,9 +70,9 @@ func GraphicsService_executeComputeCommandListInterop(context: UnsafeMutableRawP
     contextObject.executeComputeCommandList(UInt(commandListId))
 }
 
-func GraphicsService_dispatchThreadGroupsInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ threadGroupCountX: UInt32, _ threadGroupCountY: UInt32, _ threadGroupCountZ: UInt32) {
+func GraphicsService_dispatchThreadsInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ threadGroupCountX: UInt32, _ threadGroupCountY: UInt32, _ threadGroupCountZ: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.dispatchThreadGroups(UInt(commandListId), UInt(threadGroupCountX), UInt(threadGroupCountY), UInt(threadGroupCountZ))
+    contextObject.dispatchThreads(UInt(commandListId), UInt(threadGroupCountX), UInt(threadGroupCountY), UInt(threadGroupCountZ))
 }
 
 func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
@@ -156,7 +156,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_OptimizeIndirectCommandList = GraphicsService_optimizeIndirectCommandListInterop
     service.GraphicsService_CreateComputeCommandList = GraphicsService_createComputeCommandListInterop
     service.GraphicsService_ExecuteComputeCommandList = GraphicsService_executeComputeCommandListInterop
-    service.GraphicsService_DispatchThreadGroups = GraphicsService_dispatchThreadGroupsInterop
+    service.GraphicsService_DispatchThreads = GraphicsService_dispatchThreadsInterop
     service.GraphicsService_CreateRenderCommandList = GraphicsService_createRenderCommandListInterop
     service.GraphicsService_ExecuteRenderCommandList = GraphicsService_executeRenderCommandListInterop
     service.GraphicsService_CreateIndirectCommandList = GraphicsService_createIndirectCommandListInterop

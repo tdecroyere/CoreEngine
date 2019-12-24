@@ -31,6 +31,11 @@ namespace CoreEngine.Graphics.EntitySystems
 
         public override void Process(EntityManager entityManager, float deltaTime)
         {
+            if (entityManager == null)
+            {
+                throw new ArgumentNullException(nameof(entityManager));
+            }
+            
             var entityArray = this.GetEntityArray();
             var transformArray = this.GetComponentDataArray<TransformComponent>();
             var meshArray = this.GetComponentDataArray<MeshComponent>();

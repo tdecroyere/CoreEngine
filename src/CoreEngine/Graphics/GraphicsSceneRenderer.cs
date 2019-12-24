@@ -146,8 +146,8 @@ namespace CoreEngine.Graphics
             }
 
             CopyComputeGpuData(scene);
-            CopyGpuData(scene);
-            RunRenderPipeline(scene, scene.ActiveCamera);
+            CopyGpuData();
+            RunRenderPipeline(scene);
         }
 
         GraphicsBuffer[] vertexBuffersList = new GraphicsBuffer[10000];
@@ -226,6 +226,11 @@ namespace CoreEngine.Graphics
                 var meshInstance = scene.MeshInstances[i];
                 var mesh = meshInstance.Mesh;
 
+                if (!mesh.IsLoaded || (meshInstance.Material != null && !meshInstance.Material.IsLoaded))
+                {
+                    continue;
+                }
+
                 if (meshInstance.Material != null && meshInstance.Material.MaterialData != null && currentMaterialId != meshInstance.Material.MaterialData.Value.GraphicsResourceId)
                 {
                     currentMaterialId = meshInstance.Material.MaterialData.Value.GraphicsResourceId;
@@ -249,6 +254,11 @@ namespace CoreEngine.Graphics
                     var geometryInstance = mesh.GeometryInstances[j];
                     var geometryPacket = geometryInstance.GeometryPacket;
 
+                    if (geometryInstance.Material != null && !geometryInstance.Material.IsLoaded)
+                    {
+                        continue;
+                    }
+
                     if (geometryInstance.Material != null && geometryInstance.Material.MaterialData != null && currentMaterialId != geometryInstance.Material.MaterialData.Value.GraphicsResourceId)
                     {
                         currentMaterialId = geometryInstance.Material.MaterialData.Value.GraphicsResourceId;
@@ -261,7 +271,10 @@ namespace CoreEngine.Graphics
 
                         for (var k = 0; k < textureList.Length; k++)
                         {
-                            this.materialTextureList[this.currentMaterialTextureIndex++] = textureList[k];
+                            if (textureList[k].IsLoaded)
+                            {
+                                this.materialTextureList[this.currentMaterialTextureIndex++] = textureList[k];
+                            }
                         }
                     }
 
@@ -281,11 +294,16 @@ namespace CoreEngine.Graphics
                         this.geometryPacketList[currentGeometryPacketIndex++] = shaderGeometryPacket;
                     }
 
-                    var worldBoundingBox = new ShaderBoundingBox()
+                    var worldBoundingBox = new ShaderBoundingBox();
+
+                    if (meshInstance.WorldBoundingBoxList.Count > j)
                     {
-                        MinPoint = meshInstance.WorldBoundingBoxList[j].MinPoint,
-                        MaxPoint = meshInstance.WorldBoundingBoxList[j].MaxPoint
-                    };
+                        worldBoundingBox = new ShaderBoundingBox()
+                        {
+                            MinPoint = meshInstance.WorldBoundingBoxList[j].MinPoint,
+                            MaxPoint = meshInstance.WorldBoundingBoxList[j].MaxPoint
+                        };
+                    }
 
                     var shaderGeometryInstance = new ShaderGeometryInstance()
                     {
@@ -313,7 +331,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
         }
 
-        private void RunRenderPipeline(GraphicsScene scene, Camera camera)
+        private void RunRenderPipeline(GraphicsScene scene)
         {
             var computeCommandList = this.graphicsManager.CreateComputeCommandList("ComputeRenderGeometryInstances", true);
             
@@ -328,7 +346,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.SetShaderTextures(computeCommandList, this.materialTextureList.AsSpan().Slice(0, this.currentMaterialTextureIndex), 30004);
             this.graphicsManager.SetShaderBuffer(computeCommandList, this.materialOffsetBuffer, 40004);
 
-            this.graphicsManager.DispatchThreadGroups(computeCommandList, (uint)this.currentGeometryInstanceIndex, 1, 1);
+            this.graphicsManager.DispatchThreads(computeCommandList, (uint)this.currentGeometryInstanceIndex, 1, 1);
             this.graphicsManager.ExecuteComputeCommandList(computeCommandList);
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("ComputeOptimizeRenderCommandList", true);
@@ -360,7 +378,7 @@ namespace CoreEngine.Graphics
             this.renderPassConstants.ProjectionMatrix = camera.ProjectionMatrix;
         }
 
-        private void CopyGpuData(GraphicsScene scene)
+        private void CopyGpuData()
         {
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("SceneCopyCommandList");
 
@@ -400,34 +418,41 @@ namespace CoreEngine.Graphics
             {
                 var meshInstance = scene.MeshInstances[i];
 
-                for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
+                if (meshInstance.Mesh.IsLoaded)
                 {
-                    var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
-                    var worldBoundingBox = meshInstance.WorldBoundingBoxList[j];
+                    for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
+                    {
+                        var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
 
-                    var point1 = worldBoundingBox.MinPoint;
-                    var point2 = worldBoundingBox.MinPoint + new Vector3(0, 0, worldBoundingBox.ZSize);
-                    var point3 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, 0);
-                    var point4 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, worldBoundingBox.ZSize);
-                    var point5 = worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, 0);
-                    var point6 = worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, worldBoundingBox.ZSize);
-                    var point7 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, 0);
-                    var point8 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, worldBoundingBox.ZSize);
+                        if (meshInstance.WorldBoundingBoxList.Count > j)
+                        {
+                            var worldBoundingBox = meshInstance.WorldBoundingBoxList[j];
 
-                    this.debugRenderer.DrawLine(point1, point2);
-                    this.debugRenderer.DrawLine(point1, point3);
-                    this.debugRenderer.DrawLine(point2, point4);
-                    this.debugRenderer.DrawLine(point3, point4);
-                    
-                    this.debugRenderer.DrawLine(point5, point6);
-                    this.debugRenderer.DrawLine(point5, point7);
-                    this.debugRenderer.DrawLine(point6, point8);
-                    this.debugRenderer.DrawLine(point7, point8);
-                    
-                    this.debugRenderer.DrawLine(point1, point5);
-                    this.debugRenderer.DrawLine(point3, point7);
-                    this.debugRenderer.DrawLine(point4, point8);
-                    this.debugRenderer.DrawLine(point2, point6);
+                            var point1 = worldBoundingBox.MinPoint;
+                            var point2 = worldBoundingBox.MinPoint + new Vector3(0, 0, worldBoundingBox.ZSize);
+                            var point3 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, 0);
+                            var point4 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, 0, worldBoundingBox.ZSize);
+                            var point5 = worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, 0);
+                            var point6 = worldBoundingBox.MinPoint + new Vector3(0, worldBoundingBox.YSize, worldBoundingBox.ZSize);
+                            var point7 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, 0);
+                            var point8 = worldBoundingBox.MinPoint + new Vector3(worldBoundingBox.XSize, worldBoundingBox.YSize, worldBoundingBox.ZSize);
+
+                            this.debugRenderer.DrawLine(point1, point2);
+                            this.debugRenderer.DrawLine(point1, point3);
+                            this.debugRenderer.DrawLine(point2, point4);
+                            this.debugRenderer.DrawLine(point3, point4);
+                            
+                            this.debugRenderer.DrawLine(point5, point6);
+                            this.debugRenderer.DrawLine(point5, point7);
+                            this.debugRenderer.DrawLine(point6, point8);
+                            this.debugRenderer.DrawLine(point7, point8);
+                            
+                            this.debugRenderer.DrawLine(point1, point5);
+                            this.debugRenderer.DrawLine(point3, point7);
+                            this.debugRenderer.DrawLine(point4, point8);
+                            this.debugRenderer.DrawLine(point2, point6);
+                        }
+                    }
                 }
             }
         }

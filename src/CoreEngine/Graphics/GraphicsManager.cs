@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Threading;
 using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
@@ -19,8 +21,8 @@ namespace CoreEngine.Graphics
         private uint currentGraphicsResourceId;
         private Vector2 currentFrameSize;
         private Stopwatch stopwatch;
-        private int drawCount;
-        private int dispatchCount;
+        private int cpuDrawCount;
+        private int cpuDispatchCount;
         private Stopwatch globalStopwatch;
         private uint startMeasureFrameNumber;
         int framePerSeconds = 0;
@@ -39,8 +41,8 @@ namespace CoreEngine.Graphics
 
             this.graphicsService = graphicsService;
             this.currentGraphicsResourceId = 0;
-            this.drawCount = 0;
-            this.dispatchCount = 0;
+            this.cpuDrawCount = 0;
+            this.cpuDispatchCount = 0;
             this.stopwatch = new Stopwatch();
             this.stopwatch.Start();
             this.globalStopwatch = new Stopwatch();
@@ -223,6 +225,11 @@ namespace CoreEngine.Graphics
 
         public void UploadDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer graphicsBuffer, ReadOnlySpan<T> data) where T : struct
         {
+            if (data.Length == 0)
+            {
+                return;
+            }
+
             // TODO: Do something for memory alignement of data in the shaders?
             var rawData = MemoryMarshal.Cast<T, byte>(data);
             this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, rawData);
@@ -233,6 +240,11 @@ namespace CoreEngine.Graphics
             if (texture == null)
             {
                 throw new ArgumentNullException(nameof(texture));
+            }
+
+            if (data.Length == 0)
+            {
+                return;
             }
 
             var rawData = MemoryMarshal.Cast<T, byte>(data);
@@ -282,15 +294,15 @@ namespace CoreEngine.Graphics
             this.graphicsService.ExecuteComputeCommandList(commandList.Id);
         }
 
-        public void DispatchThreadGroups(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        public void DispatchThreads(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
             if (commandList.Type != CommandListType.Compute)
             {
                 throw new InvalidOperationException("The specified command list is not a compute command list.");
             }
 
-            this.graphicsService.DispatchThreadGroups(commandList.Id, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
-            this.dispatchCount++;
+            this.graphicsService.DispatchThreads(commandList.Id, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+            this.cpuDispatchCount++;
         }
 
         public CommandList CreateRenderCommandList(RenderPassDescriptor renderPassDescriptor, string? debugName = null, bool createNewCommandBuffer = false)
@@ -334,6 +346,11 @@ namespace CoreEngine.Graphics
             if (shader == null)
             {
                 throw new ArgumentNullException(nameof(shader));
+            }
+
+            if (!shader.IsLoaded)
+            {
+                return;
             }
 
             this.graphicsService.SetShader(commandList.Id, shader.ShaderId);
@@ -450,7 +467,7 @@ namespace CoreEngine.Graphics
                                                 instanceCount,
                                                 baseInstanceId);
 
-            this.drawCount++;
+            this.cpuDrawCount++;
         }
 
         public void PresentScreenBuffer()
@@ -464,8 +481,8 @@ namespace CoreEngine.Graphics
 
             // TODO: A modulo here with Int.MaxValue
             this.CurrentFrameNumber++;
-            this.drawCount = 0;
-            this.dispatchCount = 0;
+            this.cpuDrawCount = 0;
+            this.cpuDispatchCount = 0;
         }
 
         internal void Render()
@@ -502,9 +519,16 @@ namespace CoreEngine.Graphics
                 this.startMeasureFrameNumber = this.CurrentFrameNumber;
             }
 
-            this.Graphics2DRenderer.DrawText($"Cpu Frame duration: {frameDuration.ToString("0.00")} ms - FPS: {framePerSeconds}", new Vector2(10, 10));
-            this.Graphics2DRenderer.DrawText($"Gpu Dispatch Count: {this.dispatchCount}", new Vector2(10, 50));
-            this.Graphics2DRenderer.DrawText($"Gpu Draw Count: {this.drawCount}", new Vector2(10, 90));
+            var renderSize = GetRenderSize();
+
+            this.Graphics2DRenderer.DrawText($"Graphics Card - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
+            this.Graphics2DRenderer.DrawText($"Cpu Frame duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
+            this.Graphics2DRenderer.DrawText($"    DispatchThreads: {this.cpuDispatchCount}", new Vector2(10, 90));
+            this.Graphics2DRenderer.DrawText($"    DrawIndexedPrimitives: {this.cpuDrawCount}", new Vector2(10, 130));
+
+            this.Graphics2DRenderer.DrawText($"Gpu Frame duration: 0 ms", new Vector2(10, 180));
+            this.Graphics2DRenderer.DrawText($"    DispatchThreads: 0", new Vector2(10, 220));
+            this.Graphics2DRenderer.DrawText($"    DrawIndexedPrimitives: 0", new Vector2(10, 260));
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

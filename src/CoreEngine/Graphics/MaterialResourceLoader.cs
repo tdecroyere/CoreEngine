@@ -25,7 +25,7 @@ namespace CoreEngine.Graphics
             return new Material(resourceId, path);
         }
 
-        public override Task<Resource> LoadResourceDataAsync(Resource resource, byte[] data)
+        public override Resource LoadResourceData(Resource resource, byte[] data)
         {
             var material = resource as Material;
 
@@ -43,7 +43,7 @@ namespace CoreEngine.Graphics
             if (meshSignature.ToString() != "MATERIAL" && meshVersion != 1)
             {
                 Logger.WriteMessage($"ERROR: Wrong signature or version for material '{resource.Path}'");
-                return Task.FromResult(resource);
+                return resource;
             }
 
             var textureResourceListCount = reader.ReadInt32();
@@ -70,7 +70,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData.Value, materialData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-            return Task.FromResult((Resource)resource);
+            return resource;
         }
     }
 }

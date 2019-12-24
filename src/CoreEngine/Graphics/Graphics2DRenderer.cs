@@ -112,7 +112,7 @@ namespace CoreEngine.Graphics
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, GraphicsResourceType.Static, "Graphics2DVertexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, GraphicsResourceType.Static, "Graphics2DIndexBuffer");
 
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList();
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("Graphics2DRendererCommandList", true);
             this.graphicsManager.UploadDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, vertexData);
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
@@ -154,6 +154,11 @@ namespace CoreEngine.Graphics
 
             for (var i = 0; i < text.Length; i++)
             {
+                if (!font.GlyphInfos.ContainsKey(text[i]))
+                {
+                    continue;
+                }
+                
                 var glyphInfo = font.GlyphInfos[text[i]];
 
                 DrawRectangleSurface(position, position + new Vector2(glyphInfo.Width, glyphInfo.Height), font.Texture, glyphInfo.TextureMinPoint, glyphInfo.TextureMaxPoint);

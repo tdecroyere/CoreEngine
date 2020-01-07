@@ -244,6 +244,8 @@ namespace CoreEngine.Resources
                     }
                 }
             }
+
+            this.WaitForPendingResources();
         }
 
         private void RemoveUnusedResources()

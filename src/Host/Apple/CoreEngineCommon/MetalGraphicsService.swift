@@ -4,16 +4,21 @@ import simd
 import CoreEngineCommonInterop
 
 class Shader {
-    var pipelineState: MTLRenderPipelineState!
-    var computePipelineState: MTLComputePipelineState!
+    let shaderId: UInt
+    let vertexShaderFunction: MTLFunction?
+    let pixelShaderFunction: MTLFunction?
+    let computeShaderFunction: MTLFunction?
     let argumentEncoder: MTLArgumentEncoder?
     var argumentBuffers: [MTLBuffer]
     let argumentBuffersMaxCount = 100
     var argumentBufferCurrentIndex = 0
     var currentArgumentBuffer: MTLBuffer?
 
-    init(_ device: MTLDevice, _ pipelineState: MTLRenderPipelineState, _ argumentEncoder: MTLArgumentEncoder?) {
-        self.pipelineState = pipelineState
+    init(_ shaderId: UInt, _ device: MTLDevice, _ vertexShaderFunction: MTLFunction?, _ pixelShaderFunction: MTLFunction?, _ computeShaderFunction: MTLFunction?, _ argumentEncoder: MTLArgumentEncoder?, _ debugName: String?) {
+        self.shaderId = shaderId
+        self.vertexShaderFunction = vertexShaderFunction
+        self.pixelShaderFunction = pixelShaderFunction
+        self.computeShaderFunction = computeShaderFunction
         self.argumentEncoder = argumentEncoder
 
         self.argumentBuffers = []
@@ -23,27 +28,7 @@ class Shader {
             // TODO: Use another allocation strategie
             for i in 0..<argumentBuffersMaxCount {
                 let argumentBuffer = device.makeBuffer(length: argumentEncoder!.encodedLength)!
-                argumentBuffer.label = (pipelineState.label != nil) ? "\(pipelineState.label!)Buffer\(i)" : "ShaderBuffer\(i)"
-                self.argumentBuffers.append(argumentBuffer)
-            }
-
-            self.currentArgumentBuffer = argumentBuffers[0]
-            argumentEncoder!.setArgumentBuffer(self.currentArgumentBuffer, offset: 0)
-        }
-    }
-
-    init(_ device: MTLDevice, _ pipelineState: MTLComputePipelineState, _ argumentEncoder: MTLArgumentEncoder?) {
-        self.computePipelineState = pipelineState
-        self.argumentEncoder = argumentEncoder
-
-        self.argumentBuffers = []
-        self.currentArgumentBuffer = nil
-
-        if (argumentEncoder != nil) {
-            // TODO: Use another allocation strategie
-            for i in 0..<argumentBuffersMaxCount {
-                let argumentBuffer = device.makeBuffer(length: argumentEncoder!.encodedLength)!
-                argumentBuffer.label = (pipelineState.label != nil) ? "\(pipelineState.label!)Buffer\(i)" : "ComputeShaderBuffer\(i)"
+                argumentBuffer.label = (debugName != nil) ? "\(debugName!)Buffer\(i)" : "ShaderBuffer\(i)"
                 self.argumentBuffers.append(argumentBuffer)
             }
 
@@ -72,14 +57,18 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var currentMetalDrawable: CAMetalDrawable?
     var currentIndexBuffer: MTLBuffer!
     var currentShader: Shader? = nil
+    var currentComputePipelineState: MTLComputePipelineState? = nil
+    var gpuExecutionTimes: [Double]
+    var currentFrameNumber = 0
+    let useHdrRenderTarget: Bool = false
 
     var renderWidth: Int
     var renderHeight: Int
-    var multisampleCount: Int = 2
 
     var commandQueue: MTLCommandQueue!
     var commandBuffer: MTLCommandBuffer!
     var globalHeap: MTLHeap!
+    //var renderTargetHeap: MTLHeap!
 
     var depthCompareWriteState: MTLDepthStencilState!
     var depthCompareNoWriteState: MTLDepthStencilState!
@@ -87,6 +76,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var depthNoCompareNoWriteState: MTLDepthStencilState!
 
     var shaders: [UInt: Shader]
+    var renderPipelineStates: [UInt: MTLRenderPipelineState]
+    var computePipelineStates: [UInt: MTLComputePipelineState]
 
     var copyCommandBuffers: [UInt: MTLCommandBuffer]
     var copyCommandEncoders: [UInt: MTLBlitCommandEncoder]
@@ -114,14 +105,24 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         // Create color metal layer
         self.metalLayer = view.metalLayer
         self.metalLayer.device = device
-        self.metalLayer.pixelFormat = .bgra8Unorm_srgb
+
+        self.metalLayer.pixelFormat = (self.useHdrRenderTarget) ? .rgba16Float : .bgra8Unorm_srgb
         self.metalLayer.framebufferOnly = true
         self.metalLayer.allowsNextDrawableTimeout = false
         self.metalLayer.displaySyncEnabled = true
         self.metalLayer.maximumDrawableCount = 3
         self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
 
+        if (self.useHdrRenderTarget) {
+            self.metalLayer.wantsExtendedDynamicRangeContent = true
+            let name =  CGColorSpace.extendedLinearDisplayP3
+            let colorSpace = CGColorSpace(name: name)
+            self.metalLayer.colorspace = colorSpace
+        }
+
         self.shaders = [:]
+        self.renderPipelineStates = [:]
+        self.computePipelineStates = [:]
         self.copyCommandBuffers = [:]
         self.copyCommandEncoders = [:]
         self.computeCommandBuffers = [:]
@@ -132,14 +133,15 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.cpuGraphicsBuffers = [:]
         self.textures = [:]
         self.indirectCommandBuffers = [:]
+        self.gpuExecutionTimes = [0, 0, 0]
 
         var depthStencilDescriptor = MTLDepthStencilDescriptor()
-        depthStencilDescriptor.depthCompareFunction = .less
+        depthStencilDescriptor.depthCompareFunction = .lessEqual
         depthStencilDescriptor.isDepthWriteEnabled = true
         self.depthCompareWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         depthStencilDescriptor = MTLDepthStencilDescriptor()
-        depthStencilDescriptor.depthCompareFunction = .less
+        depthStencilDescriptor.depthCompareFunction = .lessEqual
         depthStencilDescriptor.isDepthWriteEnabled = false
         self.depthCompareNoWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
@@ -155,16 +157,37 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         self.commandQueue = self.device.makeCommandQueue()
         self.commandBuffer = self.commandQueue.makeCommandBuffer()
+        let currentFrameNumber = self.currentFrameNumber
 
+        self.commandBuffer.addCompletedHandler { cb in
+            self.commandBufferCompleted(cb, currentFrameNumber)
+        }
+
+        // TODO: Implement aliasing for render targets
         let heapDescriptor = MTLHeapDescriptor()
         heapDescriptor.storageMode = .private
         heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
         heapDescriptor.size = 1024 * 1024 * 1024; // Allocate 1GB for now
         self.globalHeap = self.device.makeHeap(descriptor: heapDescriptor)!
+
+        // heapDescriptor = MTLHeapDescriptor()
+        // heapDescriptor.storageMode = .private
+        // heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
+        // heapDescriptor.size = 1024 * 1024 * 1024 * 3; // Allocate 3GB for now
+        // self.renderTargetHeap = self.device.makeHeap(descriptor: heapDescriptor)!
+        // self.renderTargetHeap.setPurgeableState(.volatile)
     }
 
     public func getRenderSize() -> Vector2 {
         return Vector2(X: Float(self.renderWidth), Y: Float(self.renderHeight))
+    }
+
+    public func getGpuExecutionTime(_ frameNumber: UInt) -> Float {
+        return Float(self.gpuExecutionTimes[Int(frameNumber) % 3])
+    }
+
+    public func getGraphicsAdapterName() -> String? {
+        return self.metalLayer.device!.name + " (Metal 3)"
     }
 
     public func changeRenderSize(renderWidth: Int, renderHeight: Int) {
@@ -192,7 +215,21 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
-    public func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ mipLevels: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool {
+    private func convertTextureFormat(_ textureFormat: GraphicsTextureFormat) -> MTLPixelFormat {
+        if (textureFormat == Bgra8UnormSrgb) {
+            return .bgra8Unorm_srgb
+        } else if (textureFormat == Depth32Float) {
+            return .depth32Float
+        } else if (textureFormat == Rgba16Float) {
+            return .rgba16Float
+        } else if (textureFormat == R16Float) {
+            return .r16Float
+        }
+        
+        return .rgba8Unorm_srgb
+    }
+
+    public func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ debugName: String?) -> Bool {
         // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
@@ -201,31 +238,37 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         descriptor.depth = 1
         descriptor.mipmapLevelCount = mipLevels
         descriptor.arrayLength = 1
+        descriptor.sampleCount = multisampleCount
         descriptor.storageMode = .private
-
-        if (textureFormat == Bgra8UnormSrgb) {
-            descriptor.pixelFormat = .bgra8Unorm_srgb
-        } else if (textureFormat == Depth32Float) {
-            descriptor.pixelFormat = .depth32Float
-        } else {
-            descriptor.pixelFormat = .rgba8Unorm_srgb
-        }
+        descriptor.pixelFormat = convertTextureFormat(textureFormat)
 
         if (isRenderTarget) {
-            descriptor.textureType = .type2DMultisample
-            descriptor.sampleCount = self.multisampleCount
             descriptor.usage = [.renderTarget, .shaderRead]
+        }
+
+        if (multisampleCount > 1) {
+            descriptor.textureType = .type2DMultisample
         } else {
             descriptor.textureType = .type2D
         }
 
-        guard let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor) else {
-            print("createTexture: Creation failed.")
-            return false
-        }
+        if (isRenderTarget) {
+            guard let gpuTexture = self.device.makeTexture(descriptor: descriptor) else {
+                print("createTexture: Creation failed.")
+                return false
+            }
 
-        gpuTexture.label = (debugName != nil) ? debugName! : "Texture\(textureId)"
-        self.textures[textureId] = gpuTexture
+            gpuTexture.label = (debugName != nil) ? debugName! : "Texture\(textureId)"
+            self.textures[textureId] = gpuTexture
+        } else {
+            guard let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor) else {
+                print("createTexture: Creation failed.")
+                return false
+            }
+
+            gpuTexture.label = (debugName != nil) ? debugName! : "Texture\(textureId)"
+            self.textures[textureId] = gpuTexture
+        }
 
         return true
     }
@@ -234,62 +277,129 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.textures[textureId] = nil
     }
 
-    public func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ useDepthBuffer: Bool, _ debugName: String?) -> Bool {
+    public func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ debugName: String?) -> Bool {
         let dispatchData = DispatchData(bytes: UnsafeRawBufferPointer(start: shaderByteCode, count: shaderByteCodeLength))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
         if (computeShaderFunction == nil) {
-            let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
-            pipelineStateDescriptor.label = (debugName != nil) ? debugName! : "RenderShader\(shaderId)"
-
             let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")!
             let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")!
-            
-            pipelineStateDescriptor.vertexFunction = vertexFunction
-            pipelineStateDescriptor.fragmentFunction = fragmentFunction
+
+            // TODO: Remove that hack
+            if (debugName != nil && debugName != "RenderMeshInstanceDepthShader" && debugName != "RenderMeshInstanceShader" && debugName != "RenderMeshInstanceTransparentShader") {
+                let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 0)
+                self.shaders[shaderId] = Shader(shaderId, self.device, vertexFunction, fragmentFunction, nil, argumentEncoder, debugName)
+            } else {
+                self.shaders[shaderId] = Shader(shaderId, self.device, vertexFunction, fragmentFunction, nil, nil, debugName)
+            }
+
+            return true
+        } else {
+            let computeFunction = defaultLibrary.makeFunction(name: computeShaderFunction!)!
+
+            let argumentEncoder = computeFunction.makeArgumentEncoder(bufferIndex: 0)
+            self.shaders[shaderId] = Shader(shaderId, self.device, nil, nil, computeFunction, argumentEncoder, debugName)
+            return true
+        }
+    }
+
+    public func removeShader(_ shaderId: UInt) {
+        self.shaders[shaderId] = nil
+
+        if (self.currentShader != nil && self.currentShader!.shaderId == shaderId) {
+            self.currentShader = nil
+        }
+    }
+
+    private func initBlendState(_ colorAttachmentDescriptor: MTLRenderPipelineColorAttachmentDescriptor, _ blendOperation: GraphicsBlendOperation) {
+        if (blendOperation == AlphaBlending) {
+            colorAttachmentDescriptor.isBlendingEnabled = true
+            colorAttachmentDescriptor.rgbBlendOperation = .add
+            colorAttachmentDescriptor.alphaBlendOperation = .add
+            colorAttachmentDescriptor.sourceRGBBlendFactor = .sourceAlpha
+            colorAttachmentDescriptor.sourceAlphaBlendFactor = .sourceAlpha;
+            colorAttachmentDescriptor.destinationRGBBlendFactor = .oneMinusSourceAlpha
+            colorAttachmentDescriptor.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        } else if (blendOperation == AddOneOne) {
+            colorAttachmentDescriptor.isBlendingEnabled = true
+            colorAttachmentDescriptor.rgbBlendOperation = .add
+            colorAttachmentDescriptor.alphaBlendOperation = .add
+            colorAttachmentDescriptor.sourceRGBBlendFactor = .one
+            colorAttachmentDescriptor.sourceAlphaBlendFactor = .one;
+            colorAttachmentDescriptor.destinationRGBBlendFactor = .one
+            colorAttachmentDescriptor.destinationAlphaBlendFactor = .one
+        } else if (blendOperation == AddOneMinusSourceColor) {
+            colorAttachmentDescriptor.isBlendingEnabled = true
+            colorAttachmentDescriptor.rgbBlendOperation = .add
+            colorAttachmentDescriptor.sourceRGBBlendFactor = .zero
+            colorAttachmentDescriptor.destinationRGBBlendFactor = .oneMinusSourceColor
+        }
+    }
+
+    public func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor, _ debugName: String?) -> Bool {
+        guard let shader = self.shaders[shaderId] else {
+            return false
+        }
+
+        if (renderPassDescriptor.IsRenderShader == 1) {
+            let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
+            pipelineStateDescriptor.label = (debugName != nil) ? debugName! : "PipelineState\(pipelineStateId)"
+
+            pipelineStateDescriptor.vertexFunction = shader.vertexShaderFunction!
+            pipelineStateDescriptor.fragmentFunction = shader.pixelShaderFunction!
             pipelineStateDescriptor.supportIndirectCommandBuffers = true
-            pipelineStateDescriptor.sampleCount = self.multisampleCount
+            pipelineStateDescriptor.sampleCount = (renderPassDescriptor.MultiSampleCount.HasValue == 1) ? Int(renderPassDescriptor.MultiSampleCount.Value) : 1
 
             // TODO: Use the correct render target format
-            pipelineStateDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat
+            if (renderPassDescriptor.RenderTarget1TextureFormat.HasValue == 1) {
+                pipelineStateDescriptor.colorAttachments[0].pixelFormat = convertTextureFormat(renderPassDescriptor.RenderTarget1TextureFormat.Value)
+            } else if(renderPassDescriptor.DepthCompare == 0 && renderPassDescriptor.DepthWrite == 0) {
+                pipelineStateDescriptor.colorAttachments[0].pixelFormat = (self.useHdrRenderTarget) ? .rgba16Float : .bgra8Unorm_srgb
+            }
 
-            // TODO: Add an option to disable blending
-            pipelineStateDescriptor.colorAttachments[0].isBlendingEnabled = true
-            pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation = .add
-            pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation = .add
-            pipelineStateDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-            pipelineStateDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha;
-            pipelineStateDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-            pipelineStateDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            if (renderPassDescriptor.RenderTarget2TextureFormat.HasValue == 1) {
+                pipelineStateDescriptor.colorAttachments[1].pixelFormat = convertTextureFormat(renderPassDescriptor.RenderTarget2TextureFormat.Value)
+            }
 
-            // TODO
-            if (useDepthBuffer) {
+            if (renderPassDescriptor.RenderTarget3TextureFormat.HasValue == 1) {
+                pipelineStateDescriptor.colorAttachments[2].pixelFormat = convertTextureFormat(renderPassDescriptor.RenderTarget3TextureFormat.Value)
+            }
+
+            if (renderPassDescriptor.RenderTarget4TextureFormat.HasValue == 1) {
+                pipelineStateDescriptor.colorAttachments[3].pixelFormat = convertTextureFormat(renderPassDescriptor.RenderTarget4TextureFormat.Value)
+            }
+
+            if (renderPassDescriptor.DepthCompare == 1 || renderPassDescriptor.DepthWrite == 1) {
                 pipelineStateDescriptor.depthAttachmentPixelFormat = .depth32Float
+            } 
+
+            if (renderPassDescriptor.RenderTarget1BlendOperation.HasValue == 1) {
+                initBlendState(pipelineStateDescriptor.colorAttachments[0]!, renderPassDescriptor.RenderTarget1BlendOperation.Value)
+            }
+
+            if (renderPassDescriptor.RenderTarget2BlendOperation.HasValue == 1) {
+                initBlendState(pipelineStateDescriptor.colorAttachments[1]!, renderPassDescriptor.RenderTarget2BlendOperation.Value)
+            }
+
+            if (renderPassDescriptor.RenderTarget3BlendOperation.HasValue == 1) {
+                initBlendState(pipelineStateDescriptor.colorAttachments[2]!, renderPassDescriptor.RenderTarget3BlendOperation.Value)
+            }
+
+            if (renderPassDescriptor.RenderTarget4BlendOperation.HasValue == 1) {
+                initBlendState(pipelineStateDescriptor.colorAttachments[3]!, renderPassDescriptor.RenderTarget4BlendOperation.Value)
             }
 
             do {
                 let pipelineState = try self.device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
-
-                // TODO: Remove that hack
-                if (debugName != nil && debugName != "RenderMeshInstanceShader") {
-                    let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 0)
-                    self.shaders[shaderId] = Shader(self.device, pipelineState, argumentEncoder)
-                } else {
-                    self.shaders[shaderId] = Shader(self.device, pipelineState, nil)
-                }
-
+                self.renderPipelineStates[pipelineStateId] = pipelineState
                 return true
             } catch {
                 print("Failed to created pipeline state, \(error)")
             }
         } else {
-            let computeFunction = defaultLibrary.makeFunction(name: computeShaderFunction!)!
-
             do {
-                let pipelineState = try self.device.makeComputePipelineState(function: computeFunction)
-                let argumentEncoder = computeFunction.makeArgumentEncoder(bufferIndex: 0)
-
-                self.shaders[shaderId] = Shader(self.device, pipelineState, argumentEncoder)
+                let pipelineState = try self.device.makeComputePipelineState(function: shader.computeShaderFunction!)
+                self.computePipelineStates[pipelineStateId] = pipelineState
                 return true
             }
             catch {
@@ -300,8 +410,9 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return false
     }
 
-    public func removeShader(_ shaderId: UInt) {
-        self.shaders[shaderId] = nil
+    public func removePipelineState(_ pipelineStateId: UInt) {
+        self.renderPipelineStates[pipelineStateId] = nil
+        self.computePipelineStates[pipelineStateId] = nil
     }
 
     public func createCopyCommandList(_ commandListId: UInt, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool {
@@ -316,6 +427,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             commandBuffer = copyCommandBuffer
             commandBuffer.label = "Copy Command Buffer \(commandListId)"
             self.copyCommandBuffers[commandListId] = commandBuffer
+            let currentFrameNumber = self.currentFrameNumber
+
+            commandBuffer.addCompletedHandler { cb in
+                self.commandBufferCompleted(cb, currentFrameNumber)
+            }
         }
 
         guard let copyCommandEncoder = commandBuffer.makeBlitCommandEncoder() else {
@@ -442,6 +558,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             commandBuffer = computeCommandBuffer
             commandBuffer.label = "Compute Command Buffer \(commandListId)"
             self.computeCommandBuffers[commandListId] = commandBuffer
+            let currentFrameNumber = self.currentFrameNumber
+
+            commandBuffer.addCompletedHandler { cb in
+                self.commandBufferCompleted(cb, currentFrameNumber)
+            }
         }
 
         guard let computeCommandEncoder = commandBuffer.makeComputeCommandEncoder() else {
@@ -477,17 +598,25 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
-        if (self.currentShader != nil) {
-            computeCommandEncoder.setBuffer(self.currentShader!.currentArgumentBuffer, offset: 0, index: 0)
-
-            var w = self.currentShader!.computePipelineState.threadExecutionWidth
-            var h = (threadGroupCountY > 1) ? self.currentShader!.computePipelineState.maxTotalThreadsPerThreadgroup / w : 1
-            let threadsPerGroup = MTLSizeMake(w, h, 1)
-
-            computeCommandEncoder.dispatchThreads(MTLSize(width: Int(threadGroupCountX), height: Int(threadGroupCountY), depth: Int(threadGroupCountZ)), threadsPerThreadgroup: threadsPerGroup)
-
-            self.currentShader!.setupArgumentBuffer()
+        guard let currentShader = self.currentShader else {
+            print("dispatchThreads: Current Shader is nil.")
+            return
         }
+
+        guard let computePipelineState = self.currentComputePipelineState else {
+            print("dispatchThreads: Current Pipeline state is nil.")
+            return
+        }
+
+        computeCommandEncoder.setBuffer(currentShader.currentArgumentBuffer, offset: 0, index: 0)
+
+        let w = computePipelineState.threadExecutionWidth
+        let h = (threadGroupCountY > 1) ? computePipelineState.maxTotalThreadsPerThreadgroup / w : 1
+        let threadsPerGroup = MTLSizeMake(w, h, 1)
+
+        computeCommandEncoder.dispatchThreads(MTLSize(width: Int(threadGroupCountX), height: Int(threadGroupCountY), depth: Int(threadGroupCountZ)), threadsPerThreadgroup: threadsPerGroup)
+
+        currentShader.setupArgumentBuffer()
     }
 
     public func createRenderCommandList(_ commandListId: UInt, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool {
@@ -502,40 +631,92 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             commandBuffer = renderCommandBuffer
             commandBuffer.label = "Render Command Buffer\(commandListId)"
             self.renderCommandBuffers[commandListId] = commandBuffer
+            let currentFrameNumber = self.currentFrameNumber
+
+            commandBuffer.addCompletedHandler { cb in
+                self.commandBufferCompleted(cb, currentFrameNumber)
+            }
         }
 
         // Create render command encoder        
-        guard let colorTexture = self.textures[UInt(renderDescriptor.ColorTextureId.Value)] else {
-            print("createRenderCommandList: Color Texture is nil.")
-            return false
-        }
-
         let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = colorTexture
         
-        if (renderDescriptor.ClearColor.HasValue == 1) {
+        if (renderDescriptor.RenderTarget1ClearColor.HasValue == 1) {
             renderPassDescriptor.colorAttachments[0].loadAction = .clear
-            renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: Double(renderDescriptor.ClearColor.Value.X), green: Double(renderDescriptor.ClearColor.Value.Y), blue: Double(renderDescriptor.ClearColor.Value.Z), alpha: Double(renderDescriptor.ClearColor.Value.W))
+            renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor.init(red: Double(renderDescriptor.RenderTarget1ClearColor.Value.X), green: Double(renderDescriptor.RenderTarget1ClearColor.Value.Y), blue: Double(renderDescriptor.RenderTarget1ClearColor.Value.Z), alpha: Double(renderDescriptor.RenderTarget1ClearColor.Value.W))
         } else {
             renderPassDescriptor.colorAttachments[0].loadAction = .load
         }
 
-        if (renderDescriptor.WriteToHardwareRenderTarget == 1) {
-            renderPassDescriptor.colorAttachments[0].storeAction = .multisampleResolve
-        } else {
-            renderPassDescriptor.colorAttachments[0].storeAction = .store
-        }
-
-        if (renderDescriptor.WriteToHardwareRenderTarget == 1) {
+        if (renderDescriptor.RenderTarget1TextureId.HasValue == 0 && renderDescriptor.DepthTextureId.HasValue == 0) {
             guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
                 return false
             }
             
             self.currentMetalDrawable = nextCurrentMetalDrawable
-            renderPassDescriptor.colorAttachments[0].resolveTexture = nextCurrentMetalDrawable.texture
+            renderPassDescriptor.colorAttachments[0].texture = nextCurrentMetalDrawable.texture
+            renderPassDescriptor.colorAttachments[0].storeAction = .dontCare
+        } else if (renderDescriptor.RenderTarget1TextureId.HasValue == 1) {
+            guard let colorTexture = self.textures[UInt(renderDescriptor.RenderTarget1TextureId.Value)] else {
+                print("createRenderCommandList: Render Target 1 Texture is nil.")
+                return false
+            }
+
+            renderPassDescriptor.colorAttachments[0].texture = colorTexture
+            renderPassDescriptor.colorAttachments[0].storeAction = .store
         }
 
-        // TODO
+        if (renderDescriptor.RenderTarget2TextureId.HasValue == 1) {
+            guard let colorTexture = self.textures[UInt(renderDescriptor.RenderTarget2TextureId.Value)] else {
+                print("createRenderCommandList: Render Target 2 is nil.")
+                return false
+            }
+
+            renderPassDescriptor.colorAttachments[1].texture = colorTexture
+            renderPassDescriptor.colorAttachments[1].storeAction = .store
+
+            if (renderDescriptor.RenderTarget2ClearColor.HasValue == 1) {
+                renderPassDescriptor.colorAttachments[1].loadAction = .clear
+                renderPassDescriptor.colorAttachments[1].clearColor = MTLClearColor.init(red: Double(renderDescriptor.RenderTarget2ClearColor.Value.X), green: Double(renderDescriptor.RenderTarget2ClearColor.Value.Y), blue: Double(renderDescriptor.RenderTarget2ClearColor.Value.Z), alpha: Double(renderDescriptor.RenderTarget2ClearColor.Value.W))
+            } else {
+                renderPassDescriptor.colorAttachments[1].loadAction = .load
+            }
+        }
+
+        if (renderDescriptor.RenderTarget3TextureId.HasValue == 1) {
+            guard let colorTexture = self.textures[UInt(renderDescriptor.RenderTarget3TextureId.Value)] else {
+                print("createRenderCommandList: Render Target 3 is nil.")
+                return false
+            }
+
+            renderPassDescriptor.colorAttachments[2].texture = colorTexture
+            renderPassDescriptor.colorAttachments[2].storeAction = .store
+
+            if (renderDescriptor.RenderTarget3ClearColor.HasValue == 1) {
+                renderPassDescriptor.colorAttachments[2].loadAction = .clear
+                renderPassDescriptor.colorAttachments[2].clearColor = MTLClearColor.init(red: Double(renderDescriptor.RenderTarget3ClearColor.Value.X), green: Double(renderDescriptor.RenderTarget3ClearColor.Value.Y), blue: Double(renderDescriptor.RenderTarget3ClearColor.Value.Z), alpha: Double(renderDescriptor.RenderTarget3ClearColor.Value.W))
+            } else {
+                renderPassDescriptor.colorAttachments[2].loadAction = .load
+            }
+        }
+
+        if (renderDescriptor.RenderTarget4TextureId.HasValue == 1) {
+            guard let colorTexture = self.textures[UInt(renderDescriptor.RenderTarget4TextureId.Value)] else {
+                print("createRenderCommandList: Render Target 4 is nil.")
+                return false
+            }
+
+            renderPassDescriptor.colorAttachments[3].texture = colorTexture
+            renderPassDescriptor.colorAttachments[3].storeAction = .store
+
+            if (renderDescriptor.RenderTarget4ClearColor.HasValue == 1) {
+                renderPassDescriptor.colorAttachments[3].loadAction = .clear
+                renderPassDescriptor.colorAttachments[3].clearColor = MTLClearColor.init(red: Double(renderDescriptor.RenderTarget4ClearColor.Value.X), green: Double(renderDescriptor.RenderTarget4ClearColor.Value.Y), blue: Double(renderDescriptor.RenderTarget4ClearColor.Value.Z), alpha: Double(renderDescriptor.RenderTarget4ClearColor.Value.W))
+            } else {
+                renderPassDescriptor.colorAttachments[3].loadAction = .load
+            }
+        }
+
         if (renderDescriptor.DepthTextureId.HasValue == 1) {
             guard let depthTexture = self.textures[UInt(renderDescriptor.DepthTextureId.Value)] else {
                 print("createRenderCommandList: Depth Texture is nil.")
@@ -546,10 +727,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
             if (renderDescriptor.DepthWrite == 1) {
-                renderPassDescriptor.depthAttachment.loadAction = .clear // TODO: Use a separate pass for depth buffer
+                renderPassDescriptor.depthAttachment.loadAction = .clear
                 renderPassDescriptor.depthAttachment.clearDepth = 1.0
             } else {
-                renderPassDescriptor.depthAttachment.loadAction = .load // TODO: Use a separate pass for depth buffer
+                renderPassDescriptor.depthAttachment.loadAction = .load
             }
 
             if (renderDescriptor.DepthWrite == 1) {
@@ -577,12 +758,16 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderCommandEncoder.setDepthStencilState(self.depthNoCompareNoWriteState)
         }
 
-        renderCommandEncoder.setCullMode(.back)
+        if (renderDescriptor.BackfaceCulling == 1) {
+            renderCommandEncoder.setCullMode(.back)
+        } else {
+            renderCommandEncoder.setCullMode(.none)
+        }
 
         let renderSize = getRenderSize()
         renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
         
-            renderCommandEncoder.useHeap(self.globalHeap)
+        renderCommandEncoder.useHeap(self.globalHeap)
 
         return true
     }
@@ -607,21 +792,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         let indirectCommandBufferDescriptor = MTLIndirectCommandBufferDescriptor()
         
         indirectCommandBufferDescriptor.commandTypes = [.drawIndexed]
-
-        // Indicate that buffers will be set for each command in the indirect command buffer.
         indirectCommandBufferDescriptor.inheritBuffers = false
-
-        // Indicate that a maximum of 3 buffers will be set for each command.
         indirectCommandBufferDescriptor.maxVertexBufferBindCount = 5
         indirectCommandBufferDescriptor.maxFragmentBufferBindCount = 5
-
-        // TODO: Change that when we will set material in the compute shader
         indirectCommandBufferDescriptor.inheritPipelineState = true
 
-        // Create indirect command buffer using private storage mode; since only the GPU will
-        // write to and read from the indirect command buffer, the CPU never needs to access the
-        // memory
-        var indirectCommandBuffer = self.device.makeIndirectCommandBuffer(descriptor: indirectCommandBufferDescriptor,
+        let indirectCommandBuffer = self.device.makeIndirectCommandBuffer(descriptor: indirectCommandBufferDescriptor,
                                                                           maxCommandCount: maxCommandCount,
                                                                           options: .storageModePrivate)!
 
@@ -632,34 +808,42 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
-    public func setShader(_ commandListId: UInt, _ shaderId: UInt) {
-        if (self.renderCommandEncoders[commandListId] != nil) {
+    public func setPipelineState(_ commandListId: UInt, _ pipelineStateId: UInt) {
+        if (self.renderCommandEncoders[commandListId] != nil) {
             guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
-                print("setShader: Render command encoder is nil.")
+                print("setPipelineState: Render command encoder is nil.")
                 return
             }
 
-            guard let shader = self.shaders[shaderId] else {
-                print("setShader: Shader is nil.")
+            guard let pipelineState = self.renderPipelineStates[pipelineStateId] else {
+                print("setPipelineState: PipelineState is nil.")
                 return
             }
 
-            self.currentShader = shader
-            renderCommandEncoder.setRenderPipelineState(shader.pipelineState)
-        } else if (self.computeCommandEncoders[commandListId] != nil) {
+            renderCommandEncoder.setRenderPipelineState(pipelineState)
+        } else if (self.computeCommandEncoders[commandListId] != nil) {
             guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
-                print("setShader: Compute command encoder is nil.")
+                print("setPipelineState: Compute command encoder is nil.")
                 return
             }
 
-            guard let shader = self.shaders[shaderId] else {
-                print("setShader: Shader is nil.")
+            guard let pipelineState = self.computePipelineStates[pipelineStateId] else {
+                print("setPipelineState: PipelineState is nil.")
                 return
             }
 
-            self.currentShader = shader
-            computeCommandEncoder.setComputePipelineState(shader.computePipelineState)
+            computeCommandEncoder.setComputePipelineState(pipelineState)
+            currentComputePipelineState = pipelineState
         }
+    }
+
+    public func setShader(_ commandListId: UInt, _ shaderId: UInt) {
+        guard let shader = self.shaders[shaderId] else {
+            print("setShader: Shader is nil.")
+            return
+        }
+
+        self.currentShader = shader
     }
 
     public func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ index: Int) {
@@ -703,7 +887,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         argumentEncoder.setBuffers(bufferList, offsets: offsets, range: (slot + index)..<(slot + index) + graphicsBufferIdList.count)
     }
 
-    public func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ index: Int) {
+    public func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int) {
         guard let shader = self.currentShader else {
             return
         }
@@ -717,6 +901,24 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         argumentEncoder.setTexture(texture, index: slot)
+
+        if (self.computeCommandEncoders[commandListId] != nil) {
+            let computeCommandEncoder = self.computeCommandEncoders[commandListId]!
+
+            if (isReadOnly) {
+                computeCommandEncoder.useResource(texture, usage: .read)
+            } else {
+                computeCommandEncoder.useResource(texture, usage: .write)
+            }
+        } else if (self.renderCommandEncoders[commandListId] != nil) {
+            let computeCommandEncoder = self.renderCommandEncoders[commandListId]!
+
+            if (isReadOnly) {
+                computeCommandEncoder.useResource(texture, usage: .read)
+            } else {
+                computeCommandEncoder.useResource(texture, usage: .write)
+            }
+        }
     }
 
     public func setShaderTextures(_ commandListId: UInt, _ textureIdList: [UInt32], _ slot: Int, _ index: Int) {
@@ -778,8 +980,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
-        renderCommandEncoder.setVertexBuffer(nil, offset: 0, index: 0)
-        renderCommandEncoder.setFragmentBuffer(nil, offset: 0, index: 0)
         renderCommandEncoder.executeCommandsInBuffer(indirectBuffer, range: 0..<maxCommandCount)
     }
 
@@ -806,7 +1006,9 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         let startIndexOffset = Int(startIndex * 4)
         var primitiveTypeMetal = MTLPrimitiveType.triangle
 
-        if (primitiveType.rawValue == 1) {
+        if (primitiveType == TriangleStrip) {
+            primitiveTypeMetal = MTLPrimitiveType.triangleStrip
+        } else if (primitiveType == Line) {
             primitiveTypeMetal = MTLPrimitiveType.line
         }
 
@@ -818,6 +1020,34 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                                                    instanceCount: instanceCount, 
                                                    baseVertex: 0, 
                                                    baseInstance: Int(baseInstanceId))
+
+        if (self.currentShader != nil) {
+            self.currentShader!.setupArgumentBuffer()
+        }
+    }
+
+    public func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startVertex: Int, _ vertexCount: Int) {
+        guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+            print("drawPrimitives: Render command encoder is nil.")
+            return
+        }
+
+        if (self.currentShader != nil) {
+            renderCommandEncoder.setVertexBuffer(self.currentShader!.currentArgumentBuffer, offset: 0, index: 0)
+            renderCommandEncoder.setFragmentBuffer(self.currentShader!.currentArgumentBuffer, offset: 0, index: 0)
+        }
+
+        var primitiveTypeMetal = MTLPrimitiveType.triangle
+
+        if (primitiveType == TriangleStrip) {
+            primitiveTypeMetal = MTLPrimitiveType.triangleStrip
+        } else if (primitiveType == Line) {
+            primitiveTypeMetal = MTLPrimitiveType.line
+        }
+
+        renderCommandEncoder.drawPrimitives(type: primitiveTypeMetal, 
+                                                   vertexStart: startVertex, 
+                                                   vertexCount: vertexCount)
 
         if (self.currentShader != nil) {
             self.currentShader!.setupArgumentBuffer()
@@ -836,6 +1066,19 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
             // TODO: Can we reuse the same command buffer?
             self.commandBuffer = self.commandQueue.makeCommandBuffer()
+            let currentFrameNumber = self.currentFrameNumber
+
+            self.commandBuffer.addCompletedHandler { cb in
+                self.commandBufferCompleted(cb, currentFrameNumber)
+            }
+
+            self.currentFrameNumber += 1
+            self.gpuExecutionTimes[self.currentFrameNumber % 3] = 0
         }
+    }
+
+    private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ frameNumber: Int) {
+        let executionDuration = commandBuffer.gpuEndTime - commandBuffer.gpuStartTime
+        self.gpuExecutionTimes[frameNumber % 3] += executionDuration * 1000
     }
 }

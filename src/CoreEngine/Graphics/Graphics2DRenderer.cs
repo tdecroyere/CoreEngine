@@ -124,9 +124,9 @@ namespace CoreEngine.Graphics
         public override void PreUpdate()
         {
             this.textures.Clear();
-            var renderSize = this.graphicsManager.GetRenderSize();
-
             this.currentSurfaceCount = 0;
+            
+            var renderSize = this.graphicsManager.GetRenderSize();
             this.renderPassConstants = new RenderPassConstants2D(MathUtils.CreateOrthographicMatrixOffCenter(0, renderSize.X, 0, renderSize.Y, 0, 1));
         }
 
@@ -194,7 +194,7 @@ namespace CoreEngine.Graphics
             this.currentSurfaceCount++;
         }
 
-        public void CopyDataToGpu()
+        public void Render()
         {
             if (this.currentSurfaceCount > 0)
             {
@@ -202,25 +202,10 @@ namespace CoreEngine.Graphics
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
                 this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces);
                 this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
-            }
-        }
 
-        public void Render(CommandList? renderCommandList = null)
-        {
-            if (this.currentSurfaceCount > 0)
-            {
-                CommandList commandList;
-
-                if (renderCommandList == null)
-                {
-                    var renderPassDescriptor = new RenderPassDescriptor(this.graphicsManager.MainRenderTargetTexture, null, null, false, false, true, false);
-                    commandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "Graphics2DRenderCommandList");
-                }
-
-                else
-                {
-                    commandList = renderCommandList.Value;
-                }
+                var renderTarget = new RenderTargetDescriptor(this.graphicsManager.MainRenderTargetTexture, null, BlendOperation.AlphaBlending);
+                var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
+                var commandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "Graphics2DRenderCommandList");
 
                 this.graphicsManager.SetShader(commandList, this.shader);
                 this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
@@ -230,11 +215,8 @@ namespace CoreEngine.Graphics
 
                 this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
                 this.graphicsManager.DrawIndexedPrimitives(commandList, GeometryPrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
-
-                if (renderCommandList == null)
-                {
-                    this.graphicsManager.ExecuteRenderCommandList(commandList);
-                }
+ 
+                this.graphicsManager.ExecuteRenderCommandList(commandList);
             }
         }
     }

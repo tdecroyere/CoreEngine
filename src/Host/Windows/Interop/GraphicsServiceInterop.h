@@ -8,16 +8,28 @@ struct Vector2 GetRenderSizeInterop(void* context)
     return contextObject->GetRenderSize()
 }
 
+struct string? GetGraphicsAdapterNameInterop(void* context)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->GetGraphicsAdapterName()
+}
+
+float GetGpuExecutionTimeInterop(void* context, unsigned int frameNumber)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->GetGpuExecutionTime(frameNumber)
+}
+
 int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, int length, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
     return contextObject->CreateGraphicsBuffer(graphicsBufferId, length, debugName)
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int isRenderTarget, struct string? debugName)
+int CreateTextureInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int multisampleCount, int isRenderTarget, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(textureId, textureFormat, width, height, mipLevels, isRenderTarget, debugName)
+    return contextObject->CreateTexture(textureId, textureFormat, width, height, mipLevels, multisampleCount, isRenderTarget, debugName)
 }
 
 void RemoveTextureInterop(void* context, unsigned int textureId)
@@ -26,16 +38,28 @@ void RemoveTextureInterop(void* context, unsigned int textureId)
     contextObject->RemoveTexture(textureId)
 }
 
-int CreateShaderInterop(void* context, unsigned int shaderId, struct string? computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, int useDepthBuffer, struct string? debugName)
+int CreateShaderInterop(void* context, unsigned int shaderId, struct string? computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateShader(shaderId, computeShaderFunction, shaderByteCode, shaderByteCodeLength, useDepthBuffer, debugName)
+    return contextObject->CreateShader(shaderId, computeShaderFunction, shaderByteCode, shaderByteCodeLength, debugName)
 }
 
 void RemoveShaderInterop(void* context, unsigned int shaderId)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
     contextObject->RemoveShader(shaderId)
+}
+
+int CreatePipelineStateInterop(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, struct string? debugName)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->CreatePipelineState(pipelineStateId, shaderId, renderPassDescriptor, debugName)
+}
+
+void RemovePipelineStateInterop(void* context, unsigned int pipelineStateId)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->RemovePipelineState(pipelineStateId)
 }
 
 int CreateCopyCommandListInterop(void* context, unsigned int commandListId, struct string? debugName, int createNewCommandBuffer)
@@ -110,6 +134,12 @@ int CreateIndirectCommandListInterop(void* context, unsigned int commandListId, 
     return contextObject->CreateIndirectCommandList(commandListId, maxCommandCount, debugName)
 }
 
+void SetPipelineStateInterop(void* context, unsigned int commandListId, unsigned int pipelineStateId)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->SetPipelineState(commandListId, pipelineStateId)
+}
+
 void SetShaderInterop(void* context, unsigned int commandListId, unsigned int shaderId)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -128,10 +158,10 @@ void SetShaderBuffersInterop(void* context, unsigned int commandListId, struct R
     contextObject->SetShaderBuffers(commandListId, graphicsBufferIdList, slot, index)
 }
 
-void SetShaderTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, int slot, int index)
+void SetShaderTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->SetShaderTexture(commandListId, textureId, slot, index)
+    contextObject->SetShaderTexture(commandListId, textureId, slot, isReadOnly, index)
 }
 
 void SetShaderTexturesInterop(void* context, unsigned int commandListId, struct ReadOnlySpan<uint> textureIdList, int slot, int index)
@@ -164,6 +194,12 @@ void DrawIndexedPrimitivesInterop(void* context, unsigned int commandListId, enu
     contextObject->DrawIndexedPrimitives(commandListId, primitiveType, startIndex, indexCount, instanceCount, baseInstanceId)
 }
 
+void DrawPrimitivesInterop(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->DrawPrimitives(commandListId, primitiveType, startVertex, vertexCount)
+}
+
 void PresentScreenBufferInterop(void* context)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -174,11 +210,15 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
 {
     service->Context = context;
     service->GetRenderSize = GetRenderSizeInterop;
+    service->GetGraphicsAdapterName = GetGraphicsAdapterNameInterop;
+    service->GetGpuExecutionTime = GetGpuExecutionTimeInterop;
     service->CreateGraphicsBuffer = CreateGraphicsBufferInterop;
     service->CreateTexture = CreateTextureInterop;
     service->RemoveTexture = RemoveTextureInterop;
     service->CreateShader = CreateShaderInterop;
     service->RemoveShader = RemoveShaderInterop;
+    service->CreatePipelineState = CreatePipelineStateInterop;
+    service->RemovePipelineState = RemovePipelineStateInterop;
     service->CreateCopyCommandList = CreateCopyCommandListInterop;
     service->ExecuteCopyCommandList = ExecuteCopyCommandListInterop;
     service->UploadDataToGraphicsBuffer = UploadDataToGraphicsBufferInterop;
@@ -191,6 +231,7 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->CreateRenderCommandList = CreateRenderCommandListInterop;
     service->ExecuteRenderCommandList = ExecuteRenderCommandListInterop;
     service->CreateIndirectCommandList = CreateIndirectCommandListInterop;
+    service->SetPipelineState = SetPipelineStateInterop;
     service->SetShader = SetShaderInterop;
     service->SetShaderBuffer = SetShaderBufferInterop;
     service->SetShaderBuffers = SetShaderBuffersInterop;
@@ -200,5 +241,6 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->ExecuteIndirectCommandList = ExecuteIndirectCommandListInterop;
     service->SetIndexBuffer = SetIndexBufferInterop;
     service->DrawIndexedPrimitives = DrawIndexedPrimitivesInterop;
+    service->DrawPrimitives = DrawPrimitivesInterop;
     service->PresentScreenBuffer = PresentScreenBufferInterop;
 }

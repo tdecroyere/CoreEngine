@@ -46,6 +46,8 @@ namespace CoreEngine.Graphics
                 return resource;
             }
 
+            material.IsTransparent = reader.ReadBoolean();
+
             var textureResourceListCount = reader.ReadInt32();
             material.TextureList = new Texture[textureResourceListCount];
 

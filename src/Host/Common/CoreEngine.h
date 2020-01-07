@@ -23,6 +23,12 @@ struct Matrix4x4
     float M41, M42, M43, M44;
 };
 
+struct Nullableint
+{
+    int HasValue;
+    int Value;
+};
+
 struct Nullableuint
 {
     int HasValue;
@@ -33,6 +39,22 @@ struct NullableVector4
 {
     int HasValue;
     struct Vector4 Value;
+};
+
+enum GraphicsTextureFormat : int;
+
+struct NullableGraphicsTextureFormat
+{
+    int HasValue;
+    enum GraphicsTextureFormat Value;
+};
+
+enum GraphicsBlendOperation : int;
+
+struct NullableGraphicsBlendOperation
+{
+    int HasValue;
+    enum GraphicsBlendOperation Value;
 };
 
 #include "GraphicsService.h"

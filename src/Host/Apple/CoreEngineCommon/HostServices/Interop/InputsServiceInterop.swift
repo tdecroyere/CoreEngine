@@ -1,3 +1,4 @@
+import Foundation
 import CoreEngineCommonInterop
 
 func InputsService_getInputsStateInterop(context: UnsafeMutableRawPointer?) -> InputsState {

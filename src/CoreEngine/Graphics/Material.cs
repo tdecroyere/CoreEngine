@@ -15,6 +15,7 @@ namespace CoreEngine.Graphics
             this.TextureList = Array.Empty<Texture>();
         }
 
+        public bool IsTransparent { get; set; }
         public GraphicsBuffer? MaterialData { get; internal set; }
         public Memory<Texture> TextureList { get; internal set; }
     }

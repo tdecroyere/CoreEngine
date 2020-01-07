@@ -21,7 +21,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsManager = graphicsManager;
-            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, false, GraphicsResourceType.Static, "EmptyTexture");
+            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, false, GraphicsResourceType.Static, "EmptyTexture");
 
             var textureData = new byte[256 * 256 * 4];
             Array.Fill<byte>(textureData, 255);

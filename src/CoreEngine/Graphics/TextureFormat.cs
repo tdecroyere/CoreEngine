@@ -4,6 +4,8 @@ namespace CoreEngine.Graphics
     {
         Rgba8UnormSrgb,
         Bgra8UnormSrgb,
-        Depth32Float
+        Depth32Float,
+        Rgba16Float,
+        R16Float
     }
 }

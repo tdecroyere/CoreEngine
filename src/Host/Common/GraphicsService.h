@@ -14,7 +14,22 @@ enum GraphicsTextureFormat : int
     Bgra8UnormSrgb, 
     Depth32Float, 
     Rgba16Float, 
-    R16Float
+    R16Float, 
+    BC1Srgb, 
+    BC2Srgb, 
+    BC3Srgb, 
+    BC4, 
+    BC5, 
+    BC6, 
+    BC7Srgb
+};
+
+enum GraphicsDepthBufferOperation : int
+{
+    DepthNone, 
+    CompareEqual, 
+    CompareLess, 
+    Write
 };
 
 enum GraphicsBlendOperation : int
@@ -46,8 +61,7 @@ struct GraphicsRenderPassDescriptor
     struct NullableVector4 RenderTarget4ClearColor;
     struct NullableGraphicsBlendOperation RenderTarget4BlendOperation;
     struct Nullableuint DepthTextureId;
-    int DepthCompare;
-    int DepthWrite;
+    enum GraphicsDepthBufferOperation DepthBufferOperation;
     int BackfaceCulling;
 
 };
@@ -65,7 +79,7 @@ typedef void (*GraphicsService_RemovePipelineStatePtr)(void* context, unsigned i
 typedef int (*GraphicsService_CreateCopyCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*GraphicsService_UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
-typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, int mipLevel, void* data, int dataLength);
+typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, void* data, int dataLength);
 typedef void (*GraphicsService_ResetIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef void (*GraphicsService_OptimizeIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef int (*GraphicsService_CreateComputeCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);

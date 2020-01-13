@@ -6,6 +6,13 @@ namespace CoreEngine.Graphics
         Bgra8UnormSrgb,
         Depth32Float,
         Rgba16Float,
-        R16Float
+        R16Float,
+        BC1Srgb,
+        BC2Srgb,
+        BC3Srgb,
+        BC4,
+        BC5,
+        BC6,
+        BC7Srgb
     }
 }

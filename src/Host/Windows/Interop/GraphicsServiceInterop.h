@@ -80,10 +80,10 @@ void UploadDataToGraphicsBufferInterop(void* context, unsigned int commandListId
     contextObject->UploadDataToGraphicsBuffer(commandListId, graphicsBufferId, data, dataLength)
 }
 
-void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, int width, int height, int mipLevel, void* data, int dataLength)
+void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, void* data, int dataLength)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->UploadDataToTexture(commandListId, textureId, width, height, mipLevel, data, dataLength)
+    contextObject->UploadDataToTexture(commandListId, textureId, textureFormat, width, height, mipLevel, data, dataLength)
 }
 
 void ResetIndirectCommandListInterop(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount)

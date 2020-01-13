@@ -51,7 +51,7 @@ namespace CoreEngine.Graphics
             //Logger.WriteMessage($"Vertices Count: {vertexCount}, Indices Count: {indexCount}");
 
             // TODO: Change the calculation of the vertex size (current is fixed to Position, Normal)
-            var vertexSize = sizeof(float) * 12;
+            var vertexSize = sizeof(float) * 8;
             var vertexBufferSize = geometryPacketVertexCount * vertexSize;
             var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
 
@@ -70,6 +70,8 @@ namespace CoreEngine.Graphics
 
             var geometryInstancesCount = reader.ReadInt32();
             Logger.WriteMessage($"GeometryInstances Count: {geometryInstancesCount}");
+
+            mesh.GeometryInstances.Clear();
 
             for (var i = 0; i < geometryInstancesCount; i++)
             {

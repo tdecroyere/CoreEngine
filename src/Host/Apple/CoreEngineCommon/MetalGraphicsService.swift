@@ -68,12 +68,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var commandQueue: MTLCommandQueue!
     var commandBuffer: MTLCommandBuffer!
     var globalHeap: MTLHeap!
-    //var renderTargetHeap: MTLHeap!
+    var staticHeap: MTLHeap!
 
-    var depthCompareWriteState: MTLDepthStencilState!
-    var depthCompareNoWriteState: MTLDepthStencilState!
-    var depthNoCompareWriteState: MTLDepthStencilState!
-    var depthNoCompareNoWriteState: MTLDepthStencilState!
+    var depthCompareEqualState: MTLDepthStencilState!
+    var depthCompareLessState: MTLDepthStencilState!
+    var depthWriteOperationState: MTLDepthStencilState!
+    var depthNoneOperationState: MTLDepthStencilState!
 
     var shaders: [UInt: Shader]
     var renderPipelineStates: [UInt: MTLRenderPipelineState]
@@ -136,24 +136,24 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.gpuExecutionTimes = [0, 0, 0]
 
         var depthStencilDescriptor = MTLDepthStencilDescriptor()
-        depthStencilDescriptor.depthCompareFunction = .lessEqual
+        depthStencilDescriptor.depthCompareFunction = .equal
         depthStencilDescriptor.isDepthWriteEnabled = true
-        self.depthCompareWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+        self.depthCompareEqualState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .lessEqual
         depthStencilDescriptor.isDepthWriteEnabled = false
-        self.depthCompareNoWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+        self.depthCompareLessState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         depthStencilDescriptor = MTLDepthStencilDescriptor()
-        depthStencilDescriptor.depthCompareFunction = .always
+        depthStencilDescriptor.depthCompareFunction = .less
         depthStencilDescriptor.isDepthWriteEnabled = true
-        self.depthNoCompareWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+        self.depthWriteOperationState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         depthStencilDescriptor = MTLDepthStencilDescriptor()
         depthStencilDescriptor.depthCompareFunction = .always
         depthStencilDescriptor.isDepthWriteEnabled = false
-        self.depthNoCompareNoWriteState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+        self.depthNoneOperationState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         self.commandQueue = self.device.makeCommandQueue()
         self.commandBuffer = self.commandQueue.makeCommandBuffer()
@@ -164,18 +164,18 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         // TODO: Implement aliasing for render targets
-        let heapDescriptor = MTLHeapDescriptor()
+        var heapDescriptor = MTLHeapDescriptor()
         heapDescriptor.storageMode = .private
         heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
-        heapDescriptor.size = 1024 * 1024 * 1024; // Allocate 1GB for now
+        heapDescriptor.size = 1024 * 1024 * 512 // Allocate 512MB for now
         self.globalHeap = self.device.makeHeap(descriptor: heapDescriptor)!
 
-        // heapDescriptor = MTLHeapDescriptor()
-        // heapDescriptor.storageMode = .private
-        // heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
-        // heapDescriptor.size = 1024 * 1024 * 1024 * 3; // Allocate 3GB for now
-        // self.renderTargetHeap = self.device.makeHeap(descriptor: heapDescriptor)!
-        // self.renderTargetHeap.setPurgeableState(.volatile)
+        heapDescriptor = MTLHeapDescriptor()
+        heapDescriptor.storageMode = .private
+        heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
+        heapDescriptor.size = 1024 * 1024 * 512 // Allocate 512MB for now
+        heapDescriptor.cpuCacheMode = .writeCombined
+        self.staticHeap = self.device.makeHeap(descriptor: heapDescriptor)!
     }
 
     public func getRenderSize() -> Vector2 {
@@ -224,6 +224,20 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return .rgba16Float
         } else if (textureFormat == R16Float) {
             return .r16Float
+        } else if (textureFormat == BC1Srgb) {
+            return .bc1_rgba_srgb
+        } else if (textureFormat == BC2Srgb) {
+            return .bc2_rgba_srgb
+        } else if (textureFormat == BC3Srgb) {
+            return .bc3_rgba_srgb
+        } else if (textureFormat == BC4) {
+            return .bc4_rUnorm
+        } else if (textureFormat == BC5) {
+            return .bc5_rgUnorm
+        } else if (textureFormat == BC6) {
+            return .bc6H_rgbuFloat
+        } else if (textureFormat == BC7Srgb) {
+            return .bc7_rgbaUnorm_srgb
         }
         
         return .rgba8Unorm_srgb
@@ -244,6 +258,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         if (isRenderTarget) {
             descriptor.usage = [.renderTarget, .shaderRead]
+        } else {
+            descriptor.cpuCacheMode = .writeCombined
         }
 
         if (multisampleCount > 1) {
@@ -261,7 +277,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             gpuTexture.label = (debugName != nil) ? debugName! : "Texture\(textureId)"
             self.textures[textureId] = gpuTexture
         } else {
-            guard let gpuTexture = self.globalHeap.makeTexture(descriptor: descriptor) else {
+            guard let gpuTexture = self.staticHeap.makeTexture(descriptor: descriptor) else {
                 print("createTexture: Creation failed.")
                 return false
             }
@@ -353,7 +369,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             // TODO: Use the correct render target format
             if (renderPassDescriptor.RenderTarget1TextureFormat.HasValue == 1) {
                 pipelineStateDescriptor.colorAttachments[0].pixelFormat = convertTextureFormat(renderPassDescriptor.RenderTarget1TextureFormat.Value)
-            } else if(renderPassDescriptor.DepthCompare == 0 && renderPassDescriptor.DepthWrite == 0) {
+            } else if(renderPassDescriptor.DepthBufferOperation == DepthNone) {
                 pipelineStateDescriptor.colorAttachments[0].pixelFormat = (self.useHdrRenderTarget) ? .rgba16Float : .bgra8Unorm_srgb
             }
 
@@ -369,7 +385,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 pipelineStateDescriptor.colorAttachments[3].pixelFormat = convertTextureFormat(renderPassDescriptor.RenderTarget4TextureFormat.Value)
             }
 
-            if (renderPassDescriptor.DepthCompare == 1 || renderPassDescriptor.DepthWrite == 1) {
+            if (renderPassDescriptor.DepthTextureId.HasValue == 1) {
                 pipelineStateDescriptor.depthAttachmentPixelFormat = .depth32Float
             } 
 
@@ -484,7 +500,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: length)
     }
 
-    public func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ width: Int, _ height: Int, _ mipLevel: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
+    public func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ mipLevel: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
         guard let gpuTexture = self.textures[textureId] else {
             print("ERROR: GPU texture was not found")
             return
@@ -503,14 +519,22 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
-        // TODO: Remove the hardcoding here
-        let pixelSize = 4
+        var sourceBytesPerRow = 4 * width
+        var sourceBytesPerImage = 4 * width * height
+
+        if (textureFormat == BC2Srgb || textureFormat == BC3Srgb || textureFormat == BC5 || textureFormat == BC6 || textureFormat == BC7Srgb) {
+            sourceBytesPerRow = 16 * Int(ceil(Double(width) / 4.0))
+            sourceBytesPerImage = 16 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
+        } else if (textureFormat == BC1Srgb || textureFormat == BC4) {
+            sourceBytesPerRow = 8 * Int(ceil(Double(width) / 4.0))
+            sourceBytesPerImage = 8 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
+        }
 
         // TODO: Add parameters to be able to update partially the buffer
         copyCommandEncoder.copy(from: cpuTexture, 
                                 sourceOffset: 0, 
-                                sourceBytesPerRow: pixelSize * width,
-                                sourceBytesPerImage: pixelSize * width * height,
+                                sourceBytesPerRow: sourceBytesPerRow,
+                                sourceBytesPerImage: sourceBytesPerImage,
                                 sourceSize: MTLSize(width: width, height: height , depth: 1),
                                 to: gpuTexture, 
                                 destinationSlice: 0,
@@ -725,15 +749,15 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderPassDescriptor.depthAttachment.texture = depthTexture
         }
 
-        if (renderDescriptor.DepthCompare == 1 || renderDescriptor.DepthWrite == 1) {
-            if (renderDescriptor.DepthWrite == 1) {
+        if (renderDescriptor.DepthBufferOperation != DepthNone) {
+            if (renderDescriptor.DepthBufferOperation == Write) {
                 renderPassDescriptor.depthAttachment.loadAction = .clear
                 renderPassDescriptor.depthAttachment.clearDepth = 1.0
             } else {
                 renderPassDescriptor.depthAttachment.loadAction = .load
             }
 
-            if (renderDescriptor.DepthWrite == 1) {
+            if (renderDescriptor.DepthBufferOperation == Write) {
                 renderPassDescriptor.depthAttachment.storeAction = .store
             }
         } else {
@@ -748,14 +772,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         renderCommandEncoder.label = (debugName != nil) ? debugName! : "RenderCommandEncoder\(commandListId)"
         self.renderCommandEncoders[commandListId] = renderCommandEncoder
 
-        if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 1) {
-            renderCommandEncoder.setDepthStencilState(self.depthCompareWriteState)
-        } else if (renderDescriptor.DepthCompare == 1 && renderDescriptor.DepthWrite == 0) {
-            renderCommandEncoder.setDepthStencilState(self.depthCompareNoWriteState)
-        } else if (renderDescriptor.DepthCompare == 0 && renderDescriptor.DepthWrite == 1) {
-            renderCommandEncoder.setDepthStencilState(self.depthNoCompareWriteState)
+        if (renderDescriptor.DepthBufferOperation == Write) {
+            renderCommandEncoder.setDepthStencilState(self.depthWriteOperationState)
+        } else if (renderDescriptor.DepthBufferOperation == CompareEqual) {
+            renderCommandEncoder.setDepthStencilState(self.depthCompareEqualState)
+        } else if (renderDescriptor.DepthBufferOperation == CompareLess) {
+            renderCommandEncoder.setDepthStencilState(self.depthCompareLessState)
         } else {
-            renderCommandEncoder.setDepthStencilState(self.depthNoCompareNoWriteState)
+            renderCommandEncoder.setDepthStencilState(self.depthNoneOperationState)
         }
 
         if (renderDescriptor.BackfaceCulling == 1) {
@@ -768,6 +792,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
         
         renderCommandEncoder.useHeap(self.globalHeap)
+        renderCommandEncoder.useHeap(self.staticHeap)
 
         return true
     }
@@ -858,6 +883,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         guard let argumentEncoder = shader.argumentEncoder else {
             return
+        }
+
+        if (self.computeCommandEncoders[commandListId] != nil) {
+            let computeCommandEncoder = self.computeCommandEncoders[commandListId]!
+            computeCommandEncoder.useResource(graphicsBuffer, usage: .read)
+        } else if (self.renderCommandEncoders[commandListId] != nil) {
+            let computeCommandEncoder = self.renderCommandEncoders[commandListId]!
+            computeCommandEncoder.useResource(graphicsBuffer, usage: .read)
         }
 
         argumentEncoder.setBuffer(graphicsBuffer, offset: index, index: slot)

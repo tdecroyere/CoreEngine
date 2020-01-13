@@ -60,7 +60,7 @@ namespace CoreEngine.Graphics
             
             for (var i = 0; i < this.Cameras.Count; i++)
             {
-                result.Cameras.Add(new Camera(this.Cameras[i].ViewMatrix, this.Cameras[i].ProjectionMatrix));
+                result.Cameras.Add(new Camera(this.Cameras[i].WorldPosition, this.Cameras[i].ViewMatrix, this.Cameras[i].ProjectionMatrix));
             }
 
             for (var i = 0; i < this.MeshInstances.Count; i++)

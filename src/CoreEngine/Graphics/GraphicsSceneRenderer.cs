@@ -34,6 +34,8 @@ namespace CoreEngine.Graphics
 
     internal struct ShaderCamera
     {
+        public Vector3 WorldPosition;
+        public float Reserved1;
         public Matrix4x4 ViewMatrix;
         public Matrix4x4 ProjectionMatrix;
         public ShaderBoundingFrustum BoundingFrustum;
@@ -76,6 +78,7 @@ namespace CoreEngine.Graphics
         private Shader drawMeshInstancesComputeShader;
         private Shader renderMeshInstancesDepthShader;
         private Shader renderMeshInstancesShader;
+        private Shader renderMeshInstancesTransparentShader;
         private Shader computeHdrTransferShader;
 
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
@@ -110,13 +113,14 @@ namespace CoreEngine.Graphics
             this.drawMeshInstancesComputeShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDrawMeshInstances.shader", "DrawMeshInstances");
             this.renderMeshInstancesDepthShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstanceDepth.shader");
             this.renderMeshInstancesShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
+            this.renderMeshInstancesTransparentShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstanceTransparent.shader");
             this.computeHdrTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeHdrTransfer.shader");
 
             this.currentFrameSize = this.graphicsManager.GetRenderSize();
-            this.opaqueHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererOpaqueHdrRenderTarget");
-            this.transparentHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererTransparentHdrRenderTarget");
-            this.transparentRevealageRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.R16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererTransparentRevealageRenderTarget");
-            this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
+            this.opaqueHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererOpaqueHdrRenderTarget");
+            this.transparentHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererTransparentHdrRenderTarget");
+            this.transparentRevealageRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.R16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererTransparentRevealageRenderTarget");
+            this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererDepthBuffer");
 
             this.renderPassConstants = new RenderPassConstants();
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, GraphicsResourceType.Dynamic);
@@ -140,16 +144,16 @@ namespace CoreEngine.Graphics
                 this.currentFrameSize = frameSize;
                 
                 this.graphicsManager.RemoveTexture(this.opaqueHdrRenderTarget);
-                this.opaqueHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererOpaqueHdrRenderTarget");
+                this.opaqueHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererOpaqueHdrRenderTarget");
 
                 this.graphicsManager.RemoveTexture(this.transparentHdrRenderTarget);
-                this.transparentHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererTransparentHdrRenderTarget");
+                this.transparentHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererTransparentHdrRenderTarget");
 
                 this.graphicsManager.RemoveTexture(this.transparentRevealageRenderTarget);
-                this.transparentRevealageRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.R16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererTransparentHdrRenderTarget");
+                this.transparentRevealageRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.R16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererTransparentHdrRenderTarget");
 
                 this.graphicsManager.RemoveTexture(this.depthBufferTexture);
-                this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Dynamic, "SceneRendererDepthBuffer");
+                this.depthBufferTexture = this.graphicsManager.CreateTexture(TextureFormat.Depth32Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, this.multisampleCount, true, GraphicsResourceType.Static, "SceneRendererDepthBuffer");
             }
 
             var scene = this.sceneQueue.WaitForNextScene();
@@ -210,6 +214,7 @@ namespace CoreEngine.Graphics
 
                 sceneProperties.ActiveCamera = new ShaderCamera()
                 {
+                    WorldPosition = scene.ActiveCamera.WorldPosition,
                     ViewMatrix = scene.ActiveCamera.ViewMatrix,
                     ProjectionMatrix = scene.ActiveCamera.ProjectionMatrix,
                     BoundingFrustum = boundingFrutum
@@ -220,6 +225,7 @@ namespace CoreEngine.Graphics
             {
                 sceneProperties.DebugCamera = new ShaderCamera()
                 {
+                    WorldPosition = scene.DebugCamera.WorldPosition,
                     ViewMatrix = scene.DebugCamera.ViewMatrix,
                     ProjectionMatrix = scene.DebugCamera.ProjectionMatrix
                 };
@@ -341,7 +347,7 @@ namespace CoreEngine.Graphics
             }
 
             // Copy buffers
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList("SceneComputeCopyCommandList");
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("SceneComputeCopyCommandList", true);
 
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, new ShaderSceneProperties[] { sceneProperties });
             this.graphicsManager.UploadDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.geometryPacketList.AsSpan().Slice(0, this.currentGeometryPacketIndex));
@@ -378,7 +384,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
             // Depth Buffer pass
-            var renderPassDescriptor = new RenderPassDescriptor(null, this.depthBufferTexture, DepthBufferOperation.CompareAndWrite, false);
+            var renderPassDescriptor = new RenderPassDescriptor(null, this.depthBufferTexture, DepthBufferOperation.Write, false);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "DepthBufferCommandList");
 
             this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstancesDepthShader);
@@ -386,19 +392,27 @@ namespace CoreEngine.Graphics
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
 
             // Render pass
-            var renderTarget1 = new RenderTargetDescriptor(this.opaqueHdrRenderTarget, new Vector4(0.0f, 0.215f, 1.0f, 1), BlendOperation.AlphaBlending);
-            var renderTarget2 = new RenderTargetDescriptor(this.transparentHdrRenderTarget, new Vector4(0.0f, 0.0f, 0.0f, 0.0f), BlendOperation.AddOneOne);
-            var renderTarget3 = new RenderTargetDescriptor(this.transparentRevealageRenderTarget, new Vector4(1.0f, 0.0f, 0.0f, 0.0f), BlendOperation.AddOneMinusSourceColor);
-            renderPassDescriptor = new RenderPassDescriptor(renderTarget1, renderTarget2, renderTarget3, this.depthBufferTexture, DepthBufferOperation.Compare, false);
+            var renderTarget1 = new RenderTargetDescriptor(this.opaqueHdrRenderTarget, new Vector4(0.0f, 0.215f, 1.0f, 1), BlendOperation.None);
+            renderPassDescriptor = new RenderPassDescriptor(renderTarget1, this.depthBufferTexture, DepthBufferOperation.CompareEqual, false);
             renderCommandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "MainRenderCommandList");
 
             this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstancesShader);
             this.graphicsManager.ExecuteIndirectCommandList(renderCommandList, this.indirectCommandList, this.currentGeometryInstanceIndex);
             this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
 
+            // Transparent Render pass
+            var renderTarget2 = new RenderTargetDescriptor(this.transparentHdrRenderTarget, new Vector4(0.0f, 0.0f, 0.0f, 0.0f), BlendOperation.AddOneOne);
+            var renderTarget3 = new RenderTargetDescriptor(this.transparentRevealageRenderTarget, new Vector4(1.0f, 0.0f, 0.0f, 0.0f), BlendOperation.AddOneMinusSourceColor);
+            renderPassDescriptor = new RenderPassDescriptor(renderTarget2, renderTarget3, this.depthBufferTexture, DepthBufferOperation.CompareLess, false);
+            renderCommandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "TransparentRenderCommandList");
+
+            this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstancesTransparentShader);
+            this.graphicsManager.ExecuteIndirectCommandList(renderCommandList, this.indirectCommandList, this.currentGeometryInstanceIndex);
+            this.graphicsManager.ExecuteRenderCommandList(renderCommandList);
+
             // Debug pass
             var renderTarget = new RenderTargetDescriptor(this.opaqueHdrRenderTarget, null, BlendOperation.None);
-            var debugRenderPassDescriptor = new RenderPassDescriptor(renderTarget, this.depthBufferTexture, DepthBufferOperation.Compare, true);
+            var debugRenderPassDescriptor = new RenderPassDescriptor(renderTarget, this.depthBufferTexture, DepthBufferOperation.CompareLess, true);
             var debugRenderCommandList = this.graphicsManager.CreateRenderCommandList(debugRenderPassDescriptor, "DebugRenderCommandList");
 
             this.debugRenderer.ClearDebugLines();

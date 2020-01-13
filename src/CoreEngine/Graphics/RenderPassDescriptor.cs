@@ -5,9 +5,9 @@ namespace CoreEngine.Graphics
     public enum DepthBufferOperation
     {
         None,
-        Compare,
-        Write,
-        CompareAndWrite
+        CompareEqual,
+        CompareLess,
+        Write
     }
 
     public readonly struct RenderPassDescriptor

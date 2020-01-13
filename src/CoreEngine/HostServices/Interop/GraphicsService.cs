@@ -16,7 +16,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate bool GraphicsService_CreateCopyCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void GraphicsService_UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
-    internal unsafe delegate void GraphicsService_UploadDataToTextureDelegate(IntPtr context, uint commandListId, uint textureId, int width, int height, int mipLevel, byte *data, int dataLength);
+    internal unsafe delegate void GraphicsService_UploadDataToTextureDelegate(IntPtr context, uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, byte *data, int dataLength);
     internal unsafe delegate void GraphicsService_ResetIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate void GraphicsService_OptimizeIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate bool GraphicsService_CreateComputeCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
@@ -210,11 +210,11 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe void UploadDataToTexture(uint commandListId, uint textureId, int width, int height, int mipLevel, ReadOnlySpan<byte> data)
+        public unsafe void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, ReadOnlySpan<byte> data)
         {
             if (this.context != null && this.graphicsService_UploadDataToTextureDelegate != null)
                 fixed (byte *dataPinned = data)
-                    this.graphicsService_UploadDataToTextureDelegate(this.context, commandListId, textureId, width, height, mipLevel, dataPinned, data.Length);
+                    this.graphicsService_UploadDataToTextureDelegate(this.context, commandListId, textureId, textureFormat, width, height, mipLevel, dataPinned, data.Length);
         }
 
         private GraphicsService_ResetIndirectCommandListDelegate graphicsService_ResetIndirectCommandListDelegate

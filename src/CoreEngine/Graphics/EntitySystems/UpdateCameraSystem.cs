@@ -75,7 +75,7 @@ namespace CoreEngine.Graphics.EntitySystems
                 
                 if (!sceneManager.CurrentScene.Cameras.Contains(cameraComponent.Camera))
                 {
-                    var camera = new Camera(viewMatrix, projectionMatrix);
+                    var camera = new Camera(cameraPosition, viewMatrix, projectionMatrix);
                     cameraComponent.Camera = sceneManager.CurrentScene.Cameras.Add(camera);
                 }
 
@@ -83,6 +83,7 @@ namespace CoreEngine.Graphics.EntitySystems
                 {
                     var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
 
+                    camera.WorldPosition = cameraPosition;
                     camera.ViewMatrix = viewMatrix;
                     camera.ProjectionMatrix = projectionMatrix;
                 }

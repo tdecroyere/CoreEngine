@@ -21,8 +21,24 @@ namespace CoreEngine.HostServices
         Bgra8UnormSrgb,
         Depth32Float,
         Rgba16Float,
-        R16Float
+        R16Float,
+        BC1Srgb,
+        BC2Srgb,
+        BC3Srgb,
+        BC4,
+        BC5,
+        BC6,
+        BC7Srgb
     }
+
+    public enum GraphicsDepthBufferOperation
+    {
+        DepthNone,
+        CompareEqual,
+        CompareLess,
+        Write
+    }
+
 
     public enum GraphicsBlendOperation
     {
@@ -114,8 +130,7 @@ namespace CoreEngine.HostServices
             }
 
             this.DepthTextureId = renderPassDescriptor.DepthTexture?.GraphicsResourceId;
-            this.DepthCompare = (renderPassDescriptor.DepthBufferOperation == DepthBufferOperation.Compare || renderPassDescriptor.DepthBufferOperation == DepthBufferOperation.CompareAndWrite);
-            this.DepthWrite = (renderPassDescriptor.DepthBufferOperation == DepthBufferOperation.Write || renderPassDescriptor.DepthBufferOperation == DepthBufferOperation.CompareAndWrite);
+            this.DepthBufferOperation = (GraphicsDepthBufferOperation)renderPassDescriptor.DepthBufferOperation;
             this.BackfaceCulling = renderPassDescriptor.BackfaceCulling;
         }
 
@@ -138,8 +153,7 @@ namespace CoreEngine.HostServices
         public readonly Vector4? RenderTarget4ClearColor { get; }
         public readonly GraphicsBlendOperation? RenderTarget4BlendOperation { get; }
         public readonly uint? DepthTextureId { get; }
-        public readonly bool DepthCompare { get; }
-        public readonly bool DepthWrite { get; }
+        public readonly GraphicsDepthBufferOperation DepthBufferOperation { get; }
         public readonly bool BackfaceCulling { get; }
 
         public override int GetHashCode() 
@@ -153,8 +167,7 @@ namespace CoreEngine.HostServices
                    this.RenderTarget4TextureFormat.GetHashCode() ^ 
                    this.RenderTarget4BlendOperation.GetHashCode() ^ 
                    this.MultiSampleCount.GetHashCode() ^ 
-                   this.DepthCompare.GetHashCode() ^ 
-                   this.DepthWrite.GetHashCode() ^ 
+                   this.DepthBufferOperation.GetHashCode() ^ 
                    this.BackfaceCulling.GetHashCode();
         }
 
@@ -199,7 +212,7 @@ namespace CoreEngine.HostServices
         bool CreateCopyCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
         void ExecuteCopyCommandList(uint commandListId);
         void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void UploadDataToTexture(uint commandListId, uint textureId, int width, int height, int mipLevel, ReadOnlySpan<byte> data);
+        void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, ReadOnlySpan<byte> data);
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
         void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
 

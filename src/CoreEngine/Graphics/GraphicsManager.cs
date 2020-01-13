@@ -294,7 +294,7 @@ namespace CoreEngine.Graphics
             }
 
             var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, width, height, mipLevel, rawData);
+            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, (GraphicsTextureFormat)texture.TextureFormat, width, height, mipLevel, rawData);
             this.gpuMemoryUploaded += rawData.Length;
         }
 

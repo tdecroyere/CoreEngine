@@ -64,6 +64,7 @@ namespace CoreEngine.Graphics
 
             texture.Width = reader.ReadInt32();
             texture.Height = reader.ReadInt32();
+            texture.TextureFormat = (TextureFormat)reader.ReadInt32();
             texture.MipLevels = reader.ReadInt32();
 
             if (texture.GraphicsResourceId != 0)
@@ -71,7 +72,7 @@ namespace CoreEngine.Graphics
                 this.graphicsManager.RemoveTexture(texture);
             }
 
-            var createdTexture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, texture.Width, texture.Height, texture.MipLevels);
+            var createdTexture = this.graphicsManager.CreateTexture(texture.TextureFormat, texture.Width, texture.Height, texture.MipLevels);
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
             texture.GraphicsResourceSystemId3 = createdTexture.GraphicsResourceSystemId3;

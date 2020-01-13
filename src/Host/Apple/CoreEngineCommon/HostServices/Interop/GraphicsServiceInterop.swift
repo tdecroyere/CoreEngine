@@ -66,9 +66,9 @@ func GraphicsService_uploadDataToGraphicsBufferInterop(context: UnsafeMutableRaw
     contextObject.uploadDataToGraphicsBuffer(UInt(commandListId), UInt(graphicsBufferId), data!, Int(dataLength))
 }
 
-func GraphicsService_uploadDataToTextureInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ textureId: UInt32, _ width: Int32, _ height: Int32, _ mipLevel: Int32, _ data: UnsafeMutableRawPointer?, _ dataLength: Int32) {
+func GraphicsService_uploadDataToTextureInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ textureId: UInt32, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ mipLevel: Int32, _ data: UnsafeMutableRawPointer?, _ dataLength: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.uploadDataToTexture(UInt(commandListId), UInt(textureId), Int(width), Int(height), Int(mipLevel), data!, Int(dataLength))
+    contextObject.uploadDataToTexture(UInt(commandListId), UInt(textureId), textureFormat, Int(width), Int(height), Int(mipLevel), data!, Int(dataLength))
 }
 
 func GraphicsService_resetIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandListId: UInt32, _ maxCommandCount: Int32) {

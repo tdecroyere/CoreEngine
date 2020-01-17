@@ -35,6 +35,18 @@ namespace CoreEngine
         public Vector3 RightBottomNearPoint { get; private set; }
         public Vector3 RightBottomFarPoint { get; private set; }
 
+        public Vector3 GetCenterPoint()
+        {
+            return (this.LeftTopNearPoint + 
+                    this.LeftTopFarPoint + 
+                    this.LeftBottomNearPoint + 
+                    this.LeftBottomFarPoint + 
+                    this.RightTopNearPoint + 
+                    this.RightTopFarPoint + 
+                    this.RightBottomNearPoint + 
+                    this.RightBottomFarPoint) / 8.0f;
+        }
+
         private void ExtractMatrix(Matrix4x4 matrix)
         {
             // Left plane

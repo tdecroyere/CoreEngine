@@ -3,6 +3,7 @@ using System.Numerics;
 
 namespace CoreEngine.HostServices.Interop
 {
+    internal unsafe delegate bool GraphicsService_GetGpuErrorDelegate(IntPtr context);
     internal unsafe delegate Vector2 GraphicsService_GetRenderSizeDelegate(IntPtr context);
     internal unsafe delegate string? GraphicsService_GetGraphicsAdapterNameDelegate(IntPtr context);
     internal unsafe delegate float GraphicsService_GetGpuExecutionTimeDelegate(IntPtr context, uint frameNumber);
@@ -32,6 +33,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void GraphicsService_SetShaderTextureDelegate(IntPtr context, uint commandListId, uint textureId, int slot, bool isReadOnly, int index);
     internal unsafe delegate void GraphicsService_SetShaderTexturesDelegate(IntPtr context, uint commandListId, uint *textureIdList, int textureIdListLength, int slot, int index);
     internal unsafe delegate void GraphicsService_SetShaderIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int slot, int index);
+    internal unsafe delegate void GraphicsService_SetShaderIndirectCommandListsDelegate(IntPtr context, uint commandListId, uint *indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index);
     internal unsafe delegate void GraphicsService_ExecuteIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate void GraphicsService_SetIndexBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId);
     internal unsafe delegate void GraphicsService_DrawIndexedPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
@@ -42,6 +44,19 @@ namespace CoreEngine.HostServices.Interop
         private IntPtr context
         {
             get;
+        }
+
+        private GraphicsService_GetGpuErrorDelegate graphicsService_GetGpuErrorDelegate
+        {
+            get;
+        }
+
+        public unsafe bool GetGpuError()
+        {
+            if (this.context != null && this.graphicsService_GetGpuErrorDelegate != null)
+                return this.graphicsService_GetGpuErrorDelegate(this.context);
+            else
+                return default(bool);
         }
 
         private GraphicsService_GetRenderSizeDelegate graphicsService_GetRenderSizeDelegate
@@ -388,6 +403,18 @@ namespace CoreEngine.HostServices.Interop
         {
             if (this.context != null && this.graphicsService_SetShaderIndirectCommandListDelegate != null)
                 this.graphicsService_SetShaderIndirectCommandListDelegate(this.context, commandListId, indirectCommandListId, slot, index);
+        }
+
+        private GraphicsService_SetShaderIndirectCommandListsDelegate graphicsService_SetShaderIndirectCommandListsDelegate
+        {
+            get;
+        }
+
+        public unsafe void SetShaderIndirectCommandLists(uint commandListId, ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index)
+        {
+            if (this.context != null && this.graphicsService_SetShaderIndirectCommandListsDelegate != null)
+                fixed (uint *indirectCommandListIdListPinned = indirectCommandListIdList)
+                    this.graphicsService_SetShaderIndirectCommandListsDelegate(this.context, commandListId, indirectCommandListIdListPinned, indirectCommandListIdList.Length, slot, index);
         }
 
         private GraphicsService_ExecuteIndirectCommandListDelegate graphicsService_ExecuteIndirectCommandListDelegate

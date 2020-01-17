@@ -29,7 +29,8 @@ enum GraphicsDepthBufferOperation : int
     DepthNone, 
     CompareEqual, 
     CompareLess, 
-    Write
+    Write, 
+    WriteShadow
 };
 
 enum GraphicsBlendOperation : int
@@ -66,6 +67,7 @@ struct GraphicsRenderPassDescriptor
 
 };
 
+typedef int (*GraphicsService_GetGpuErrorPtr)(void* context);
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
 typedef char* (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context);
 typedef float (*GraphicsService_GetGpuExecutionTimePtr)(void* context, unsigned int frameNumber);
@@ -95,6 +97,7 @@ typedef void (*GraphicsService_SetShaderBuffersPtr)(void* context, unsigned int 
 typedef void (*GraphicsService_SetShaderTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index);
 typedef void (*GraphicsService_SetShaderTexturesPtr)(void* context, unsigned int commandListId, unsigned int* textureIdList, int textureIdListLength, int slot, int index);
 typedef void (*GraphicsService_SetShaderIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int slot, int index);
+typedef void (*GraphicsService_SetShaderIndirectCommandListsPtr)(void* context, unsigned int commandListId, unsigned int* indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index);
 typedef void (*GraphicsService_ExecuteIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef void (*GraphicsService_SetIndexBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId);
 typedef void (*GraphicsService_DrawIndexedPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
@@ -104,6 +107,7 @@ typedef void (*GraphicsService_PresentScreenBufferPtr)(void* context);
 struct GraphicsService
 {
     void* Context;
+    GraphicsService_GetGpuErrorPtr GraphicsService_GetGpuError;
     GraphicsService_GetRenderSizePtr GraphicsService_GetRenderSize;
     GraphicsService_GetGraphicsAdapterNamePtr GraphicsService_GetGraphicsAdapterName;
     GraphicsService_GetGpuExecutionTimePtr GraphicsService_GetGpuExecutionTime;
@@ -133,6 +137,7 @@ struct GraphicsService
     GraphicsService_SetShaderTexturePtr GraphicsService_SetShaderTexture;
     GraphicsService_SetShaderTexturesPtr GraphicsService_SetShaderTextures;
     GraphicsService_SetShaderIndirectCommandListPtr GraphicsService_SetShaderIndirectCommandList;
+    GraphicsService_SetShaderIndirectCommandListsPtr GraphicsService_SetShaderIndirectCommandLists;
     GraphicsService_ExecuteIndirectCommandListPtr GraphicsService_ExecuteIndirectCommandList;
     GraphicsService_SetIndexBufferPtr GraphicsService_SetIndexBuffer;
     GraphicsService_DrawIndexedPrimitivesPtr GraphicsService_DrawIndexedPrimitives;

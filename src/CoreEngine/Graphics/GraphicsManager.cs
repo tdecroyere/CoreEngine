@@ -490,6 +490,23 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetShaderIndirectCommandList(commandList.Id, indirectCommandList.Id, slot, index);
         }
 
+        public void SetShaderIndirectCommandLists(CommandList commandList, ReadOnlySpan<CommandList> indirectCommandLists, int slot, int index = 0)
+        {
+            if (indirectCommandLists == null)
+            {
+                throw new ArgumentNullException(nameof(indirectCommandLists));
+            }
+
+            var list = new uint[indirectCommandLists.Length];
+
+            for (var i = 0; i < indirectCommandLists.Length; i++)
+            {
+                list[i] = indirectCommandLists[i].Id;
+            }
+
+            this.graphicsService.SetShaderIndirectCommandLists(commandList.Id, list.AsSpan(), slot, index);
+        }
+
         public void ExecuteIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
         {
             if (commandList.Type != CommandListType.Render)
@@ -581,6 +598,11 @@ namespace CoreEngine.Graphics
 
         internal void Render()
         {
+            if (this.graphicsService.GetGpuError())
+            {
+                return;
+            }
+            
             var frameSize = graphicsService.GetRenderSize();
 
             if (frameSize != this.currentFrameSize)

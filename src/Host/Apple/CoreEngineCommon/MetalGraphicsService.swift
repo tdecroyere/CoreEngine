@@ -61,6 +61,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var gpuExecutionTimes: [Double]
     var currentFrameNumber = 0
     let useHdrRenderTarget: Bool = false
+    var gpuError: Bool = false
 
     var renderWidth: Int
     var renderHeight: Int
@@ -176,6 +177,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         heapDescriptor.size = 1024 * 1024 * 512 // Allocate 512MB for now
         heapDescriptor.cpuCacheMode = .writeCombined
         self.staticHeap = self.device.makeHeap(descriptor: heapDescriptor)!
+    }
+
+    public func getGpuError() -> Bool {
+        return self.gpuError
     }
 
     public func getRenderSize() -> Vector2 {
@@ -750,14 +755,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         if (renderDescriptor.DepthBufferOperation != DepthNone) {
-            if (renderDescriptor.DepthBufferOperation == Write) {
+            if (renderDescriptor.DepthBufferOperation == Write || renderDescriptor.DepthBufferOperation == WriteShadow) {
                 renderPassDescriptor.depthAttachment.loadAction = .clear
                 renderPassDescriptor.depthAttachment.clearDepth = 1.0
             } else {
                 renderPassDescriptor.depthAttachment.loadAction = .load
             }
 
-            if (renderDescriptor.DepthBufferOperation == Write) {
+            if (renderDescriptor.DepthBufferOperation == Write || renderDescriptor.DepthBufferOperation == WriteShadow) {
                 renderPassDescriptor.depthAttachment.storeAction = .store
             }
         } else {
@@ -774,7 +779,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         if (renderDescriptor.DepthBufferOperation == Write) {
             renderCommandEncoder.setDepthStencilState(self.depthWriteOperationState)
-        } else if (renderDescriptor.DepthBufferOperation == CompareEqual) {
+        } else if (renderDescriptor.DepthBufferOperation == WriteShadow) {
+            renderCommandEncoder.setDepthStencilState(self.depthWriteOperationState)
+            //renderCommandEncoder.setDepthBias(0, slopeScale:2.0, clamp:0)
+        }
+        else if (renderDescriptor.DepthBufferOperation == CompareEqual) {
             renderCommandEncoder.setDepthStencilState(self.depthCompareEqualState)
         } else if (renderDescriptor.DepthBufferOperation == CompareLess) {
             renderCommandEncoder.setDepthStencilState(self.depthCompareLessState)
@@ -789,8 +798,13 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         let renderSize = getRenderSize()
-        renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderSize.X), height: Double(renderSize.Y), znear: -1.0, zfar: 1.0))
-        
+
+        if (renderPassDescriptor.colorAttachments[0].texture != nil) {
+            renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.colorAttachments[0].texture!.width), height: Double(renderPassDescriptor.colorAttachments[0].texture!.height), znear: -1.0, zfar: 1.0))
+        } else if (renderPassDescriptor.depthAttachment.texture != nil) {
+            renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.depthAttachment.texture!.width), height: Double(renderPassDescriptor.depthAttachment.texture!.height), znear: -1.0, zfar: 1.0))
+        }
+
         renderCommandEncoder.useHeap(self.globalHeap)
         renderCommandEncoder.useHeap(self.staticHeap)
 
@@ -971,6 +985,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             }
 
             textureList.append(texture)
+
+            if (self.computeCommandEncoders[commandListId] != nil) {
+                let computeCommandEncoder = self.computeCommandEncoders[commandListId]!
+                computeCommandEncoder.useResource(texture, usage: .read)
+            } else if (self.renderCommandEncoders[commandListId] != nil) {
+                let computeCommandEncoder = self.renderCommandEncoders[commandListId]!
+                computeCommandEncoder.useResource(texture, usage: .read)
+            }
         }
 
         argumentEncoder.setTextures(textureList, range: (slot + index)..<(slot + index) + textureIdList.count)
@@ -996,6 +1018,33 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         argumentEncoder.setIndirectCommandBuffer(indirectBuffer, index: slot)
         computeCommandEncoder.useResource(indirectBuffer, usage: .write)
+    }
+
+    public func setShaderIndirectCommandLists(_ commandListId: UInt, _ indirectCommandListIdList: [UInt32], _ slot: Int, _ index: Int) {
+        guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
+            return
+        }
+
+        guard let shader = self.currentShader else {
+            return
+        }
+
+        guard let argumentEncoder = shader.argumentEncoder else {
+            return
+        }
+
+        var commandBufferList: [MTLIndirectCommandBuffer] = []
+
+        for i in 0..<indirectCommandListIdList.count {
+            guard let commandBuffer = self.indirectCommandBuffers[UInt(indirectCommandListIdList[i])] else {
+                return
+            }
+
+            commandBufferList.append(commandBuffer)
+            computeCommandEncoder.useResource(commandBuffer, usage: .write)
+        }
+
+        argumentEncoder.setIndirectCommandBuffers(commandBufferList, range: (slot + index)..<(slot + index) + indirectCommandListIdList.count)
     }
 
     public func executeIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int) {
@@ -1111,6 +1160,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ frameNumber: Int) {
+        if (commandBuffer.error != nil) {
+            self.gpuError = true
+        }
+
         let executionDuration = commandBuffer.gpuEndTime - commandBuffer.gpuStartTime
         self.gpuExecutionTimes[frameNumber % 3] += executionDuration * 1000
     }

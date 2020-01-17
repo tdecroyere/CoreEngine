@@ -36,7 +36,8 @@ namespace CoreEngine.HostServices
         DepthNone,
         CompareEqual,
         CompareLess,
-        Write
+        Write,
+        WriteShadow
     }
 
 
@@ -194,6 +195,7 @@ namespace CoreEngine.HostServices
 
     public interface IGraphicsService
     {
+        bool GetGpuError();
         Vector2 GetRenderSize();
         string? GetGraphicsAdapterName();
         float GetGpuExecutionTime(uint frameNumber);
@@ -233,6 +235,7 @@ namespace CoreEngine.HostServices
         void SetShaderTexture(uint commandListId, uint textureId, int slot, bool isReadOnly, int index);
         void SetShaderTextures(uint commandListId, ReadOnlySpan<uint> textureIdList, int slot, int index);
         void SetShaderIndirectCommandList(uint commandListId, uint indirectCommandListId, int slot, int index);
+        void SetShaderIndirectCommandLists(uint commandListId, ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index);
 
         void ExecuteIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
 

@@ -2,6 +2,12 @@
 #include "WindowsDirect3D12Renderer.h"
 #include "../../Common/CoreEngine.h"
 
+int GetGpuErrorInterop(void* context)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    return contextObject->GetGpuError()
+}
+
 struct Vector2 GetRenderSizeInterop(void* context)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -176,6 +182,12 @@ void SetShaderIndirectCommandListInterop(void* context, unsigned int commandList
     contextObject->SetShaderIndirectCommandList(commandListId, indirectCommandListId, slot, index)
 }
 
+void SetShaderIndirectCommandListsInterop(void* context, unsigned int commandListId, struct ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->SetShaderIndirectCommandLists(commandListId, indirectCommandListIdList, slot, index)
+}
+
 void ExecuteIndirectCommandListInterop(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -209,6 +221,7 @@ void PresentScreenBufferInterop(void* context)
 void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* service)
 {
     service->Context = context;
+    service->GetGpuError = GetGpuErrorInterop;
     service->GetRenderSize = GetRenderSizeInterop;
     service->GetGraphicsAdapterName = GetGraphicsAdapterNameInterop;
     service->GetGpuExecutionTime = GetGpuExecutionTimeInterop;
@@ -238,6 +251,7 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->SetShaderTexture = SetShaderTextureInterop;
     service->SetShaderTextures = SetShaderTexturesInterop;
     service->SetShaderIndirectCommandList = SetShaderIndirectCommandListInterop;
+    service->SetShaderIndirectCommandLists = SetShaderIndirectCommandListsInterop;
     service->ExecuteIndirectCommandList = ExecuteIndirectCommandListInterop;
     service->SetIndexBuffer = SetIndexBufferInterop;
     service->DrawIndexedPrimitives = DrawIndexedPrimitivesInterop;

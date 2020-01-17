@@ -1,6 +1,11 @@
 import Foundation
 import CoreEngineCommonInterop
 
+func GraphicsService_getGpuErrorInterop(context: UnsafeMutableRawPointer?) -> Int32 {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.getGpuError() ? 1 : 0)
+}
+
 func GraphicsService_getRenderSizeInterop(context: UnsafeMutableRawPointer?) -> Vector2 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.getRenderSize()
@@ -146,6 +151,11 @@ func GraphicsService_setShaderIndirectCommandListInterop(context: UnsafeMutableR
     contextObject.setShaderIndirectCommandList(UInt(commandListId), UInt(indirectCommandListId), Int(slot), Int(index))
 }
 
+func GraphicsService_setShaderIndirectCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandListIdList: UnsafeMutablePointer<UInt32>?, _ indirectCommandListIdListLength: Int32, _ slot: Int32, _ index: Int32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setShaderIndirectCommandLists(UInt(commandListId), Array(UnsafeBufferPointer(start: indirectCommandListIdList, count: Int(indirectCommandListIdListLength))), Int(slot), Int(index))
+}
+
 func GraphicsService_executeIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandListId: UInt32, _ maxCommandCount: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.executeIndirectCommandList(UInt(commandListId), UInt(indirectCommandListId), Int(maxCommandCount))
@@ -173,6 +183,7 @@ func GraphicsService_presentScreenBufferInterop(context: UnsafeMutableRawPointer
 
 func initGraphicsService(_ context: MetalGraphicsService, _ service: inout GraphicsService) {
     service.Context = Unmanaged.passUnretained(context).toOpaque()
+    service.GraphicsService_GetGpuError = GraphicsService_getGpuErrorInterop
     service.GraphicsService_GetRenderSize = GraphicsService_getRenderSizeInterop
     service.GraphicsService_GetGraphicsAdapterName = GraphicsService_getGraphicsAdapterNameInterop
     service.GraphicsService_GetGpuExecutionTime = GraphicsService_getGpuExecutionTimeInterop
@@ -202,6 +213,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetShaderTexture = GraphicsService_setShaderTextureInterop
     service.GraphicsService_SetShaderTextures = GraphicsService_setShaderTexturesInterop
     service.GraphicsService_SetShaderIndirectCommandList = GraphicsService_setShaderIndirectCommandListInterop
+    service.GraphicsService_SetShaderIndirectCommandLists = GraphicsService_setShaderIndirectCommandListsInterop
     service.GraphicsService_ExecuteIndirectCommandList = GraphicsService_executeIndirectCommandListInterop
     service.GraphicsService_SetIndexBuffer = GraphicsService_setIndexBufferInterop
     service.GraphicsService_DrawIndexedPrimitives = GraphicsService_drawIndexedPrimitivesInterop

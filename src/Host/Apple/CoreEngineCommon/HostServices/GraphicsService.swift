@@ -1,6 +1,7 @@
 import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
+    func getGpuError() -> Bool
     func getRenderSize() -> Vector2
     func getGraphicsAdapterName() -> String?
     func getGpuExecutionTime(_ frameNumber: UInt) -> Float
@@ -30,6 +31,7 @@ public protocol GraphicsServiceProtocol {
     func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
     func setShaderTextures(_ commandListId: UInt, _ textureIdList: [UInt32], _ slot: Int, _ index: Int)
     func setShaderIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ slot: Int, _ index: Int)
+    func setShaderIndirectCommandLists(_ commandListId: UInt, _ indirectCommandListIdList: [UInt32], _ slot: Int, _ index: Int)
     func executeIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int)
     func setIndexBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt)
     func drawIndexedPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ instanceCount: Int, _ baseInstanceId: Int)

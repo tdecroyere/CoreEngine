@@ -76,7 +76,7 @@ namespace CoreEngine.Graphics.EntitySystems
                 
                 if (!sceneManager.CurrentScene.Cameras.Contains(cameraComponent.Camera))
                 {
-                    var camera = new Camera(cameraPosition, target, nearPlaneDistance, farPlaneDistance, viewMatrix, projectionMatrix);
+                    var camera = new Camera(cameraPosition, target, nearPlaneDistance, farPlaneDistance, viewMatrix, projectionMatrix, viewMatrix * projectionMatrix);
                     cameraComponent.Camera = sceneManager.CurrentScene.Cameras.Add(camera);
                 }
 
@@ -90,6 +90,7 @@ namespace CoreEngine.Graphics.EntitySystems
                     camera.FarPlaneDistance = farPlaneDistance;
                     camera.ViewMatrix = viewMatrix;
                     camera.ProjectionMatrix = projectionMatrix;
+                    camera.ViewProjectionMatrix = viewMatrix * projectionMatrix;
                 }
             }
         }

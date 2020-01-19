@@ -304,10 +304,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         if (computeShaderFunction == nil) {
             let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")!
-            let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")!
+            let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
 
             // TODO: Remove that hack
-            if (debugName != nil && debugName != "RenderMeshInstanceDepthShader" && debugName != "RenderMeshInstanceShader" && debugName != "RenderMeshInstanceTransparentShader") {
+            if (debugName != nil && debugName != "RenderMeshInstanceDepthShader" && debugName != "RenderMeshInstanceShader" && debugName != "RenderMeshInstanceTransparentShader" && debugName != "RenderMeshInstanceTransparentDepthShader") {
                 let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 0)
                 self.shaders[shaderId] = Shader(shaderId, self.device, vertexFunction, fragmentFunction, nil, argumentEncoder, debugName)
             } else {
@@ -367,7 +367,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             pipelineStateDescriptor.label = (debugName != nil) ? debugName! : "PipelineState\(pipelineStateId)"
 
             pipelineStateDescriptor.vertexFunction = shader.vertexShaderFunction!
-            pipelineStateDescriptor.fragmentFunction = shader.pixelShaderFunction!
+
+            if (shader.pixelShaderFunction != nil)
+            {
+                pipelineStateDescriptor.fragmentFunction = shader.pixelShaderFunction!
+            }
+
             pipelineStateDescriptor.supportIndirectCommandBuffers = true
             pipelineStateDescriptor.sampleCount = (renderPassDescriptor.MultiSampleCount.HasValue == 1) ? Int(renderPassDescriptor.MultiSampleCount.Value) : 1
 
@@ -1162,6 +1167,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ frameNumber: Int) {
         if (commandBuffer.error != nil) {
             self.gpuError = true
+            print("GPU ERROR")
         }
 
         let executionDuration = commandBuffer.gpuEndTime - commandBuffer.gpuStartTime

@@ -13,6 +13,7 @@ namespace CoreEngine.Graphics
         BC4,
         BC5,
         BC6,
-        BC7Srgb
+        BC7Srgb,
+        Rgba32Float
     }
 }

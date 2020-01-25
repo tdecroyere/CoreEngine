@@ -26,16 +26,16 @@ float GetGpuExecutionTimeInterop(void* context, unsigned int frameNumber)
     return contextObject->GetGpuExecutionTime(frameNumber)
 }
 
-int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, int length, struct string? debugName)
+int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, int length, int isWriteOnly, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateGraphicsBuffer(graphicsBufferId, length, debugName)
+    return contextObject->CreateGraphicsBuffer(graphicsBufferId, length, isWriteOnly, debugName)
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int multisampleCount, int isRenderTarget, struct string? debugName)
+int CreateTextureInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, struct string? debugName)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    return contextObject->CreateTexture(textureId, textureFormat, width, height, mipLevels, multisampleCount, isRenderTarget, debugName)
+    return contextObject->CreateTexture(textureId, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, debugName)
 }
 
 void RemoveTextureInterop(void* context, unsigned int textureId)
@@ -86,10 +86,22 @@ void UploadDataToGraphicsBufferInterop(void* context, unsigned int commandListId
     contextObject->UploadDataToGraphicsBuffer(commandListId, graphicsBufferId, data, dataLength)
 }
 
-void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, void* data, int dataLength)
+void CopyGraphicsBufferDataToCpuInterop(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int length)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->UploadDataToTexture(commandListId, textureId, textureFormat, width, height, mipLevel, data, dataLength)
+    contextObject->CopyGraphicsBufferDataToCpu(commandListId, graphicsBufferId, length)
+}
+
+void ReadGraphicsBufferDataInterop(void* context, unsigned int graphicsBufferId, void* data, int dataLength)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->ReadGraphicsBufferData(graphicsBufferId, data, dataLength)
+}
+
+void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->UploadDataToTexture(commandListId, textureId, textureFormat, width, height, slice, mipLevel, data, dataLength)
 }
 
 void ResetIndirectCommandListInterop(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount)
@@ -152,10 +164,10 @@ void SetShaderInterop(void* context, unsigned int commandListId, unsigned int sh
     contextObject->SetShader(commandListId, shaderId)
 }
 
-void SetShaderBufferInterop(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int index)
+void SetShaderBufferInterop(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->SetShaderBuffer(commandListId, graphicsBufferId, slot, index)
+    contextObject->SetShaderBuffer(commandListId, graphicsBufferId, slot, isReadOnly, index)
 }
 
 void SetShaderBuffersInterop(void* context, unsigned int commandListId, struct ReadOnlySpan<uint> graphicsBufferIdList, int slot, int index)
@@ -235,6 +247,8 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->CreateCopyCommandList = CreateCopyCommandListInterop;
     service->ExecuteCopyCommandList = ExecuteCopyCommandListInterop;
     service->UploadDataToGraphicsBuffer = UploadDataToGraphicsBufferInterop;
+    service->CopyGraphicsBufferDataToCpu = CopyGraphicsBufferDataToCpuInterop;
+    service->ReadGraphicsBufferData = ReadGraphicsBufferDataInterop;
     service->UploadDataToTexture = UploadDataToTextureInterop;
     service->ResetIndirectCommandList = ResetIndirectCommandListInterop;
     service->OptimizeIndirectCommandList = OptimizeIndirectCommandListInterop;

@@ -20,7 +20,7 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(scene));
             }
 
-            var sceneCopy = scene.Copy();
+            var sceneCopy = scene;//.Copy();
 
             lock (this.sceneQueue)
             {

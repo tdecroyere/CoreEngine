@@ -21,13 +21,13 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsManager = graphicsManager;
-            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, false, GraphicsResourceType.Static, "EmptyTexture");
+            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, 1, false, GraphicsResourceType.Static, "EmptyTexture");
 
             var textureData = new byte[256 * 256 * 4];
             Array.Fill<byte>(textureData, 255);
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("TextureLoaderCommandList", true);
-            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, textureData);
+            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, 0, textureData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
         }
 
@@ -65,36 +65,40 @@ namespace CoreEngine.Graphics
             texture.Width = reader.ReadInt32();
             texture.Height = reader.ReadInt32();
             texture.TextureFormat = (TextureFormat)reader.ReadInt32();
+            texture.FaceCount = reader.ReadInt32();
             texture.MipLevels = reader.ReadInt32();
 
-            if (texture.GraphicsResourceId != 0)
+            if (texture.GraphicsResourceId != 0 && texture.GraphicsResourceSystemId != this.emptyTexture.GraphicsResourceSystemId)
             {
                 this.graphicsManager.RemoveTexture(texture);
             }
 
-            var createdTexture = this.graphicsManager.CreateTexture(texture.TextureFormat, texture.Width, texture.Height, texture.MipLevels);
+            var createdTexture = this.graphicsManager.CreateTexture(texture.TextureFormat, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, false, GraphicsResourceType.Static, $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
             texture.GraphicsResourceSystemId3 = createdTexture.GraphicsResourceSystemId3;
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("TextureLoaderCommandList", true);
 
-            var textureWidth = texture.Width;
-            var textureHeight = texture.Height;
-
-            for (var i = 0; i < texture.MipLevels; i++)
+            for (var i = 0; i < texture.FaceCount; i++)
             {
-                var textureDataLength = reader.ReadInt32();
-                var textureData = reader.ReadBytes(textureDataLength);
+                var textureWidth = texture.Width;
+                var textureHeight = texture.Height;
 
-                if (i > 0)
+                for (var j = 0; j < texture.MipLevels; j++)
                 {
-                    textureWidth = (textureWidth > 1) ? textureWidth / 2 : 1;
-                    textureHeight = (textureHeight > 1) ? textureHeight / 2 : 1;
-                }
+                    var textureDataLength = reader.ReadInt32();
+                    var textureData = reader.ReadBytes(textureDataLength);
 
-                // TODO: Make only one frame copy command list for all resource loaders
-                this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, texture, textureWidth, textureHeight, i, textureData);
+                    if (j > 0)
+                    {
+                        textureWidth = (textureWidth > 1) ? textureWidth / 2 : 1;
+                        textureHeight = (textureHeight > 1) ? textureHeight / 2 : 1;
+                    }
+
+                    // TODO: Make only one frame copy command list for all resource loaders
+                    this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, texture, textureWidth, textureHeight, i, j, textureData);
+                }
             }
 
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);

@@ -24,7 +24,9 @@ namespace CoreEngine.Tests.EcsTest
             // resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
             // resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\Windows\Resources"));
 
-            this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
+            //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
+            // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Bistro/Bistro.scene");
+            this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/BistroV4/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
 
             this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);

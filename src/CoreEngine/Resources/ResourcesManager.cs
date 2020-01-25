@@ -129,7 +129,7 @@ namespace CoreEngine.Resources
                 Logger.EndActionWarning($"Resource '{path}' was not found.");
                 // TODO return a default not found resource specific to the resource type (shader, texture, etc.)
                 //throw new NotImplementedException("Resource not found path is not yet implemented");
-
+                resource.IsLoaded = true;
                 return (T)resource;
             }
 

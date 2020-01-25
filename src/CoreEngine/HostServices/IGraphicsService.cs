@@ -28,7 +28,8 @@ namespace CoreEngine.HostServices
         BC4,
         BC5,
         BC6,
-        BC7Srgb
+        BC7Srgb,
+        Rgba32Float
     }
 
     public enum GraphicsDepthBufferOperation
@@ -177,7 +178,7 @@ namespace CoreEngine.HostServices
             return obj is GraphicsRenderPassDescriptor && this == (GraphicsRenderPassDescriptor)obj;
         }
 
-        public bool Equals([AllowNull] GraphicsRenderPassDescriptor other)
+        public bool Equals(GraphicsRenderPassDescriptor other)
         {
             return this == other;
         }
@@ -200,9 +201,9 @@ namespace CoreEngine.HostServices
         string? GetGraphicsAdapterName();
         float GetGpuExecutionTime(uint frameNumber);
         
-        bool CreateGraphicsBuffer(uint graphicsBufferId, int length, string? debugName);
+        bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string? debugName);
 
-        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName);
+        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName);
         void RemoveTexture(uint textureId);
 
         bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string? debugName);
@@ -214,7 +215,9 @@ namespace CoreEngine.HostServices
         bool CreateCopyCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
         void ExecuteCopyCommandList(uint commandListId);
         void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, ReadOnlySpan<byte> data);
+        void CopyGraphicsBufferDataToCpu(uint commandListId, uint graphicsBufferId, int length);
+        void ReadGraphicsBufferData(uint graphicsBufferId, ReadOnlySpan<byte> data);
+        void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data);
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
         void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
 
@@ -230,7 +233,7 @@ namespace CoreEngine.HostServices
         void SetPipelineState(uint commandListId, uint pipelineStateId);
 
         void SetShader(uint commandListId, uint shaderId);
-        void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, int index);
+        void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index);
         void SetShaderBuffers(uint commandListId, ReadOnlySpan<uint> graphicsBufferIdList, int slot, int index);
         void SetShaderTexture(uint commandListId, uint textureId, int slot, bool isReadOnly, int index);
         void SetShaderTextures(uint commandListId, ReadOnlySpan<uint> textureIdList, int slot, int index);

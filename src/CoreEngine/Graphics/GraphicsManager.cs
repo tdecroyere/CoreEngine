@@ -65,7 +65,7 @@ namespace CoreEngine.Graphics
             this.Graphics2DRenderer = new Graphics2DRenderer(this, resourcesManager);
 
             this.currentFrameSize = graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
+            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Static, "MainRenderTarget");
         }
 
         public uint CurrentFrameNumber
@@ -83,18 +83,21 @@ namespace CoreEngine.Graphics
         public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
         public Graphics2DRenderer Graphics2DRenderer { get; }
         internal int GeometryInstancesCount { get; set; }
+        internal int CulledGeometryInstancesCount { get; set; }
+        internal int MaterialsCount { get; set; }
+        internal int TexturesCount { get; set; }
 
         public Vector2 GetRenderSize()
         {
             return this.graphicsService.GetRenderSize();
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null) where T : struct
+        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType = GraphicsResourceType.Static, bool isWriteOnly = true, string? debugName = null) where T : struct
         {
             var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
 
             var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes, debugName);
+            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes, isWriteOnly, debugName);
             this.allocatedGpuMemory += (ulong)sizeInBytes;
 
             if (!result)
@@ -107,7 +110,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 graphicsBufferId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes, debugName);
+                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes, isWriteOnly, debugName);
                 this.allocatedGpuMemory += (ulong)sizeInBytes;
 
                 if (!result)
@@ -121,7 +124,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 graphicsBufferId3 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId3.Value, sizeInBytes, debugName);
+                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId3.Value, sizeInBytes, isWriteOnly, debugName);
                 this.allocatedGpuMemory += (ulong)sizeInBytes;
 
                 if (!result)
@@ -134,10 +137,10 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Add additional parameters (format, depth, mipLevels, etc.<)
-        public Texture CreateTexture(TextureFormat textureFormat, int width, int height, int mipLevels, int multisampleCount = 1, bool isRenderTarget = false, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
+        public Texture CreateTexture(TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount = 1, bool isRenderTarget = false, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
         {
             var textureId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateTexture(textureId, (GraphicsTextureFormat)(int)textureFormat, width, height, mipLevels, multisampleCount, isRenderTarget, debugName);
+            var result = this.graphicsService.CreateTexture(textureId, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, debugName);
 
             if (!result)
             {
@@ -149,7 +152,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId2.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, mipLevels, multisampleCount, isRenderTarget, debugName);
+                result = this.graphicsService.CreateTexture(textureId2.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, debugName);
 
                 if (!result)
                 {
@@ -162,7 +165,7 @@ namespace CoreEngine.Graphics
             if (resourceType == GraphicsResourceType.Dynamic)
             {
                 textureId3 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId3.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, mipLevels, multisampleCount, isRenderTarget, debugName);
+                result = this.graphicsService.CreateTexture(textureId3.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, debugName);
 
                 if (!result)
                 {
@@ -170,7 +173,7 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            var texture = new Texture(this, textureId, textureId2, textureId3, textureFormat, width, height, mipLevels, multisampleCount, resourceType);
+            var texture = new Texture(this, textureId, textureId2, textureId3, textureFormat, width, height, faceCount, mipLevels, multisampleCount, resourceType);
             var textureSizeInBytes = ComputeTextureSizeInBytes(texture);
             
             if (resourceType == GraphicsResourceType.Static)
@@ -281,7 +284,19 @@ namespace CoreEngine.Graphics
             this.gpuMemoryUploaded += rawData.Length;
         }
 
-        public void UploadDataToTexture<T>(CommandList commandList, Texture texture, int width, int height, int mipLevel, ReadOnlySpan<T> data) where T : struct
+        public void CopyGraphicsBufferDataToCpu(CommandList commandList, GraphicsBuffer graphicsBuffer)
+        {
+            this.graphicsService.CopyGraphicsBufferDataToCpu(commandList.Id, graphicsBuffer.GraphicsResourceId, graphicsBuffer.Length);
+        }
+
+        public ReadOnlySpan<T> ReadGraphicsBufferData<T>(GraphicsBuffer graphicsBuffer) where T : struct
+        {
+            var rawData = new byte[graphicsBuffer.Length].AsSpan();
+            this.graphicsService.ReadGraphicsBufferData(graphicsBuffer.GraphicsResourceId, rawData);
+            return MemoryMarshal.Cast<byte, T>(rawData);
+        }
+
+        public void UploadDataToTexture<T>(CommandList commandList, Texture texture, int width, int height, int slice, int mipLevel, ReadOnlySpan<T> data) where T : struct
         {
             if (texture == null)
             {
@@ -294,7 +309,7 @@ namespace CoreEngine.Graphics
             }
 
             var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, (GraphicsTextureFormat)texture.TextureFormat, width, height, mipLevel, rawData);
+            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, (GraphicsTextureFormat)texture.TextureFormat, width, height, slice, mipLevel, rawData);
             this.gpuMemoryUploaded += rawData.Length;
         }
 
@@ -431,9 +446,9 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetPipelineState(commandList.Id, shader.PipelineStates[renderPassDescriptor].PipelineStateId);
         }
 
-        public void SetShaderBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, int slot, int index = 0)
+        public void SetShaderBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, int slot, bool isReadOnly = true, int index = 0)
         {
-            this.graphicsService.SetShaderBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, slot, index);
+            this.graphicsService.SetShaderBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, slot, isReadOnly, index);
         }
 
         public void SetShaderBuffers(CommandList commandList, ReadOnlySpan<GraphicsBuffer> graphicsBuffers, int slot, int index = 0)
@@ -611,7 +626,7 @@ namespace CoreEngine.Graphics
                 this.currentFrameSize = frameSize;
                 
                 RemoveTexture(this.MainRenderTargetTexture);
-                this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
+                this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
             }
 
             this.GraphicsSceneRenderer.Render();
@@ -647,9 +662,9 @@ namespace CoreEngine.Graphics
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
-            this.Graphics2DRenderer.DrawText($"    Active GeometryInstances: {this.GeometryInstancesCount}", new Vector2(10, 210));
-            this.Graphics2DRenderer.DrawText($"    DispatchThreads: {this.cpuDispatchCount}", new Vector2(10, 250));
-            this.Graphics2DRenderer.DrawText($"    DrawIndexedPrimitives: {this.cpuDrawCount + 1}", new Vector2(10, 290));
+            this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 210));
+            this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
+            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

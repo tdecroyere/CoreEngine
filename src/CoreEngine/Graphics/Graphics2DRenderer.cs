@@ -109,16 +109,16 @@ namespace CoreEngine.Graphics
             indexData[4] = 1;
             indexData[5] = 3;
 
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, GraphicsResourceType.Static, "Graphics2DVertexBuffer");
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, GraphicsResourceType.Static, "Graphics2DIndexBuffer");
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, GraphicsResourceType.Static, true, "Graphics2DVertexBuffer");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, GraphicsResourceType.Static, true, "Graphics2DIndexBuffer");
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList("Graphics2DRendererCommandList", true);
             this.graphicsManager.UploadDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, vertexData);
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic, "Graphics2DRenderPassBuffer");
-            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, GraphicsResourceType.Dynamic, "Graphics2DRectanbleSurfacesBuffer");
+            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic, true, "Graphics2DRenderPassBuffer");
+            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, GraphicsResourceType.Dynamic, true, "Graphics2DRectanbleSurfacesBuffer");
         }
 
         public override void PreUpdate()

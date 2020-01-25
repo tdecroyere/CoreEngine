@@ -7,8 +7,8 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate Vector2 GraphicsService_GetRenderSizeDelegate(IntPtr context);
     internal unsafe delegate string? GraphicsService_GetGraphicsAdapterNameDelegate(IntPtr context);
     internal unsafe delegate float GraphicsService_GetGpuExecutionTimeDelegate(IntPtr context, uint frameNumber);
-    internal unsafe delegate bool GraphicsService_CreateGraphicsBufferDelegate(IntPtr context, uint graphicsBufferId, int length, string? debugName);
-    internal unsafe delegate bool GraphicsService_CreateTextureDelegate(IntPtr context, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName);
+    internal unsafe delegate bool GraphicsService_CreateGraphicsBufferDelegate(IntPtr context, uint graphicsBufferId, int length, bool isWriteOnly, string? debugName);
+    internal unsafe delegate bool GraphicsService_CreateTextureDelegate(IntPtr context, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName);
     internal unsafe delegate void GraphicsService_RemoveTextureDelegate(IntPtr context, uint textureId);
     internal unsafe delegate bool GraphicsService_CreateShaderDelegate(IntPtr context, uint shaderId, string? computeShaderFunction, byte *shaderByteCode, int shaderByteCodeLength, string? debugName);
     internal unsafe delegate void GraphicsService_RemoveShaderDelegate(IntPtr context, uint shaderId);
@@ -17,7 +17,9 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate bool GraphicsService_CreateCopyCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteCopyCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate void GraphicsService_UploadDataToGraphicsBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, byte *data, int dataLength);
-    internal unsafe delegate void GraphicsService_UploadDataToTextureDelegate(IntPtr context, uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, byte *data, int dataLength);
+    internal unsafe delegate void GraphicsService_CopyGraphicsBufferDataToCpuDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, int length);
+    internal unsafe delegate void GraphicsService_ReadGraphicsBufferDataDelegate(IntPtr context, uint graphicsBufferId, byte *data, int dataLength);
+    internal unsafe delegate void GraphicsService_UploadDataToTextureDelegate(IntPtr context, uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, byte *data, int dataLength);
     internal unsafe delegate void GraphicsService_ResetIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate void GraphicsService_OptimizeIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate bool GraphicsService_CreateComputeCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
@@ -28,7 +30,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate bool GraphicsService_CreateIndirectCommandListDelegate(IntPtr context, uint commandListId, int maxCommandCount, string? debugName);
     internal unsafe delegate void GraphicsService_SetPipelineStateDelegate(IntPtr context, uint commandListId, uint pipelineStateId);
     internal unsafe delegate void GraphicsService_SetShaderDelegate(IntPtr context, uint commandListId, uint shaderId);
-    internal unsafe delegate void GraphicsService_SetShaderBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, int slot, int index);
+    internal unsafe delegate void GraphicsService_SetShaderBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index);
     internal unsafe delegate void GraphicsService_SetShaderBuffersDelegate(IntPtr context, uint commandListId, uint *graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index);
     internal unsafe delegate void GraphicsService_SetShaderTextureDelegate(IntPtr context, uint commandListId, uint textureId, int slot, bool isReadOnly, int index);
     internal unsafe delegate void GraphicsService_SetShaderTexturesDelegate(IntPtr context, uint commandListId, uint *textureIdList, int textureIdListLength, int slot, int index);
@@ -103,10 +105,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe bool CreateGraphicsBuffer(uint graphicsBufferId, int length, string? debugName)
+        public unsafe bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string? debugName)
         {
             if (this.context != null && this.graphicsService_CreateGraphicsBufferDelegate != null)
-                return this.graphicsService_CreateGraphicsBufferDelegate(this.context, graphicsBufferId, length, debugName);
+                return this.graphicsService_CreateGraphicsBufferDelegate(this.context, graphicsBufferId, length, isWriteOnly, debugName);
             else
                 return default(bool);
         }
@@ -116,10 +118,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName)
+        public unsafe bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName)
         {
             if (this.context != null && this.graphicsService_CreateTextureDelegate != null)
-                return this.graphicsService_CreateTextureDelegate(this.context, textureId, textureFormat, width, height, mipLevels, multisampleCount, isRenderTarget, debugName);
+                return this.graphicsService_CreateTextureDelegate(this.context, textureId, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, debugName);
             else
                 return default(bool);
         }
@@ -220,16 +222,39 @@ namespace CoreEngine.HostServices.Interop
                     this.graphicsService_UploadDataToGraphicsBufferDelegate(this.context, commandListId, graphicsBufferId, dataPinned, data.Length);
         }
 
+        private GraphicsService_CopyGraphicsBufferDataToCpuDelegate graphicsService_CopyGraphicsBufferDataToCpuDelegate
+        {
+            get;
+        }
+
+        public unsafe void CopyGraphicsBufferDataToCpu(uint commandListId, uint graphicsBufferId, int length)
+        {
+            if (this.context != null && this.graphicsService_CopyGraphicsBufferDataToCpuDelegate != null)
+                this.graphicsService_CopyGraphicsBufferDataToCpuDelegate(this.context, commandListId, graphicsBufferId, length);
+        }
+
+        private GraphicsService_ReadGraphicsBufferDataDelegate graphicsService_ReadGraphicsBufferDataDelegate
+        {
+            get;
+        }
+
+        public unsafe void ReadGraphicsBufferData(uint graphicsBufferId, ReadOnlySpan<byte> data)
+        {
+            if (this.context != null && this.graphicsService_ReadGraphicsBufferDataDelegate != null)
+                fixed (byte *dataPinned = data)
+                    this.graphicsService_ReadGraphicsBufferDataDelegate(this.context, graphicsBufferId, dataPinned, data.Length);
+        }
+
         private GraphicsService_UploadDataToTextureDelegate graphicsService_UploadDataToTextureDelegate
         {
             get;
         }
 
-        public unsafe void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int mipLevel, ReadOnlySpan<byte> data)
+        public unsafe void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data)
         {
             if (this.context != null && this.graphicsService_UploadDataToTextureDelegate != null)
                 fixed (byte *dataPinned = data)
-                    this.graphicsService_UploadDataToTextureDelegate(this.context, commandListId, textureId, textureFormat, width, height, mipLevel, dataPinned, data.Length);
+                    this.graphicsService_UploadDataToTextureDelegate(this.context, commandListId, textureId, textureFormat, width, height, slice, mipLevel, dataPinned, data.Length);
         }
 
         private GraphicsService_ResetIndirectCommandListDelegate graphicsService_ResetIndirectCommandListDelegate
@@ -353,10 +378,10 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, int index)
+        public unsafe void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index)
         {
             if (this.context != null && this.graphicsService_SetShaderBufferDelegate != null)
-                this.graphicsService_SetShaderBufferDelegate(this.context, commandListId, graphicsBufferId, slot, index);
+                this.graphicsService_SetShaderBufferDelegate(this.context, commandListId, graphicsBufferId, slot, isReadOnly, index);
         }
 
         private GraphicsService_SetShaderBuffersDelegate graphicsService_SetShaderBuffersDelegate

@@ -38,8 +38,8 @@ namespace CoreEngine.Graphics
             this.vertexData = new Vector4[maxLineCount * 4];
             this.indexData = new uint[maxLineCount * 2];
 
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, GraphicsResourceType.Dynamic, "DebugVertexBuffer");
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, GraphicsResourceType.Dynamic, "DebugIndexBuffer");
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, GraphicsResourceType.Dynamic, true, "DebugVertexBuffer");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, GraphicsResourceType.Dynamic, true, "DebugIndexBuffer");
 
             this.currentDebugLineIndex = 0;
         }

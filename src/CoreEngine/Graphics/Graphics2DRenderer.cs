@@ -32,24 +32,30 @@ namespace CoreEngine.Graphics
     // TODO: Find a way to auto align fields to 16 (Required by shaders)
     readonly struct RectangleSurface
     {
-        public RectangleSurface(Matrix4x4 worldMatrix, Vector2 textureMinPoint, Vector2 textureMaxPoint, uint textureIndex)
+        public RectangleSurface(Matrix4x4 worldMatrix, Vector2 textureMinPoint, Vector2 textureMaxPoint, uint textureIndex, bool isOpaque)
         {
             this.WorldMatrix = worldMatrix;
             this.TextureMinPoint = textureMinPoint;
             this.TextureMaxPoint = textureMaxPoint;
             this.TextureIndex = textureIndex;
-            this.Reserved = 1;
-            this.Reserved2 = 2;
-            this.Reserved3 = 3;
+            this.IsOpaque = isOpaque;
+            this.Reserved1 = 0;
+            this.Reserved2 = 0;
+            this.Reserved3 = 0;
+            this.Reserved4 = 0;
+            this.Reserved5 = 0;
         }
 
         public readonly Matrix4x4 WorldMatrix { get; }
         public readonly Vector2 TextureMinPoint { get; }
         public readonly Vector2 TextureMaxPoint { get; }
         public readonly uint TextureIndex { get; }
-        public readonly uint Reserved { get; }
-        public readonly uint Reserved2 { get; }
-        public readonly uint Reserved3 { get; }
+        public readonly bool IsOpaque { get; }
+        public readonly byte Reserved1 { get; }
+        public readonly byte Reserved2 { get; }
+        public readonly byte Reserved3 { get; }
+        public readonly uint Reserved4 { get; }
+        public readonly uint Reserved5 { get; }
     }
 
     public class Graphics2DRenderer : SystemManager
@@ -161,17 +167,17 @@ namespace CoreEngine.Graphics
                 
                 var glyphInfo = font.GlyphInfos[text[i]];
 
-                DrawRectangleSurface(position, position + new Vector2(glyphInfo.Width, glyphInfo.Height), font.Texture, glyphInfo.TextureMinPoint, glyphInfo.TextureMaxPoint);
+                DrawRectangleSurface(position, position + new Vector2(glyphInfo.Width, glyphInfo.Height), font.Texture, glyphInfo.TextureMinPoint, glyphInfo.TextureMaxPoint, false);
                 position.X += glyphInfo.Width;
             }
         }
 
-        public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture)
+        public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, bool isOpaque = false)
         {
-            DrawRectangleSurface(minPoint, maxPoint, texture, Vector2.Zero, new Vector2(1, 1));
+            DrawRectangleSurface(minPoint, maxPoint, texture, Vector2.Zero, new Vector2(1, 1), isOpaque);
         }
 
-        public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, Vector2 textureMinPoint, Vector2 textureMaxPoint)
+        public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, Vector2 textureMinPoint, Vector2 textureMaxPoint, bool isOpaque)
         {
             var vertexOffset = this.currentSurfaceCount * 4;
             var indexOffset = this.currentSurfaceCount * 6;
@@ -190,11 +196,11 @@ namespace CoreEngine.Graphics
                 this.textures.Add(texture);
             }
 
-            this.rectangleSurfaces[this.currentSurfaceCount] = new RectangleSurface(worldMatrix, textureMinPoint, textureMaxPoint, (uint)textureIndex);
+            this.rectangleSurfaces[this.currentSurfaceCount] = new RectangleSurface(worldMatrix, textureMinPoint, textureMaxPoint, (uint)textureIndex, isOpaque);
             this.currentSurfaceCount++;
         }
 
-        public void Render()
+        public CommandList Render(CommandList previousCommandList)
         {
             if (this.currentSurfaceCount > 0)
             {
@@ -207,6 +213,9 @@ namespace CoreEngine.Graphics
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
                 var commandList = this.graphicsManager.CreateRenderCommandList(renderPassDescriptor, "Graphics2DRenderCommandList");
 
+                this.graphicsManager.WaitForCommandList(commandList, copyCommandList);
+                this.graphicsManager.WaitForCommandList(commandList, previousCommandList);
+
                 this.graphicsManager.SetShader(commandList, this.shader);
                 this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
                 this.graphicsManager.SetShaderBuffer(commandList, this.renderPassParametersGraphicsBuffer, 1);
@@ -215,9 +224,13 @@ namespace CoreEngine.Graphics
 
                 this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
                 this.graphicsManager.DrawIndexedPrimitives(commandList, GeometryPrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
- 
+
                 this.graphicsManager.ExecuteRenderCommandList(commandList);
+
+                return commandList;
             }
+
+            return new CommandList();
         }
     }
 }

@@ -85,28 +85,23 @@ namespace CoreEngine.Graphics
             DrawLine(boundingFrustum.RightTopFarPoint, boundingFrustum.RightBottomFarPoint, color);
         }
 
-        public void CopyDataToGpu()
-        {
-            if (this.currentDebugLineIndex > 0)
-            {
-                var copyCommandList = this.graphicsManager.CreateCopyCommandList("DebugCopyCommandList");
-                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
-                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
-                this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
-            }
-        }
-
         public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList renderCommandList)
         {
-            if (this.currentDebugLineIndex > 0)
-            {
-                this.graphicsManager.SetShader(renderCommandList, this.shader);
-                this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
-                this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
+            // TODO: Refactor to avoid crash
+            // if (this.currentDebugLineIndex > 0)
+            // {
+            //     var copyCommandList = this.graphicsManager.CreateCopyCommandList("DebugCopyCommandList");
+            //     this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
+            //     this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
+            //     this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
-                this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
-                this.graphicsManager.DrawIndexedPrimitives(renderCommandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
-            }
+            //     this.graphicsManager.SetShader(renderCommandList, this.shader);
+            //     this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
+            //     this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
+
+            //     this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
+            //     this.graphicsManager.DrawIndexedPrimitives(renderCommandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+            // }
         }
     }
 }

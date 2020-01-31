@@ -91,15 +91,29 @@ namespace CoreEngine.Resources
             return (T)this.resourceIdList[resourceId];
         }
 
-        public T LoadResourceAsync<T>(string path, params string[] parameters) where T : Resource
+        private static string ConstructResourceKey(string path, params string[] parameters)
         {
-            if (this.resources.ContainsKey(path))
+            var resourceKey = path;
+
+            for (var i = 0; i < parameters.Length; i++)
             {
-                this.resources[path].ReferenceCount++;
-                return (T)this.resources[path];
+                resourceKey += $"@{parameters[i]}";
             }
 
-            Logger.BeginAction($"Loading resource '{path}'");
+            return resourceKey;
+        }
+
+        public T LoadResourceAsync<T>(string path, params string[] parameters) where T : Resource
+        {
+            var resourceKey = ConstructResourceKey(path, parameters);
+
+            if (this.resources.ContainsKey(resourceKey))
+            {
+                this.resources[resourceKey].ReferenceCount++;
+                return (T)this.resources[resourceKey];
+            }
+
+            Logger.BeginAction($"Loading resource '{resourceKey}'");
             var resourceLoader = FindResourceLoader(Path.GetExtension(path));
 
             if (resourceLoader == null)
@@ -112,13 +126,13 @@ namespace CoreEngine.Resources
             resource.Parameters = parameters;
             resource.ReferenceCount++;
 
-            if (this.resources.ContainsKey(path))
+            if (this.resources.ContainsKey(resourceKey))
             {
-                this.resources[path].ReferenceCount++;
-                return (T)this.resources[path];
+                this.resources[resourceKey].ReferenceCount++;
+                return (T)this.resources[resourceKey];
             }
 
-            this.resources.Add(path, resource);
+            this.resources.Add(resourceKey, resource);
             this.resourceIdList.Add(currentResourceId, resource);
             this.currentResourceId++;
 
@@ -214,7 +228,7 @@ namespace CoreEngine.Resources
 
                     if (lastUpdateDate != null)
                     {
-                        Logger.WriteMessage($"Found update for resource '{resource.Path}'...");
+                        Logger.WriteMessage($"Found update for resource '{item.Key}'...");
 
                         if (resource.ResourceLoader != null)
                         {

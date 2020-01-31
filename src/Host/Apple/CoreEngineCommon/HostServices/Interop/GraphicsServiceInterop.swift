@@ -106,9 +106,9 @@ func GraphicsService_executeComputeCommandListInterop(context: UnsafeMutableRawP
     contextObject.executeComputeCommandList(UInt(commandListId))
 }
 
-func GraphicsService_dispatchThreadsInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ threadGroupCountX: UInt32, _ threadGroupCountY: UInt32, _ threadGroupCountZ: UInt32) {
+func GraphicsService_dispatchThreadsInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ threadCountX: UInt32, _ threadCountY: UInt32, _ threadCountZ: UInt32) -> Vector3 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.dispatchThreads(UInt(commandListId), UInt(threadGroupCountX), UInt(threadGroupCountY), UInt(threadGroupCountZ))
+    return contextObject.dispatchThreads(UInt(commandListId), UInt(threadCountX), UInt(threadCountY), UInt(threadCountZ))
 }
 
 func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
@@ -186,6 +186,11 @@ func GraphicsService_drawPrimitivesInterop(context: UnsafeMutableRawPointer?, _ 
     contextObject.drawPrimitives(UInt(commandListId), primitiveType, Int(startVertex), Int(vertexCount))
 }
 
+func GraphicsService_waitForCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ commandListToWaitId: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.waitForCommandList(UInt(commandListId), UInt(commandListToWaitId))
+}
+
 func GraphicsService_presentScreenBufferInterop(context: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.presentScreenBuffer()
@@ -230,5 +235,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetIndexBuffer = GraphicsService_setIndexBufferInterop
     service.GraphicsService_DrawIndexedPrimitives = GraphicsService_drawIndexedPrimitivesInterop
     service.GraphicsService_DrawPrimitives = GraphicsService_drawPrimitivesInterop
+    service.GraphicsService_WaitForCommandList = GraphicsService_waitForCommandListInterop
     service.GraphicsService_PresentScreenBuffer = GraphicsService_presentScreenBufferInterop
 }

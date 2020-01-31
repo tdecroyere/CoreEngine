@@ -31,7 +31,7 @@ enum GraphicsDepthBufferOperation : int
     CompareEqual, 
     CompareLess, 
     Write, 
-    WriteShadow
+    ClearWrite
 };
 
 enum GraphicsBlendOperation : int
@@ -89,7 +89,7 @@ typedef void (*GraphicsService_ResetIndirectCommandListPtr)(void* context, unsig
 typedef void (*GraphicsService_OptimizeIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef int (*GraphicsService_CreateComputeCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteComputeCommandListPtr)(void* context, unsigned int commandListId);
-typedef void (*GraphicsService_DispatchThreadsPtr)(void* context, unsigned int commandListId, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
+typedef struct Vector3 (*GraphicsService_DispatchThreadsPtr)(void* context, unsigned int commandListId, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ);
 typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, char* debugName, int createNewCommandBuffer);
 typedef void (*GraphicsService_ExecuteRenderCommandListPtr)(void* context, unsigned int commandListId);
 typedef int (*GraphicsService_CreateIndirectCommandListPtr)(void* context, unsigned int commandListId, int maxCommandCount, char* debugName);
@@ -105,6 +105,7 @@ typedef void (*GraphicsService_ExecuteIndirectCommandListPtr)(void* context, uns
 typedef void (*GraphicsService_SetIndexBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId);
 typedef void (*GraphicsService_DrawIndexedPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
 typedef void (*GraphicsService_DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+typedef void (*GraphicsService_WaitForCommandListPtr)(void* context, unsigned int commandListId, unsigned int commandListToWaitId);
 typedef void (*GraphicsService_PresentScreenBufferPtr)(void* context);
 
 struct GraphicsService
@@ -147,5 +148,6 @@ struct GraphicsService
     GraphicsService_SetIndexBufferPtr GraphicsService_SetIndexBuffer;
     GraphicsService_DrawIndexedPrimitivesPtr GraphicsService_DrawIndexedPrimitives;
     GraphicsService_DrawPrimitivesPtr GraphicsService_DrawPrimitives;
+    GraphicsService_WaitForCommandListPtr GraphicsService_WaitForCommandList;
     GraphicsService_PresentScreenBufferPtr GraphicsService_PresentScreenBuffer;
 };

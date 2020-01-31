@@ -8,7 +8,7 @@ namespace CoreEngine.Graphics
         CompareEqual,
         CompareLess,
         Write,
-        WriteShadow
+        ClearWrite
     }
 
     public readonly struct RenderPassDescriptor

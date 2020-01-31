@@ -24,6 +24,7 @@ namespace CoreEngine.Graphics
         private Stopwatch globalStopwatch;
         private uint startMeasureFrameNumber;
         private int framePerSeconds = 0;
+        private float targetFrameMilliSeconds = 1000.0f / 30.0f;
         private ulong allocatedGpuMemory = 0;
         private int gpuMemoryUploaded = 0;
         private int gpuMemoryUploadedPerSeconds = 0;
@@ -86,6 +87,8 @@ namespace CoreEngine.Graphics
         internal int CulledGeometryInstancesCount { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
+        internal float CameraMinDepth { get; set; }
+        internal float CameraMaxDepth { get; set; }
 
         public Vector2 GetRenderSize()
         {
@@ -284,9 +287,9 @@ namespace CoreEngine.Graphics
             this.gpuMemoryUploaded += rawData.Length;
         }
 
-        public void CopyGraphicsBufferDataToCpu(CommandList commandList, GraphicsBuffer graphicsBuffer)
+        public void CopyGraphicsBufferDataToCpu(CommandList commandList, GraphicsBuffer graphicsBuffer, int length)
         {
-            this.graphicsService.CopyGraphicsBufferDataToCpu(commandList.Id, graphicsBuffer.GraphicsResourceId, graphicsBuffer.Length);
+            this.graphicsService.CopyGraphicsBufferDataToCpu(commandList.Id, graphicsBuffer.GraphicsResourceId, length);
         }
 
         public ReadOnlySpan<T> ReadGraphicsBufferData<T>(GraphicsBuffer graphicsBuffer) where T : struct
@@ -356,15 +359,15 @@ namespace CoreEngine.Graphics
             this.graphicsService.ExecuteComputeCommandList(commandList.Id);
         }
 
-        public void DispatchThreads(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        public Vector3 DispatchThreads(CommandList commandList, uint threadCountX, uint threadCountY, uint threadCountZ)
         {
             if (commandList.Type != CommandListType.Compute)
             {
                 throw new InvalidOperationException("The specified command list is not a compute command list.");
             }
 
-            this.graphicsService.DispatchThreads(commandList.Id, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
             this.cpuDispatchCount++;
+            return this.graphicsService.DispatchThreads(commandList.Id, threadCountX, threadCountY, threadCountZ);
         }
 
         public CommandList CreateRenderCommandList(RenderPassDescriptor renderPassDescriptor, string? debugName = null, bool createNewCommandBuffer = false)
@@ -592,11 +595,26 @@ namespace CoreEngine.Graphics
             this.cpuDrawCount++;
         }
 
-        public void PresentScreenBuffer()
+        public void WaitForCommandList(CommandList commandList, CommandList commandListToWait)
+        {
+            this.graphicsService.WaitForCommandList(commandList.Id, commandListToWait.Id);
+        }
+
+        public void WaitForCommandLists(CommandList commandList, ReadOnlySpan<CommandList> commandListsToWait)
+        {
+            for (var i = 0; i < commandListsToWait.Length; i++)
+            {
+                this.graphicsService.WaitForCommandList(commandList.Id, commandListsToWait[i].Id);
+            }
+        }
+
+        public void PresentScreenBuffer(CommandList previousCommandList)
         {
             // TODO: Use a compute shader
             var renderPassDescriptor = new RenderPassDescriptor(null, null, DepthBufferOperation.None, true);
-            var renderCommandList = CreateRenderCommandList(renderPassDescriptor, "PresentRenderCommandList", false);
+            var renderCommandList = CreateRenderCommandList(renderPassDescriptor, "PresentRenderCommandList");
+
+            this.WaitForCommandList(renderCommandList, previousCommandList);
 
             SetShader(renderCommandList, this.computeDirectTransferShader);
             SetShaderTexture(renderCommandList, this.MainRenderTargetTexture, 0);
@@ -609,6 +627,11 @@ namespace CoreEngine.Graphics
             this.CurrentFrameNumber++;
             this.cpuDrawCount = 0;
             this.cpuDispatchCount = 0;
+        }
+
+        public override void PreUpdate()
+        {
+            this.stopwatch.Restart();
         }
 
         internal void Render()
@@ -629,20 +652,30 @@ namespace CoreEngine.Graphics
                 this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
             }
 
-            this.GraphicsSceneRenderer.Render();
+            var renderCommandList = this.GraphicsSceneRenderer.Render();
 
             DrawDebugMessages();
-            this.Graphics2DRenderer.Render();
+            var graphics2DCommandList = this.Graphics2DRenderer.Render(renderCommandList);
 
-            this.PresentScreenBuffer();
-            this.stopwatch.Restart();
+            this.PresentScreenBuffer(graphics2DCommandList);
+
+            // TODO: If doing restart stopwatch here, the CPU time is more than 10ms
+            // this.stopwatch.Restart();
         }
 
         private void DrawDebugMessages()
         {
             // TODO: Verify all timings !
+            // TODO: Seperate timing calculations from debug display
 
             var frameDuration = (float)this.stopwatch.ElapsedTicks / Stopwatch.Frequency * 1000;
+
+            // if (frameDuration < this.targetFrameMilliSeconds)
+            // {
+            //     var sleepTime = (int)MathF.Max(MathF.Floor(this.targetFrameMilliSeconds) - frameDuration - 1, 0.0f);
+            //     Logger.WriteMessage($"Sleep Time: {sleepTime}");
+            //     Thread.Sleep(sleepTime);
+            // }
             
             if (this.globalStopwatch.ElapsedMilliseconds > 1000)
             {
@@ -665,6 +698,7 @@ namespace CoreEngine.Graphics
             this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 210));
             this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
             this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
+            this.Graphics2DRenderer.DrawText($"    Camera Depth: {this.CameraMinDepth.ToString("0.00000", CultureInfo.InvariantCulture)} - {this.CameraMaxDepth.ToString("0.00000", CultureInfo.InvariantCulture)}", new Vector2(10, 330));
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)
@@ -691,23 +725,48 @@ namespace CoreEngine.Graphics
         private static int ComputeTextureSizeInBytes(Texture texture)
         {
             var pixelSizeInBytes = 4;
+            var isBlockCompression = false;
 
             if (texture.TextureFormat == TextureFormat.Rgba16Float)
             {
                 pixelSizeInBytes = 8;
             }
 
-            var textureMemory = texture.Width * texture.Height * pixelSizeInBytes * texture.MultiSampleCount;
+            else if (texture.TextureFormat == TextureFormat.Rgba32Float)
+            {
+                pixelSizeInBytes = 16;
+            }
+
+            else if (texture.TextureFormat == TextureFormat.BC1Srgb || texture.TextureFormat == TextureFormat.BC4)
+            {
+                pixelSizeInBytes = 8;
+                isBlockCompression = true;
+            }
+
+            else if (texture.TextureFormat == TextureFormat.BC2Srgb || texture.TextureFormat == TextureFormat.BC3Srgb || texture.TextureFormat == TextureFormat.BC5 || texture.TextureFormat == TextureFormat.BC6 || texture.TextureFormat == TextureFormat.BC7Srgb)
+            {
+                pixelSizeInBytes = 16;
+                isBlockCompression = true;
+            }
+
+            var textureMemory = 0;
             var textureWidth = texture.Width;
             var textureHeight = texture.Height;
 
-            for (var i = 1; i < texture.MipLevels; i++)
+            for (var i = 0; i < texture.MipLevels; i++)
             {
+                if (isBlockCompression)
+                {
+                    textureMemory += pixelSizeInBytes * (int)MathF.Ceiling((float)textureWidth / 4.0f) * (int)MathF.Ceiling((float)textureHeight / 4.0f);
+                }
+                
+                else
+                {
+                    textureMemory += textureWidth * textureHeight * pixelSizeInBytes * texture.MultiSampleCount;
+                }
+
                 textureWidth = (textureWidth > 1) ? textureWidth / 2 : 1;
                 textureHeight = (textureHeight > 1) ? textureHeight / 2 : 1;
-
-                // TODO: Change the calculation based on the texture format
-                textureMemory += textureWidth * textureHeight * pixelSizeInBytes * texture.MultiSampleCount;
             }
 
             return textureMemory;

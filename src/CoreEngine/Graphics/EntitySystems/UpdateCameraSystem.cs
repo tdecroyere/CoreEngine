@@ -56,7 +56,7 @@ namespace CoreEngine.Graphics.EntitySystems
 
             var nearPlaneDistance = 0.1f;
             var farPlaneDistance = 1000.0f;
-            var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, 0.1f, 1000.0f);
+            var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, nearPlaneDistance, farPlaneDistance);
 
             for (var i = 0; i < entityArray.Length; i++)
             {

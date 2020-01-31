@@ -22,7 +22,7 @@ public protocol GraphicsServiceProtocol {
     func optimizeIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int)
     func createComputeCommandList(_ commandListId: UInt, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool
     func executeComputeCommandList(_ commandListId: UInt)
-    func dispatchThreads(_ commandListId: UInt, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt)
+    func dispatchThreads(_ commandListId: UInt, _ threadCountX: UInt, _ threadCountY: UInt, _ threadCountZ: UInt) -> Vector3
     func createRenderCommandList(_ commandListId: UInt, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: String?, _ createNewCommandBuffer: Bool) -> Bool
     func executeRenderCommandList(_ commandListId: UInt)
     func createIndirectCommandList(_ commandListId: UInt, _ maxCommandCount: Int, _ debugName: String?) -> Bool
@@ -38,5 +38,6 @@ public protocol GraphicsServiceProtocol {
     func setIndexBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt)
     func drawIndexedPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ instanceCount: Int, _ baseInstanceId: Int)
     func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startVertex: Int, _ vertexCount: Int)
+    func waitForCommandList(_ commandListId: UInt, _ commandListToWaitId: UInt)
     func presentScreenBuffer()
 }

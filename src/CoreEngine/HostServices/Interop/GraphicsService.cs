@@ -24,7 +24,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void GraphicsService_OptimizeIndirectCommandListDelegate(IntPtr context, uint commandListId, uint indirectCommandListId, int maxCommandCount);
     internal unsafe delegate bool GraphicsService_CreateComputeCommandListDelegate(IntPtr context, uint commandListId, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteComputeCommandListDelegate(IntPtr context, uint commandListId);
-    internal unsafe delegate void GraphicsService_DispatchThreadsDelegate(IntPtr context, uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
+    internal unsafe delegate Vector3 GraphicsService_DispatchThreadsDelegate(IntPtr context, uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ);
     internal unsafe delegate bool GraphicsService_CreateRenderCommandListDelegate(IntPtr context, uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName, bool createNewCommandBuffer);
     internal unsafe delegate void GraphicsService_ExecuteRenderCommandListDelegate(IntPtr context, uint commandListId);
     internal unsafe delegate bool GraphicsService_CreateIndirectCommandListDelegate(IntPtr context, uint commandListId, int maxCommandCount, string? debugName);
@@ -40,6 +40,7 @@ namespace CoreEngine.HostServices.Interop
     internal unsafe delegate void GraphicsService_SetIndexBufferDelegate(IntPtr context, uint commandListId, uint graphicsBufferId);
     internal unsafe delegate void GraphicsService_DrawIndexedPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
     internal unsafe delegate void GraphicsService_DrawPrimitivesDelegate(IntPtr context, uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+    internal unsafe delegate void GraphicsService_WaitForCommandListDelegate(IntPtr context, uint commandListId, uint commandListToWaitId);
     internal unsafe delegate void GraphicsService_PresentScreenBufferDelegate(IntPtr context);
     public struct GraphicsService : IGraphicsService
     {
@@ -308,10 +309,12 @@ namespace CoreEngine.HostServices.Interop
             get;
         }
 
-        public unsafe void DispatchThreads(uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        public unsafe Vector3 DispatchThreads(uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ)
         {
             if (this.context != null && this.graphicsService_DispatchThreadsDelegate != null)
-                this.graphicsService_DispatchThreadsDelegate(this.context, commandListId, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+                return this.graphicsService_DispatchThreadsDelegate(this.context, commandListId, threadCountX, threadCountY, threadCountZ);
+            else
+                return default(Vector3);
         }
 
         private GraphicsService_CreateRenderCommandListDelegate graphicsService_CreateRenderCommandListDelegate
@@ -484,6 +487,17 @@ namespace CoreEngine.HostServices.Interop
         {
             if (this.context != null && this.graphicsService_DrawPrimitivesDelegate != null)
                 this.graphicsService_DrawPrimitivesDelegate(this.context, commandListId, primitiveType, startVertex, vertexCount);
+        }
+
+        private GraphicsService_WaitForCommandListDelegate graphicsService_WaitForCommandListDelegate
+        {
+            get;
+        }
+
+        public unsafe void WaitForCommandList(uint commandListId, uint commandListToWaitId)
+        {
+            if (this.context != null && this.graphicsService_WaitForCommandListDelegate != null)
+                this.graphicsService_WaitForCommandListDelegate(this.context, commandListId, commandListToWaitId);
         }
 
         private GraphicsService_PresentScreenBufferDelegate graphicsService_PresentScreenBufferDelegate

@@ -38,7 +38,7 @@ namespace CoreEngine.HostServices
         CompareEqual,
         CompareLess,
         Write,
-        WriteShadow
+        ClearWrite
     }
 
 
@@ -223,7 +223,7 @@ namespace CoreEngine.HostServices
 
         bool CreateComputeCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
         void ExecuteComputeCommandList(uint commandListId);
-        void DispatchThreads(uint commandListId, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
+        Vector3 DispatchThreads(uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ);
         
         bool CreateRenderCommandList(uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName, bool createNewCommandBuffer);
         void ExecuteRenderCommandList(uint commandListId);
@@ -246,6 +246,7 @@ namespace CoreEngine.HostServices
         void DrawIndexedPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
         void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
         
+        void WaitForCommandList(uint commandListId, uint commandListToWaitId);
         void PresentScreenBuffer();
     }
 }

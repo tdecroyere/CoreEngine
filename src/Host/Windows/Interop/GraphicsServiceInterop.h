@@ -128,10 +128,10 @@ void ExecuteComputeCommandListInterop(void* context, unsigned int commandListId)
     contextObject->ExecuteComputeCommandList(commandListId)
 }
 
-void DispatchThreadsInterop(void* context, unsigned int commandListId, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
+struct Vector3 DispatchThreadsInterop(void* context, unsigned int commandListId, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
-    contextObject->DispatchThreads(commandListId, threadGroupCountX, threadGroupCountY, threadGroupCountZ)
+    return contextObject->DispatchThreads(commandListId, threadCountX, threadCountY, threadCountZ)
 }
 
 int CreateRenderCommandListInterop(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, struct string? debugName, int createNewCommandBuffer)
@@ -224,6 +224,12 @@ void DrawPrimitivesInterop(void* context, unsigned int commandListId, enum Graph
     contextObject->DrawPrimitives(commandListId, primitiveType, startVertex, vertexCount)
 }
 
+void WaitForCommandListInterop(void* context, unsigned int commandListId, unsigned int commandListToWaitId)
+{
+    auto contextObject = (WindowsDirect3D12Renderer*)context;
+    contextObject->WaitForCommandList(commandListId, commandListToWaitId)
+}
+
 void PresentScreenBufferInterop(void* context)
 {
     auto contextObject = (WindowsDirect3D12Renderer*)context;
@@ -270,5 +276,6 @@ void InitGraphicsService(WindowsDirect3D12Renderer* context, GraphicsService* se
     service->SetIndexBuffer = SetIndexBufferInterop;
     service->DrawIndexedPrimitives = DrawIndexedPrimitivesInterop;
     service->DrawPrimitives = DrawPrimitivesInterop;
+    service->WaitForCommandList = WaitForCommandListInterop;
     service->PresentScreenBuffer = PresentScreenBufferInterop;
 }

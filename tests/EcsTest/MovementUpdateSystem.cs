@@ -18,7 +18,7 @@ namespace CoreEngine.Tests.EcsTest
 
         public override void Process(EntityManager entityManager, float deltaTime)
         {
-            var friction = -80.5f;
+            var friction = -75.0f;
             var deltaTimePow2 = deltaTime * deltaTime;
 
             var entityArray = this.GetEntityArray();

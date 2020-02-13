@@ -141,7 +141,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.readCpuGraphicsBuffers = [:]
         self.textures = [:]
         self.indirectCommandBuffers = [:]
-        self.gpuExecutionTimes = [0, 0, 0]
+        self.gpuExecutionTimes = [0, 0]
 
         self.frameSemaphore = DispatchSemaphore.init(value: 2);
 
@@ -197,7 +197,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func getGpuExecutionTime(_ frameNumber: UInt) -> Float {
-        return Float(self.gpuExecutionTimes[Int(frameNumber) % 3])
+        return Float(self.gpuExecutionTimes[Int(frameNumber) % 2])
     }
 
     public func getGraphicsAdapterName() -> String? {
@@ -217,7 +217,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         if (isWriteOnly) {
             // Create a the metal buffer on the CPU
-            let cpuBuffer = self.device.makeBuffer(length: length, options: [.cpuCacheModeWriteCombined, .hazardTrackingModeUntracked])!
+            let cpuBuffer = self.device.makeBuffer(length: length, options: [.storageModeShared, .cpuCacheModeWriteCombined, .hazardTrackingModeUntracked])!
             cpuBuffer.label = (debugName != nil) ? "\(debugName!)Cpu" : "GraphicsBuffer\(graphicsBufferId)Cpu"
             self.cpuGraphicsBuffers[graphicsBufferId] = cpuBuffer
         } else {
@@ -264,6 +264,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return .bc7_rgbaUnorm_srgb
         } else if (textureFormat == Rgba32Float) {
             return .rgba32Float
+        } else if (textureFormat == Rgba16Unorm) {
+            return .rgba16Unorm
         }
         
         return .rgba8Unorm_srgb
@@ -331,7 +333,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
 
             // TODO: Remove that hack
-            if (debugName != nil && debugName != "RenderMeshInstanceDepthShader" && debugName != "RenderMeshInstanceShader" && debugName != "RenderMeshInstanceTransparentShader" && debugName != "RenderMeshInstanceTransparentDepthShader") {
+            if (debugName != nil && debugName != "RenderMeshInstanceDepthShader" && debugName != "RenderMeshInstanceDepthMomentShader" && debugName != "RenderMeshInstanceShader" && debugName != "RenderMeshInstanceTransparentShader" && debugName != "RenderMeshInstanceTransparentDepthShader") {
                 let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 0)
                 self.shaders[shaderId] = Shader(shaderId, self.device, vertexFunction, fragmentFunction, nil, argumentEncoder, debugName)
             } else {
@@ -480,7 +482,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             let currentFrameNumber = self.currentFrameNumber
 
             commandBuffer.addCompletedHandler { cb in
-                self.commandBufferCompleted(cb, currentFrameNumber)
+                //self.commandBufferCompleted(cb, currentFrameNumber)
             }
         }
 
@@ -668,7 +670,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             let currentFrameNumber = self.currentFrameNumber
 
             commandBuffer.addCompletedHandler { cb in
-                self.commandBufferCompleted(cb, currentFrameNumber)
+                //self.commandBufferCompleted(cb, currentFrameNumber)
             }
         }
 
@@ -754,7 +756,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             let currentFrameNumber = self.currentFrameNumber
 
             commandBuffer.addCompletedHandler { cb in
-                self.commandBufferCompleted(cb, currentFrameNumber)
+                //self.commandBufferCompleted(cb, currentFrameNumber)
             }
         }
 
@@ -776,6 +778,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             self.frameSemaphore.wait()
 
             guard let nextCurrentMetalDrawable = self.metalLayer.nextDrawable() else {
+                print("Next drawable timeout")
                 return false
             }
             
@@ -1269,20 +1272,23 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             handlerSemaphore.signal()
         }
 
-        self.commandBuffer.present(currentMetalDrawable)
+        // let duration = 33.0 / 1000.0 // Duration of 33 ms
+        let duration = 16.0 / 1000.0 // Duration of 33 ms
+        self.commandBuffer.present(currentMetalDrawable, afterMinimumDuration: duration)
         self.commandBuffer.commit()
+        self.currentMetalDrawable = nil
 
         self.commandBuffer = self.commandQueue.makeCommandBuffer()
         
-        let currentFrameNumber = self.currentFrameNumber
+        let currentFrameNumberLocal = self.currentFrameNumber
         self.commandBuffer.addCompletedHandler { cb in
-            self.commandBufferCompleted(cb, currentFrameNumber)
+            self.commandBufferCompleted(cb, currentFrameNumberLocal)
         }
 
         // TODO: Can we reuse the same command buffer?
 
         self.currentFrameNumber += 1
-        self.gpuExecutionTimes[self.currentFrameNumber % 3] = 0
+        //self.gpuExecutionTimes[self.currentFrameNumber % 2] = 0
         self.commandListFences = [:]
     }
 
@@ -1293,6 +1299,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         let executionDuration = commandBuffer.gpuEndTime - commandBuffer.gpuStartTime
-        self.gpuExecutionTimes[frameNumber % 3] += executionDuration * 1000
+
+        //print("\(executionDuration)")
+        self.gpuExecutionTimes[frameNumber % 2] = executionDuration * 1000
     }
 }

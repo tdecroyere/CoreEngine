@@ -22,7 +22,8 @@ enum GraphicsTextureFormat : int
     BC5, 
     BC6, 
     BC7Srgb, 
-    Rgba32Float
+    Rgba32Float, 
+    Rgba16Unorm
 };
 
 enum GraphicsDepthBufferOperation : int

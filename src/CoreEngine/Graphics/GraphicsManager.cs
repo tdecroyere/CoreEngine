@@ -87,8 +87,6 @@ namespace CoreEngine.Graphics
         internal int CulledGeometryInstancesCount { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
-        internal float CameraMinDepth { get; set; }
-        internal float CameraMaxDepth { get; set; }
 
         public Vector2 GetRenderSize()
         {
@@ -698,7 +696,6 @@ namespace CoreEngine.Graphics
             this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 210));
             this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
             this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
-            this.Graphics2DRenderer.DrawText($"    Camera Depth: {this.CameraMinDepth.ToString("0.00000", CultureInfo.InvariantCulture)} - {this.CameraMaxDepth.ToString("0.00000", CultureInfo.InvariantCulture)}", new Vector2(10, 330));
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)
@@ -727,7 +724,7 @@ namespace CoreEngine.Graphics
             var pixelSizeInBytes = 4;
             var isBlockCompression = false;
 
-            if (texture.TextureFormat == TextureFormat.Rgba16Float)
+            if (texture.TextureFormat == TextureFormat.Rgba16Float || texture.TextureFormat == TextureFormat.Rgba16Unorm)
             {
                 pixelSizeInBytes = 8;
             }

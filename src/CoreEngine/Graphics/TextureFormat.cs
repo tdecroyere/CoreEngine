@@ -14,6 +14,7 @@ namespace CoreEngine.Graphics
         BC5,
         BC6,
         BC7Srgb,
-        Rgba32Float
+        Rgba32Float,
+        Rgba16Unorm
     }
 }

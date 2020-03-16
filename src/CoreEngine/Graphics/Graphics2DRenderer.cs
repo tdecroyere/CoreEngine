@@ -118,7 +118,7 @@ namespace CoreEngine.Graphics
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, GraphicsResourceType.Static, true, "Graphics2DVertexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, GraphicsResourceType.Static, true, "Graphics2DIndexBuffer");
 
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList("Graphics2DRendererCommandList", true);
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("Graphics2DRendererCommandList");
             this.graphicsManager.UploadDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, vertexData);
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
@@ -206,7 +206,7 @@ namespace CoreEngine.Graphics
             {
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList("Graphics2DCopyCommandList");
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
-                this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces);
+                this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces.AsSpan().Slice(0, this.currentSurfaceCount));
                 this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 
                 var renderTarget = new RenderTargetDescriptor(this.graphicsManager.MainRenderTargetTexture, null, BlendOperation.AlphaBlending);

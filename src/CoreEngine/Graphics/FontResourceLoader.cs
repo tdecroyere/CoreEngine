@@ -84,7 +84,7 @@ namespace CoreEngine.Graphics
             font.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height, 1, 1);
 
             // TODO: Make only one frame copy command list for all resource loaders
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList("FontLoaderCommandList", true);
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("FontLoaderCommandList");
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, font.Texture, font.Texture.Width, font.Texture.Height, 0, 0, textureData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 

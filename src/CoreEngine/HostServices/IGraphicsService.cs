@@ -200,12 +200,14 @@ namespace CoreEngine.HostServices
         bool GetGpuError();
         Vector2 GetRenderSize();
         string? GetGraphicsAdapterName();
-        float GetGpuExecutionTime(uint frameNumber);
+        float GetGpuExecutionTime(uint commandListId);
         
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string? debugName);
 
         bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName);
         void RemoveTexture(uint textureId);
+
+        bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount, string? debugName);
 
         bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string? debugName);
         void RemoveShader(uint shaderId);
@@ -213,7 +215,7 @@ namespace CoreEngine.HostServices
         bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor, string? debugName);
         void RemovePipelineState(uint pipelineStateId);
         
-        bool CreateCopyCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
+        bool CreateCopyCommandList(uint commandListId, string? debugName);
         void ExecuteCopyCommandList(uint commandListId);
         void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
         void CopyGraphicsBufferDataToCpu(uint commandListId, uint graphicsBufferId, int length);
@@ -222,14 +224,12 @@ namespace CoreEngine.HostServices
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
         void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
 
-        bool CreateComputeCommandList(uint commandListId, string? debugName, bool createNewCommandBuffer);
+        bool CreateComputeCommandList(uint commandListId, string? debugName);
         void ExecuteComputeCommandList(uint commandListId);
         Vector3 DispatchThreads(uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ);
         
-        bool CreateRenderCommandList(uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName, bool createNewCommandBuffer);
+        bool CreateRenderCommandList(uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName);
         void ExecuteRenderCommandList(uint commandListId);
-
-        bool CreateIndirectCommandList(uint commandListId, int maxCommandCount, string? debugName);
 
         void SetPipelineState(uint commandListId, uint pipelineStateId);
 
@@ -241,8 +241,7 @@ namespace CoreEngine.HostServices
         void SetShaderIndirectCommandList(uint commandListId, uint indirectCommandListId, int slot, int index);
         void SetShaderIndirectCommandLists(uint commandListId, ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index);
 
-        void ExecuteIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
-
+        void ExecuteIndirectCommandBuffer(uint commandListId, uint indirectCommandBufferId, int maxCommandCount);
         void SetIndexBuffer(uint commandListId, uint graphicsBufferId);
         void DrawIndexedPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
         void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);

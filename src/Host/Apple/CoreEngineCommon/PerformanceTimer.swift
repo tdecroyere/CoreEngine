@@ -22,6 +22,8 @@ public class PerformanceTimer {
         let nanoSeconds = elapsed * UInt64(self.machTimebaseInfo.numer) / UInt64(self.machTimebaseInfo.denom)		
         let milliSeconds = Double(nanoSeconds) / 1_000_000	
 
+        print(currentCounter)
+
         return milliSeconds
     }
 }

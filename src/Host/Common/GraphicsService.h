@@ -72,15 +72,16 @@ struct GraphicsRenderPassDescriptor
 typedef int (*GraphicsService_GetGpuErrorPtr)(void* context);
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
 typedef char* (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context);
-typedef float (*GraphicsService_GetGpuExecutionTimePtr)(void* context, unsigned int frameNumber);
+typedef float (*GraphicsService_GetGpuExecutionTimePtr)(void* context, unsigned int commandListId);
 typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, int isWriteOnly, char* debugName);
 typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* debugName);
 typedef void (*GraphicsService_RemoveTexturePtr)(void* context, unsigned int textureId);
+typedef int (*GraphicsService_CreateIndirectCommandBufferPtr)(void* context, unsigned int indirectCommandBufferId, int maxCommandCount, char* debugName);
 typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* debugName);
 typedef void (*GraphicsService_RemoveShaderPtr)(void* context, unsigned int shaderId);
 typedef int (*GraphicsService_CreatePipelineStatePtr)(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* debugName);
 typedef void (*GraphicsService_RemovePipelineStatePtr)(void* context, unsigned int pipelineStateId);
-typedef int (*GraphicsService_CreateCopyCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
+typedef int (*GraphicsService_CreateCopyCommandListPtr)(void* context, unsigned int commandListId, char* debugName);
 typedef void (*GraphicsService_ExecuteCopyCommandListPtr)(void* context, unsigned int commandListId);
 typedef void (*GraphicsService_UploadDataToGraphicsBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
 typedef void (*GraphicsService_CopyGraphicsBufferDataToCpuPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int length);
@@ -88,12 +89,11 @@ typedef void (*GraphicsService_ReadGraphicsBufferDataPtr)(void* context, unsigne
 typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength);
 typedef void (*GraphicsService_ResetIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef void (*GraphicsService_OptimizeIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
-typedef int (*GraphicsService_CreateComputeCommandListPtr)(void* context, unsigned int commandListId, char* debugName, int createNewCommandBuffer);
+typedef int (*GraphicsService_CreateComputeCommandListPtr)(void* context, unsigned int commandListId, char* debugName);
 typedef void (*GraphicsService_ExecuteComputeCommandListPtr)(void* context, unsigned int commandListId);
 typedef struct Vector3 (*GraphicsService_DispatchThreadsPtr)(void* context, unsigned int commandListId, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ);
-typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, char* debugName, int createNewCommandBuffer);
+typedef int (*GraphicsService_CreateRenderCommandListPtr)(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderDescriptor, char* debugName);
 typedef void (*GraphicsService_ExecuteRenderCommandListPtr)(void* context, unsigned int commandListId);
-typedef int (*GraphicsService_CreateIndirectCommandListPtr)(void* context, unsigned int commandListId, int maxCommandCount, char* debugName);
 typedef void (*GraphicsService_SetPipelineStatePtr)(void* context, unsigned int commandListId, unsigned int pipelineStateId);
 typedef void (*GraphicsService_SetShaderPtr)(void* context, unsigned int commandListId, unsigned int shaderId);
 typedef void (*GraphicsService_SetShaderBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index);
@@ -102,7 +102,7 @@ typedef void (*GraphicsService_SetShaderTexturePtr)(void* context, unsigned int 
 typedef void (*GraphicsService_SetShaderTexturesPtr)(void* context, unsigned int commandListId, unsigned int* textureIdList, int textureIdListLength, int slot, int index);
 typedef void (*GraphicsService_SetShaderIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int slot, int index);
 typedef void (*GraphicsService_SetShaderIndirectCommandListsPtr)(void* context, unsigned int commandListId, unsigned int* indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index);
-typedef void (*GraphicsService_ExecuteIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
+typedef void (*GraphicsService_ExecuteIndirectCommandBufferPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount);
 typedef void (*GraphicsService_SetIndexBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId);
 typedef void (*GraphicsService_DrawIndexedPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
 typedef void (*GraphicsService_DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
@@ -119,6 +119,7 @@ struct GraphicsService
     GraphicsService_CreateGraphicsBufferPtr GraphicsService_CreateGraphicsBuffer;
     GraphicsService_CreateTexturePtr GraphicsService_CreateTexture;
     GraphicsService_RemoveTexturePtr GraphicsService_RemoveTexture;
+    GraphicsService_CreateIndirectCommandBufferPtr GraphicsService_CreateIndirectCommandBuffer;
     GraphicsService_CreateShaderPtr GraphicsService_CreateShader;
     GraphicsService_RemoveShaderPtr GraphicsService_RemoveShader;
     GraphicsService_CreatePipelineStatePtr GraphicsService_CreatePipelineState;
@@ -136,7 +137,6 @@ struct GraphicsService
     GraphicsService_DispatchThreadsPtr GraphicsService_DispatchThreads;
     GraphicsService_CreateRenderCommandListPtr GraphicsService_CreateRenderCommandList;
     GraphicsService_ExecuteRenderCommandListPtr GraphicsService_ExecuteRenderCommandList;
-    GraphicsService_CreateIndirectCommandListPtr GraphicsService_CreateIndirectCommandList;
     GraphicsService_SetPipelineStatePtr GraphicsService_SetPipelineState;
     GraphicsService_SetShaderPtr GraphicsService_SetShader;
     GraphicsService_SetShaderBufferPtr GraphicsService_SetShaderBuffer;
@@ -145,7 +145,7 @@ struct GraphicsService
     GraphicsService_SetShaderTexturesPtr GraphicsService_SetShaderTextures;
     GraphicsService_SetShaderIndirectCommandListPtr GraphicsService_SetShaderIndirectCommandList;
     GraphicsService_SetShaderIndirectCommandListsPtr GraphicsService_SetShaderIndirectCommandLists;
-    GraphicsService_ExecuteIndirectCommandListPtr GraphicsService_ExecuteIndirectCommandList;
+    GraphicsService_ExecuteIndirectCommandBufferPtr GraphicsService_ExecuteIndirectCommandBuffer;
     GraphicsService_SetIndexBufferPtr GraphicsService_SetIndexBuffer;
     GraphicsService_DrawIndexedPrimitivesPtr GraphicsService_DrawIndexedPrimitives;
     GraphicsService_DrawPrimitivesPtr GraphicsService_DrawPrimitives;

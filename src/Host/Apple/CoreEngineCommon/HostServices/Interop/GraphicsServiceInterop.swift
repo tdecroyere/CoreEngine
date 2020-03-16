@@ -16,9 +16,9 @@ func GraphicsService_getGraphicsAdapterNameInterop(context: UnsafeMutableRawPoin
     return UnsafeMutablePointer<Int8>?(strdup(contextObject.getGraphicsAdapterName()!))
 }
 
-func GraphicsService_getGpuExecutionTimeInterop(context: UnsafeMutableRawPointer?, _ frameNumber: UInt32) -> Float {
+func GraphicsService_getGpuExecutionTimeInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) -> Float {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.getGpuExecutionTime(UInt(frameNumber))
+    return contextObject.getGpuExecutionTime(UInt(commandListId))
 }
 
 func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32, _ length: Int32, _ isWriteOnly: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
@@ -34,6 +34,11 @@ func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ t
 func GraphicsService_removeTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.removeTexture(UInt(textureId))
+}
+
+func GraphicsService_createIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ indirectCommandBufferId: UInt32, _ maxCommandCount: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.createIndirectCommandBuffer(UInt(indirectCommandBufferId), Int(maxCommandCount), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
 func GraphicsService_createShaderInterop(context: UnsafeMutableRawPointer?, _ shaderId: UInt32, _ computeShaderFunction: UnsafeMutablePointer<Int8>?, _ shaderByteCode: UnsafeMutableRawPointer?, _ shaderByteCodeLength: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
@@ -56,9 +61,9 @@ func GraphicsService_removePipelineStateInterop(context: UnsafeMutableRawPointer
     contextObject.removePipelineState(UInt(pipelineStateId))
 }
 
-func GraphicsService_createCopyCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
+func GraphicsService_createCopyCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createCopyCommandList(UInt(commandListId), (debugName != nil) ? String(cString: debugName!) : nil, Bool(createNewCommandBuffer == 1)) ? 1 : 0)
+    return Int32(contextObject.createCopyCommandList(UInt(commandListId), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
 func GraphicsService_executeCopyCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
@@ -96,9 +101,9 @@ func GraphicsService_optimizeIndirectCommandListInterop(context: UnsafeMutableRa
     contextObject.optimizeIndirectCommandList(UInt(commandListId), UInt(indirectCommandListId), Int(maxCommandCount))
 }
 
-func GraphicsService_createComputeCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
+func GraphicsService_createComputeCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createComputeCommandList(UInt(commandListId), (debugName != nil) ? String(cString: debugName!) : nil, Bool(createNewCommandBuffer == 1)) ? 1 : 0)
+    return Int32(contextObject.createComputeCommandList(UInt(commandListId), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
 func GraphicsService_executeComputeCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
@@ -111,19 +116,14 @@ func GraphicsService_dispatchThreadsInterop(context: UnsafeMutableRawPointer?, _
     return contextObject.dispatchThreads(UInt(commandListId), UInt(threadCountX), UInt(threadCountY), UInt(threadCountZ))
 }
 
-func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: UnsafeMutablePointer<Int8>?, _ createNewCommandBuffer: Int32) -> Int32 {
+func GraphicsService_createRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ renderDescriptor: GraphicsRenderPassDescriptor, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createRenderCommandList(UInt(commandListId), renderDescriptor, (debugName != nil) ? String(cString: debugName!) : nil, Bool(createNewCommandBuffer == 1)) ? 1 : 0)
+    return Int32(contextObject.createRenderCommandList(UInt(commandListId), renderDescriptor, (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
 func GraphicsService_executeRenderCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.executeRenderCommandList(UInt(commandListId))
-}
-
-func GraphicsService_createIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ maxCommandCount: Int32, _ debugName: UnsafeMutablePointer<Int8>?) -> Int32 {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createIndirectCommandList(UInt(commandListId), Int(maxCommandCount), (debugName != nil) ? String(cString: debugName!) : nil) ? 1 : 0)
 }
 
 func GraphicsService_setPipelineStateInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ pipelineStateId: UInt32) {
@@ -166,9 +166,9 @@ func GraphicsService_setShaderIndirectCommandListsInterop(context: UnsafeMutable
     contextObject.setShaderIndirectCommandLists(UInt(commandListId), Array(UnsafeBufferPointer(start: indirectCommandListIdList, count: Int(indirectCommandListIdListLength))), Int(slot), Int(index))
 }
 
-func GraphicsService_executeIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandListId: UInt32, _ maxCommandCount: Int32) {
+func GraphicsService_executeIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandBufferId: UInt32, _ maxCommandCount: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.executeIndirectCommandList(UInt(commandListId), UInt(indirectCommandListId), Int(maxCommandCount))
+    contextObject.executeIndirectCommandBuffer(UInt(commandListId), UInt(indirectCommandBufferId), Int(maxCommandCount))
 }
 
 func GraphicsService_setIndexBufferInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ graphicsBufferId: UInt32) {
@@ -205,6 +205,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreateGraphicsBuffer = GraphicsService_createGraphicsBufferInterop
     service.GraphicsService_CreateTexture = GraphicsService_createTextureInterop
     service.GraphicsService_RemoveTexture = GraphicsService_removeTextureInterop
+    service.GraphicsService_CreateIndirectCommandBuffer = GraphicsService_createIndirectCommandBufferInterop
     service.GraphicsService_CreateShader = GraphicsService_createShaderInterop
     service.GraphicsService_RemoveShader = GraphicsService_removeShaderInterop
     service.GraphicsService_CreatePipelineState = GraphicsService_createPipelineStateInterop
@@ -222,7 +223,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_DispatchThreads = GraphicsService_dispatchThreadsInterop
     service.GraphicsService_CreateRenderCommandList = GraphicsService_createRenderCommandListInterop
     service.GraphicsService_ExecuteRenderCommandList = GraphicsService_executeRenderCommandListInterop
-    service.GraphicsService_CreateIndirectCommandList = GraphicsService_createIndirectCommandListInterop
     service.GraphicsService_SetPipelineState = GraphicsService_setPipelineStateInterop
     service.GraphicsService_SetShader = GraphicsService_setShaderInterop
     service.GraphicsService_SetShaderBuffer = GraphicsService_setShaderBufferInterop
@@ -231,7 +231,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetShaderTextures = GraphicsService_setShaderTexturesInterop
     service.GraphicsService_SetShaderIndirectCommandList = GraphicsService_setShaderIndirectCommandListInterop
     service.GraphicsService_SetShaderIndirectCommandLists = GraphicsService_setShaderIndirectCommandListsInterop
-    service.GraphicsService_ExecuteIndirectCommandList = GraphicsService_executeIndirectCommandListInterop
+    service.GraphicsService_ExecuteIndirectCommandBuffer = GraphicsService_executeIndirectCommandBufferInterop
     service.GraphicsService_SetIndexBuffer = GraphicsService_setIndexBufferInterop
     service.GraphicsService_DrawIndexedPrimitives = GraphicsService_drawIndexedPrimitivesInterop
     service.GraphicsService_DrawPrimitives = GraphicsService_drawPrimitivesInterop

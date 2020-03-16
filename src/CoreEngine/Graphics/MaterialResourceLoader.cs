@@ -68,7 +68,7 @@ namespace CoreEngine.Graphics
             material.MaterialData = this.graphicsManager.CreateGraphicsBuffer<byte>(materialData.Length, GraphicsResourceType.Static, true, $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
 
             // TODO: Refactor that
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList("MaterialLoaderCommandList", true);
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList("MaterialLoaderCommandList");
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData.Value, materialData);
             this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
 

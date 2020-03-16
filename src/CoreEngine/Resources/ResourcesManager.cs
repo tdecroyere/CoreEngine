@@ -167,9 +167,11 @@ namespace CoreEngine.Resources
 
         public override void PreUpdate()
         {
+            // TODO: Deactivated because it took 7 ms !
+            
             CheckResourceLoadingTasks();
             CheckForUpdatedResources();
-            RemoveUnusedResources();
+            // RemoveUnusedResources();
         }
 
         public void WaitForPendingResources()
@@ -214,10 +216,11 @@ namespace CoreEngine.Resources
         private void CheckForUpdatedResources()
         {
             // TODO: Only check for a Maximum of resources for each frame
-
+            // TODO: Try to avoid the copy here
+            
             var resourcesSnapshot = new KeyValuePair<string, Resource>[this.resources.Count];
             this.resources.CopyTo(resourcesSnapshot, 0);
-
+            
             foreach (var item in resourcesSnapshot)
             {
                 var resource = item.Value;

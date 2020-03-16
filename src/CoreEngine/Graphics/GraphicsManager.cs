@@ -13,7 +13,7 @@ namespace CoreEngine.Graphics
 {
     public class GraphicsManager : SystemManager
     {
-        private readonly IGraphicsService graphicsService;
+        internal readonly IGraphicsService graphicsService;
 
         private static object syncObject = new object();
         private uint currentGraphicsResourceId;
@@ -87,6 +87,7 @@ namespace CoreEngine.Graphics
         internal int CulledGeometryInstancesCount { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
+        internal float GpuCopyTiming { get; set; }
 
         public Vector2 GetRenderSize()
         {
@@ -225,6 +226,45 @@ namespace CoreEngine.Graphics
             }
         }
 
+        public IndirectCommandBuffer CreateIndirectCommandBuffer(int maxCommandCount, GraphicsResourceType resourceType = GraphicsResourceType.Static, string? debugName = null)
+        {
+            var graphicsResourceId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId, maxCommandCount, debugName);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the indirect command buffer resource.");
+            }
+
+            uint? graphicsResourceId2 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                graphicsResourceId2 = GetNextGraphicsResourceId();
+                result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId2.Value, maxCommandCount, debugName);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the indirect command buffer resource.");
+                }
+            }
+
+            uint? graphicsResourceId3 = null;
+
+            if (resourceType == GraphicsResourceType.Dynamic)
+            {
+                graphicsResourceId3 = GetNextGraphicsResourceId();
+                result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId3.Value, maxCommandCount, debugName);
+
+                if (!result)
+                {
+                    throw new InvalidOperationException("There was an error while creating the indirect command buffer resource.");
+                }
+            }
+
+            return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, graphicsResourceId3, maxCommandCount, resourceType);
+        }
+
         internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string? debugName = null)
         {
             var shaderId = GetNextGraphicsResourceId();
@@ -249,10 +289,10 @@ namespace CoreEngine.Graphics
             this.graphicsService.RemoveShader(shader.ShaderId);
         }
 
-        public CommandList CreateCopyCommandList(string? debugName = null, bool createNewCommandBuffer = false)
+        public CommandList CreateCopyCommandList(string? debugName = null)
         {
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateCopyCommandList(commandListId, debugName, createNewCommandBuffer);
+            var result = graphicsService.CreateCopyCommandList(commandListId, debugName);
 
             if (!result)
             {
@@ -314,30 +354,20 @@ namespace CoreEngine.Graphics
             this.gpuMemoryUploaded += rawData.Length;
         }
 
-        public void ResetIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
+        public void ResetIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
         {
-            if (indirectCommandList.Type != CommandListType.Indirect)
-            {
-                throw new InvalidOperationException("The specified command list is not an indirect command list.");
-            }
-            
-            this.graphicsService.ResetIndirectCommandList(commandList.Id, indirectCommandList.Id, maxCommandCount);
+            this.graphicsService.ResetIndirectCommandList(commandList.Id, indirectCommandList.GraphicsResourceId, maxCommandCount);
         }
 
-        public void OptimizeIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
+        public void OptimizeIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
         {
-            if (indirectCommandList.Type != CommandListType.Indirect)
-            {
-                throw new InvalidOperationException("The specified command list is not an indirect command list.");
-            }
-
-            this.graphicsService.OptimizeIndirectCommandList(commandList.Id, indirectCommandList.Id, maxCommandCount);
+            this.graphicsService.OptimizeIndirectCommandList(commandList.Id, indirectCommandList.GraphicsResourceId, maxCommandCount);
         }
 
-        public CommandList CreateComputeCommandList(string? debugName = null, bool createNewCommandBuffer = false)
+        public CommandList CreateComputeCommandList(string? debugName = null)
         {
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateComputeCommandList(commandListId, debugName, createNewCommandBuffer);
+            var result = graphicsService.CreateComputeCommandList(commandListId, debugName);
 
             if (!result)
             {
@@ -368,11 +398,11 @@ namespace CoreEngine.Graphics
             return this.graphicsService.DispatchThreads(commandList.Id, threadCountX, threadCountY, threadCountZ);
         }
 
-        public CommandList CreateRenderCommandList(RenderPassDescriptor renderPassDescriptor, string? debugName = null, bool createNewCommandBuffer = false)
+        public CommandList CreateRenderCommandList(RenderPassDescriptor renderPassDescriptor, string? debugName = null)
         {
             var graphicsRenderPassDescriptor = new GraphicsRenderPassDescriptor(renderPassDescriptor);
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateRenderCommandList(commandListId, graphicsRenderPassDescriptor, debugName, createNewCommandBuffer);
+            var result = graphicsService.CreateRenderCommandList(commandListId, graphicsRenderPassDescriptor, debugName);
 
             if (!result)
             {
@@ -393,19 +423,6 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.ExecuteRenderCommandList(commandList.Id);
             this.renderPassDescriptors.Remove(commandList.Id);
-        }
-
-        public CommandList CreateIndirectCommandList(int maxCommandCount, string? debugName = null)
-        {
-            var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateIndirectCommandList(commandListId, maxCommandCount, debugName);
-
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the indirect command list resource.");
-            }
-
-            return new CommandList(commandListId, CommandListType.Indirect);
         }
 
         public void SetShader(CommandList commandList, Shader shader)
@@ -496,46 +513,36 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetShaderTextures(commandList.Id, textureIdsList.AsSpan(), slot, index);
         }
 
-        public void SetShaderIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int slot, int index = 0)
+        public void SetShaderIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandBuffer, int slot, int index = 0)
         {
-            if (indirectCommandList.Type != CommandListType.Indirect)
-            {
-                throw new InvalidOperationException("The specified command list is not an indirect command list.");
-            }
-
-            this.graphicsService.SetShaderIndirectCommandList(commandList.Id, indirectCommandList.Id, slot, index);
+            this.graphicsService.SetShaderIndirectCommandList(commandList.Id, indirectCommandBuffer.GraphicsResourceId, slot, index);
         }
 
-        public void SetShaderIndirectCommandLists(CommandList commandList, ReadOnlySpan<CommandList> indirectCommandLists, int slot, int index = 0)
+        public void SetShaderIndirectCommandBuffers(CommandList commandList, ReadOnlySpan<IndirectCommandBuffer> indirectCommandBuffers, int slot, int index = 0)
         {
-            if (indirectCommandLists == null)
+            if (indirectCommandBuffers == null)
             {
-                throw new ArgumentNullException(nameof(indirectCommandLists));
+                throw new ArgumentNullException(nameof(indirectCommandBuffers));
             }
 
-            var list = new uint[indirectCommandLists.Length];
+            var list = new uint[indirectCommandBuffers.Length];
 
-            for (var i = 0; i < indirectCommandLists.Length; i++)
+            for (var i = 0; i < indirectCommandBuffers.Length; i++)
             {
-                list[i] = indirectCommandLists[i].Id;
+                list[i] = indirectCommandBuffers[i].GraphicsResourceId;
             }
 
             this.graphicsService.SetShaderIndirectCommandLists(commandList.Id, list.AsSpan(), slot, index);
         }
 
-        public void ExecuteIndirectCommandList(CommandList commandList, CommandList indirectCommandList, int maxCommandCount)
+        public void ExecuteIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandBuffer, int maxCommandCount)
         {
             if (commandList.Type != CommandListType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            if (indirectCommandList.Type != CommandListType.Indirect)
-            {
-                throw new InvalidOperationException("The specified command list is not an indirect command list.");
-            }
-
-            this.graphicsService.ExecuteIndirectCommandList(commandList.Id, indirectCommandList.Id, maxCommandCount);
+            this.graphicsService.ExecuteIndirectCommandBuffer(commandList.Id, indirectCommandBuffer.GraphicsResourceId, maxCommandCount);
         }
 
         public void SetIndexBuffer(CommandList commandList, GraphicsBuffer indexBuffer)
@@ -627,11 +634,6 @@ namespace CoreEngine.Graphics
             this.cpuDispatchCount = 0;
         }
 
-        public override void PreUpdate()
-        {
-            this.stopwatch.Restart();
-        }
-
         internal void Render()
         {
             if (this.graphicsService.GetGpuError())
@@ -658,7 +660,7 @@ namespace CoreEngine.Graphics
             this.PresentScreenBuffer(graphics2DCommandList);
 
             // TODO: If doing restart stopwatch here, the CPU time is more than 10ms
-            // this.stopwatch.Restart();
+            this.stopwatch.Restart();
         }
 
         private void DrawDebugMessages()
@@ -686,16 +688,17 @@ namespace CoreEngine.Graphics
             }
 
             var renderSize = GetRenderSize();
-            var gpuExecutionTime = this.graphicsService.GetGpuExecutionTime(this.CurrentFrameNumber - 1);
+            var gpuExecutionTime = 0;//this.graphicsService.GetGpuExecutionTime(this.CurrentFrameNumber - 1);
 
             this.Graphics2DRenderer.DrawText($"{this.graphicsAdapterName} - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
             this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {gpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
-            this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 90));
-            this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
-            this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
-            this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 210));
-            this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
-            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
+            this.Graphics2DRenderer.DrawText($"    Copy Gpu Data Duration: {this.GpuCopyTiming.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 90));
+            this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 130));
+            this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 170));
+            this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 210));
+            this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 250));
+            this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 290));
+            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 330));
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

@@ -5,6 +5,5 @@ namespace CoreEngine.Graphics
         uint GraphicsResourceId { get; }
         uint GraphicsResourceSystemId { get; }
         uint? GraphicsResourceSystemId2 { get; }
-        uint? GraphicsResourceSystemId3 { get; }
     }
 }

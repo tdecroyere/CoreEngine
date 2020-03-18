@@ -26,9 +26,11 @@ namespace CoreEngine.Graphics
             var textureData = new byte[256 * 256 * 4];
             Array.Fill<byte>(textureData, 255);
 
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList("TextureLoaderCommandList");
+            var commandBuffer = this.graphicsManager.CreateCommandBuffer("TextureLoader");
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, 0, textureData);
-            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+            this.graphicsManager.CommitCopyCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
         }
 
         public override string Name => "Texture Loader";
@@ -73,12 +75,14 @@ namespace CoreEngine.Graphics
                 this.graphicsManager.RemoveTexture(texture);
             }
 
+            // TODO: Wait for the command buffer to finish execution before switching the system ids.
+
             var createdTexture = this.graphicsManager.CreateTexture(texture.TextureFormat, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, false, GraphicsResourceType.Static, $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
-            texture.GraphicsResourceSystemId3 = createdTexture.GraphicsResourceSystemId3;
 
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList("TextureLoaderCommandList");
+            var commandBuffer = this.graphicsManager.CreateCommandBuffer("TextureLoader");
+            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
 
             for (var i = 0; i < texture.FaceCount; i++)
             {
@@ -101,7 +105,8 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+            this.graphicsManager.CommitCopyCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
             return texture;
         }
     }

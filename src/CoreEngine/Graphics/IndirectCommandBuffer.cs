@@ -8,12 +8,11 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal IndirectCommandBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, uint? systemId3, int maxCommandCount, GraphicsResourceType resourceType)
+        internal IndirectCommandBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int maxCommandCount, GraphicsResourceType resourceType)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsResourceSystemId = systemId;
             this.GraphicsResourceSystemId2 = systemId2;
-            this.GraphicsResourceSystemId3 = systemId3;
             this.MaxCommandCount = maxCommandCount;
             this.ResourceType = resourceType;
         }
@@ -29,11 +28,6 @@ namespace CoreEngine.Graphics
                     result = this.GraphicsResourceSystemId2.Value;
                 }
 
-                else if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId3 != null && ((this.graphicsManager.CurrentFrameNumber % 3) == 2))
-                {
-                    result = this.GraphicsResourceSystemId3.Value;
-                }
-
                 return result;
             }
         }
@@ -44,11 +38,6 @@ namespace CoreEngine.Graphics
         }
 
         public uint? GraphicsResourceSystemId2
-        {
-            get;
-        }
-
-        public uint? GraphicsResourceSystemId3
         {
             get;
         }

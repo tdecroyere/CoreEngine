@@ -7,12 +7,11 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, uint? systemId3, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multiSampleCount, GraphicsResourceType resourceType) : base(0, string.Empty)
+        internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multiSampleCount, GraphicsResourceType resourceType) : base(0, string.Empty)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsResourceSystemId = systemId;
             this.GraphicsResourceSystemId2 = systemId2;
-            this.GraphicsResourceSystemId3 = systemId3;
             this.TextureFormat = textureFormat;
             this.Width = width;
             this.Height = height;
@@ -44,11 +43,6 @@ namespace CoreEngine.Graphics
                     result = this.GraphicsResourceSystemId2.Value;
                 }
 
-                else if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId3 != null && ((this.graphicsManager.CurrentFrameNumber % 3) == 2))
-                {
-                    result = this.GraphicsResourceSystemId3.Value;
-                }
-
                 return result;
             }
         }
@@ -60,12 +54,6 @@ namespace CoreEngine.Graphics
         }
 
         public uint? GraphicsResourceSystemId2
-        {
-            get;
-            set;
-        }
-
-        public uint? GraphicsResourceSystemId3
         {
             get;
             set;

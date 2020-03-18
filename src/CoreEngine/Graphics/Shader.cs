@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
 
@@ -7,21 +8,21 @@ namespace CoreEngine.Graphics
 {
     public class Shader : Resource
     {
-        internal Shader(string? debugName, uint shaderId) : base(shaderId, string.Empty)
+        internal Shader(string label, uint shaderId) : base(shaderId, string.Empty)
         {
             this.ShaderId = shaderId;
-            this.DebugName = debugName;
+            this.Label = label;
             this.PipelineStates = new Dictionary<GraphicsRenderPassDescriptor, PipelineState>();
         }
 
         internal Shader(uint resourceId, string path) : base(resourceId, path)
         {
             this.PipelineStates = new Dictionary<GraphicsRenderPassDescriptor, PipelineState>();
-            this.DebugName = null;
+            this.Label = System.IO.Path.GetFileNameWithoutExtension(path);
         }
 
         public uint ShaderId { get; internal set; }
-        public string? DebugName { get; internal set; }
+        public string Label { get; internal set; }
         public IDictionary<GraphicsRenderPassDescriptor, PipelineState> PipelineStates { get; }
     }
 }

@@ -197,43 +197,34 @@ namespace CoreEngine.HostServices
 
     public interface IGraphicsService
     {
+        // TODO: This function should be merged into a GetCommandBufferState function
         bool GetGpuError();
-        Vector2 GetRenderSize();
-        string? GetGraphicsAdapterName();
         float GetGpuExecutionTime(uint commandListId);
-        
-        bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string? debugName);
 
-        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string? debugName);
+        // TODO: This function should be merged into a GetSystemState function
+        Vector2 GetRenderSize();
+        string GetGraphicsAdapterName();
+        
+        // TODO: Create a heap resource so that the engine can apply multiple allocation strategies (buddy system, transient/aliases, etc.)
+        // TODO: All create/remove for resources should take as parameter an heap and an offset
+        // TODO: Remove isWriteOnly?
+        bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string label);
+
+        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
         void RemoveTexture(uint textureId);
 
-        bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount, string? debugName);
+        bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount, string label);
 
-        bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string? debugName);
+        bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label);
         void RemoveShader(uint shaderId);
 
-        bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor, string? debugName);
+        bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor, string label);
         void RemovePipelineState(uint pipelineStateId);
-        
-        bool CreateCopyCommandList(uint commandListId, string? debugName);
-        void ExecuteCopyCommandList(uint commandListId);
-        void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void CopyGraphicsBufferDataToCpu(uint commandListId, uint graphicsBufferId, int length);
-        void ReadGraphicsBufferData(uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data);
-        void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
-        void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
 
-        bool CreateComputeCommandList(uint commandListId, string? debugName);
-        void ExecuteComputeCommandList(uint commandListId);
-        Vector3 DispatchThreads(uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ);
-        
-        bool CreateRenderCommandList(uint commandListId, GraphicsRenderPassDescriptor renderDescriptor, string? debugName);
-        void ExecuteRenderCommandList(uint commandListId);
+        bool CreateCommandBuffer(uint commandBufferId, string label);
+        void ExecuteCommandBuffer(uint commandBufferId);
 
-        void SetPipelineState(uint commandListId, uint pipelineStateId);
-
-        void SetShader(uint commandListId, uint shaderId);
+        // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index);
         void SetShaderBuffers(uint commandListId, ReadOnlySpan<uint> graphicsBufferIdList, int slot, int index);
         void SetShaderTexture(uint commandListId, uint textureId, int slot, bool isReadOnly, int index);
@@ -241,12 +232,44 @@ namespace CoreEngine.HostServices
         void SetShaderIndirectCommandList(uint commandListId, uint indirectCommandListId, int slot, int index);
         void SetShaderIndirectCommandLists(uint commandListId, ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index);
 
+        // TODO: Add Create/Execute Command buffer method
+        // TODO: Modify CommandList methods to take the command buffer in parameter and rename execute to commit
+        bool CreateCopyCommandList(uint commandListId, uint commandBufferId, string label);
+        void CommitCopyCommandList(uint commandListId);
+        void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
+        void CopyGraphicsBufferDataToCpu(uint commandListId, uint graphicsBufferId, int length);
+        void ReadGraphicsBufferData(uint graphicsBufferId, ReadOnlySpan<byte> data);
+        void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data);
+
+        // TODO: Rename that to IndirectCommandBuffer
+        void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
+        void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
+
+        bool CreateComputeCommandList(uint commandListId, uint commandBufferId, string label);
+        void CommitComputeCommandList(uint commandListId);
+        Vector3 DispatchThreads(uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ);
+        
+        bool CreateRenderCommandList(uint commandListId, uint commandBufferId, GraphicsRenderPassDescriptor renderDescriptor, string label);
+        void CommitRenderCommandList(uint commandListId);
+
+        void SetPipelineState(uint commandListId, uint pipelineStateId);
+
+        // TODO: Add a raytrace command list
+
+        // TODO: This function should be removed. Only pipeline states can be set 
+        void SetShader(uint commandListId, uint shaderId);
+
         void ExecuteIndirectCommandBuffer(uint commandListId, uint indirectCommandBufferId, int maxCommandCount);
+
+        // TODO: Merge SetIndexBuffer to DrawIndexedPrimitives
         void SetIndexBuffer(uint commandListId, uint graphicsBufferId);
         void DrawIndexedPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
         void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
         
         void WaitForCommandList(uint commandListId, uint commandListToWaitId);
-        void PresentScreenBuffer();
+
+        // TODO: Add a parameter to specify which drawable we should update. Usefull for editor or multiple windows management
+        void PresentScreenBuffer(uint commandBufferId);
+        void WaitForAvailableScreenBuffer();
     }
 }

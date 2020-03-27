@@ -67,6 +67,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, indexBufferData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
             
             var geometryPacket = new GeometryPacket(vertexBuffer, indexBuffer);
 

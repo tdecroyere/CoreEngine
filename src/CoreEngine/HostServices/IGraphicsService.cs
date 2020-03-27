@@ -51,6 +51,15 @@ namespace CoreEngine.HostServices
         AddOneMinusSourceColor
     }
 
+    public enum GraphicsCommandBufferState
+    {
+        Created,
+        Committed,
+        Scheduled,
+        Completed,
+        Error
+    }
+
     public readonly struct GraphicsRenderPassDescriptor : IEquatable<GraphicsRenderPassDescriptor>
     {
         public GraphicsRenderPassDescriptor(RenderPassDescriptor renderPassDescriptor)
@@ -195,11 +204,20 @@ namespace CoreEngine.HostServices
         }
     }
 
+    public readonly struct GraphicsCommandBufferStatus
+    {
+        public readonly GraphicsCommandBufferState State { get; }
+        public float ScheduledStartTime { get; }
+        public float ScheduledEndTime { get; }
+        public float ExecutionStartTime { get; }
+        public float ExecutionEndTime { get; }
+        public readonly int? ErrorCode { get; }
+        public readonly string? ErrorMessage { get; }
+    }
+
     public interface IGraphicsService
     {
-        // TODO: This function should be merged into a GetCommandBufferState function
-        bool GetGpuError();
-        float GetGpuExecutionTime(uint commandListId);
+        // TODO: Add functions to manage resource transitions
 
         // TODO: This function should be merged into a GetSystemState function
         Vector2 GetRenderSize();
@@ -211,18 +229,21 @@ namespace CoreEngine.HostServices
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string label);
 
         bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
-        void RemoveTexture(uint textureId);
+        void DeleteTexture(uint textureId);
 
         bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount, string label);
 
         bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label);
-        void RemoveShader(uint shaderId);
+        void DeleteShader(uint shaderId);
 
         bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor, string label);
-        void RemovePipelineState(uint pipelineStateId);
+        void DeletePipelineState(uint pipelineStateId);
 
         bool CreateCommandBuffer(uint commandBufferId, string label);
+        void DeleteCommandBuffer(uint commandBufferId);
+        void ResetCommandBuffer(uint commandBufferId);
         void ExecuteCommandBuffer(uint commandBufferId);
+        GraphicsCommandBufferStatus? GetCommandBufferStatus(uint commandBufferId);
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index);
@@ -232,8 +253,6 @@ namespace CoreEngine.HostServices
         void SetShaderIndirectCommandList(uint commandListId, uint indirectCommandListId, int slot, int index);
         void SetShaderIndirectCommandLists(uint commandListId, ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index);
 
-        // TODO: Add Create/Execute Command buffer method
-        // TODO: Modify CommandList methods to take the command buffer in parameter and rename execute to commit
         bool CreateCopyCommandList(uint commandListId, uint commandBufferId, string label);
         void CommitCopyCommandList(uint commandListId);
         void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);

@@ -43,6 +43,15 @@ enum GraphicsBlendOperation : int
     AddOneMinusSourceColor
 };
 
+enum GraphicsCommandBufferState : int
+{
+    Created, 
+    Committed, 
+    Scheduled, 
+    Completed, 
+    Error
+};
+
 struct GraphicsRenderPassDescriptor
 {
     int IsRenderShader;
@@ -66,23 +75,46 @@ struct GraphicsRenderPassDescriptor
     struct Nullableuint DepthTextureId;
     enum GraphicsDepthBufferOperation DepthBufferOperation;
     int BackfaceCulling;
-
 };
 
-typedef int (*GraphicsService_GetGpuErrorPtr)(void* context);
-typedef float (*GraphicsService_GetGpuExecutionTimePtr)(void* context, unsigned int commandListId);
+struct NullableGraphicsRenderPassDescriptor
+{
+    int HasValue;
+    struct GraphicsRenderPassDescriptor Value;
+};
+
+struct GraphicsCommandBufferStatus
+{
+    enum GraphicsCommandBufferState State;
+    float ScheduledStartTime;
+    float ScheduledEndTime;
+    float ExecutionStartTime;
+    float ExecutionEndTime;
+    struct Nullableint ErrorCode;
+    char* ErrorMessage;
+};
+
+struct NullableGraphicsCommandBufferStatus
+{
+    int HasValue;
+    struct GraphicsCommandBufferStatus Value;
+};
+
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
 typedef char* (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context);
 typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, int isWriteOnly, char* label);
 typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
-typedef void (*GraphicsService_RemoveTexturePtr)(void* context, unsigned int textureId);
+typedef void (*GraphicsService_DeleteTexturePtr)(void* context, unsigned int textureId);
 typedef int (*GraphicsService_CreateIndirectCommandBufferPtr)(void* context, unsigned int indirectCommandBufferId, int maxCommandCount, char* label);
 typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label);
-typedef void (*GraphicsService_RemoveShaderPtr)(void* context, unsigned int shaderId);
+typedef void (*GraphicsService_DeleteShaderPtr)(void* context, unsigned int shaderId);
 typedef int (*GraphicsService_CreatePipelineStatePtr)(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* label);
-typedef void (*GraphicsService_RemovePipelineStatePtr)(void* context, unsigned int pipelineStateId);
+typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, unsigned int pipelineStateId);
 typedef int (*GraphicsService_CreateCommandBufferPtr)(void* context, unsigned int commandBufferId, char* label);
+typedef void (*GraphicsService_DeleteCommandBufferPtr)(void* context, unsigned int commandBufferId);
+typedef void (*GraphicsService_ResetCommandBufferPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_ExecuteCommandBufferPtr)(void* context, unsigned int commandBufferId);
+typedef struct NullableGraphicsCommandBufferStatus (*GraphicsService_GetCommandBufferStatusPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_SetShaderBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index);
 typedef void (*GraphicsService_SetShaderBuffersPtr)(void* context, unsigned int commandListId, unsigned int* graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index);
 typedef void (*GraphicsService_SetShaderTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index);
@@ -115,20 +147,21 @@ typedef void (*GraphicsService_WaitForAvailableScreenBufferPtr)(void* context);
 struct GraphicsService
 {
     void* Context;
-    GraphicsService_GetGpuErrorPtr GraphicsService_GetGpuError;
-    GraphicsService_GetGpuExecutionTimePtr GraphicsService_GetGpuExecutionTime;
     GraphicsService_GetRenderSizePtr GraphicsService_GetRenderSize;
     GraphicsService_GetGraphicsAdapterNamePtr GraphicsService_GetGraphicsAdapterName;
     GraphicsService_CreateGraphicsBufferPtr GraphicsService_CreateGraphicsBuffer;
     GraphicsService_CreateTexturePtr GraphicsService_CreateTexture;
-    GraphicsService_RemoveTexturePtr GraphicsService_RemoveTexture;
+    GraphicsService_DeleteTexturePtr GraphicsService_DeleteTexture;
     GraphicsService_CreateIndirectCommandBufferPtr GraphicsService_CreateIndirectCommandBuffer;
     GraphicsService_CreateShaderPtr GraphicsService_CreateShader;
-    GraphicsService_RemoveShaderPtr GraphicsService_RemoveShader;
+    GraphicsService_DeleteShaderPtr GraphicsService_DeleteShader;
     GraphicsService_CreatePipelineStatePtr GraphicsService_CreatePipelineState;
-    GraphicsService_RemovePipelineStatePtr GraphicsService_RemovePipelineState;
+    GraphicsService_DeletePipelineStatePtr GraphicsService_DeletePipelineState;
     GraphicsService_CreateCommandBufferPtr GraphicsService_CreateCommandBuffer;
+    GraphicsService_DeleteCommandBufferPtr GraphicsService_DeleteCommandBuffer;
+    GraphicsService_ResetCommandBufferPtr GraphicsService_ResetCommandBuffer;
     GraphicsService_ExecuteCommandBufferPtr GraphicsService_ExecuteCommandBuffer;
+    GraphicsService_GetCommandBufferStatusPtr GraphicsService_GetCommandBufferStatus;
     GraphicsService_SetShaderBufferPtr GraphicsService_SetShaderBuffer;
     GraphicsService_SetShaderBuffersPtr GraphicsService_SetShaderBuffers;
     GraphicsService_SetShaderTexturePtr GraphicsService_SetShaderTexture;

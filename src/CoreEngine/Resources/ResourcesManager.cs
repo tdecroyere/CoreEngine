@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Buffers;
 using CoreEngine.Diagnostics;
+using System.Threading;
 
 namespace CoreEngine.Resources
 {
@@ -28,6 +29,7 @@ namespace CoreEngine.Resources
         private IDictionary<string, Resource> resources;
         private IDictionary<uint, Resource> resourceIdList;
         private Task? resourceLoadingRunner;
+        private Task resourceUpdateCheckRunner;
         private uint currentResourceId;
 
         public ResourcesManager()
@@ -39,6 +41,9 @@ namespace CoreEngine.Resources
             this.resourceIdList = new Dictionary<uint, Resource>();
 
             this.resourceLoadingRunner = null;
+
+            this.resourceUpdateCheckRunner = CheckForUpdatedResources();
+            this.resourceUpdateCheckRunner.Start();
         }
 
         public void Dispose()
@@ -170,7 +175,8 @@ namespace CoreEngine.Resources
             // TODO: Deactivated because it took 7 ms !
             
             CheckResourceLoadingTasks();
-            CheckForUpdatedResources();
+            WaitForPendingResources();
+            //CheckForUpdatedResources();
             // RemoveUnusedResources();
         }
 
@@ -213,56 +219,63 @@ namespace CoreEngine.Resources
         }
         
         // TODO: This check needs to be done only each seconds and not each frames!
-        private void CheckForUpdatedResources()
+        private Task CheckForUpdatedResources()
         {
             // TODO: Only check for a Maximum of resources for each frame
             // TODO: Try to avoid the copy here
             
-            var resourcesSnapshot = new KeyValuePair<string, Resource>[this.resources.Count];
-            this.resources.CopyTo(resourcesSnapshot, 0);
-            
-            foreach (var item in resourcesSnapshot)
-            {
-                var resource = item.Value;
-
-                for (var i = 0; i < this.resourceStorages.Count; i++)
+            var task = new Task(() => {
+                while (true)
                 {
-                    var lastUpdateDate = this.resourceStorages[i].CheckForUpdatedResource(resource.Path, resource.LastUpdateDateTime);
-
-                    if (lastUpdateDate != null)
+                    var resourcesSnapshot = new KeyValuePair<string, Resource>[this.resources.Count];
+                    this.resources.CopyTo(resourcesSnapshot, 0);
+                    
+                    foreach (var item in resourcesSnapshot)
                     {
-                        Logger.WriteMessage($"Found update for resource '{item.Key}'...");
+                        var resource = item.Value;
 
-                        if (resource.ResourceLoader != null)
+                        for (var i = 0; i < this.resourceStorages.Count; i++)
                         {
-                            for (var j = 0; j < resource.DependentResources.Count; j++)
+                            var lastUpdateDate = this.resourceStorages[i].CheckForUpdatedResource(resource.Path, resource.LastUpdateDateTime);
+
+                            if (lastUpdateDate != null)
                             {
-                                resource.DependentResources[j].DecrementReferenceCount();
-                            }
+                                Logger.WriteMessage($"Found update for resource '{item.Key}'...");
 
-                            resource.DependentResources.Clear();
-                            resource.LastUpdateDateTime = lastUpdateDate.Value;
-
-                            var loadingTask = new Task<Resource>(parameters => {
-                                var resourceLoadingParameters = parameters as ResourceLoadingParameters;
-
-                                if (resourceLoadingParameters == null)
+                                if (resource.ResourceLoader != null)
                                 {
-                                    throw new ArgumentNullException(nameof(parameters));
+                                    for (var j = 0; j < resource.DependentResources.Count; j++)
+                                    {
+                                        resource.DependentResources[j].DecrementReferenceCount();
+                                    }
+
+                                    resource.DependentResources.Clear();
+                                    resource.LastUpdateDateTime = lastUpdateDate.Value;
+
+                                    var loadingTask = new Task<Resource>(parameters => {
+                                        var resourceLoadingParameters = parameters as ResourceLoadingParameters;
+
+                                        if (resourceLoadingParameters == null)
+                                        {
+                                            throw new ArgumentNullException(nameof(parameters));
+                                        }
+
+                                        var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
+                                        return resource.ResourceLoader.LoadResourceData(resource, resourceData);
+                                    }, new ResourceLoadingParameters(resource, this.resourceStorages[i]));
+
+
+                                    this.resourceLoadingQueue.Enqueue(loadingTask);
                                 }
-
-                                var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
-                                return resource.ResourceLoader.LoadResourceData(resource, resourceData);
-                            }, new ResourceLoadingParameters(resource, this.resourceStorages[i]));
-
-
-                            this.resourceLoadingQueue.Enqueue(loadingTask);
+                            }
                         }
                     }
-                }
-            }
 
-            this.WaitForPendingResources();
+                    Thread.Sleep(1000);
+                }
+            }, TaskCreationOptions.LongRunning);
+
+            return task;
         }
 
         private void RemoveUnusedResources()

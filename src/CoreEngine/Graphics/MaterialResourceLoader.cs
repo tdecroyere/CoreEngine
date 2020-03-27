@@ -73,6 +73,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData.Value, materialData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
 
             return resource;
         }

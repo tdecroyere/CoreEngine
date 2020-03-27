@@ -11,6 +11,18 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
+    public readonly struct GpuTiming
+    {
+        public GpuTiming(string name, float timing)
+        {
+            this.Name = name;
+            this.Timing = timing;
+        }
+
+        public string Name { get; }
+        public float Timing { get; }
+    }
+
     public class GraphicsManager : SystemManager
     {
         internal readonly IGraphicsService graphicsService;
@@ -24,11 +36,15 @@ namespace CoreEngine.Graphics
         private Stopwatch globalStopwatch;
         private uint startMeasureFrameNumber;
         private int framePerSeconds = 0;
-        private float targetFrameMilliSeconds = 1000.0f / 30.0f;
+        //private float targetFrameMilliSeconds = 1000.0f / 30.0f;
         private ulong allocatedGpuMemory = 0;
         private int gpuMemoryUploaded = 0;
         private int gpuMemoryUploadedPerSeconds = 0;
         private string graphicsAdapterName;
+
+        private List<GpuTiming> gpuTimings = new List<GpuTiming>();
+
+        private CommandBuffer presentCommandBuffer;
 
         private Shader computeDirectTransferShader;
         private Dictionary<uint, GraphicsRenderPassDescriptor> renderPassDescriptors;
@@ -66,7 +82,9 @@ namespace CoreEngine.Graphics
             this.Graphics2DRenderer = new Graphics2DRenderer(this, resourcesManager);
 
             this.currentFrameSize = graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Static, "MainRenderTarget");
+            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
+
+            this.presentCommandBuffer = this.CreateCommandBuffer("PresentScreenBuffer");
         }
 
         public uint CurrentFrameNumber
@@ -87,7 +105,9 @@ namespace CoreEngine.Graphics
         internal int CulledGeometryInstancesCount { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
+        internal float GpuExecutionTime { get; set; }
         internal float GpuCopyTiming { get; set; }
+        internal float GpuTiming { get; set; }
 
         public Vector2 GetRenderSize()
         {
@@ -121,7 +141,7 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, resourceType);
+            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, resourceType, label);
         }
 
         public Texture CreateTexture(TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, GraphicsResourceType resourceType, string label)
@@ -147,7 +167,7 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            var texture = new Texture(this, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, resourceType);
+            var texture = new Texture(this, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, resourceType, label);
             var textureSizeInBytes = ComputeTextureSizeInBytes(texture);
             
             if (resourceType == GraphicsResourceType.Static)
@@ -163,20 +183,20 @@ namespace CoreEngine.Graphics
             return texture;
         }
 
-        public void RemoveTexture(Texture texture)
+        public void DeleteTexture(Texture texture)
         {
             if (texture == null)
             {
                 throw new ArgumentNullException(nameof(texture));
             }
 
-            this.graphicsService.RemoveTexture(texture.GraphicsResourceSystemId);
+            this.graphicsService.DeleteTexture(texture.GraphicsResourceSystemId);
 
             if (texture.ResourceType == GraphicsResourceType.Dynamic)
             {
                 if (texture.GraphicsResourceSystemId2 != null)
                 {
-                    this.graphicsService.RemoveTexture(texture.GraphicsResourceSystemId2.Value);
+                    this.graphicsService.DeleteTexture(texture.GraphicsResourceSystemId2.Value);
                 }
             }
 
@@ -216,7 +236,7 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, maxCommandCount, resourceType);
+            return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, maxCommandCount, resourceType, label);
         }
 
         internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label)
@@ -232,39 +252,71 @@ namespace CoreEngine.Graphics
             return new Shader(label, shaderId);
         }
 
-        internal void RemoveShader(Shader shader)
+        internal void DeleteShader(Shader shader)
         {
             foreach (var pipelineState in shader.PipelineStates.Values)
             {
-                this.graphicsService.RemovePipelineState(pipelineState.PipelineStateId);
+                this.graphicsService.DeletePipelineState(pipelineState.PipelineStateId);
             }
 
             shader.PipelineStates.Clear();
-            this.graphicsService.RemoveShader(shader.ShaderId);
+            this.graphicsService.DeleteShader(shader.ShaderId);
         }
 
         public CommandBuffer CreateCommandBuffer(string label)
         {
-            var commandBufferId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateCommandBuffer(commandBufferId, label);
+            var graphicsResourceId = GetNextGraphicsResourceId();
+            var result = graphicsService.CreateCommandBuffer(graphicsResourceId, label);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the command buffer resource.");
             }
 
-            return new CommandBuffer(commandBufferId);
+
+            var graphicsResourceId2 = GetNextGraphicsResourceId();
+            result = this.graphicsService.CreateCommandBuffer(graphicsResourceId2, label);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the command buffer resource.");
+            }
+
+            return new CommandBuffer(this, graphicsResourceId, graphicsResourceId2, label);
+        }
+
+        public void DeleteCommandBuffer(CommandBuffer commandBuffer)
+        {
+            this.graphicsService.DeleteCommandBuffer(commandBuffer.GraphicsResourceSystemId);
+
+            if (commandBuffer.GraphicsResourceSystemId2 != null)
+            {
+                this.graphicsService.DeleteCommandBuffer(commandBuffer.GraphicsResourceSystemId2.Value);
+            }
         }
 
         public void ExecuteCommandBuffer(CommandBuffer commandBuffer)
         {
-            graphicsService.ExecuteCommandBuffer(commandBuffer.Id);
+            graphicsService.ExecuteCommandBuffer(commandBuffer.GraphicsResourceId);
         }
 
         public CommandList CreateCopyCommandList(CommandBuffer commandBuffer, string label)
         {
+            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(commandBuffer.GraphicsResourceId);
+
+            if (commandBufferStatus == null || (commandBufferStatus != null && commandBufferStatus.Value.State != GraphicsCommandBufferState.Created))
+            {
+                if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+                {
+                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime));
+                    this.GpuExecutionTime += commandBufferStatus.Value.ExecutionStartTime;
+                }
+
+                this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
+            }
+
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateCopyCommandList(commandListId, commandBuffer.Id, label);
+            var result = graphicsService.CreateCopyCommandList(commandListId, commandBuffer.GraphicsResourceId, label);
 
             if (!result)
             {
@@ -338,8 +390,21 @@ namespace CoreEngine.Graphics
 
         public CommandList CreateComputeCommandList(CommandBuffer commandBuffer, string label)
         {
+            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(commandBuffer.GraphicsResourceId);
+
+            if (commandBufferStatus == null || (commandBufferStatus != null && commandBufferStatus.Value.State != GraphicsCommandBufferState.Created))
+            {
+                if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+                {
+                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime));
+                    this.GpuExecutionTime += commandBufferStatus.Value.ExecutionStartTime;
+                }
+
+                this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
+            }
+
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateComputeCommandList(commandListId, commandBuffer.Id, label);
+            var result = graphicsService.CreateComputeCommandList(commandListId, commandBuffer.GraphicsResourceId, label);
 
             if (!result)
             {
@@ -372,9 +437,22 @@ namespace CoreEngine.Graphics
 
         public CommandList CreateRenderCommandList(CommandBuffer commandBuffer, RenderPassDescriptor renderPassDescriptor, string label)
         {
+            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(commandBuffer.GraphicsResourceId);
+
+            if (commandBufferStatus == null || (commandBufferStatus != null && commandBufferStatus.Value.State != GraphicsCommandBufferState.Created))
+            {
+                if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+                {
+                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime));
+                    this.GpuExecutionTime += commandBufferStatus.Value.ExecutionStartTime;
+                }
+
+                this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
+            }
+
             var graphicsRenderPassDescriptor = new GraphicsRenderPassDescriptor(renderPassDescriptor);
             var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateRenderCommandList(commandListId, commandBuffer.Id, graphicsRenderPassDescriptor, label);
+            var result = graphicsService.CreateRenderCommandList(commandListId, commandBuffer.GraphicsResourceId, graphicsRenderPassDescriptor, label);
 
             if (!result)
             {
@@ -588,9 +666,8 @@ namespace CoreEngine.Graphics
         public void PresentScreenBuffer(CommandList previousCommandList)
         {
             // TODO: Use a compute shader
-            var commandBuffer = this.CreateCommandBuffer("PresentScreenBuffer");
             var renderPassDescriptor = new RenderPassDescriptor(null, null, DepthBufferOperation.None, true);
-            var renderCommandList = CreateRenderCommandList(commandBuffer, renderPassDescriptor, "PresentRenderCommandList");
+            var renderCommandList = CreateRenderCommandList(presentCommandBuffer, renderPassDescriptor, "PresentRenderCommandList");
 
             this.WaitForCommandList(renderCommandList, previousCommandList);
 
@@ -599,9 +676,9 @@ namespace CoreEngine.Graphics
             DrawPrimitives(renderCommandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
 
             CommitRenderCommandList(renderCommandList);
-            
-            this.graphicsService.PresentScreenBuffer(commandBuffer.Id);
-            this.ExecuteCommandBuffer(commandBuffer);
+
+            this.graphicsService.PresentScreenBuffer(presentCommandBuffer.GraphicsResourceId);
+            this.ExecuteCommandBuffer(presentCommandBuffer);
 
             this.graphicsService.WaitForAvailableScreenBuffer();
 
@@ -609,16 +686,12 @@ namespace CoreEngine.Graphics
             this.CurrentFrameNumber++;
             this.cpuDrawCount = 0;
             this.cpuDispatchCount = 0;
+            this.GpuExecutionTime = 0;
+            this.gpuTimings.Clear();
         }
 
         internal void Render()
         {
-            Logger.WriteMessage($"Begin Render Frame {this.CurrentFrameNumber}");
-            if (this.graphicsService.GetGpuError())
-            {
-                return;
-            }
-            
             var frameSize = graphicsService.GetRenderSize();
 
             if (frameSize != this.currentFrameSize)
@@ -626,7 +699,7 @@ namespace CoreEngine.Graphics
                 Logger.WriteMessage("Recreating final render target");
                 this.currentFrameSize = frameSize;
                 
-                RemoveTexture(this.MainRenderTargetTexture);
+                DeleteTexture(this.MainRenderTargetTexture);
                 this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
             }
 
@@ -635,13 +708,10 @@ namespace CoreEngine.Graphics
             DrawDebugMessages();
             var graphics2DCommandList = this.Graphics2DRenderer.Render(renderCommandList);
 
-            Logger.WriteMessage($"Begin Present Screen Buffer {this.CurrentFrameNumber}");
             this.PresentScreenBuffer(graphics2DCommandList);
-            Logger.WriteMessage($"End Present Screen Buffer {this.CurrentFrameNumber}");
 
             // TODO: If doing restart stopwatch here, the CPU time is more than 10ms
             this.stopwatch.Restart();
-            Logger.WriteMessage($"End Render Frame {this.CurrentFrameNumber}");
         }
 
         private void DrawDebugMessages()
@@ -669,10 +739,9 @@ namespace CoreEngine.Graphics
             }
 
             var renderSize = GetRenderSize();
-            var gpuExecutionTime = 0;//this.graphicsService.GetGpuExecutionTime(this.CurrentFrameNumber - 1);
 
             this.Graphics2DRenderer.DrawText($"{this.graphicsAdapterName} - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
-            this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {gpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
+            this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {this.GpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
             this.Graphics2DRenderer.DrawText($"    Copy Gpu Data Duration: {this.GpuCopyTiming.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 170));
@@ -680,6 +749,14 @@ namespace CoreEngine.Graphics
             this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 250));
             this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 290));
             this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 330));
+            this.Graphics2DRenderer.DrawText($"Timings: {this.TexturesCount}", new Vector2(10, 370));
+
+            for (var i = 0; i < this.gpuTimings.Count; i++)
+            {
+                var gpuTiming = this.gpuTimings[i];
+
+                this.Graphics2DRenderer.DrawText($"    {gpuTiming.Name}: {gpuTiming.Timing.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 410 + i * 40));
+            }
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

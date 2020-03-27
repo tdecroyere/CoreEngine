@@ -78,7 +78,7 @@ namespace CoreEngine.Graphics
 
             if (font.Texture.GraphicsResourceId != 0)
             {
-                this.graphicsManager.RemoveTexture(font.Texture);
+                this.graphicsManager.DeleteTexture(font.Texture);
             }
 
             font.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height, 1, 1, 1, false, GraphicsResourceType.Static, "FontTexture");
@@ -89,6 +89,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, font.Texture, font.Texture.Width, font.Texture.Height, 0, 0, textureData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
 
             return font;
         }

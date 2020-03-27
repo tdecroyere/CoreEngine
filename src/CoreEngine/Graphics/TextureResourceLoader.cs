@@ -31,6 +31,7 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, 0, textureData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
         }
 
         public override string Name => "Texture Loader";
@@ -38,7 +39,7 @@ namespace CoreEngine.Graphics
 
         public override Resource CreateEmptyResource(uint resourceId, string path)
         {
-            var texture = new Texture(this.graphicsManager, 256, 256, resourceId, path);
+            var texture = new Texture(this.graphicsManager, 256, 256, resourceId, path, $"{Path.GetFileNameWithoutExtension(path)}Texture");
             texture.GraphicsResourceSystemId = this.emptyTexture.GraphicsResourceSystemId;
             return texture;
         }
@@ -72,7 +73,7 @@ namespace CoreEngine.Graphics
 
             if (texture.GraphicsResourceId != 0 && texture.GraphicsResourceSystemId != this.emptyTexture.GraphicsResourceSystemId)
             {
-                this.graphicsManager.RemoveTexture(texture);
+                this.graphicsManager.DeleteTexture(texture);
             }
 
             // TODO: Wait for the command buffer to finish execution before switching the system ids.
@@ -107,6 +108,7 @@ namespace CoreEngine.Graphics
 
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
             return texture;
         }
     }

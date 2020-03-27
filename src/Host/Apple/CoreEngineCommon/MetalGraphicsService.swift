@@ -10,7 +10,7 @@ class Shader {
     let computeShaderFunction: MTLFunction?
     let argumentEncoder: MTLArgumentEncoder?
     var argumentBuffers: [MTLBuffer]
-    let argumentBuffersMaxCount = 100
+    let argumentBuffersMaxCount = 1000
     var argumentBufferCurrentIndex = 0
     var currentArgumentBuffer: MTLBuffer?
 
@@ -58,10 +58,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var currentIndexBuffer: MTLBuffer!
     var currentShader: Shader? = nil
     var currentComputePipelineState: MTLComputePipelineState? = nil
-    var gpuExecutionTimes: [UInt: Float]
     var currentFrameNumber = 0
     let useHdrRenderTarget: Bool = false
-    var gpuError: Bool = false
 
     var renderWidth: Int
     var renderHeight: Int
@@ -84,6 +82,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var commandListFences: [UInt: MTLFence]
 
     var commandBuffers: [UInt: MTLCommandBuffer]
+    var commandBuffersStatus: [UInt: GraphicsCommandBufferStatus]
 
     var copyCommandEncoders: [UInt: MTLBlitCommandEncoder]
     var computeCommandEncoders: [UInt: MTLComputeCommandEncoder]
@@ -135,7 +134,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.readCpuGraphicsBuffers = [:]
         self.textures = [:]
         self.indirectCommandBuffers = [:]
-        self.gpuExecutionTimes = [:]
+        self.commandBuffersStatus = [:]
 
         self.frameSemaphore = DispatchSemaphore.init(value: 1);
 
@@ -160,11 +159,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.depthNoneOperationState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         self.commandQueue = self.device.makeCommandQueue()
-        let currentFrameNumber = self.currentFrameNumber
-
-        // self.commandBuffer.addCompletedHandler { cb in
-        //     self.commandBufferCompleted(cb, 0)
-        // }
 
         // TODO: Implement aliasing for render targets
         var heapDescriptor = MTLHeapDescriptor()
@@ -181,21 +175,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.staticHeap = self.device.makeHeap(descriptor: heapDescriptor)!
     }
 
-    public func getGpuError() -> Bool {
-        return self.gpuError
-    }
-
     public func getRenderSize() -> Vector2 {
         return Vector2(X: Float(self.renderWidth), Y: Float(self.renderHeight))
-    }
-
-    public func getGpuExecutionTime(_ commandListId: UInt) -> Float {
-        guard let executionTime = self.gpuExecutionTimes[commandListId] else {
-            return 0.0
-        }
-
-        self.gpuExecutionTimes[commandListId] = nil
-        return executionTime
     }
 
     public func getGraphicsAdapterName() -> String {
@@ -318,7 +299,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
-    public func removeTexture(_ textureId: UInt) {
+    public func deleteTexture(_ textureId: UInt) {
         self.textures[textureId] = nil
     }
 
@@ -368,7 +349,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
     }
 
-    public func removeShader(_ shaderId: UInt) {
+    public func deleteShader(_ shaderId: UInt) {
         self.shaders[shaderId] = nil
 
         if (self.currentShader != nil && self.currentShader!.shaderId == shaderId) {
@@ -480,18 +461,30 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return false
     }
 
-    public func removePipelineState(_ pipelineStateId: UInt) {
+    public func deletePipelineState(_ pipelineStateId: UInt) {
         self.renderPipelineStates[pipelineStateId] = nil
         self.computePipelineStates[pipelineStateId] = nil
     }
 
     public func createCommandBuffer(_ commandBufferId: UInt, _ label: String) -> Bool {
+        return true
+    }
+
+    public func deleteCommandBuffer(_ commandBufferId: UInt) {
+        self.commandBuffersStatus[commandBufferId] = nil
+    }
+
+    public func resetCommandBuffer(_ commandBufferId: UInt) {
         guard let commandBuffer = self.commandQueue.makeCommandBuffer() else {
             print("ERROR creating command buffer.")
-            return false
+            return
         }
 
-        commandBuffer.label = "CommandBuffer\(self.currentFrameNumber)_\(label)"
+        var status = GraphicsCommandBufferStatus()
+        status.State = Created
+        self.commandBuffersStatus[commandBufferId] = status
+
+        commandBuffer.label = "CommandBuffer\(self.currentFrameNumber)_"
         self.commandBuffers[commandBufferId] = commandBuffer
 
         let localCommandBufferId = commandBufferId
@@ -499,16 +492,30 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         commandBuffer.addCompletedHandler { cb in
             self.commandBufferCompleted(cb, localCommandBufferId)
         }
-
-        return true
     }
 
     public func executeCommandBuffer(_ commandBufferId: UInt) {
         if (self.commandBuffers[commandBufferId] != nil) {
             let commandBuffer = self.commandBuffers[commandBufferId]!
             commandBuffer.commit()
+
             self.commandBuffers[commandBufferId] = nil
         }
+
+        guard var commandBufferStatus = self.commandBuffersStatus[commandBufferId] else {
+            return
+        }
+
+        commandBufferStatus.State = Committed
+        self.commandBuffersStatus[commandBufferId] = commandBufferStatus
+    }
+
+    public func getCommandBufferStatus(_ commandBufferId: UInt) -> NullableGraphicsCommandBufferStatus {
+        guard let status = self.commandBuffersStatus[commandBufferId] else {
+            return NullableGraphicsCommandBufferStatus(HasValue: 0, Value: GraphicsCommandBufferStatus())
+        }
+
+        return NullableGraphicsCommandBufferStatus(HasValue: 1, Value: status)
     }
 
     public func createCopyCommandList(_ commandListId: UInt, _ commandBufferId: UInt, _ label: String) -> Bool {
@@ -685,11 +692,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return false
         }
 
-        guard let computeCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-            print("ERROR creating compute command buffer.")
-            return false
-        }
-
         guard let computeCommandEncoder = commandBuffer.makeComputeCommandEncoder() else {
             print("ERROR creating compute command encoder.")
             return false
@@ -752,13 +754,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func createRenderCommandList(_ commandListId: UInt, _ commandBufferId: UInt, _ renderDescriptor: GraphicsRenderPassDescriptor, _ label: String) -> Bool {
-        guard var commandBuffer = self.commandBuffers[commandBufferId] else {
+        guard let commandBuffer = self.commandBuffers[commandBufferId] else {
             print("createRenderCommandList: Command buffer is nil.")
-            return false
-        }
-
-        guard let renderCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-            print("ERROR creating render command buffer.")
             return false
         }
 
@@ -873,7 +870,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         renderCommandEncoder.label = label
         self.renderCommandEncoders[commandListId] = renderCommandEncoder
 
-        if (renderDescriptor.DepthBufferOperation == Write || renderDescriptor.DepthBufferOperation == ClearWrite) {
+        if (renderDescriptor.DepthBufferOperation == Write || renderDescriptor.DepthBufferOperation == ClearWrite) {
             renderCommandEncoder.setDepthStencilState(self.depthWriteOperationState)
         } else if (renderDescriptor.DepthBufferOperation == CompareEqual) {
             renderCommandEncoder.setDepthStencilState(self.depthCompareEqualState)
@@ -889,15 +886,13 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderCommandEncoder.setCullMode(.none)
         }
 
-        let renderSize = getRenderSize()
-
         if (renderPassDescriptor.colorAttachments[0].texture != nil) {
             renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.colorAttachments[0].texture!.width), height: Double(renderPassDescriptor.colorAttachments[0].texture!.height), znear: -1.0, zfar: 1.0))
         } else if (renderPassDescriptor.depthAttachment.texture != nil) {
             renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.depthAttachment.texture!.width), height: Double(renderPassDescriptor.depthAttachment.texture!.height), znear: -1.0, zfar: 1.0))
         }
 
-        var fence = self.device.makeFence()!
+        let fence = self.device.makeFence()!
         fence.label = "Fence" + label
         self.commandListFences[commandListId] = fence
 
@@ -1231,7 +1226,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func presentScreenBuffer(_ commandBufferId: UInt) {
-        guard var commandBuffer = self.commandBuffers[commandBufferId] else {
+        guard let commandBuffer = self.commandBuffers[commandBufferId] else {
             print("presentScreenBuffer: Command buffer is nil.")
             return
         }
@@ -1248,37 +1243,36 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         // let duration = 33.0 / 1000.0 // Duration of 33 ms
-        let duration = 16.0 / 1000.0 // Duration of 16 ms
+        // let duration = 16.0 / 1000.0 // Duration of 16 ms
         // self.commandBuffer.present(currentMetalDrawable, afterMinimumDuration: duration)
+        
         commandBuffer.present(currentMetalDrawable)
         self.currentMetalDrawable = nil
     }
 
     public func waitForAvailableScreenBuffer() {
-        print("Waiting for semaphore \(self.currentFrameNumber)")
         self.frameSemaphore.wait()
-        print("After semaphore wait \(self.currentFrameNumber)")
 
         self.currentFrameNumber += 1
-        
-        // self.commandBuffer = self.commandQueue.makeCommandBuffer()
-        // self.commandBuffer.label = "GeneralCommandBuffer\(self.currentFrameNumber)"
-
-        //self.gpuExecutionTimes[self.currentFrameNumber % 2] = 0
         self.commandListFences = [:]
     }
 
-    private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ commandListId: UInt) {
-        if (commandBuffer.error != nil) {
-            self.gpuError = true
-            print("GPU ERROR")
+    private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ commandBufferId: UInt) {
+        // if (commandBuffer.error != nil) {
+        //     self.gpuError = true
+        //     print("GPU ERROR")
+        // }
+
+        guard var commandBufferStatus = self.commandBuffersStatus[commandBufferId] else {
+            return
         }
 
-        let executionDuration = commandBuffer.gpuEndTime - commandBuffer.gpuStartTime
+        commandBufferStatus.State = Completed
+        commandBufferStatus.ExecutionStartTime = Float((commandBuffer.gpuEndTime - commandBuffer.gpuStartTime) * 1000)
+        commandBufferStatus.ExecutionEndTime = Float(commandBuffer.gpuEndTime)
 
-        // print("\(executionDuration * 1000)")
-        // DispatchQueue.main.async() {
-        //     self.gpuExecutionTimes[commandListId] = Float(executionDuration * 1000)
-        // }
+        DispatchQueue.main.async() {
+            self.commandBuffersStatus[commandBufferId] = commandBufferStatus
+        }
     }
 }

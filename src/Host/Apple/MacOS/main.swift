@@ -66,9 +66,6 @@ autoreleasepool {
     }
 
     let stepTimeInSeconds = Float(1.0 / 60.0)
-    // let stepTimeInSeconds = Float(1.0 / 30.0)
-
-    let performanceTimer = PerformanceTimer()
 
     while (isGameRunning) {
         autoreleasepool {

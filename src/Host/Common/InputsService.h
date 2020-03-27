@@ -13,7 +13,12 @@ struct InputsObject
     enum InputsObjectType ObjectType;
     int TransitionCount;
     float Value;
+};
 
+struct NullableInputsObject
+{
+    int HasValue;
+    struct InputsObject Value;
 };
 
 struct InputsKeyboard
@@ -64,7 +69,12 @@ struct InputsKeyboard
     struct InputsObject RightArrow;
     struct InputsObject UpArrow;
     struct InputsObject DownArrow;
+};
 
+struct NullableInputsKeyboard
+{
+    int HasValue;
+    struct InputsKeyboard Value;
 };
 
 struct InputsMouse
@@ -76,14 +86,24 @@ struct InputsMouse
     struct InputsObject LeftButton;
     struct InputsObject RightButton;
     struct InputsObject MiddleButton;
+};
 
+struct NullableInputsMouse
+{
+    int HasValue;
+    struct InputsMouse Value;
 };
 
 struct InputsTouch
 {
     struct InputsObject DeltaX;
     struct InputsObject DeltaY;
+};
 
+struct NullableInputsTouch
+{
+    int HasValue;
+    struct InputsTouch Value;
 };
 
 struct InputsGamepad
@@ -115,7 +135,12 @@ struct InputsGamepad
     struct InputsObject DPadDown;
     struct InputsObject DPadLeft;
     struct InputsObject DPadRight;
+};
 
+struct NullableInputsGamepad
+{
+    int HasValue;
+    struct InputsGamepad Value;
 };
 
 struct InputsState
@@ -127,7 +152,12 @@ struct InputsState
     struct InputsGamepad Gamepad2;
     struct InputsGamepad Gamepad3;
     struct InputsGamepad Gamepad4;
+};
 
+struct NullableInputsState
+{
+    int HasValue;
+    struct InputsState Value;
 };
 
 typedef struct InputsState (*InputsService_GetInputsStatePtr)(void* context);

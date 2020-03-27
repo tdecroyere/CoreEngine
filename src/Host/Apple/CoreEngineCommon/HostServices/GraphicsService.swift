@@ -1,20 +1,21 @@
 import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
-    func getGpuError() -> Bool
-    func getGpuExecutionTime(_ commandListId: UInt) -> Float
     func getRenderSize() -> Vector2
     func getGraphicsAdapterName() -> String
     func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int, _ isWriteOnly: Bool, _ label: String) -> Bool
     func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ label: String) -> Bool
-    func removeTexture(_ textureId: UInt)
+    func deleteTexture(_ textureId: UInt)
     func createIndirectCommandBuffer(_ indirectCommandBufferId: UInt, _ maxCommandCount: Int, _ label: String) -> Bool
     func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ label: String) -> Bool
-    func removeShader(_ shaderId: UInt)
+    func deleteShader(_ shaderId: UInt)
     func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor, _ label: String) -> Bool
-    func removePipelineState(_ pipelineStateId: UInt)
+    func deletePipelineState(_ pipelineStateId: UInt)
     func createCommandBuffer(_ commandBufferId: UInt, _ label: String) -> Bool
+    func deleteCommandBuffer(_ commandBufferId: UInt)
+    func resetCommandBuffer(_ commandBufferId: UInt)
     func executeCommandBuffer(_ commandBufferId: UInt)
+    func getCommandBufferStatus(_ commandBufferId: UInt) -> NullableGraphicsCommandBufferStatus
     func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
     func setShaderBuffers(_ commandListId: UInt, _ graphicsBufferIdList: [UInt32], _ slot: Int, _ index: Int)
     func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int)

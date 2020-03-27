@@ -52,7 +52,7 @@ namespace CoreEngine.Graphics
 
             if (shader.ShaderId != 0)
             {
-                this.graphicsManager.RemoveShader(shader);
+                this.graphicsManager.DeleteShader(shader);
             }
 
             var computeFunction = (resource.Parameters.Length > 0) ? resource.Parameters.Span[0] : null;

@@ -69,6 +69,11 @@ namespace CoreEngine.Graphics
 
         public void DrawBoundingFrustum(BoundingFrustum boundingFrustum, Vector3 color)
         {
+            if (boundingFrustum == null)
+            {
+                throw new ArgumentNullException(nameof(boundingFrustum));
+            }
+            
             DrawLine(boundingFrustum.LeftTopNearPoint, boundingFrustum.LeftTopFarPoint, color);
             DrawLine(boundingFrustum.LeftBottomNearPoint, boundingFrustum.LeftBottomFarPoint, color);
             DrawLine(boundingFrustum.RightTopNearPoint, boundingFrustum.RightTopFarPoint, color);
@@ -85,23 +90,54 @@ namespace CoreEngine.Graphics
             DrawLine(boundingFrustum.RightTopFarPoint, boundingFrustum.RightBottomFarPoint, color);
         }
 
-        public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList renderCommandList)
+        private void DrawBoundingBox(BoundingBox boundingBox, Vector3 color)
         {
-            // TODO: Refactor to avoid crash
-            // if (this.currentDebugLineIndex > 0)
-            // {
-            //     var copyCommandList = this.graphicsManager.CreateCopyCommandList("DebugCopyCommandList");
-            //     this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
-            //     this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
-            //     this.graphicsManager.ExecuteCopyCommandList(copyCommandList);
+            var point1 = boundingBox.MinPoint;
+            var point2 = boundingBox.MinPoint + new Vector3(0, 0, boundingBox.ZSize);
+            var point3 = boundingBox.MinPoint + new Vector3(boundingBox.XSize, 0, 0);
+            var point4 = boundingBox.MinPoint + new Vector3(boundingBox.XSize, 0, boundingBox.ZSize);
+            var point5 = boundingBox.MinPoint + new Vector3(0, boundingBox.YSize, 0);
+            var point6 = boundingBox.MinPoint + new Vector3(0, boundingBox.YSize, boundingBox.ZSize);
+            var point7 = boundingBox.MinPoint + new Vector3(boundingBox.XSize, boundingBox.YSize, 0);
+            var point8 = boundingBox.MinPoint + new Vector3(boundingBox.XSize, boundingBox.YSize, boundingBox.ZSize);
 
-            //     this.graphicsManager.SetShader(renderCommandList, this.shader);
-            //     this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
-            //     this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
+            DrawLine(point1, point2, color);
+            DrawLine(point1, point3, color);
+            DrawLine(point2, point4, color);
+            DrawLine(point3, point4, color);
 
-            //     this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
-            //     this.graphicsManager.DrawIndexedPrimitives(renderCommandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
-            // }
+            DrawLine(point5, point6, color);
+            DrawLine(point5, point7, color);
+            DrawLine(point6, point8, color);
+            DrawLine(point7, point8, color);
+
+            DrawLine(point1, point5, color);
+            DrawLine(point3, point7, color);
+            DrawLine(point4, point8, color);
+            DrawLine(point2, point6, color);
         }
+
+        // public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList renderCommandList)
+        // {
+        //     // TODO: Refactor to avoid crash
+        //     if (this.currentDebugLineIndex > 0)
+        //     {
+        //         var commandBuffer = this.graphicsManager.CreateCommandBuffer("DebugRenderer");
+
+        //         var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "DebugCopyCommandList");
+        //         this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
+        //         this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
+        //         this.graphicsManager.CommitCopyCommandList(copyCommandList);
+
+        //         this.graphicsManager.SetShader(renderCommandList, this.shader);
+        //         this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
+        //         this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
+
+        //         this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
+        //         this.graphicsManager.DrawIndexedPrimitives(renderCommandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+
+        //         this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+        //     }
+        // }
     }
 }

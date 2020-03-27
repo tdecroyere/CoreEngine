@@ -77,6 +77,7 @@ namespace CoreEngine.Graphics
         private RectangleSurface[] rectangleSurfaces;
 
         private List<Texture> textures;
+        private CommandBuffer commandBuffer;
 
         public Graphics2DRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
@@ -124,9 +125,12 @@ namespace CoreEngine.Graphics
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
 
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic, true, "Graphics2DRenderPassBuffer");
             this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, GraphicsResourceType.Dynamic, true, "Graphics2DRectanbleSurfacesBuffer");
+
+            this.commandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRenderer");
         }
 
         public override void PreUpdate()
@@ -206,7 +210,6 @@ namespace CoreEngine.Graphics
         {
             if (this.currentSurfaceCount > 0)
             {
-                var commandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRenderer");
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "Graphics2DCopyCommandList");
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
                 this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces.AsSpan().Slice(0, this.currentSurfaceCount));

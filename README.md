@@ -1,16 +1,27 @@
 # Core Engine
 
-Core Engine is a multi-platform realtime 3D engine that features latest technology and algorithms.
+Core Engine is a multi-platform realtime Game Engine written in dotnet 5.
 
-## Documentation
+# General Features
 
-Here is a list of documentation:
+- Support multi platforms:
+    - MacOS: Host written in Swift and Metal. !~ In Progress ~!
+    - Windows: Host written in C++/WinRT and DirectX12. -! Planned !-
+    - Other Platforms: TBD
+- Runtime written in dotnet 5.
+- No external dependencies in the runtime codebase except for dotnet standard library.
+- Entity Component System. +( Done )+
+- CLI tools to manage game projects and compilation of assets.
+- Visual editor:
+    - In game editor !~ In Progress ~!
+    - Native MacOS. -! Planned !-
+    - Native WinUI 3.0 -! Planned !-
+- Renderer:
+    - GPU driven renderer.
+    - Geometry culling on GPU.
+    - Moment shadows maps.
+    - PBR Rendering.
 
-* [Core Engine: General Features](/_wiki/wikis/documentation?wikiVersion=GBmaster&pagePath=%2FGeneralFeatures)
+# Screenshots
 
-## Build Status
-
-| Platform | Status |
-|----------|--------|
-| Windows x64 | [![Build Status](https://doublebuffer.visualstudio.com/CoreEngine/_apis/build/status/CoreEngine-CI?branchName=master&jobName=WindowsBuild)](https://doublebuffer.visualstudio.com/CoreEngine/_build/latest?definitionId=6&branchName=master) |
-| MacOS x64                       | [![Build Status](https://doublebuffer.visualstudio.com/CoreEngine/_apis/build/status/CoreEngine-CI?branchName=master&jobName=MacOSBuild)](https://doublebuffer.visualstudio.com/CoreEngine/_build/latest?definitionId=6&branchName=master) |
+![Bistro Scene](/doc/screenshots/20200124_Bistro.jpeg)

@@ -86,10 +86,10 @@ struct NullableGraphicsRenderPassDescriptor
 struct GraphicsCommandBufferStatus
 {
     enum GraphicsCommandBufferState State;
-    float ScheduledStartTime;
-    float ScheduledEndTime;
-    float ExecutionStartTime;
-    float ExecutionEndTime;
+    double ScheduledStartTime;
+    double ScheduledEndTime;
+    double ExecutionStartTime;
+    double ExecutionEndTime;
     struct Nullableint ErrorCode;
     char* ErrorMessage;
 };

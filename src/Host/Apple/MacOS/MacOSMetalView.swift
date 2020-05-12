@@ -10,7 +10,7 @@ class MacOSMetalView: NSView, MetalView {
         self.metalLayer = CAMetalLayer()
         super.init(frame: frame)
         self.wantsLayer = true
-        //self.layerContentsRedrawPolicy = .onSetNeedsDisplay
+        self.layerContentsRedrawPolicy = .onSetNeedsDisplay
     }
 
     override var wantsUpdateLayer: Bool {

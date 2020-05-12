@@ -13,14 +13,12 @@ namespace CoreEngine.Tests.EcsTest
     {
         private Scene currentScene;
         private EntitySystemManager entitySystemManager;
-        private Graphics2DRenderer graphics2DRenderer;
 
         public override string Name => "EcsTest App";
 
         public EcsTestApp(SystemManagerContainer systemManagerContainer) : base(systemManagerContainer)
         {
             var resourcesManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
-            this.graphics2DRenderer = this.SystemManagerContainer.GetSystemManager<Graphics2DRenderer>();
             // resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
             // resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\Windows\Resources"));
 

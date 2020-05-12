@@ -58,8 +58,8 @@ namespace CoreEngine.Graphics
             var vertexBufferData = reader.ReadBytes(vertexBufferSize);
             var indexBufferData = reader.ReadBytes(indexBufferSize);
 
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferData.Length, GraphicsResourceType.Static, true, $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferData.Length, GraphicsResourceType.Static, true, $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferData.Length, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferData.Length, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("MeshLoader");
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "MeshLoaderCommandList");

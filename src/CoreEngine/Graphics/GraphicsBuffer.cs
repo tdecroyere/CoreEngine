@@ -8,13 +8,14 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal GraphicsBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int length, GraphicsResourceType resourceType, string label)
+        internal GraphicsBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int length, bool isStatic, string label)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsResourceSystemId = systemId;
             this.GraphicsResourceSystemId2 = systemId2;
             this.Length = length;
-            this.ResourceType = resourceType;
+            this.IsStatic = isStatic;
+            this.ResourceType = GraphicsResourceType.Buffer;
             this.Label = label;
         }
 
@@ -24,7 +25,7 @@ namespace CoreEngine.Graphics
             {
                 var result = this.GraphicsResourceSystemId;
 
-                if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                if (!IsStatic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
                 {
                     result = this.GraphicsResourceSystemId2.Value;
                 }
@@ -44,7 +45,9 @@ namespace CoreEngine.Graphics
         }
 
         public int Length { get; }
+
         public GraphicsResourceType ResourceType { get; }
+        public bool IsStatic { get; }
 
         public string Label
         {

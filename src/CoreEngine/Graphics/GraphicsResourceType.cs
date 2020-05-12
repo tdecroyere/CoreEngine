@@ -2,7 +2,9 @@ namespace CoreEngine.Graphics
 {
     public enum GraphicsResourceType
     {
-        Static,
-        Dynamic
+        Buffer,
+        Texture,
+        CommandBuffer,
+        IndirectCommandBuffer
     }
 }

@@ -13,16 +13,19 @@ namespace CoreEngine.Graphics
 {
     public readonly struct GpuTiming
     {
-        public GpuTiming(string name, float timing)
+        public GpuTiming(string name, double startTiming, double endTiming)
         {
             this.Name = name;
-            this.Timing = timing;
+            this.StartTiming = startTiming;
+            this.EndTiming = endTiming;
         }
 
         public string Name { get; }
-        public float Timing { get; }
+        public double StartTiming { get; }
+        public double EndTiming { get; }
     }
 
+    // Split interop code into a GraphicsDevice object?
     public class GraphicsManager : SystemManager
     {
         internal readonly IGraphicsService graphicsService;
@@ -36,7 +39,6 @@ namespace CoreEngine.Graphics
         private Stopwatch globalStopwatch;
         private uint startMeasureFrameNumber;
         private int framePerSeconds = 0;
-        //private float targetFrameMilliSeconds = 1000.0f / 30.0f;
         private ulong allocatedGpuMemory = 0;
         private int gpuMemoryUploaded = 0;
         private int gpuMemoryUploadedPerSeconds = 0;
@@ -72,18 +74,18 @@ namespace CoreEngine.Graphics
             this.globalStopwatch.Start();
 
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
-            this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknow Graphics Adapter";
+            this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
 
             InitResourceLoaders(resourcesManager);
+            
+            this.currentFrameSize = graphicsService.GetRenderSize();
+            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, isStatic: true, label: "MainRenderTarget");
 
             this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
 
             this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, graphicsSceneQueue, resourcesManager);
             this.Graphics2DRenderer = new Graphics2DRenderer(this, resourcesManager);
-
-            this.currentFrameSize = graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
-
+            
             this.presentCommandBuffer = this.CreateCommandBuffer("PresentScreenBuffer");
         }
 
@@ -105,16 +107,13 @@ namespace CoreEngine.Graphics
         internal int CulledGeometryInstancesCount { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
-        internal float GpuExecutionTime { get; set; }
-        internal float GpuCopyTiming { get; set; }
-        internal float GpuTiming { get; set; }
 
         public Vector2 GetRenderSize()
         {
             return this.graphicsService.GetRenderSize();
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, GraphicsResourceType resourceType, bool isWriteOnly, string label) where T : struct
+        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, bool isStatic, bool isWriteOnly, string label) where T : struct
         {
             var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
 
@@ -129,7 +128,7 @@ namespace CoreEngine.Graphics
 
             uint? graphicsBufferId2 = null;
 
-            if (resourceType == GraphicsResourceType.Dynamic)
+            if (!isStatic)
             {
                 graphicsBufferId2 = GetNextGraphicsResourceId();
                 result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes, isWriteOnly, label);
@@ -141,10 +140,10 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, resourceType, label);
+            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, isStatic, label);
         }
 
-        public Texture CreateTexture(TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, GraphicsResourceType resourceType, string label)
+        public Texture CreateTexture(TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, bool isStatic, string label)
         {
             var textureId = GetNextGraphicsResourceId();
             var result = this.graphicsService.CreateTexture(textureId, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
@@ -156,7 +155,7 @@ namespace CoreEngine.Graphics
 
             uint? textureId2 = null;
 
-            if (resourceType == GraphicsResourceType.Dynamic)
+            if (!isStatic)
             {
                 textureId2 = GetNextGraphicsResourceId();
                 result = this.graphicsService.CreateTexture(textureId2.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
@@ -167,10 +166,10 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            var texture = new Texture(this, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, resourceType, label);
+            var texture = new Texture(this, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
             var textureSizeInBytes = ComputeTextureSizeInBytes(texture);
             
-            if (resourceType == GraphicsResourceType.Static)
+            if (isStatic)
             {
                 this.allocatedGpuMemory += (ulong)textureSizeInBytes;
             }
@@ -192,7 +191,7 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.DeleteTexture(texture.GraphicsResourceSystemId);
 
-            if (texture.ResourceType == GraphicsResourceType.Dynamic)
+            if (!texture.IsStatic)
             {
                 if (texture.GraphicsResourceSystemId2 != null)
                 {
@@ -202,7 +201,7 @@ namespace CoreEngine.Graphics
 
             var textureSizeInBytes = ComputeTextureSizeInBytes(texture);
             
-            if (texture.ResourceType == GraphicsResourceType.Static)
+            if (texture.IsStatic)
             {
                 this.allocatedGpuMemory -= (ulong)textureSizeInBytes;
             }
@@ -213,7 +212,20 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public IndirectCommandBuffer CreateIndirectCommandBuffer(int maxCommandCount, GraphicsResourceType resourceType, string label)
+        public void ResizeTexture(Texture texture, int width, int height)
+        {
+            // TODO: Take into account all parameters
+
+            this.DeleteTexture(texture);
+            var newTexture = this.CreateTexture(texture.TextureFormat, width, height, 1, 1, texture.MultiSampleCount, true, texture.IsStatic, texture.Label);
+            
+            texture.GraphicsResourceSystemId = newTexture.GraphicsResourceSystemId;
+            texture.GraphicsResourceSystemId2 = newTexture.GraphicsResourceSystemId2;
+            texture.Width = width;
+            texture.Height = height;
+        }
+
+        public IndirectCommandBuffer CreateIndirectCommandBuffer(int maxCommandCount, bool isStatic, string label)
         {
             var graphicsResourceId = GetNextGraphicsResourceId();
             var result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId, maxCommandCount, label);
@@ -225,7 +237,7 @@ namespace CoreEngine.Graphics
 
             uint? graphicsResourceId2 = null;
 
-            if (resourceType == GraphicsResourceType.Dynamic)
+            if (!isStatic)
             {
                 graphicsResourceId2 = GetNextGraphicsResourceId();
                 result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId2.Value, maxCommandCount, label);
@@ -236,7 +248,7 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, maxCommandCount, resourceType, label);
+            return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, maxCommandCount, isStatic, label);
         }
 
         internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label)
@@ -308,8 +320,7 @@ namespace CoreEngine.Graphics
             {
                 if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
                 {
-                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime));
-                    this.GpuExecutionTime += commandBufferStatus.Value.ExecutionStartTime;
+                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
                 }
 
                 this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
@@ -396,8 +407,7 @@ namespace CoreEngine.Graphics
             {
                 if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
                 {
-                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime));
-                    this.GpuExecutionTime += commandBufferStatus.Value.ExecutionStartTime;
+                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
                 }
 
                 this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
@@ -443,8 +453,7 @@ namespace CoreEngine.Graphics
             {
                 if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
                 {
-                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime));
-                    this.GpuExecutionTime += commandBufferStatus.Value.ExecutionStartTime;
+                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
                 }
 
                 this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
@@ -686,9 +695,11 @@ namespace CoreEngine.Graphics
             this.CurrentFrameNumber++;
             this.cpuDrawCount = 0;
             this.cpuDispatchCount = 0;
-            this.GpuExecutionTime = 0;
+            
             this.gpuTimings.Clear();
         }
+
+        List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
 
         internal void Render()
         {
@@ -698,9 +709,8 @@ namespace CoreEngine.Graphics
             {
                 Logger.WriteMessage("Recreating final render target");
                 this.currentFrameSize = frameSize;
-                
-                DeleteTexture(this.MainRenderTargetTexture);
-                this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, GraphicsResourceType.Dynamic, "MainRenderTarget");
+
+                this.ResizeTexture(this.MainRenderTargetTexture, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y);
             }
 
             var renderCommandList = this.GraphicsSceneRenderer.Render();
@@ -716,18 +726,10 @@ namespace CoreEngine.Graphics
 
         private void DrawDebugMessages()
         {
-            // TODO: Verify all timings !
             // TODO: Seperate timing calculations from debug display
 
             var frameDuration = (float)this.stopwatch.ElapsedTicks / Stopwatch.Frequency * 1000;
 
-            // if (frameDuration < this.targetFrameMilliSeconds)
-            // {
-            //     var sleepTime = (int)MathF.Max(MathF.Floor(this.targetFrameMilliSeconds) - frameDuration - 1, 0.0f);
-            //     Logger.WriteMessage($"Sleep Time: {sleepTime}");
-            //     Thread.Sleep(sleepTime);
-            // }
-            
             if (this.globalStopwatch.ElapsedMilliseconds > 1000)
             {
                 this.framePerSeconds = (int)(this.CurrentFrameNumber - startMeasureFrameNumber - 1);
@@ -740,23 +742,84 @@ namespace CoreEngine.Graphics
 
             var renderSize = GetRenderSize();
 
+            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(this.Graphics2DRenderer.commandBuffer.GraphicsResourceId);
+
+            if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+            {
+                this.gpuTimings.Add(new GpuTiming(this.Graphics2DRenderer.commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
+            }
+
+            commandBufferStatus = this.graphicsService.GetCommandBufferStatus(this.Graphics2DRenderer.copyCommandBuffer.GraphicsResourceId);
+
+            if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+            {
+                this.gpuTimings.Add(new GpuTiming(this.Graphics2DRenderer.copyCommandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
+            }
+
+            commandBufferStatus = this.graphicsService.GetCommandBufferStatus(this.presentCommandBuffer.GraphicsResourceId);
+
+            if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+            {
+                this.gpuTimings.Add(new GpuTiming(this.presentCommandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
+            }
+
             this.Graphics2DRenderer.DrawText($"{this.graphicsAdapterName} - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
-            this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {this.GpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
-            this.Graphics2DRenderer.DrawText($"    Copy Gpu Data Duration: {this.GpuCopyTiming.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 170));
             this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 210));
             this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 250));
             this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 290));
             this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 330));
-            this.Graphics2DRenderer.DrawText($"Timings: {this.TexturesCount}", new Vector2(10, 370));
+            this.Graphics2DRenderer.DrawText($"Gpu Pipeline:", new Vector2(10, 370));
+
+            var globalStartTiming = double.MaxValue;
+            var globalEndTiming = double.MinValue;
+
+            this.gpuTimings.Sort((a, b) => (a.StartTiming.CompareTo(b.StartTiming)));
+
+            if (this.gpuTimings.Count < this.previousGpuTiming.Count)
+            {
+                Logger.WriteMessage($"Error GPU Timings");
+
+                foreach (var timing in this.previousGpuTiming)
+                {
+                    if (this.gpuTimings.Find(x => x.Name == timing.Name).StartTiming == 0.0)
+                    {
+                        Logger.WriteMessage($"Gpu timing: {timing.Name}");
+                    }
+                }
+            }
+
+            var startGpuTiming = 0.0;
 
             for (var i = 0; i < this.gpuTimings.Count; i++)
             {
                 var gpuTiming = this.gpuTimings[i];
 
-                this.Graphics2DRenderer.DrawText($"    {gpuTiming.Name}: {gpuTiming.Timing.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 410 + i * 40));
+                if (startGpuTiming == 0.0)
+                {
+                    startGpuTiming = gpuTiming.StartTiming;
+                }
+
+                var duration = gpuTiming.EndTiming - gpuTiming.StartTiming;
+
+                if (gpuTiming.StartTiming < globalStartTiming)
+                {
+                    globalStartTiming = gpuTiming.StartTiming;
+                }
+
+                if (gpuTiming.EndTiming > globalEndTiming)
+                {
+                    globalEndTiming = gpuTiming.EndTiming;
+                }
+
+                this.Graphics2DRenderer.DrawText($"    {gpuTiming.Name}: {duration.ToString("0.00", CultureInfo.InvariantCulture)} ms ({(gpuTiming.StartTiming - startGpuTiming).ToString("0.00", CultureInfo.InvariantCulture)} ms)", new Vector2(10, 410 + i * 40));
             }
+
+            var gpuExecutionTime = globalEndTiming - globalStartTiming;
+            this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {gpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
+
+            this.previousGpuTiming = new List<GpuTiming>(this.gpuTimings);
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

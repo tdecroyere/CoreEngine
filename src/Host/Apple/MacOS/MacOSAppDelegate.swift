@@ -46,9 +46,35 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
         
         subMenu.addItem(withTitle: "About CoreEngine", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         subMenu.addItem(NSMenuItem.separator())
+
+        let servicesMenuSub = subMenu.addItem(withTitle: "Services", action: nil, keyEquivalent: "")
+		let servicesMenu = NSMenu(title:"Services")
+        mainMenu.setSubmenu(servicesMenu, for: servicesMenuSub)
+		NSApp.servicesMenu = servicesMenu
+        subMenu.addItem(NSMenuItem.separator())
+        
+        var menuItemAdded = subMenu.addItem(withTitle: "Hide CoreEngine", action:#selector(NSApplication.hide(_:)), keyEquivalent:"h")
+        menuItemAdded.target = NSApp
+
+        menuItemAdded = subMenu.addItem(withTitle: "Hide Others", action:#selector(NSApplication.hideOtherApplications(_:)), keyEquivalent:"h")
+        menuItemAdded.keyEquivalentModifierMask = [.command, .option]
+        menuItemAdded.target = NSApp
+
+        menuItemAdded = subMenu.addItem(withTitle: "Show All", action:#selector(NSApplication.unhideAllApplications(_:)), keyEquivalent:"")
+        menuItemAdded.target = NSApp
+
+        subMenu.addItem(NSMenuItem.separator())
         subMenu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        let windowMenuItem = mainMenu.addItem(withTitle: "Window", action: nil, keyEquivalent: "")
+        let windowSubMenu = NSMenu(title: "Window")
+        mainMenu.setSubmenu(windowSubMenu, for: windowMenuItem)
+
+        windowSubMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowSubMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom), keyEquivalent: "")
         
         NSApp.mainMenu = mainMenu
+        NSApp.windowsMenu = windowSubMenu
     }
 }
 

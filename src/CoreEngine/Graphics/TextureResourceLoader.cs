@@ -21,7 +21,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsManager = graphicsManager;
-            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, 1, false, GraphicsResourceType.Static, "EmptyTexture");
+            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, 1, false, isStatic: true, label: "EmptyTexture");
 
             var textureData = new byte[256 * 256 * 4];
             Array.Fill<byte>(textureData, 255);
@@ -78,7 +78,7 @@ namespace CoreEngine.Graphics
 
             // TODO: Wait for the command buffer to finish execution before switching the system ids.
 
-            var createdTexture = this.graphicsManager.CreateTexture(texture.TextureFormat, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, false, GraphicsResourceType.Static, $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
+            var createdTexture = this.graphicsManager.CreateTexture(texture.TextureFormat, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, false, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 

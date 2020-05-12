@@ -77,7 +77,8 @@ namespace CoreEngine.Graphics
         private RectangleSurface[] rectangleSurfaces;
 
         private List<Texture> textures;
-        private CommandBuffer commandBuffer;
+        public CommandBuffer copyCommandBuffer;
+        public CommandBuffer commandBuffer;
 
         public Graphics2DRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
@@ -116,8 +117,8 @@ namespace CoreEngine.Graphics
             indexData[4] = 1;
             indexData[5] = 3;
 
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, GraphicsResourceType.Static, true, "Graphics2DVertexBuffer");
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, GraphicsResourceType.Static, true, "Graphics2DIndexBuffer");
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, isStatic: true, isWriteOnly: true, label: "Graphics2DVertexBuffer");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, isStatic: true, isWriteOnly: true, label: "Graphics2DIndexBuffer");
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRenderer");
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "Graphics2DRendererCommandList");
@@ -127,9 +128,10 @@ namespace CoreEngine.Graphics
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
             this.graphicsManager.DeleteCommandBuffer(commandBuffer);
 
-            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, GraphicsResourceType.Dynamic, true, "Graphics2DRenderPassBuffer");
-            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, GraphicsResourceType.Dynamic, true, "Graphics2DRectanbleSurfacesBuffer");
+            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, isStatic: false, isWriteOnly: true, label: "Graphics2DRenderPassBuffer");
+            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, isWriteOnly: true, label: "Graphics2DRectanbleSurfacesBuffer");
 
+            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRendererCopy");
             this.commandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRenderer");
         }
 
@@ -210,10 +212,11 @@ namespace CoreEngine.Graphics
         {
             if (this.currentSurfaceCount > 0)
             {
-                var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "Graphics2DCopyCommandList");
+                var copyCommandList = this.graphicsManager.CreateCopyCommandList(copyCommandBuffer, "Graphics2DCopyCommandList");
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
                 this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces.AsSpan().Slice(0, this.currentSurfaceCount));
                 this.graphicsManager.CommitCopyCommandList(copyCommandList);
+                this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
                 var renderTarget = new RenderTargetDescriptor(this.graphicsManager.MainRenderTargetTexture, null, BlendOperation.AlphaBlending);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);

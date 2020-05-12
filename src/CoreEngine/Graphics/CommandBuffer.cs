@@ -12,6 +12,8 @@ namespace CoreEngine.Graphics
             this.GraphicsResourceSystemId = systemId;
             this.GraphicsResourceSystemId2 = systemId2;
             this.Label = label;
+            this.ResourceType = GraphicsResourceType.CommandBuffer;
+            this.IsStatic = false;
         }
 
         public uint GraphicsResourceId 
@@ -43,5 +45,8 @@ namespace CoreEngine.Graphics
         {
             get;
         }
+
+        public GraphicsResourceType ResourceType { get; }
+        public bool IsStatic { get; }
     }
 }

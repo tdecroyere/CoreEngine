@@ -207,16 +207,23 @@ namespace CoreEngine.HostServices
     public readonly struct GraphicsCommandBufferStatus
     {
         public readonly GraphicsCommandBufferState State { get; }
-        public float ScheduledStartTime { get; }
-        public float ScheduledEndTime { get; }
-        public float ExecutionStartTime { get; }
-        public float ExecutionEndTime { get; }
+        public double ScheduledStartTime { get; }
+        public double ScheduledEndTime { get; }
+        public double ExecutionStartTime { get; }
+        public double ExecutionEndTime { get; }
         public readonly int? ErrorCode { get; }
         public readonly string? ErrorMessage { get; }
     }
 
     public interface IGraphicsService
     {
+        // bool CreateSwapChain(uint swapChainId, int width, int height, GraphicsTextureFormat textureFormat);
+        // void DeleteSwapChain(uint swapChainId);
+        // void ResizeSwapChain(uint swapChainId, int with, int height);
+        // Vector2 GetSwapChainSize();
+        // uint GetNextSwapChainTexture(uint swapChainId);
+
+        // TODO: Rename commandListId parameter to specialized name when there is a restriction
         // TODO: Add functions to manage resource transitions
 
         // TODO: This function should be merged into a GetSystemState function
@@ -288,7 +295,10 @@ namespace CoreEngine.HostServices
         void WaitForCommandList(uint commandListId, uint commandListToWaitId);
 
         // TODO: Add a parameter to specify which drawable we should update. Usefull for editor or multiple windows management
+        // TODO: Rename that to PresentSwapChain and add swap chain id parameter
         void PresentScreenBuffer(uint commandBufferId);
+
+        // TODO: Rename that to WaitForVSync()
         void WaitForAvailableScreenBuffer();
     }
 }

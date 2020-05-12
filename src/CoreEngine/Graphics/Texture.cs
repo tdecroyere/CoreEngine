@@ -7,7 +7,7 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multiSampleCount, GraphicsResourceType resourceType, string label) : base(0, string.Empty)
+        internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsResourceSystemId = systemId;
@@ -18,7 +18,8 @@ namespace CoreEngine.Graphics
             this.FaceCount = faceCount;
             this.MipLevels = mipLevels;
             this.MultiSampleCount = multiSampleCount;
-            this.ResourceType = resourceType;
+            this.ResourceType = GraphicsResourceType.Texture;
+            this.IsStatic = isStatic;
             this.IsLoaded = true;
             this.Label = label;
         }
@@ -30,7 +31,8 @@ namespace CoreEngine.Graphics
             this.Width = width;
             this.Height = height;
             this.MultiSampleCount = 1;
-            this.ResourceType = GraphicsResourceType.Static;
+            this.ResourceType = GraphicsResourceType.Texture;
+            this.IsStatic = true;
             this.Label = label;
         }
 
@@ -40,7 +42,7 @@ namespace CoreEngine.Graphics
             {
                 var result = this.GraphicsResourceSystemId;
 
-                if (ResourceType == GraphicsResourceType.Dynamic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                if (!IsStatic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
                 {
                     result = this.GraphicsResourceSystemId2.Value;
                 }
@@ -68,6 +70,7 @@ namespace CoreEngine.Graphics
         public int MipLevels { get; internal set; }
         public int MultiSampleCount { get; internal set; }
         public GraphicsResourceType ResourceType { get; }
+        public bool IsStatic { get; }
 
         public string Label
         {

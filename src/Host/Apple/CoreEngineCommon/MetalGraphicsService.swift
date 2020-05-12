@@ -94,6 +94,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var textures: [UInt: MTLTexture]
     var indirectCommandBuffers: [UInt: MTLIndirectCommandBuffer]
 
+    let commandBufferStatusConcurrentQueue: DispatchQueue
+
     public init(view: MetalView, renderWidth: Int, renderHeight: Int) {
         let defaultDevice = MTLCreateSystemDefaultDevice()!
         print(defaultDevice.name)
@@ -173,6 +175,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         heapDescriptor.size = 1024 * 1024 * 2048 // Allocate 512MB for now
         heapDescriptor.cpuCacheMode = .writeCombined
         self.staticHeap = self.device.makeHeap(descriptor: heapDescriptor)!
+
+        self.commandBufferStatusConcurrentQueue = DispatchQueue(label: "MetalGraphicsService.resetCommandBuffer")
     }
 
     public func getRenderSize() -> Vector2 {
@@ -265,7 +269,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         descriptor.pixelFormat = convertTextureFormat(textureFormat)
 
         if (isRenderTarget) {
-            descriptor.usage = [.renderTarget, .shaderRead]
+            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
         } else {
             descriptor.cpuCacheMode = .writeCombined
         }
@@ -482,7 +486,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         var status = GraphicsCommandBufferStatus()
         status.State = Created
-        self.commandBuffersStatus[commandBufferId] = status
+
+        commandBufferStatusConcurrentQueue.sync() {
+            self.commandBuffersStatus[commandBufferId] = status
+        }
 
         commandBuffer.label = "CommandBuffer\(self.currentFrameNumber)_"
         self.commandBuffers[commandBufferId] = commandBuffer
@@ -507,7 +514,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         commandBufferStatus.State = Committed
-        self.commandBuffersStatus[commandBufferId] = commandBufferStatus
+        
+        commandBufferStatusConcurrentQueue.sync() {
+            self.commandBuffersStatus[commandBufferId] = commandBufferStatus
+        }
     }
 
     public func getCommandBufferStatus(_ commandBufferId: UInt) -> NullableGraphicsCommandBufferStatus {
@@ -1013,10 +1023,16 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         argumentEncoder.setTexture(texture, index: slot)        
 
         // TODO: This code is needed because render targets are not allocated on the heap for the moment
-        if (texture.usage == [.renderTarget, .shaderRead]) {
+        if (texture.usage == [.renderTarget, .shaderRead, .shaderWrite]) {
             if (self.computeCommandEncoders[commandListId] != nil) {
                 let computeCommandEncoder = self.computeCommandEncoders[commandListId]!
+
+                if (isReadOnly) {
                 computeCommandEncoder.useResource(texture, usage: .read)
+                } else {
+                computeCommandEncoder.useResource(texture, usage: .write)
+
+                }
             } else if (self.renderCommandEncoders[commandListId] != nil) {
                 let computeCommandEncoder = self.renderCommandEncoders[commandListId]!
                 computeCommandEncoder.useResource(texture, usage: .read)
@@ -1044,7 +1060,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             textureList.append(texture)
 
             // TODO: This code is needed because render targets are not allocated on the heap for the moment
-            if (texture.usage == [.renderTarget, .shaderRead]) {
+            if (texture.usage == [.renderTarget, .shaderRead, .shaderWrite]) {
                 if (self.computeCommandEncoders[commandListId] != nil) {
                     let computeCommandEncoder = self.computeCommandEncoders[commandListId]!
                     computeCommandEncoder.useResource(texture, usage: .read)
@@ -1258,20 +1274,20 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ commandBufferId: UInt) {
-        // if (commandBuffer.error != nil) {
-        //     self.gpuError = true
-        //     print("GPU ERROR")
-        // }
-
-        guard var commandBufferStatus = self.commandBuffersStatus[commandBufferId] else {
-            return
+        if (commandBuffer.error != nil) {
+            //self.gpuError = true
+            print("GPU ERROR: \(commandBuffer.error)")
         }
 
-        commandBufferStatus.State = Completed
-        commandBufferStatus.ExecutionStartTime = Float((commandBuffer.gpuEndTime - commandBuffer.gpuStartTime) * 1000)
-        commandBufferStatus.ExecutionEndTime = Float(commandBuffer.gpuEndTime)
+        commandBufferStatusConcurrentQueue.sync() {
+            guard var commandBufferStatus = self.commandBuffersStatus[commandBufferId] else {
+                return
+            }
 
-        DispatchQueue.main.async() {
+            commandBufferStatus.State = Completed
+            commandBufferStatus.ExecutionStartTime = commandBuffer.gpuStartTime * 1000.0
+            commandBufferStatus.ExecutionEndTime = commandBuffer.gpuEndTime * 1000.0
+
             self.commandBuffersStatus[commandBufferId] = commandBufferStatus
         }
     }

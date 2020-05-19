@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class MaterialResourceLoader : ResourceLoader
     {

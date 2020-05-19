@@ -1,10 +1,10 @@
 
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public struct FontGlyphInfo
     {

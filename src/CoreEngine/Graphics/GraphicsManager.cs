@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Threading;
 using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
@@ -25,33 +22,24 @@ namespace CoreEngine.Graphics
         public double EndTiming { get; }
     }
 
-    // Split interop code into a GraphicsDevice object?
     public class GraphicsManager : SystemManager
     {
         internal readonly IGraphicsService graphicsService;
 
         private static object syncObject = new object();
         private uint currentGraphicsResourceId;
-        private Vector2 currentFrameSize;
-        private Stopwatch stopwatch;
-        private int cpuDrawCount;
-        private int cpuDispatchCount;
-        private Stopwatch globalStopwatch;
-        private uint startMeasureFrameNumber;
-        private int framePerSeconds = 0;
-        private ulong allocatedGpuMemory = 0;
-        private int gpuMemoryUploaded = 0;
-        private int gpuMemoryUploadedPerSeconds = 0;
-        private string graphicsAdapterName;
+        
+        // TODO: Remove internal
+        internal string graphicsAdapterName;
+        internal ulong allocatedGpuMemory = 0;
+        internal int gpuMemoryUploaded = 0;
+        internal int cpuDrawCount;
+        internal int cpuDispatchCount;
 
-        private List<GpuTiming> gpuTimings = new List<GpuTiming>();
-
-        private CommandBuffer presentCommandBuffer;
-
-        private Shader computeDirectTransferShader;
         private Dictionary<uint, GraphicsRenderPassDescriptor> renderPassDescriptors;
+        internal List<GpuTiming> gpuTimings = new List<GpuTiming>();
 
-        public GraphicsManager(IGraphicsService graphicsService, GraphicsSceneQueue graphicsSceneQueue, ResourcesManager resourcesManager)
+        public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
             if (graphicsService == null)
             {
@@ -64,49 +52,23 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService = graphicsService;
-            this.currentGraphicsResourceId = 0;
-            this.cpuDrawCount = 0;
-            this.cpuDispatchCount = 0;
-            this.renderPassDescriptors = new Dictionary<uint, GraphicsRenderPassDescriptor>();
-            this.stopwatch = new Stopwatch();
-            this.stopwatch.Start();
-            this.globalStopwatch = new Stopwatch();
-            this.globalStopwatch.Start();
 
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
             this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
 
+            this.currentGraphicsResourceId = 0;
+            
+            this.renderPassDescriptors = new Dictionary<uint, GraphicsRenderPassDescriptor>();
+
             InitResourceLoaders(resourcesManager);
-            
-            this.currentFrameSize = graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, isStatic: true, label: "MainRenderTarget");
-
-            this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
-
-            this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, graphicsSceneQueue, resourcesManager);
-            this.Graphics2DRenderer = new Graphics2DRenderer(this, resourcesManager);
-            
-            this.presentCommandBuffer = this.CreateCommandBuffer("PresentScreenBuffer");
         }
 
+        // TODO: Move that method
         public uint CurrentFrameNumber
         {
             get;
-            private set;
+            set;
         }
-
-        public Texture MainRenderTargetTexture
-        {
-            get;
-            private set;
-        }
-
-        public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
-        public Graphics2DRenderer Graphics2DRenderer { get; }
-        internal int GeometryInstancesCount { get; set; }
-        internal int CulledGeometryInstancesCount { get; set; }
-        internal int MaterialsCount { get; set; }
-        internal int TexturesCount { get; set; }
 
         public Vector2 GetRenderSize()
         {
@@ -441,6 +403,21 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("The specified command list is not a compute command list.");
             }
 
+            if (threadCountX == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(threadCountX));
+            }
+
+            if (threadCountY == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(threadCountY));
+            }
+
+            if (threadCountZ == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(threadCountZ));
+            }
+
             this.cpuDispatchCount++;
             return this.graphicsService.DispatchThreads(commandList.Id, threadCountX, threadCountY, threadCountZ);
         }
@@ -609,24 +586,6 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetIndexBuffer(commandList.Id, indexBuffer.GraphicsResourceId);
         }
 
-        public void DrawGeometryInstances(CommandList commandList, GeometryInstance geometryInstance, int instanceCount, int baseInstanceId)
-        {
-            if (geometryInstance.IndexCount == 0)
-            {
-                throw new InvalidOperationException("Index count must non-zero.");
-            }
-
-            this.SetShaderBuffer(commandList, geometryInstance.GeometryPacket.VertexBuffer, 0);
-            this.SetIndexBuffer(commandList, geometryInstance.GeometryPacket.IndexBuffer);
-
-            this.DrawIndexedPrimitives(commandList, 
-                                        geometryInstance.PrimitiveType, 
-                                        geometryInstance.StartIndex, 
-                                        geometryInstance.IndexCount, 
-                                        instanceCount,
-                                        baseInstanceId);
-        }
-
         public void DrawIndexedPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
         {
             if (commandList.Type != CommandListType.Render)
@@ -672,163 +631,10 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public void PresentScreenBuffer(CommandList previousCommandList)
-        {
-            // TODO: Use a compute shader
-            var renderPassDescriptor = new RenderPassDescriptor(null, null, DepthBufferOperation.None, true);
-            var renderCommandList = CreateRenderCommandList(presentCommandBuffer, renderPassDescriptor, "PresentRenderCommandList");
-
-            this.WaitForCommandList(renderCommandList, previousCommandList);
-
-            SetShader(renderCommandList, this.computeDirectTransferShader);
-            SetShaderTexture(renderCommandList, this.MainRenderTargetTexture, 0);
-            DrawPrimitives(renderCommandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
-
-            CommitRenderCommandList(renderCommandList);
-
-            this.graphicsService.PresentScreenBuffer(presentCommandBuffer.GraphicsResourceId);
-            this.ExecuteCommandBuffer(presentCommandBuffer);
-
-            this.graphicsService.WaitForAvailableScreenBuffer();
-
-            // TODO: A modulo here with Int.MaxValue
-            this.CurrentFrameNumber++;
-            this.cpuDrawCount = 0;
-            this.cpuDispatchCount = 0;
-            
-            this.gpuTimings.Clear();
-        }
-
-        List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
-
-        internal void Render()
-        {
-            var frameSize = graphicsService.GetRenderSize();
-
-            if (frameSize != this.currentFrameSize)
-            {
-                Logger.WriteMessage("Recreating final render target");
-                this.currentFrameSize = frameSize;
-
-                this.ResizeTexture(this.MainRenderTargetTexture, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y);
-            }
-
-            var renderCommandList = this.GraphicsSceneRenderer.Render();
-
-            DrawDebugMessages();
-            var graphics2DCommandList = this.Graphics2DRenderer.Render(renderCommandList);
-
-            this.PresentScreenBuffer(graphics2DCommandList);
-
-            // TODO: If doing restart stopwatch here, the CPU time is more than 10ms
-            this.stopwatch.Restart();
-        }
-
-        private void DrawDebugMessages()
-        {
-            // TODO: Seperate timing calculations from debug display
-
-            var frameDuration = (float)this.stopwatch.ElapsedTicks / Stopwatch.Frequency * 1000;
-
-            if (this.globalStopwatch.ElapsedMilliseconds > 1000)
-            {
-                this.framePerSeconds = (int)(this.CurrentFrameNumber - startMeasureFrameNumber - 1);
-                this.globalStopwatch.Restart();
-                this.startMeasureFrameNumber = this.CurrentFrameNumber;
-
-                this.gpuMemoryUploadedPerSeconds = this.gpuMemoryUploaded;
-                this.gpuMemoryUploaded = 0;
-            }
-
-            var renderSize = GetRenderSize();
-
-            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(this.Graphics2DRenderer.commandBuffer.GraphicsResourceId);
-
-            if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-            {
-                this.gpuTimings.Add(new GpuTiming(this.Graphics2DRenderer.commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-            }
-
-            commandBufferStatus = this.graphicsService.GetCommandBufferStatus(this.Graphics2DRenderer.copyCommandBuffer.GraphicsResourceId);
-
-            if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-            {
-                this.gpuTimings.Add(new GpuTiming(this.Graphics2DRenderer.copyCommandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-            }
-
-            commandBufferStatus = this.graphicsService.GetCommandBufferStatus(this.presentCommandBuffer.GraphicsResourceId);
-
-            if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-            {
-                this.gpuTimings.Add(new GpuTiming(this.presentCommandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-            }
-
-            this.Graphics2DRenderer.DrawText($"{this.graphicsAdapterName} - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
-            this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 130));
-            this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 170));
-            this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 210));
-            this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 250));
-            this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 290));
-            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 330));
-            this.Graphics2DRenderer.DrawText($"Gpu Pipeline:", new Vector2(10, 370));
-
-            var globalStartTiming = double.MaxValue;
-            var globalEndTiming = double.MinValue;
-
-            this.gpuTimings.Sort((a, b) => (a.StartTiming.CompareTo(b.StartTiming)));
-
-            if (this.gpuTimings.Count < this.previousGpuTiming.Count)
-            {
-                Logger.WriteMessage($"Error GPU Timings");
-
-                foreach (var timing in this.previousGpuTiming)
-                {
-                    if (this.gpuTimings.Find(x => x.Name == timing.Name).StartTiming == 0.0)
-                    {
-                        Logger.WriteMessage($"Gpu timing: {timing.Name}");
-                    }
-                }
-            }
-
-            var startGpuTiming = 0.0;
-
-            for (var i = 0; i < this.gpuTimings.Count; i++)
-            {
-                var gpuTiming = this.gpuTimings[i];
-
-                if (startGpuTiming == 0.0)
-                {
-                    startGpuTiming = gpuTiming.StartTiming;
-                }
-
-                var duration = gpuTiming.EndTiming - gpuTiming.StartTiming;
-
-                if (gpuTiming.StartTiming < globalStartTiming)
-                {
-                    globalStartTiming = gpuTiming.StartTiming;
-                }
-
-                if (gpuTiming.EndTiming > globalEndTiming)
-                {
-                    globalEndTiming = gpuTiming.EndTiming;
-                }
-
-                this.Graphics2DRenderer.DrawText($"    {gpuTiming.Name}: {duration.ToString("0.00", CultureInfo.InvariantCulture)} ms ({(gpuTiming.StartTiming - startGpuTiming).ToString("0.00", CultureInfo.InvariantCulture)} ms)", new Vector2(10, 410 + i * 40));
-            }
-
-            var gpuExecutionTime = globalEndTiming - globalStartTiming;
-            this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {gpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
-
-            this.previousGpuTiming = new List<GpuTiming>(this.gpuTimings);
-        }
-
         private void InitResourceLoaders(ResourcesManager resourcesManager)
         {
             resourcesManager.AddResourceLoader(new TextureResourceLoader(resourcesManager, this));
-            resourcesManager.AddResourceLoader(new FontResourceLoader(resourcesManager, this));
             resourcesManager.AddResourceLoader(new ShaderResourceLoader(resourcesManager, this));
-            resourcesManager.AddResourceLoader(new MaterialResourceLoader(resourcesManager, this));
-            resourcesManager.AddResourceLoader(new MeshResourceLoader(resourcesManager, this));
         }
 
         private uint GetNextGraphicsResourceId()
@@ -891,11 +697,6 @@ namespace CoreEngine.Graphics
             }
 
             return textureMemory;
-        }
-
-        private static float BytesToMegaBytes(ulong value)
-        {
-            return (float)value / 1024 / 1024;
         }
     }
 }

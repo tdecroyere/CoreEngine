@@ -1,0 +1,21 @@
+{
+    "Parameters": [
+        // TODO: Add Parameters requirements
+        { "Name": "MainRenderTarget", "Type": "Texture" },
+        { "Name": "ResolveRenderTarget", "Type": "Texture" }
+    ],
+    "Resources": [
+        // { "Name": "ResolveRenderTarget", "Type": "Texture", "Format": "Rgba16Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" }
+    ],
+    // TODO: Only sequentials steps for the moment
+    "Steps": [
+        { 
+            "Name": "ToneMap", 
+            "Type": "Compute", 
+            "Shader": "/System/Shaders/ToneMapCompute.shader@ToneMap",
+            "Inputs": [ { "Resource": "#ResolveRenderTarget", "ShaderBindingSlot": 0 } ],
+            "Outputs": [ { "Resource": "#MainRenderTarget", "ShaderBindingSlot": 1 } ],
+            "Threads": [ "#MainRenderTarget.Width", "#MainRenderTarget.Height", 0 ]
+        }
+    ]
+}

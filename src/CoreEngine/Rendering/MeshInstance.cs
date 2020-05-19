@@ -4,7 +4,7 @@ using System.Numerics;
 using CoreEngine.Collections;
 using CoreEngine.Diagnostics;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class MeshInstance : TrackedItem
     {

@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../CoreEngine.SourceGenerators/CoreEngine.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.9.8" />
+    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.0.0" />
   </ItemGroup>
   
 </Project>

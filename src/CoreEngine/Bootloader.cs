@@ -9,6 +9,7 @@ using CoreEngine.Graphics;
 using CoreEngine.HostServices;
 using CoreEngine.Inputs;
 using CoreEngine.Resources;
+using CoreEngine.Rendering;
 
 namespace CoreEngine
 {
@@ -17,6 +18,7 @@ namespace CoreEngine
     {
         private static CoreEngineApp? coreEngineApp = null;
         private static GraphicsManager? graphicsManager = null;
+        private static RenderManager? renderManager = null;
         private static GraphicsSceneQueue? sceneQueue = null;
         private static GraphicsSceneManager? sceneManager = null;
 
@@ -35,14 +37,17 @@ namespace CoreEngine
                 sceneQueue = new GraphicsSceneQueue();
                 sceneManager = new GraphicsSceneManager(sceneQueue);
 
-                graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, sceneQueue, resourcesManager);
+                graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
+                renderManager = new RenderManager(graphicsManager, resourcesManager, sceneQueue);
+
                 var systemManagerContainer = new SystemManagerContainer();
 
                 // Register managers
                 systemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
-                systemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
                 systemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
-                systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(graphicsManager.Graphics2DRenderer);
+                systemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
+                systemManagerContainer.RegisterSystemManager<RenderManager>(renderManager);
+                systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(renderManager.Graphics2DRenderer);
                 systemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
 
                 Logger.BeginAction($"Loading CoreEngineApp '{appName}'");
@@ -72,9 +77,9 @@ namespace CoreEngine
                 coreEngineApp.SystemManagerContainer.PostUpdateSystemManagers();
             }
 
-            if (graphicsManager != null)
+            if (renderManager != null)
             {
-                graphicsManager.Render();
+                renderManager.Render();
             }
         }
 

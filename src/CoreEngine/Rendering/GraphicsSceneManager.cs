@@ -1,6 +1,6 @@
 using CoreEngine.Diagnostics;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class GraphicsSceneManager : SystemManager
     {

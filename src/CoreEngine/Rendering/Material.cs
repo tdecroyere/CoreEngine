@@ -1,7 +1,8 @@
 using System;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class Material : Resource
     {

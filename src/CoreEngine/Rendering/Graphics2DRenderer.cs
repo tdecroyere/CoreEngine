@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using CoreEngine.Diagnostics;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     readonly struct Graphics2DVertex
     {
@@ -61,6 +60,7 @@ namespace CoreEngine.Graphics
     public class Graphics2DRenderer : SystemManager
     {
         private readonly GraphicsManager graphicsManager;
+        private readonly RenderManager renderManager;
         
         private int currentSurfaceCount;
         private float scaleFactor = 1.0f;
@@ -80,8 +80,13 @@ namespace CoreEngine.Graphics
         public CommandBuffer copyCommandBuffer;
         public CommandBuffer commandBuffer;
 
-        public Graphics2DRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
+        public Graphics2DRenderer(RenderManager renderManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
+            if (renderManager == null)
+            {
+                throw new ArgumentNullException(nameof(renderManager));
+            }
+
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
@@ -92,6 +97,7 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(resourcesManager));
             }
 
+            this.renderManager = renderManager;
             this.graphicsManager = graphicsManager;
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/Graphics2DRender.shader");
@@ -218,7 +224,7 @@ namespace CoreEngine.Graphics
                 this.graphicsManager.CommitCopyCommandList(copyCommandList);
                 this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
-                var renderTarget = new RenderTargetDescriptor(this.graphicsManager.MainRenderTargetTexture, null, BlendOperation.AlphaBlending);
+                var renderTarget = new RenderTargetDescriptor(this.renderManager.MainRenderTargetTexture, null, BlendOperation.AlphaBlending);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
                 var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
 

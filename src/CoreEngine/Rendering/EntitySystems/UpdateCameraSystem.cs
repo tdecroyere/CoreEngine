@@ -1,11 +1,11 @@
 using System;
 using System.Numerics;
-using CoreEngine.Collections;
 using CoreEngine.Components;
 using CoreEngine.Diagnostics;
-using CoreEngine.Graphics.Components;
+using CoreEngine.Graphics;
+using CoreEngine.Rendering.Components;
 
-namespace CoreEngine.Graphics.EntitySystems
+namespace CoreEngine.Rendering.EntitySystems
 {
     public class UpdateCameraSystem : EntitySystem
     {

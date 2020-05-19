@@ -3,9 +3,10 @@ using System.IO;
 using System.Numerics;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class MeshResourceLoader : ResourceLoader
     {

@@ -1,10 +1,9 @@
 using System;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using CoreEngine.Diagnostics;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class DebugRenderer
     {

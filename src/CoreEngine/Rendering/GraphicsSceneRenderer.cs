@@ -2,13 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using CoreEngine.Collections;
 using CoreEngine.Diagnostics;
-using CoreEngine.HostServices;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
+    public struct RenderPassConstants
+    {
+        public Matrix4x4 ViewMatrix { get; set; }
+        public Matrix4x4 ProjectionMatrix { get; set; }
+    }
+
     public struct ObjectProperties
     {
         public Matrix4x4 WorldMatrix { get; set; }
@@ -177,9 +182,10 @@ namespace CoreEngine.Graphics
         public string Name { get; }
         public GraphicsPipelineStepType Type { get; }
         public string ShaderPath { get; }
-        internal Shader? Shader { get; set; }
         public ReadOnlyMemory<GraphicsPipelineResourceBinding> Inputs { get; }
         public ReadOnlyMemory<GraphicsPipelineResourceBinding> Outputs { get; }
+        internal Shader? Shader { get; set; }
+        internal CommandBuffer? CommandBuffer { get; set; }
     }
 
     public class ComputeGraphicsPipelineStep : GraphicsPipelineStep
@@ -196,26 +202,22 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        private CommandBuffer[] commandBuffers;
-
-        public ReadOnlyMemory<GraphicsPipelineStep> Steps { get; }
-
         public GraphicsPipeline(GraphicsManager graphicsManager, ResourcesManager resourcesManager, ReadOnlyMemory<GraphicsPipelineStep> steps)
         {
             this.graphicsManager = graphicsManager;
             this.Steps = steps;
-            this.commandBuffers = new CommandBuffer[this.Steps.Span.Length];
 
             for (var i = 0; i < this.Steps.Length; i++)
             {
-                // TODO: Unify resource parameters path
-
                 var step = this.Steps.Span[i];
-                step.Shader = resourcesManager.LoadResourceAsync<Shader>(step.ShaderPath);
-
-                this.commandBuffers[i] = this.graphicsManager.CreateCommandBuffer(step.Name);
+                
+                var shaderParts = step.ShaderPath.Split('@');
+                step.Shader = resourcesManager.LoadResourceAsync<Shader>(shaderParts[0], shaderParts.Length > 1 ? shaderParts[1] : null);
+                step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(step.Name);
             }
         }
+
+        public ReadOnlyMemory<GraphicsPipelineStep> Steps { get; }
 
         public CommandList Process(CommandList commandListToWait)
         {
@@ -227,17 +229,22 @@ namespace CoreEngine.Graphics
 
                 if (step.Type == GraphicsPipelineStepType.Compute)
                 {
-                    var commandBuffer = this.commandBuffers[i];
-                    commandList = ProcessComputeStep((ComputeGraphicsPipelineStep)step, commandBuffer, commandListToWait);
+                    commandList = ProcessComputeStep((ComputeGraphicsPipelineStep)step, commandListToWait);
                 }
             }
 
             return commandList!.Value;
         }
 
-        private CommandList ProcessComputeStep(ComputeGraphicsPipelineStep step, CommandBuffer commandBuffer, CommandList commandListToWait)
+        private CommandList ProcessComputeStep(ComputeGraphicsPipelineStep step, CommandList commandListToWait)
         {
-            var computeCommandList = this.graphicsManager.CreateComputeCommandList(commandBuffer, step.Name);
+            if (step.CommandBuffer == null)
+            {
+                // TODO: Log error
+                return commandListToWait;
+            }
+
+            var computeCommandList = this.graphicsManager.CreateComputeCommandList(step.CommandBuffer.Value, step.Name);
 
             this.graphicsManager.WaitForCommandList(computeCommandList, commandListToWait);
             this.graphicsManager.SetShader(computeCommandList, step.Shader);
@@ -270,11 +277,9 @@ namespace CoreEngine.Graphics
                 threads[i] = (uint)step.Threads[i].Evaluate();
             }
 
-            Logger.WriteMessage($"{threads[0]} {threads[1]}");
-
             this.graphicsManager.DispatchThreads(computeCommandList, threads[0], threads[1], 1);
             this.graphicsManager.CommitComputeCommandList(computeCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+            this.graphicsManager.ExecuteCommandBuffer(step.CommandBuffer.Value);
 
             return computeCommandList;
         }
@@ -283,6 +288,7 @@ namespace CoreEngine.Graphics
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
     public class GraphicsSceneRenderer
     {
+        private readonly RenderManager renderManager;
         private readonly GraphicsManager graphicsManager;
         private readonly DebugRenderer debugRenderer;
         private readonly GraphicsSceneQueue sceneQueue;
@@ -300,7 +306,6 @@ namespace CoreEngine.Graphics
         private Shader gaussianBlurHorizontalShader;
         private Shader gaussianBlurVerticalShader;
         private Shader bloomPassShader;
-        private Shader toneMapComputeShader;
 
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
         private RenderPassConstants renderPassConstants;
@@ -346,13 +351,19 @@ namespace CoreEngine.Graphics
 
         private GraphicsPipeline graphicsPipeline;
 
-        public GraphicsSceneRenderer(GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
+        public GraphicsSceneRenderer(RenderManager renderManager, GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
         {
+            if (renderManager == null)
+            {
+                throw new ArgumentNullException(nameof(renderManager));
+            }
+
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
             }
 
+            this.renderManager = renderManager;
             this.graphicsManager = graphicsManager;
             this.debugRenderer = new DebugRenderer(graphicsManager, resourcesManager);
             this.sceneQueue = sceneQueue;
@@ -370,7 +381,6 @@ namespace CoreEngine.Graphics
             this.gaussianBlurHorizontalShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/GaussianBlurHorizontal.shader");
             this.gaussianBlurVerticalShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/GaussianBlurVertical.shader");
             this.bloomPassShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/BloomPass.shader");
-            this.toneMapComputeShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ToneMapCompute.shader", "ToneMap");
 
             this.currentFrameSize = this.graphicsManager.GetRenderSize();
             this.opaqueHdrRenderTarget = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, this.multisampleCount, true, isStatic: true, label: "SceneRendererOpaqueHdrRenderTarget");
@@ -425,19 +435,19 @@ namespace CoreEngine.Graphics
             var graphicsPipelineSteps = new GraphicsPipelineStep[]
             {
                 new ComputeGraphicsPipelineStep("ToneMap", 
-                                                "/System/Shaders/ToneMapCompute.shader@ToneMap", // TODO: This will crash if the load shader above is removed
+                                                "/System/Shaders/ToneMapCompute.shader@ToneMap",
                                                 new GraphicsPipelineResourceBinding[]
                                                 {
                                                     new GraphicsPipelineResourceBinding(this.resolveRenderTarget, 0)
                                                 }, 
                                                 new GraphicsPipelineResourceBinding[]
                                                 {
-                                                    new GraphicsPipelineResourceBinding(this.graphicsManager.MainRenderTargetTexture, 1)
+                                                    new GraphicsPipelineResourceBinding(this.renderManager.MainRenderTargetTexture, 1)
                                                 }, 
                                                 new GraphicsPipelineParameter<int>[] 
                                                 {  
-                                                    new GraphicsPipelineParameter<int>(this.graphicsManager.MainRenderTargetTexture, "Width"),
-                                                    new GraphicsPipelineParameter<int>(this.graphicsManager.MainRenderTargetTexture, "Height")
+                                                    new GraphicsPipelineParameter<int>(this.renderManager.MainRenderTargetTexture, "Width"),
+                                                    new GraphicsPipelineParameter<int>(this.renderManager.MainRenderTargetTexture, "Height")
                                                 })
             };
 
@@ -709,7 +719,8 @@ namespace CoreEngine.Graphics
             AddCubeTexture(this.cubeMap);
             AddCubeTexture(this.irradianceCubeMap);
 
-            var lightDirection = Vector3.Normalize(-new Vector3(0.172f, -0.818f, -0.549f));
+            // var lightDirection = Vector3.Normalize(-new Vector3(0.172f, -0.818f, -0.549f));
+            var lightDirection = Vector3.Normalize(new Vector3(-0.2f, 1.0f, -0.05f));
 
             // var shadowMapSize = 1024;
             var shadowMapSize = 2048;
@@ -817,7 +828,7 @@ namespace CoreEngine.Graphics
 
             if (counters[opaqueCounterIndex] > 0)
             {
-                this.graphicsManager.CulledGeometryInstancesCount = (int)counters[opaqueCounterIndex];
+                this.renderManager.CulledGeometryInstancesCount = (int)counters[opaqueCounterIndex];
             }
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(copyCommandBuffer, "SceneComputeCopyCommandList");
@@ -834,9 +845,9 @@ namespace CoreEngine.Graphics
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
-            this.graphicsManager.GeometryInstancesCount = this.currentGeometryInstanceIndex;
-            this.graphicsManager.MaterialsCount = this.currentMaterialIndex;
-            this.graphicsManager.TexturesCount = this.currentTextureIndex;
+            this.renderManager.GeometryInstancesCount = this.currentGeometryInstanceIndex;
+            this.renderManager.MaterialsCount = this.currentMaterialIndex;
+            this.renderManager.TexturesCount = this.currentTextureIndex;
 
             return copyCommandList;
         }
@@ -1088,7 +1099,7 @@ namespace CoreEngine.Graphics
         private CommandList RenderGeometryOpaque(Texture outputTexture, CommandList[] commandListsToWait, ShaderCamera mainCamera)
         {
             // var renderTarget1 = new RenderTargetDescriptor(this.opaqueHdrRenderTarget, new Vector4(0.0f, 0.215f, 1.0f, 1), BlendOperation.None);
-            var renderTarget1 = new RenderTargetDescriptor(outputTexture, new Vector4(65 * 5, 135 * 5, 255 * 5, 1.0f) / 255.0f, BlendOperation.None);
+            var renderTarget1 = new RenderTargetDescriptor(outputTexture, new Vector4(65 * 50, 135 * 50, 255 * 50, 1.0f) / 255.0f, BlendOperation.None);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget1, this.depthBufferTexture, DepthBufferOperation.CompareEqual, true);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(renderGeometryOpaqueCommandBuffer, renderPassDescriptor, "MainRenderCommandList");
 
@@ -1183,10 +1194,10 @@ namespace CoreEngine.Graphics
 
             var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;
 
-            // this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 0), new Vector2(debugXOffset + 256, 256), this.shadowMaps[1], true);
-            // this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 256), new Vector2(debugXOffset + 256, 512), this.shadowMaps[3], true);
-            // this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 512), new Vector2(debugXOffset + 256, 768), this.shadowMaps[5], true);
-            // this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 768), new Vector2(debugXOffset + 256, 1024), this.shadowMaps[7], true);
+            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 0), new Vector2(debugXOffset + 256, 256), this.shadowMaps[1], true);
+            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 256), new Vector2(debugXOffset + 256, 512), this.shadowMaps[3], true);
+            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 512), new Vector2(debugXOffset + 256, 768), this.shadowMaps[5], true);
+            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 768), new Vector2(debugXOffset + 256, 1024), this.shadowMaps[7], true);
             //this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(0, 0), new Vector2(this.graphicsManager.GetRenderSize().X, this.graphicsManager.GetRenderSize().Y), this.occlusionDepthTexture, true);
 
             return commandList;

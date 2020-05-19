@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class Mesh : Resource
     {

@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using CoreEngine.Collections;
 
-namespace CoreEngine.Graphics.Components
+namespace CoreEngine.Rendering.Components
 {
     public struct MeshComponent : IComponentData
     {

@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using CoreEngine.Components;
 using CoreEngine.Diagnostics;
-using CoreEngine.Graphics.Components;
+using CoreEngine.Rendering.Components;
 using CoreEngine.Inputs;
 
 namespace CoreEngine.Tests.EcsTest

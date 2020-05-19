@@ -1,6 +1,6 @@
-using System;
+using CoreEngine.Graphics;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public readonly struct GeometryPacket
     {

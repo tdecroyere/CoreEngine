@@ -3,10 +3,10 @@ using System.Numerics;
 using CoreEngine.Collections;
 using CoreEngine.Components;
 using CoreEngine.Diagnostics;
-using CoreEngine.Graphics.Components;
+using CoreEngine.Rendering.Components;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics.EntitySystems
+namespace CoreEngine.Rendering.EntitySystems
 {
     public class RenderMeshSystem : EntitySystem
     {

@@ -1,6 +1,6 @@
-using System;
+using CoreEngine.Graphics;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     // TODO: Rename that struct?
     public readonly struct GeometryInstance

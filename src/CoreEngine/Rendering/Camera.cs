@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using CoreEngine.Collections;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class Camera : TrackedItem
     {

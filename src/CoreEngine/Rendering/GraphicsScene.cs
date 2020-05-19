@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using CoreEngine.Collections;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class GraphicsScene
     {

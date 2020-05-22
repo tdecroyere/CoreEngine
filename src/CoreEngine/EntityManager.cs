@@ -185,7 +185,7 @@ namespace CoreEngine
 
             var componentSize = componentLayoutDesc.FindComponentSize(componentType.GetHashCode());
 
-            // TODO: Throw an exception if entity not found
+            // TODO: Throw an exception if entity not found 
             for (var i = 0; i < dataStorage.Count; i++)
             {
                 var memoryChunk = dataStorage[i];

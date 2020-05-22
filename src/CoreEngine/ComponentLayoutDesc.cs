@@ -45,7 +45,7 @@ namespace CoreEngine
         public int[] ComponentSizes { get; }
         public IComponentData[] ComponentDefaultValues { get; }
 
-        public int FindComponentOffset(int componentTypeHash)
+        public int? FindComponentOffset(int componentTypeHash)
         {
             var componentIndex = -1;
 
@@ -60,7 +60,7 @@ namespace CoreEngine
 
             if (componentIndex == -1)
             {
-                // TODO: Throw error
+                return null;
             }
 
             return this.ComponentOffsets[componentIndex];

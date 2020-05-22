@@ -73,7 +73,7 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
             this.graphicsManager.SetShaderTexture(renderCommandList, this.MainRenderTargetTexture, 0);
-            this.graphicsManager.DrawPrimitives(renderCommandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
+            this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
             this.graphicsManager.CommitRenderCommandList(renderCommandList);
 

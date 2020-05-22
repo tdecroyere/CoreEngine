@@ -965,7 +965,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.SetShader(commandList, this.convertToMomentShadowMapShader);
             this.graphicsManager.SetShaderTexture(commandList, this.textureList[camera.DepthBufferTextureIndex], 0);
 
-            this.graphicsManager.DrawPrimitives(commandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
+            this.graphicsManager.DrawPrimitives(commandList, PrimitiveType.TriangleStrip, 0, 4);
 
             this.graphicsManager.CommitRenderCommandList(commandList);
             this.graphicsManager.ExecuteCommandBuffer(convertToMomentShadowMapCommandBuffers[currentMomentCommandBuffer]);
@@ -986,7 +986,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.SetShader(commandList, this.gaussianBlurHorizontalShader);
             this.graphicsManager.SetShaderTexture(commandList, inputTexture, 0);
 
-            this.graphicsManager.DrawPrimitives(commandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
+            this.graphicsManager.DrawPrimitives(commandList, PrimitiveType.TriangleStrip, 0, 4);
             this.graphicsManager.CommitRenderCommandList(commandList);
 
             renderTarget = new RenderTargetDescriptor(outputTexture, null, BlendOperation.None);
@@ -998,7 +998,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.SetShader(commandList, this.gaussianBlurVerticalShader);
             this.graphicsManager.SetShaderTexture(commandList, inputTexture, 0);
 
-            this.graphicsManager.DrawPrimitives(commandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
+            this.graphicsManager.DrawPrimitives(commandList, PrimitiveType.TriangleStrip, 0, 4);
 
             this.graphicsManager.CommitRenderCommandList(commandList);
             this.graphicsManager.ExecuteCommandBuffer(gaussianBlurShadowMapCommandBuffer);
@@ -1017,7 +1017,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.SetShader(commandList, this.bloomPassShader);
             this.graphicsManager.SetShaderTexture(commandList, inputTexture, 0);
 
-            this.graphicsManager.DrawPrimitives(commandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
+            this.graphicsManager.DrawPrimitives(commandList, PrimitiveType.TriangleStrip, 0, 4);
 
             this.graphicsManager.CommitRenderCommandList(commandList);
             this.graphicsManager.ExecuteCommandBuffer(bloomPassCommandBuffer);
@@ -1127,7 +1127,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.SetShaderTexture(hdrTransferRenderCommandList, this.transparentHdrRenderTarget, 1);
             this.graphicsManager.SetShaderTexture(hdrTransferRenderCommandList, this.transparentRevealageRenderTarget, 2);
 
-            this.graphicsManager.DrawPrimitives(hdrTransferRenderCommandList, GeometryPrimitiveType.TriangleStrip, 0, 4);
+            this.graphicsManager.DrawPrimitives(hdrTransferRenderCommandList, PrimitiveType.TriangleStrip, 0, 4);
             this.graphicsManager.CommitRenderCommandList(hdrTransferRenderCommandList);
             this.graphicsManager.ExecuteCommandBuffer(resolveCommandBuffer);
 

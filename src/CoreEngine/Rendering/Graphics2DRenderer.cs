@@ -238,7 +238,7 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.SetShaderTextures(commandList, this.textures.ToArray(), 3);
 
                 this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
-                this.graphicsManager.DrawIndexedPrimitives(commandList, GeometryPrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
+                this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
                 this.graphicsManager.CommitRenderCommandList(commandList);
 

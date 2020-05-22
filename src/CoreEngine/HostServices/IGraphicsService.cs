@@ -215,6 +215,7 @@ namespace CoreEngine.HostServices
         public readonly string? ErrorMessage { get; }
     }
 
+    [HostService]
     public interface IGraphicsService
     {
         // bool CreateSwapChain(uint swapChainId, int width, int height, GraphicsTextureFormat textureFormat);

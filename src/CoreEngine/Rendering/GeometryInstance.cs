@@ -5,7 +5,7 @@ namespace CoreEngine.Rendering
     // TODO: Rename that struct?
     public readonly struct GeometryInstance
     {
-        public GeometryInstance(GeometryPacket geometryPacket, Material? material, int startIndex, int indexCount, BoundingBox boundingBox = new BoundingBox(), GeometryPrimitiveType primitiveType = GeometryPrimitiveType.Triangle)
+        public GeometryInstance(GeometryPacket geometryPacket, Material? material, int startIndex, int indexCount, BoundingBox boundingBox = new BoundingBox(), PrimitiveType primitiveType = PrimitiveType.Triangle)
         {
             this.GeometryPacket = geometryPacket;
             this.Material = material;
@@ -15,7 +15,7 @@ namespace CoreEngine.Rendering
             this.BoundingBox = boundingBox;
         }
 
-        public GeometryPrimitiveType PrimitiveType { get; }
+        public PrimitiveType PrimitiveType { get; }
         public GeometryPacket GeometryPacket { get; }
         public Material? Material { get; }
         public int StartIndex { get; }

@@ -36,6 +36,7 @@ bld/
 Generated\ Files/
 
 # MSTest test Results
+coverage/
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 

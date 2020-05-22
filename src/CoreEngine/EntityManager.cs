@@ -20,6 +20,9 @@ namespace CoreEngine
         private byte[] componentDataStorage;
         private int currentDataIndex;
 
+        /// <summary>
+        /// Constructs a new <c>EntityManager</c> object.
+        /// </summary>
         public EntityManager()
         {
             this.componentLayouts = new List<ComponentLayoutDesc>();
@@ -32,6 +35,19 @@ namespace CoreEngine
             this.currentDataIndex = 0;
         }
 
+        /// <summary>
+        /// Creates a new component layout has from different component types.
+        /// </summary>
+        /// <param name="componentTypes">
+        /// Component types that will compose the layout.
+        /// Note that the passed in this method should implement interface <c>IComponentData</c>
+        /// </param>
+        /// <returns>The created component layout.</returns>
+        /// <remarks>
+        /// The orders of the component types doesn't matter. If two component layouts are created
+        /// with the same component types but in different orders, it will return the same component
+        /// layout.
+        /// </remarks>
         public ComponentLayout CreateComponentLayout(params Type[] componentTypes)
         {
             if (componentTypes == null)
@@ -126,6 +142,12 @@ namespace CoreEngine
             var dataStorage = this.componentStorage[componentLayout];
 
             var componentOffset = componentLayoutDesc.FindComponentOffset(typeof(T).GetHashCode());
+
+            if (componentOffset == null)
+            {
+                throw new ArgumentException("Component type it part of the entity component layout.", nameof(component));
+            }
+
             var componentSize = componentLayoutDesc.FindComponentSize(typeof(T).GetHashCode());
 
             // TODO: Throw an exception if entity not found
@@ -140,13 +162,13 @@ namespace CoreEngine
 
                     if (entityId == entity.EntityId)
                     {
-                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, j);
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset.Value, componentSize, j);
                         MemoryMarshal.Write(memoryChunk.Storage.Span.Slice(storageComponentOffet), ref component);
                         break;
                     }
                 }
             }
-        }
+        } 
 
         internal void SetComponentData(Entity entity, Type componentType, IComponentData componentData)
         {
@@ -155,6 +177,12 @@ namespace CoreEngine
             var dataStorage = this.componentStorage[componentLayout];
 
             var componentOffset = componentLayoutDesc.FindComponentOffset(componentType.GetHashCode());
+
+            if (componentOffset == null)
+            {
+                throw new ArgumentException("Component type it part of the entity component layout.", nameof(componentType));
+            }
+
             var componentSize = componentLayoutDesc.FindComponentSize(componentType.GetHashCode());
 
             // TODO: Throw an exception if entity not found
@@ -180,7 +208,7 @@ namespace CoreEngine
                         // Release unmanaged memory.
                         Marshal.FreeHGlobal(ptr);
 
-                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, j);
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset.Value, componentSize, j);
                         bytes.CopyTo(memoryChunk.Storage.Span.Slice(storageComponentOffet));
                         break;
                     }
@@ -198,6 +226,12 @@ namespace CoreEngine
             var dataStorage = this.componentStorage[componentLayout];
 
             var componentOffset = componentLayoutDesc.FindComponentOffset(typeof(T).GetHashCode());
+
+            if (componentOffset == null)
+            {
+                throw new ArgumentException("Component type it part of the entity component layout.", nameof(T));
+            }
+
             var componentSize = componentLayoutDesc.FindComponentSize(typeof(T).GetHashCode());
 
             // TODO: Throw an exception if entity not found
@@ -212,7 +246,7 @@ namespace CoreEngine
 
                     if (entityId == entity.EntityId)
                     {
-                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, j);
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset.Value, componentSize, j);
                         return MemoryMarshal.Read<T>(memoryChunk.Storage.Span.Slice(storageComponentOffet));
                     }
                 }
@@ -315,7 +349,12 @@ namespace CoreEngine
                         var componentOffset = compatibleLayout.FindComponentOffset(componentHashCode);
                         var componentSize = compatibleLayout.FindComponentSize(componentHashCode);
 
-                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset, componentSize, 0);
+                        if (componentOffset == null)
+                        {
+                            continue;
+                        }
+
+                        var storageComponentOffet = ComputeDataChunkComponentOffset(memoryChunk, componentOffset.Value, componentSize, 0);
                         var componentDataListMemory = memoryChunk.Storage.Slice(storageComponentOffet, memoryChunk.EntityCount * componentSize);
                         
                         entitySystemData.ComponentsData[componentHashCode].AddMemorySlot(componentDataListMemory, memoryChunk.EntityCount);
@@ -333,8 +372,15 @@ namespace CoreEngine
 
             for (var i = 0; i < componentTypes.Length; i++)
             {
-                var typeHashCode = componentTypes[i].GetHashCode();
-                sortedList.Add(typeHashCode, componentTypes[i]);
+                var componentType = componentTypes[i];
+
+                if (!typeof(IComponentData).IsAssignableFrom(componentType))
+                {
+                    throw new ArgumentException(nameof(componentTypes));
+                }
+
+                var typeHashCode = componentType.GetHashCode();
+                sortedList.Add(typeHashCode, componentType);
                 result |= typeHashCode;
             }
 

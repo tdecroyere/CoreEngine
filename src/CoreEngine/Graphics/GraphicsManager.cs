@@ -586,7 +586,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetIndexBuffer(commandList.Id, indexBuffer.GraphicsResourceId);
         }
 
-        public void DrawIndexedPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
+        public void DrawIndexedPrimitives(CommandList commandList, PrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
         {
             if (commandList.Type != CommandListType.Render)
             {
@@ -603,7 +603,7 @@ namespace CoreEngine.Graphics
             this.cpuDrawCount++;
         }
 
-        public void DrawPrimitives(CommandList commandList, GeometryPrimitiveType primitiveType, int startVertex, int vertexCount)
+        public void DrawPrimitives(CommandList commandList, PrimitiveType primitiveType, int startVertex, int vertexCount)
         {
             if (commandList.Type != CommandListType.Render)
             {

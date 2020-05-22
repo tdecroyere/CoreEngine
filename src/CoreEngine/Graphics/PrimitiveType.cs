@@ -1,6 +1,6 @@
 namespace CoreEngine.Graphics
 {
-    public enum GeometryPrimitiveType
+    public enum PrimitiveType
     {
         Triangle,
         TriangleStrip,

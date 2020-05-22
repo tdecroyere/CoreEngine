@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
@@ -10,6 +11,8 @@ using CoreEngine.HostServices;
 using CoreEngine.Inputs;
 using CoreEngine.Resources;
 using CoreEngine.Rendering;
+
+[assembly: InternalsVisibleTo("CoreEngine.UnitTests")]
 
 namespace CoreEngine
 {

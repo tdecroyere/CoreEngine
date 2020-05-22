@@ -13,26 +13,31 @@ namespace CoreEngine
         private IList<EntitySystemDefinition> registeredSystemDefinitions;
 
         // TODO: Refactor that!
+        private IList<Type> registeredSystemTypes;
         private IList<Type[]> componentTypes;
-
-        public IList<EntitySystem> RegisteredSystems { get; } = new List<EntitySystem>();
         
         public EntitySystemManager(SystemManagerContainer systemManagerContainer)
         {
             this.systemManagerContainer = systemManagerContainer;
             this.registeredSystemDefinitions = new List<EntitySystemDefinition>();
+            this.registeredSystemTypes = new List<Type>();
             this.componentTypes = new List<Type[]>();
         }
 
+        public IList<EntitySystem> RegisteredSystems { get; } = new List<EntitySystem>();
+
+        // TODO: Try to find a way to avoid reflection with code generator
         public void RegisterEntitySystem<T>() where T : EntitySystem
         {
-            // TODO: Use manager container to create object
-            var entitySystem = this.systemManagerContainer.CreateInstance<T>();
-
-            if (this.RegisteredSystems.Contains(entitySystem))
+            if (this.registeredSystemTypes.Contains(typeof(T)))
             {
                 throw new ArgumentException("The specified entity system has already been registered.");
             }
+
+            this.registeredSystemTypes.Add(typeof(T));
+
+            // TODO: Use manager container to create object
+            var entitySystem = this.systemManagerContainer.CreateInstance<T>();
 
             var systemDefinition = entitySystem.BuildDefinition();
             this.registeredSystemDefinitions.Add(systemDefinition);

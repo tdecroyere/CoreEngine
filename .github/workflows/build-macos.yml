@@ -29,5 +29,6 @@ jobs:
         
     - name: Build Core Engine
       run: |
-        ./MacOSBuild.sh
+        cd ./src/CoreEngine/
+        dotnet build
 

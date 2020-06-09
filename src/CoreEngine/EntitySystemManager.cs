@@ -60,7 +60,7 @@ namespace CoreEngine
             {
                 throw new ArgumentNullException(nameof(entityManager));
             }
-            
+
             // TODO: For the moment the systems are executed sequentially
             // TODO: Add multi-thread
 

@@ -160,7 +160,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         depthStencilDescriptor.isDepthWriteEnabled = false
         self.depthNoneOperationState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
-        self.commandQueue = self.device.makeCommandQueue()
+        self.commandQueue = self.device.makeCommandQueue(maxCommandBufferCount: 1000)
 
         // TODO: Implement aliasing for render targets
         var heapDescriptor = MTLHeapDescriptor()
@@ -176,7 +176,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         heapDescriptor.cpuCacheMode = .writeCombined
         self.staticHeap = self.device.makeHeap(descriptor: heapDescriptor)!
 
-        self.commandBufferStatusConcurrentQueue = DispatchQueue(label: "MetalGraphicsService.resetCommandBuffer")
+        self.commandBufferStatusConcurrentQueue = DispatchQueue(label: "MetalGraphicsService.resetCommandBuffer", qos: .userInteractive)
     }
 
     public func getRenderSize() -> Vector2 {
@@ -479,15 +479,15 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func resetCommandBuffer(_ commandBufferId: UInt) {
-        guard let commandBuffer = self.commandQueue.makeCommandBuffer() else {
+        guard let commandBuffer = self.commandQueue.makeCommandBufferWithUnretainedReferences() else {
             print("ERROR creating command buffer.")
             return
         }
 
-        var status = GraphicsCommandBufferStatus()
-        status.State = Created
-
         commandBufferStatusConcurrentQueue.sync() {
+            var status = GraphicsCommandBufferStatus()
+            status.State = Created
+
             self.commandBuffersStatus[commandBufferId] = status
         }
 
@@ -1259,10 +1259,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         // let duration = 33.0 / 1000.0 // Duration of 33 ms
-        // let duration = 16.0 / 1000.0 // Duration of 16 ms
-        // self.commandBuffer.present(currentMetalDrawable, afterMinimumDuration: duration)
+        let duration = 16.0 / 1000.0 // Duration of 16 ms
+        commandBuffer.present(currentMetalDrawable, afterMinimumDuration: duration)
         
-        commandBuffer.present(currentMetalDrawable)
+        //commandBuffer.present(currentMetalDrawable)
         self.currentMetalDrawable = nil
     }
 

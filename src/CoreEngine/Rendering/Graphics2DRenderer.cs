@@ -127,6 +127,7 @@ namespace CoreEngine.Rendering
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, isStatic: true, isWriteOnly: true, label: "Graphics2DIndexBuffer");
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRenderer");
+            this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "Graphics2DRendererCommandList");
             this.graphicsManager.UploadDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, vertexData);
             this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexData);
@@ -218,12 +219,15 @@ namespace CoreEngine.Rendering
         {
             if (this.currentSurfaceCount > 0)
             {
+                this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
+
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList(copyCommandBuffer, "Graphics2DCopyCommandList");
                 this.graphicsManager.UploadDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, new RenderPassConstants2D[] {renderPassConstants});
                 this.graphicsManager.UploadDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.rectangleSurfaces.AsSpan().Slice(0, this.currentSurfaceCount));
                 this.graphicsManager.CommitCopyCommandList(copyCommandList);
                 this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
+                this.graphicsManager.ResetCommandBuffer(commandBuffer);
                 var renderTarget = new RenderTargetDescriptor(this.renderManager.MainRenderTargetTexture, null, BlendOperation.AlphaBlending);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
                 var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
@@ -247,7 +251,7 @@ namespace CoreEngine.Rendering
                 return commandList;
             }
 
-            return new CommandList();
+            return previousCommandList;
         }
     }
 }

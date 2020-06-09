@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
@@ -274,7 +275,8 @@ namespace CoreEngine.Graphics
             graphicsService.ExecuteCommandBuffer(commandBuffer.GraphicsResourceId);
         }
 
-        public CommandList CreateCopyCommandList(CommandBuffer commandBuffer, string label)
+        // TODO: Make it private and automatically call it when changing frames
+        public void ResetCommandBuffer(CommandBuffer commandBuffer)
         {
             var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(commandBuffer.GraphicsResourceId);
 
@@ -285,9 +287,18 @@ namespace CoreEngine.Graphics
                     this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
                 }
 
-                this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
-            }
+                else
+                {
+                    Logger.WriteMessage($"CommandBuffer '{commandBuffer.Label}' has not completed.");
+                }
 
+            }
+            
+            this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
+        }
+
+        public CommandList CreateCopyCommandList(CommandBuffer commandBuffer, string label)
+        {
             var commandListId = GetNextGraphicsResourceId();
             var result = graphicsService.CreateCopyCommandList(commandListId, commandBuffer.GraphicsResourceId, label);
 
@@ -363,18 +374,6 @@ namespace CoreEngine.Graphics
 
         public CommandList CreateComputeCommandList(CommandBuffer commandBuffer, string label)
         {
-            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(commandBuffer.GraphicsResourceId);
-
-            if (commandBufferStatus == null || (commandBufferStatus != null && commandBufferStatus.Value.State != GraphicsCommandBufferState.Created))
-            {
-                if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-                {
-                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-                }
-
-                this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
-            }
-
             var commandListId = GetNextGraphicsResourceId();
             var result = graphicsService.CreateComputeCommandList(commandListId, commandBuffer.GraphicsResourceId, label);
 
@@ -424,18 +423,6 @@ namespace CoreEngine.Graphics
 
         public CommandList CreateRenderCommandList(CommandBuffer commandBuffer, RenderPassDescriptor renderPassDescriptor, string label)
         {
-            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(commandBuffer.GraphicsResourceId);
-
-            if (commandBufferStatus == null || (commandBufferStatus != null && commandBufferStatus.Value.State != GraphicsCommandBufferState.Created))
-            {
-                if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-                {
-                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-                }
-
-                this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
-            }
-
             var graphicsRenderPassDescriptor = new GraphicsRenderPassDescriptor(renderPassDescriptor);
             var commandListId = GetNextGraphicsResourceId();
             var result = graphicsService.CreateRenderCommandList(commandListId, commandBuffer.GraphicsResourceId, graphicsRenderPassDescriptor, label);

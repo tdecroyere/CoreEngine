@@ -26,8 +26,11 @@ namespace CoreEngine.Tests.EcsTest
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
+            this.entitySystemManager.RegisterEntitySystem<LightGeneratorSystem>();
+            this.entitySystemManager.RegisterEntitySystem<AutomaticMovementSystem>();
             this.entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
             this.entitySystemManager.RegisterEntitySystem<UpdateCameraSystem>();
+            this.entitySystemManager.RegisterEntitySystem<UpdateLightSystem>();
             this.entitySystemManager.RegisterEntitySystem<UpdateGraphicsSceneSystem>();
             this.entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
         }

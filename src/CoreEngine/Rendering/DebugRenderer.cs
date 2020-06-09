@@ -8,20 +8,29 @@ namespace CoreEngine.Rendering
     public class DebugRenderer
     {
         private readonly GraphicsManager graphicsManager;
+        private readonly RenderManager renderManager;
 
         private Shader shader;
         private GraphicsBuffer vertexBuffer;
         private GraphicsBuffer indexBuffer;
 
+        public CommandBuffer copyCommandBuffer;
+        public CommandBuffer commandBuffer;
+
         private int currentDebugLineIndex;
         private Vector4[] vertexData;
         private uint[] indexData;
 
-        public DebugRenderer(GraphicsManager graphicsManager, ResourcesManager resourcesManager)
+        public DebugRenderer(GraphicsManager graphicsManager, RenderManager renderManager, ResourcesManager resourcesManager)
         {
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
+            if (renderManager == null)
+            {
+                throw new ArgumentNullException(nameof(renderManager));
             }
 
             if (resourcesManager == null)
@@ -30,16 +39,19 @@ namespace CoreEngine.Rendering
             }
 
             this.graphicsManager = graphicsManager;
+            this.renderManager = renderManager;
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/DebugRender.shader");
 
-            var maxLineCount = 10000;
+            var maxLineCount = 100000;
             this.vertexData = new Vector4[maxLineCount * 4];
             this.indexData = new uint[maxLineCount * 2];
 
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer");
 
+            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer("DebugRendererCopy");
+            this.commandBuffer = this.graphicsManager.CreateCommandBuffer("DebugRenderer");
             this.currentDebugLineIndex = 0;
         }
 
@@ -89,7 +101,7 @@ namespace CoreEngine.Rendering
             DrawLine(boundingFrustum.RightTopFarPoint, boundingFrustum.RightBottomFarPoint, color);
         }
 
-        private void DrawBoundingBox(BoundingBox boundingBox, Vector3 color)
+        public void DrawBoundingBox(BoundingBox boundingBox, Vector3 color)
         {
             var point1 = boundingBox.MinPoint;
             var point2 = boundingBox.MinPoint + new Vector3(0, 0, boundingBox.ZSize);
@@ -116,27 +128,72 @@ namespace CoreEngine.Rendering
             DrawLine(point2, point6, color);
         }
 
-        // public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, CommandList renderCommandList)
-        // {
-        //     // TODO: Refactor to avoid crash
-        //     if (this.currentDebugLineIndex > 0)
-        //     {
-        //         var commandBuffer = this.graphicsManager.CreateCommandBuffer("DebugRenderer");
+        public void DrawSphere(Vector3 position, float radius, int steps, Vector3 color)
+        {
+            var stepAngle = 360.0f / steps;
+            var pointPosition = new Vector3(0, -radius * MathF.Cos(MathUtils.DegreesToRad(0)), radius * MathF.Sin(MathUtils.DegreesToRad(0)));
 
-        //         var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "DebugCopyCommandList");
-        //         this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData);
-        //         this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData);
-        //         this.graphicsManager.CommitCopyCommandList(copyCommandList);
+            for (var i = 1; i < steps + 1; i++)
+            {
+                var pointPosition2 = new Vector3(0, -radius * MathF.Cos(MathUtils.DegreesToRad(i * stepAngle)), radius * MathF.Sin(MathUtils.DegreesToRad(i * stepAngle)));
 
-        //         this.graphicsManager.SetShader(renderCommandList, this.shader);
-        //         this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
-        //         this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
+                DrawLine(position + pointPosition, position + pointPosition2, color);
+                pointPosition = pointPosition2;
+            }
 
-        //         this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
-        //         this.graphicsManager.DrawIndexedPrimitives(renderCommandList, GeometryPrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+            pointPosition = new Vector3(-radius * MathF.Cos(MathUtils.DegreesToRad(0)), radius * MathF.Sin(MathUtils.DegreesToRad(0)), 0);
 
-        //         this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-        //     }
-        // }
+            for (var i = 1; i < steps + 1; i++)
+            {
+                var pointPosition2 = new Vector3(-radius * MathF.Cos(MathUtils.DegreesToRad(i * stepAngle)), radius * MathF.Sin(MathUtils.DegreesToRad(i * stepAngle)), 0);
+
+                DrawLine(position + pointPosition, position + pointPosition2, color);
+                pointPosition = pointPosition2;
+            }
+
+            pointPosition = new Vector3(-radius * MathF.Cos(MathUtils.DegreesToRad(0)), 0, radius * MathF.Sin(MathUtils.DegreesToRad(0)));
+
+            for (var i = 1; i < steps + 1; i++)
+            {
+                var pointPosition2 = new Vector3(-radius * MathF.Cos(MathUtils.DegreesToRad(i * stepAngle)), 0, radius * MathF.Sin(MathUtils.DegreesToRad(i * stepAngle)));
+
+                DrawLine(position + pointPosition, position + pointPosition2, color);
+                pointPosition = pointPosition2;
+            }
+        }
+
+        public CommandList Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture? depthTexture, CommandList previousCommandList)
+        {
+            if (this.currentDebugLineIndex > 0)
+            {
+                this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
+
+                var copyCommandList = this.graphicsManager.CreateCopyCommandList(this.copyCommandBuffer, "DebugCopyCommandList");
+                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData.AsSpan().Slice(0, this.currentDebugLineIndex * 4));
+                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData.AsSpan().Slice(0, this.currentDebugLineIndex * 2));
+                this.graphicsManager.CommitCopyCommandList(copyCommandList);
+                this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
+
+                this.graphicsManager.ResetCommandBuffer(commandBuffer);
+
+                var renderTarget = new RenderTargetDescriptor(this.renderManager.MainRenderTargetTexture, null, BlendOperation.None);
+                var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareLess, true);
+                var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
+                this.graphicsManager.WaitForCommandList(commandList, previousCommandList);
+
+                this.graphicsManager.SetShader(commandList, this.shader);
+                this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
+                this.graphicsManager.SetShaderBuffer(commandList, renderPassParametersGraphicsBuffer, 1);
+
+                this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
+                this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+                this.graphicsManager.CommitRenderCommandList(commandList);
+                this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+
+                return commandList;
+            }
+
+            return previousCommandList;
+        }
     }
 }

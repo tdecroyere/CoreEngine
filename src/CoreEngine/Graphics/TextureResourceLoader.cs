@@ -27,6 +27,7 @@ namespace CoreEngine.Graphics
             Array.Fill<byte>(textureData, 255);
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("TextureLoader");
+            this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, 0, textureData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
@@ -83,6 +84,7 @@ namespace CoreEngine.Graphics
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("TextureLoader");
+            this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
 
             for (var i = 0; i < texture.FaceCount; i++)

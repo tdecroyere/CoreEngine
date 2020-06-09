@@ -11,8 +11,6 @@
     },
     "omnisharp.path": "latest",
     "C_Cpp.default.cppStandard": "c++17",
-    "dotnetCoreExplorer.searchpatterns": [
-        "tests/CoreEngine.UnitTests/bin/Debug/net5.0/CoreEngine.UnitTests.dll"
-    ],
-    "omnisharp.enableRoslynAnalyzers": false
+    "omnisharp.enableRoslynAnalyzers": false,
+    "dotnetCoreExplorer.logpanel": true
 }

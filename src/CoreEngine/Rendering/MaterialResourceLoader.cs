@@ -67,6 +67,8 @@ namespace CoreEngine.Rendering
 
             // TODO: Refactor that
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("MaterialLoader");
+            this.graphicsManager.ResetCommandBuffer(commandBuffer);
+
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "MaterialLoaderCommandList");
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData.Value, materialData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);

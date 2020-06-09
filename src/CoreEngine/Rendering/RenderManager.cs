@@ -62,10 +62,13 @@ namespace CoreEngine.Rendering
         internal int CulledGeometryInstancesCount { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
+        internal int LightsCount { get; set; }
 
         public void PresentScreenBuffer(CommandList previousCommandList)
         {
             // TODO: Use a compute shader
+            this.graphicsManager.ResetCommandBuffer(presentCommandBuffer);
+
             var renderPassDescriptor = new RenderPassDescriptor(null, null, DepthBufferOperation.None, true);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(presentCommandBuffer, renderPassDescriptor, "PresentRenderCommandList");
 
@@ -155,22 +158,20 @@ namespace CoreEngine.Rendering
             }
 
             this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
-            this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.graphicsManager.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 130));
-            this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 170));
-            this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 210));
-            this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 250));
-            this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 290));
-            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 330));
+            this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.graphicsManager.allocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 90));
+            this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
+            this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
+            this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 210));
+            this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
+            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
+            this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 330));
             this.Graphics2DRenderer.DrawText($"Gpu Pipeline:", new Vector2(10, 370));
-
-            var globalStartTiming = double.MaxValue;
-            var globalEndTiming = double.MinValue;
 
             this.graphicsManager.gpuTimings.Sort((a, b) => (a.StartTiming.CompareTo(b.StartTiming)));
 
             if (this.graphicsManager.gpuTimings.Count < this.previousGpuTiming.Count)
             {
-                Logger.WriteMessage($"Error GPU Timings");
+                Logger.WriteMessage($"Error GPU Timings {this.graphicsManager.gpuTimings.Count}/{this.previousGpuTiming.Count}");
 
                 foreach (var timing in this.previousGpuTiming)
                 {
@@ -182,6 +183,8 @@ namespace CoreEngine.Rendering
             }
 
             var startGpuTiming = 0.0;
+            var previousEndGpuTiming = 0.0;
+            var gpuExecutionTime = 0.0;
 
             for (var i = 0; i < this.graphicsManager.gpuTimings.Count; i++)
             {
@@ -194,20 +197,20 @@ namespace CoreEngine.Rendering
 
                 var duration = gpuTiming.EndTiming - gpuTiming.StartTiming;
 
-                if (gpuTiming.StartTiming < globalStartTiming)
-                {
-                    globalStartTiming = gpuTiming.StartTiming;
-                }
-
-                if (gpuTiming.EndTiming > globalEndTiming)
-                {
-                    globalEndTiming = gpuTiming.EndTiming;
-                }
-
                 this.Graphics2DRenderer.DrawText($"    {gpuTiming.Name}: {duration.ToString("0.00", CultureInfo.InvariantCulture)} ms ({(gpuTiming.StartTiming - startGpuTiming).ToString("0.00", CultureInfo.InvariantCulture)} ms)", new Vector2(10, 410 + i * 40));
+
+                gpuExecutionTime += duration;
+
+                var interval = gpuTiming.StartTiming - previousEndGpuTiming;
+
+                if (interval < 0.0)
+                {
+                    gpuExecutionTime += interval;
+                }
+
+                previousEndGpuTiming = gpuTiming.EndTiming;
             }
 
-            var gpuExecutionTime = globalEndTiming - globalStartTiming;
             this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {gpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
 
             this.previousGpuTiming = new List<GpuTiming>(this.graphicsManager.gpuTimings);

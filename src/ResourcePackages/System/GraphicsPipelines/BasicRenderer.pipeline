@@ -2,13 +2,27 @@
     "Parameters": [
         // TODO: Add Parameters requirements
         { "Name": "MainRenderTarget", "Type": "Texture" },
-        { "Name": "ResolveRenderTarget", "Type": "Texture" }
+        { "Name": "OpaqueHdrRenderTarget", "Type": "Texture" },
+        { "Name": "TransparentHdrRenderTarget", "Type": "Texture" },
+        { "Name": "TransparentRevealageRenderTarget", "Type": "Texture" }
     ],
     "Resources": [
-        // { "Name": "ResolveRenderTarget", "Type": "Texture", "Format": "Rgba16Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" }
+        { "Name": "ResolveRenderTarget", "Type": "Texture", "Format": "Rgba16Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" }
     ],
     // TODO: Only sequentials steps for the moment
     "Steps": [
+        { 
+            "Name": "Resolve", 
+            "Type": "Compute", 
+            "Shader": "/System/Shaders/ResolveCompute.shader@Resolve",
+            "Inputs": [ 
+                { "Resource": "#OpaqueHdrRenderTarget", "ShaderBindingSlot": 0 }, 
+                { "Resource": "#TransparentHdrRenderTarget", "ShaderBindingSlot": 1 }, 
+                { "Resource": "#TransparentRevealageRenderTarget", "ShaderBindingSlot": 2 } 
+            ],
+            "Outputs": [ { "Resource": "#ResolveRenderTarget", "ShaderBindingSlot": 3 } ],
+            "Threads": [ "#ResolveRenderTarget.Width", "#ResolveRenderTarget.Height", 0 ]
+        },
         { 
             "Name": "ToneMap", 
             "Type": "Compute", 

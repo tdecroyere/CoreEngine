@@ -63,6 +63,7 @@ namespace CoreEngine.Rendering
             var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferData.Length, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("MeshLoader");
+            this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "MeshLoaderCommandList");
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, vertexBufferData);
             this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, indexBufferData);

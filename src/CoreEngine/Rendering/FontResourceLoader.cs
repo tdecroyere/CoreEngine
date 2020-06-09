@@ -84,6 +84,7 @@ namespace CoreEngine.Rendering
 
             // TODO: Make only one frame copy command list for all resource loaders
             var commandBuffer = this.graphicsManager.CreateCommandBuffer("FontLoader");
+            this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "FontLoaderCommandList");
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, font.Texture, font.Texture.Width, font.Texture.Height, 0, 0, textureData);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);

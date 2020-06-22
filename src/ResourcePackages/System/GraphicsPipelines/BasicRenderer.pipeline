@@ -2,33 +2,75 @@
     "Parameters": [
         // TODO: Add Parameters requirements
         { "Name": "MainRenderTarget", "Type": "Texture" },
-        { "Name": "OpaqueHdrRenderTarget", "Type": "Texture" },
-        { "Name": "TransparentHdrRenderTarget", "Type": "Texture" },
-        { "Name": "TransparentRevealageRenderTarget", "Type": "Texture" }
+        { "Name": "MainCameraIndirectCommandBuffer", "Type": "IndirectCommandBuffer"},
+        { "Name": "MainCameraDepthIndirectCommandBuffer", "Type": "IndirectCommandBuffer"},
+        { "Name": "MainCameraIndirectTransparentCommandBuffer", "Type": "IndirectCommandBuffer"},
+        { "Name": "MainCameraIndirectTransparentDepthCommandBuffer", "Type": "IndirectCommandBuffer"},
+        { "Name": "ClearColor", "Type": "Vector4" },
+        { "Name": "GeometryInstanceCount", "Type": "int" }
     ],
     "Resources": [
+        { "Name": "MainCameraDepthBuffer", "Type": "Texture", "Format": "Depth32Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" },
+        { "Name": "OpaqueHdrRenderTarget", "Type": "Texture", "Format": "Rgba16Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" },
+        { "Name": "TransparentHdrRenderTarget", "Type": "Texture", "Format": "Rgba16Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" },
+        { "Name": "TransparentRevealageRenderTarget", "Type": "Texture", "Format": "R16Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" },
         { "Name": "ResolveRenderTarget", "Type": "Texture", "Format": "Rgba16Float", "Width": "#MainRenderTarget.Width", "Height": "#MainRenderTarget.Height" }
     ],
     // TODO: Only sequentials steps for the moment
     "Steps": [
+        {
+            "Name": "GenerateDepthBuffer",
+            "Type": "ExecutePipeline",
+            "Parameters": [ 
+                { "Name": "MainCameraDepthBuffer", "Resource": "#MainCameraDepthBuffer"}, 
+                { "Name": "MainCameraDepthIndirectCommandBuffer", "Resource": "#MainCameraDepthIndirectCommandBuffer" }, 
+                { "Name": "MainCameraIndirectTransparentDepthCommandBuffer", "Resource": "#MainCameraIndirectTransparentDepthCommandBuffer" }, 
+                { "Name": "GeometryInstanceCount", "IntValue": "#GeometryInstanceCount" } 
+            ]
+        },
+        {
+            "Name": "RenderOpaqueGeometry",
+            "Type": "RenderIndirectCommandBuffer",
+            "Shader": "/System/Shaders/RenderMeshInstance.shader",
+            "Inputs": [ 
+                { "Type": "DepthBufferBinding", "Resource": "#MainCameraDepthBuffer", "DepthBufferOperation": "CompareEqual" },
+                { "Type": "IndirectCommandBufferBinding", "Resource": "#MainCameraIndirectCommandBuffer", "MaxCommandCount": "#GeometryInstanceCount" } 
+            ],
+            "Outputs": [ { "Type": "RenderTargetBinding", "Resource": "#OpaqueHdrRenderTarget", "RenderTargetSlot": 0, "ClearColor": "#ClearColor" } ],
+            "BackFaceCulling": true
+        },
+        {
+            "Name": "RenderTransparentGeometry",
+            "Type": "RenderIndirectCommandBuffer",
+            "Shader": "/System/Shaders/RenderMeshInstanceTransparent.shader",
+            "Inputs": [ 
+                { "Type": "DepthBufferBinding", "Resource": "#MainCameraDepthBuffer", "DepthBufferOperation": "CompareLess" },
+                { "Type": "IndirectCommandBufferBinding", "Resource": "#MainCameraTransparentIndirectCommandBuffer", "MaxCommandCount": "#GeometryInstanceCount" } 
+            ],
+            "Outputs": [ 
+                { "Type": "RenderTargetBinding", "Resource": "#TransparentHdrRenderTarget", "RenderTargetSlot": 0, "ClearColor": [0, 0, 0, 0], "BlendOperation": "AddOneOne" }, 
+                { "Type": "RenderTargetBinding", "Resource": "#TransparentRevealageRenderTarget", "RenderTargetSlot": 1, "ClearColor": [1, 0, 0, 0], "BlendOperation": "AddOneMinusSourceColor" } 
+            ],
+            "BackFaceCulling": false
+        },
         { 
             "Name": "Resolve", 
             "Type": "Compute", 
             "Shader": "/System/Shaders/ResolveCompute.shader@Resolve",
             "Inputs": [ 
-                { "Resource": "#OpaqueHdrRenderTarget", "ShaderBindingSlot": 0 }, 
-                { "Resource": "#TransparentHdrRenderTarget", "ShaderBindingSlot": 1 }, 
-                { "Resource": "#TransparentRevealageRenderTarget", "ShaderBindingSlot": 2 } 
+                { "Type": "ShaderBinding", "Resource": "#OpaqueHdrRenderTarget", "ShaderBindingSlot": 0 }, 
+                { "Type": "ShaderBinding", "Resource": "#TransparentHdrRenderTarget", "ShaderBindingSlot": 1 }, 
+                { "Type": "ShaderBinding", "Resource": "#TransparentRevealageRenderTarget", "ShaderBindingSlot": 2 } 
             ],
-            "Outputs": [ { "Resource": "#ResolveRenderTarget", "ShaderBindingSlot": 3 } ],
+            "Outputs": [ { "Type": "ShaderBinding", "Resource": "#ResolveRenderTarget", "ShaderBindingSlot": 3 } ],
             "Threads": [ "#ResolveRenderTarget.Width", "#ResolveRenderTarget.Height", 0 ]
         },
         { 
             "Name": "ToneMap", 
             "Type": "Compute", 
             "Shader": "/System/Shaders/ToneMapCompute.shader@ToneMap",
-            "Inputs": [ { "Resource": "#ResolveRenderTarget", "ShaderBindingSlot": 0 } ],
-            "Outputs": [ { "Resource": "#MainRenderTarget", "ShaderBindingSlot": 1 } ],
+            "Inputs": [ { "Type": "ShaderBinding", "Resource": "#ResolveRenderTarget", "ShaderBindingSlot": 0 } ],
+            "Outputs": [ { "Type": "ShaderBinding", "Resource": "#MainRenderTarget", "ShaderBindingSlot": 1 } ],
             "Threads": [ "#MainRenderTarget.Width", "#MainRenderTarget.Height", 0 ]
         }
     ]

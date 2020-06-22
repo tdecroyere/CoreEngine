@@ -19,7 +19,7 @@ namespace CoreEngine.Tests.EcsTest
 
             this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
             // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Bistro/Bistro.scene");
-            // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/BistroV4/Bistro.scene");
+            //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/BistroV4/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
 
             this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);

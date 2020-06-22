@@ -13,6 +13,7 @@ namespace CoreEngine.Graphics
 
     public readonly struct RenderPassDescriptor
     {
+        // TODO: Rename render targets by slot starting at 0
         public RenderPassDescriptor(RenderTargetDescriptor? renderTarget1, Texture? depthTexture, DepthBufferOperation depthBufferOperation, bool backfaceCulling)
         {
             this.RenderTarget1 = renderTarget1;
@@ -24,7 +25,7 @@ namespace CoreEngine.Graphics
             this.BackfaceCulling = backfaceCulling;
         }
 
-        public RenderPassDescriptor(RenderTargetDescriptor renderTarget1, RenderTargetDescriptor renderTarget2, Texture? depthTexture, DepthBufferOperation depthBufferOperation, bool backfaceCulling)
+        public RenderPassDescriptor(RenderTargetDescriptor? renderTarget1, RenderTargetDescriptor? renderTarget2, Texture? depthTexture, DepthBufferOperation depthBufferOperation, bool backfaceCulling)
         {
             this.RenderTarget1 = renderTarget1;
             this.RenderTarget2 = renderTarget2;

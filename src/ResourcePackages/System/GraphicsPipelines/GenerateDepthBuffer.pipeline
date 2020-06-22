@@ -1,0 +1,31 @@
+{
+    "Parameters": [
+        // TODO: Add Parameters requirements
+        { "Name": "MainCameraDepthBuffer", "Type": "Texture" },
+        { "Name": "MainCameraDepthIndirectCommandBuffer", "Type": "IndirectCommandBuffer"},
+        { "Name": "MainCameraIndirectTransparentDepthCommandBuffer", "Type": "IndirectCommandBuffer"},
+        { "Name": "GeometryInstanceCount", "Type": "int" }
+    ],
+    "Steps": [
+        {
+            "Name": "GenerateOpaqueDepthBuffer",
+            "Type": "RenderIndirectCommandBuffer",
+            "Shader": "/System/Shaders/RenderMeshInstanceDepth.shader",
+            "Inputs": [ 
+                { "Type": "IndirectCommandBufferBinding", "Resource": "#MainCameraDepthIndirectCommandBuffer", "MaxCommandCount": "#GeometryInstanceCount" } 
+            ],
+            "Outputs": [ { "Type": "DepthBufferBinding", "Resource": "#MainCameraDepthBuffer", "DepthBufferOperation": "ClearWrite" } ],
+            "BackFaceCulling": true
+        },
+        {
+            "Name": "GenerateTransparentDepthBuffer",
+            "Type": "RenderIndirectCommandBuffer",
+            "Shader": "/System/Shaders/RenderMeshInstanceTransparentDepth.shader",
+            "Inputs": [ 
+                { "Type": "IndirectCommandBufferBinding", "Resource": "#MainCameraTransparentDepthIndirectCommandBuffer", "MaxCommandCount": "#GeometryInstanceCount" } 
+            ],
+            "Outputs": [ { "Type": "DepthBufferBinding", "Resource": "#MainCameraDepthBuffer", "DepthBufferOperation": "Write" } ],
+            "BackFaceCulling": false
+        }
+    ]
+}

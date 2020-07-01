@@ -194,6 +194,11 @@ namespace CoreEngine.Rendering
 
         public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, Vector2 textureMinPoint, Vector2 textureMaxPoint, bool isOpaque)
         {
+            if (texture == null)
+            {
+                throw new ArgumentNullException(nameof(texture));
+            }
+            
             var vertexOffset = this.currentSurfaceCount * 4;
             var indexOffset = this.currentSurfaceCount * 6;
 

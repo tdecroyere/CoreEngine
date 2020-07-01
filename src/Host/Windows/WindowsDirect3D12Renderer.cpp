@@ -2,7 +2,6 @@
 
 #include "WindowsCommon.h"
 #include "WindowsDirect3D12Renderer.h"
-#include "WindowsDirect3D12RendererInterop.h"
 #include "WindowsDirect3D12RendererUtils.h"
 
 using namespace winrt;

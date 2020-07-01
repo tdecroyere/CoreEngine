@@ -101,7 +101,7 @@ struct NullableGraphicsCommandBufferStatus
 };
 
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
-typedef char* (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context);
+typedef void (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context, char* output);
 typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, int isWriteOnly, char* label);
 typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
 typedef void (*GraphicsService_DeleteTexturePtr)(void* context, unsigned int textureId);

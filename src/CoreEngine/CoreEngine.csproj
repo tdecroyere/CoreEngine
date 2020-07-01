@@ -9,6 +9,7 @@
     <NoWarn>CA1303;CA1815;CA2007;CS8604;CA1043;CA1720;CA1307;CS0649</NoWarn>
     <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
     <!-- <GenerateDocumentationFile>true</GenerateDocumentationFile> -->
   </PropertyGroup>
 

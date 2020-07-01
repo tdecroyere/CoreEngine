@@ -2,6 +2,9 @@ using System;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
+using System.IO;
+using Microsoft.Win32.SafeHandles;
 
 namespace CoreEngine.Diagnostics
 {

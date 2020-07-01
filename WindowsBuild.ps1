@@ -90,17 +90,17 @@ function GenerateIncludeFiles
         }
     }
 
-    if (-not(Test-Path($includeDirectory))) 
-    {
-        Write-Output "[93mGenerating C++/WinRT 2.0 include files...[0m"
-        $winrtProgram = (Get-ChildItem -Path $packagesDirectory -Filter "Microsoft.Windows.CppWinRT*" -Recurse -Directory).Fullname + "\bin\cppwinrt.exe"
-        & $winrtProgram "-input" "local" "-output" $includeDirectory
+    # if (-not(Test-Path($includeDirectory))) 
+    # {
+    #     Write-Output "[93mGenerating C++/WinRT 2.0 include files...[0m"
+    #     $winrtProgram = (Get-ChildItem -Path $packagesDirectory -Filter "Microsoft.Windows.CppWinRT*" -Recurse -Directory).Fullname + "\bin\cppwinrt.exe"
+    #     & $winrtProgram "-input" "local" "-output" $includeDirectory
 
-        if (-not $?) 
-        {
-            Write-Output "[91mError: Winrt has failed![0m"
-        }
-    }
+    #     if (-not $?) 
+    #     {
+    #         Write-Output "[91mError: Winrt has failed![0m"
+    #     }
+    # }
 
     Pop-Location
 }
@@ -108,6 +108,23 @@ function GenerateIncludeFiles
 function ShowErrorMessage
 {
     Write-Output "[91mError: Build has failed![0m"
+}
+
+function GenerateInteropCode 
+{
+    Push-Location "../CoreEngine-Tools/tools/CoreEngineInteropGenerator"
+    Write-Output "[93mGenerating CoreEngine Interop Code...[0m"
+
+    dotnet run
+
+    if(-Not $?)
+    {
+        Pop-Location
+        ShowErrorMessage
+        Exit 1
+    }
+
+    Pop-Location
 }
 
 function CompileDotnet
@@ -133,7 +150,7 @@ function PreCompileHeader
     if (-Not(Test-Path -Path "WindowsCommon.pch"))
     {
         Write-Output "[93mCompiling Windows Pre-compiled header...[0m"
-        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\inc" /Zi /Yc /FpWindowsCommon.pch /DWINRT_NO_MAKE_DETECTION "..\..\WindowsCommon.cpp"
+        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\inc" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
 
         if(-Not $?)
         {
@@ -152,26 +169,7 @@ function CompileWindowsHost
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\inc" /Zi /Yu"WindowsCommon.h" /DWINRT_NO_MAKE_DETECTION /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
-
-    if (-Not $?)
-    {
-        Pop-Location
-        ShowErrorMessage
-        Exit 1
-    }
-
-    Pop-Location
-}
-
-function CompileWindowsHostConsole
-{
-    Push-Location $ObjFolder
-
-    Write-Output "[93mCompiling Windows Console Executable...[0m"
-
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\inc" /Zi /Yu"WindowsCommon.h" /DWINRT_NO_MAKE_DETECTION /FpWindowsCommon.PCH /TP /Tp"..\..\ConsoleMain.cpp" /Tp"..\..\WindowsCoreEngineHost.cpp"
-    link.exe "ConsoleMain.obj" "WindowsCommon.obj" "WindowsCoreEngineHost.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngineConsole.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineConsole.pdb" /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\inc" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
 
     if (-Not $?)
     {
@@ -188,8 +186,7 @@ function LinkWindowsHost
     Push-Location $ObjFolder
     Write-Output "[93mLinking Windows Executable...[0m"
    
-    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /APPCONTAINER /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO WindowsApp.lib D3D12.lib
-    Copy-Item "..\..\AppxManifest.xml" "..\..\..\..\..\build\temp\"
+    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:CONSOLE /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
 
     if (-Not $?)
     {
@@ -208,28 +205,18 @@ function CopyFiles
 
     Copy-Item "*.dll" "..\Windows"
     Copy-Item "*.pdb" "..\Windows"
-    Copy-Item "AppxManifest.xml" "..\Windows"
     Copy-Item "CoreEngine.exe" "..\Windows"
 
     Pop-Location
 }
 
-function RegisterApp
-{
-    Write-Output "[93mRegistering CoreEngine Windows App...[0m"
-    Push-Location $OutputFolder
-    Add-appxpackage -register AppxManifest.xml
-    Pop-Location
-}
-
 RegisterVisualStudioEnvironment
-GenerateIncludeFiles
+GenerateInteropCode
 CompileDotnet
 PreCompileHeader
 CompileWindowsHost
 LinkWindowsHost
 CopyFiles
-RegisterApp
 
 Write-Output "[92mSuccess: Compilation done.[0m"
 

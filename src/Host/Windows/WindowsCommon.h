@@ -1,19 +1,9 @@
 #pragma once
 
-#define WINAPI_FAMILY WINAPI_FAMILY_APP
+#include <string>
 
+#include <ShellScalingAPI.h>
 #include <Windows.h>
-#include <winrt/base.h>
-#include <winrt/Windows.ApplicationModel.h>
-#include <winrt/Windows.ApplicationModel.Core.h>
-#include <winrt/Windows.ApplicationModel.Activation.h>
-#include <winrt/Windows.Storage.h>
-#include <winrt/Windows.UI.Core.h>
-#include <winrt/Windows.UI.ViewManagement.h>
-#include <winrt/Windows.System.h>
-#include <winrt/Windows.Foundation.h>
-#include <winrt/Windows.Foundation.Collections.h>
-#include <winrt/Windows.Graphics.Display.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 

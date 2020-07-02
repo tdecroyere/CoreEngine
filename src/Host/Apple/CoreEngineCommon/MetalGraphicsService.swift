@@ -479,7 +479,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func resetCommandBuffer(_ commandBufferId: UInt) {
-        guard let commandBuffer = self.commandQueue.makeCommandBufferWithUnretainedReferences() else {
+        guard let commandBuffer = self.commandQueue.makeCommandBuffer() else {
             print("ERROR creating command buffer.")
             return
         }
@@ -541,7 +541,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         copyCommandEncoder.label = label
         self.copyCommandEncoders[commandListId] = copyCommandEncoder
-        self.commandListFences[commandListId] = self.device.makeFence()
+
+        createFence(commandListId, commandBufferId, label)
 
         return true
     }
@@ -710,7 +711,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         computeCommandEncoder.label = label
         self.computeCommandEncoders[commandListId] = computeCommandEncoder
 
-        self.commandListFences[commandListId] = self.device.makeFence()
+        createFence(commandListId, commandBufferId, label)
 
         computeCommandEncoder.useHeap(self.globalHeap)
         computeCommandEncoder.useHeap(self.staticHeap)
@@ -897,14 +898,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         if (renderPassDescriptor.colorAttachments[0].texture != nil) {
-            renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.colorAttachments[0].texture!.width), height: Double(renderPassDescriptor.colorAttachments[0].texture!.height), znear: -1.0, zfar: 1.0))
+            renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.colorAttachments[0].texture!.width), height: Double(renderPassDescriptor.colorAttachments[0].texture!.height), znear: 0.0, zfar: 1.0))
         } else if (renderPassDescriptor.depthAttachment.texture != nil) {
-            renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.depthAttachment.texture!.width), height: Double(renderPassDescriptor.depthAttachment.texture!.height), znear: -1.0, zfar: 1.0))
+            renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.depthAttachment.texture!.width), height: Double(renderPassDescriptor.depthAttachment.texture!.height), znear: 0.0, zfar: 1.0))
         }
 
-        let fence = self.device.makeFence()!
-        fence.label = "Fence" + label
-        self.commandListFences[commandListId] = fence
+        createFence(commandListId, commandBufferId, label)
 
         renderCommandEncoder.useHeap(self.globalHeap)
         renderCommandEncoder.useHeap(self.staticHeap)
@@ -1271,6 +1270,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         self.currentFrameNumber += 1
         self.commandListFences = [:]
+    }
+
+    private func createFence(_ commandListId: UInt, _ commandBufferId: UInt, _ label: String) {
+        let fence = self.device.makeFence()!
+        fence.label = "Fence" + label
+        self.commandListFences[commandListId] = fence
     }
 
     private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ commandBufferId: UInt) {

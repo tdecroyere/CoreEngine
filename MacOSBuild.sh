@@ -58,7 +58,7 @@ compileDotnet() {
 compileHost() {
     cd $macosTempDirectory
     echo "[93mCompiling MacOS Executable...[0m"
-    swiftc "../../../src/Host/Apple/MacOS/"*".swift" "../../../src/Host/Apple/CoreEngineCommon"/**/*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -wmo -swift-version 5 -target x86_64-apple-macosx10.15.4 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
+    swiftc "../../../src/Host/Apple/MacOS/"*".swift" "../../../src/Host/Apple/CoreEngineCommon"/**/*".swift" -Onone -g -o "CoreEngine" -debug-info-format=dwarf -wmo -swift-version 5 -target x86_64-apple-macosx10.16 -I "../../../src/Host/Apple/CoreEngineCommon" -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
     
     if [ $? != 0 ]; then
         showErrorMessage

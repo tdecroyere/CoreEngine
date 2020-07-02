@@ -1,5 +1,6 @@
 import Cocoa
 import CoreEngineCommonInterop
+import GameController
 
 public class InputsManager: InputsServiceProtocol {
     var inputsState: InputsState
@@ -10,6 +11,15 @@ public class InputsManager: InputsServiceProtocol {
         self.inputsState = InputsState()
         self.keyboardManager = KeyboardManager()
         self.gamepadManager = MacOSGamepadManager()
+
+        let controllers = GCController.controllers()
+
+        print("test")
+        for controller in controllers {
+            print("ok")
+        }
+
+        print(GCKeyboard.coalesced);
     }
 
     public func getInputsState() -> InputsState {

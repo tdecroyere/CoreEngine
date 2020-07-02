@@ -430,6 +430,185 @@ namespace CoreEngine.Rendering
         }
     }
 
+    public class ComputeMinMaxPipelineStep : GraphicsPipelineStep
+    {
+        private readonly Shader computeMinMaxDepthInitialShader;
+        private readonly Shader computeMinMaxDepthStepShader;
+
+        public ComputeMinMaxPipelineStep(string name, ResourcesManager resourcesManager, ReadOnlyMemory<GraphicsPipelineResourceBinding> inputs, ReadOnlyMemory<GraphicsPipelineResourceBinding> outputs) : base(name, null, inputs, outputs)
+        {
+            this.computeMinMaxDepthInitialShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeMinMaxDepth.shader", "ComputeMinMaxDepthInitial");
+            this.computeMinMaxDepthStepShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeMinMaxDepth.shader", "ComputeMinMaxDepthStep");
+        }
+
+        public override CommandList Process(GraphicsPipeline pipeline, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
+        {
+            if (this.CommandBuffer == null)
+            {
+                throw new InvalidOperationException($"Command buffer for step '{this.Name}' doesn't exist.");
+            }
+
+            // TODO: Aquire 3 resources: Depth Buffer, CamerasBuffer, Local Compute buffer
+
+            graphicsManager.ResetCommandBuffer(this.CommandBuffer.Value);
+
+            var computeCommandList = graphicsManager.CreateComputeCommandList(this.CommandBuffer.Value, "ComputeMinMaxDepthInitial");
+
+            graphicsManager.WaitForCommandLists(computeCommandList, commandListsToWait);
+
+            graphicsManager.SetShader(computeCommandList, this.computeMinMaxDepthInitialShader);
+
+            GraphicsBuffer? camerasBuffer = null;
+            Texture? depthBuffer = null;
+
+            if (this.Inputs != null)
+            {
+                for (var i = 0; i < this.Inputs.Value.Length; i++)
+                {
+                    var resourceBinding = this.Inputs.Value.Span[i];
+                    var pipelineResource = resourceBinding.PipelineResource.Evaluate(pipeline);
+
+                    switch (resourceBinding)
+                    {
+                        case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
+                            depthBuffer = (Texture)pipelineResource;
+                            graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            break;
+
+                        case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
+                            var slot = shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline);
+
+                            if (slot == 1)
+                            {
+                                camerasBuffer = (GraphicsBuffer)pipelineResource;
+                            }
+
+                            graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            break;
+                    }
+                }
+            }
+
+            if (this.Outputs != null)
+            {
+                for (var i = 0; i < this.Outputs.Value.Length; i++)
+                {
+                    var resourceBinding = this.Outputs.Value.Span[i];
+                    var pipelineResource = resourceBinding.PipelineResource.Evaluate(pipeline);
+                    
+                    switch (resourceBinding)
+                    {
+                        case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
+                            graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            break;
+
+                        case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
+                            var slot = shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline);
+
+                            if (slot == 1)
+                            {
+                                camerasBuffer = (GraphicsBuffer)pipelineResource;
+                            }
+
+                            graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            break;
+                    }
+                }
+            }
+
+            if (depthBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(depthBuffer));
+            }
+          
+            var threadGroupSize = graphicsManager.DispatchThreads(computeCommandList, (uint)depthBuffer.Width, (uint)depthBuffer.Height, 1);
+
+            graphicsManager.CommitComputeCommandList(computeCommandList);
+
+            // Logger.WriteMessage("==============================");
+            var itemCountToProcessWidth = (uint)depthBuffer.Width;
+            var itemCountToProcessHeight = (uint)depthBuffer.Height;
+            var itemCountToProcess = (uint)(MathF.Ceiling((float)itemCountToProcessWidth / threadGroupSize.X) * MathF.Ceiling((float)itemCountToProcessHeight / threadGroupSize.Y));
+
+            var previousCommandList = computeCommandList;
+
+            while (itemCountToProcess > 1)
+            {
+                itemCountToProcessWidth = itemCountToProcess;
+                itemCountToProcessHeight = 1;
+
+                var computeCommandStepList = graphicsManager.CreateComputeCommandList(this.CommandBuffer.Value, "ComputeMinMaxDepthStep");
+
+                graphicsManager.WaitForCommandList(computeCommandStepList, previousCommandList);
+
+                // Logger.WriteMessage($"Items to process: {itemCountToProcess} {itemCountToProcessWidth} {itemCountToProcessHeight}");
+
+                // TODO: Use a indirect command buffer to dispatch the correct number of threads
+                graphicsManager.SetShader(computeCommandStepList, this.computeMinMaxDepthStepShader);
+                
+                if (this.Inputs != null)
+                {
+                    for (var i = 0; i < this.Inputs.Value.Length; i++)
+                    {
+                        var resourceBinding = this.Inputs.Value.Span[i];
+                        var pipelineResource = resourceBinding.PipelineResource.Evaluate(pipeline);
+
+                        switch (resourceBinding)
+                        {
+                            case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
+                                graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                break;
+
+                            case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
+                                graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                break;
+                        }
+                    }
+                }
+
+                if (this.Outputs != null)
+                {
+                    for (var i = 0; i < this.Outputs.Value.Length; i++)
+                    {
+                        var resourceBinding = this.Outputs.Value.Span[i];
+                        var pipelineResource = resourceBinding.PipelineResource.Evaluate(pipeline);
+                        
+                        switch (resourceBinding)
+                        {
+                            case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
+                                graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                break;
+
+                            case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
+                                graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                break;
+                        }
+                    }
+                }
+
+                threadGroupSize = graphicsManager.DispatchThreads(computeCommandStepList, itemCountToProcess, 1, 1);
+
+                graphicsManager.CommitComputeCommandList(computeCommandStepList);
+
+                previousCommandList = computeCommandStepList;
+
+                itemCountToProcess = (uint)(MathF.Ceiling((float)itemCountToProcessWidth / threadGroupSize.X) * MathF.Ceiling((float)itemCountToProcessHeight / threadGroupSize.Y));
+                // Logger.WriteMessage($"Items to process: {itemCountToProcess}");
+            }
+
+            var copyCommandList = graphicsManager.CreateCopyCommandList(this.CommandBuffer.Value, "CopyCamera");
+
+            graphicsManager.WaitForCommandList(copyCommandList, previousCommandList);
+
+            graphicsManager.CopyGraphicsBufferDataToCpu(copyCommandList, camerasBuffer!.Value, Marshal.SizeOf<ShaderCamera>());
+            graphicsManager.CommitCopyCommandList(copyCommandList);
+
+            graphicsManager.ExecuteCommandBuffer(this.CommandBuffer.Value);
+
+            return previousCommandList;
+        }
+    }
+
     public class RenderIndirectCommandBufferPipelineStep : GraphicsPipelineStep
     {
         private readonly bool backfaceCulling;
@@ -613,6 +792,8 @@ namespace CoreEngine.Rendering
         private readonly GraphicsManager graphicsManager;
 
         // TODO: Move that to context class so that each context has his own privates resources
+        // TODO: Move the command buffers for each steps to the context class
+        // TODO: Add the parent pipeline to the context class
         private IDictionary<string, IGraphicsResource> resources;
         private IDictionary<string, IGraphicsResource> localResources;
         private IDictionary<string, Vector4> localVector4List;
@@ -632,8 +813,9 @@ namespace CoreEngine.Rendering
                 {
                     var shaderParts = step.ShaderPath.Split('@');
                     step.Shader = resourcesManager.LoadResourceAsync<Shader>(shaderParts[0], shaderParts.Length > 1 ? shaderParts[1] : null);
-                    step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(step.Name);
                 }
+                
+                step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(step.Name);
             }
 
             this.resources = new Dictionary<string, IGraphicsResource>();
@@ -760,8 +942,6 @@ namespace CoreEngine.Rendering
         private readonly GraphicsSceneQueue sceneQueue;
 
         private Shader drawMeshInstancesComputeShader;
-        private Shader computeMinMaxDepthInitialShader;
-        private Shader computeMinMaxDepthStepShader;
         private Shader computeLightCamerasShader;
         private Shader convertToMomentShadowMapShader;
 
@@ -790,7 +970,6 @@ namespace CoreEngine.Rendering
         private CommandBuffer generateIndirectCommandsCommandBuffer2;
         private CommandBuffer[] generateDepthBufferCommandBuffers;
         private CommandBuffer[] convertToMomentShadowMapCommandBuffers;
-        private CommandBuffer computeMinMaxDepthCommandBuffer;
         private CommandBuffer computeLightsCamerasCommandBuffer;
 
         private GraphicsPipeline depthGraphicsPipeline;
@@ -814,8 +993,6 @@ namespace CoreEngine.Rendering
             this.sceneQueue = sceneQueue;
 
             this.drawMeshInstancesComputeShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeGenerateIndirectCommands.shader", "GenerateIndirectCommands");
-            this.computeMinMaxDepthInitialShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeMinMaxDepth.shader", "ComputeMinMaxDepthInitial");
-            this.computeMinMaxDepthStepShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeMinMaxDepth.shader", "ComputeMinMaxDepthStep");
             this.computeLightCamerasShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeLightCameras.shader", "ComputeLightCameras");
             this.convertToMomentShadowMapShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ConvertToMomentShadowMap.shader");
 
@@ -829,7 +1006,7 @@ namespace CoreEngine.Rendering
 
             // Compute buffers
             this.scenePropertiesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderSceneProperties>(1, isStatic: false, isWriteOnly: true, label: "ComputeSceneProperties");
-            this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(10000, isStatic: false, isWriteOnly: true, label: "ComputeCameras");
+            this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(10000, isStatic: false, isWriteOnly: false, label: "ComputeCameras");
             this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(10000, isStatic: false, isWriteOnly: true, label: "ComputeLights");
             this.materialsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(10000, isStatic: false, isWriteOnly: true, label: "ComputeMaterials");
             this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, isStatic: false, isWriteOnly: true, label: "ComputeGeometryPackets");
@@ -851,7 +1028,6 @@ namespace CoreEngine.Rendering
                 this.convertToMomentShadowMapCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer("ConvertToMomentShadowMap");
             }
             
-            this.computeMinMaxDepthCommandBuffer = this.graphicsManager.CreateCommandBuffer("ComputeMinMaxDepth");
             this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer("ComputeLightsCameras");
 
             // TEST Pipeline definition
@@ -914,6 +1090,17 @@ namespace CoreEngine.Rendering
                                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer")),
                                             new BindingGraphicsPipelineParameter<int>("GeometryInstanceCount", new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
                                         }),
+                new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
+                                                            resourcesManager,
+                                                            new GraphicsPipelineResourceBinding[]
+                                                            {
+                                                                new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<int>(0)),
+                                                                new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MinMaxDepthComputeBuffer"), new ConstantPipelineParameterBinding<int>(2))
+                                                            },
+                                                            new GraphicsPipelineResourceBinding[]
+                                                            {
+                                                                new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
+                                                            }),
                 new RenderIndirectCommandBufferPipelineStep("RenderOpaqueGeometry",
                                                             "/System/Shaders/RenderMeshInstance.shader",
                                                             new GraphicsPipelineResourceBinding[]
@@ -1035,7 +1222,7 @@ namespace CoreEngine.Rendering
         {
             if (this.indirectCommandBufferList[this.currentIndirectCommandBufferIndex].GraphicsResourceId == 0)
             {
-                this.indirectCommandBufferList[this.currentIndirectCommandBufferIndex] = this.graphicsManager.CreateIndirectCommandBuffer(65536, isStatic: false, label: "ComputeIndirectLightCommandList");
+                this.indirectCommandBufferList[this.currentIndirectCommandBufferIndex] = this.graphicsManager.CreateIndirectCommandBuffer(1000, isStatic: false, label: "ComputeIndirectLightCommandList");
                 Logger.WriteMessage("Create Indirect Buffer");
             }
 
@@ -1365,6 +1552,9 @@ namespace CoreEngine.Rendering
                 this.renderManager.CulledGeometryInstancesCount = (int)counters[opaqueCounterIndex];
             }
 
+            var mainCamera = this.graphicsManager.ReadGraphicsBufferData<ShaderCamera>(this.camerasBuffer);
+            this.renderManager.MainCameraDepth = new Vector2(mainCamera[0].MinDepth, mainCamera[0].MaxDepth);
+
             this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
 
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(copyCommandBuffer, "SceneComputeCopyCommandList");
@@ -1454,6 +1644,7 @@ namespace CoreEngine.Rendering
             }
 
             this.graphicsManager.CopyGraphicsBufferDataToCpu(copyCommandList, this.indirectCommandBufferCounters, 4 * Marshal.SizeOf<uint>());
+            this.graphicsManager.CopyGraphicsBufferDataToCpu(copyCommandList, this.camerasBuffer, Marshal.SizeOf<ShaderCamera>());
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
 
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
@@ -1514,61 +1705,6 @@ namespace CoreEngine.Rendering
             return commandList;
         }
 
-        private CommandList ComputeMinMaxDepth(CommandList commandListToWait)
-        {
-            this.graphicsManager.ResetCommandBuffer(computeMinMaxDepthCommandBuffer);
-
-            var computeCommandList = this.graphicsManager.CreateComputeCommandList(computeMinMaxDepthCommandBuffer, "ComputeMinMaxDepthInitial");
-            var depthBuffer = this.textureList[0];
-
-            this.graphicsManager.WaitForCommandList(computeCommandList, commandListToWait);
-
-            this.graphicsManager.SetShader(computeCommandList, this.computeMinMaxDepthInitialShader);
-            this.graphicsManager.SetShaderTexture(computeCommandList, depthBuffer, 0);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.camerasBuffer, 1);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.minMaxDepthComputeBuffer, 2);
-
-            var threadGroupSize = this.graphicsManager.DispatchThreads(computeCommandList, (uint)depthBuffer.Width, (uint)depthBuffer.Height, 1);
-
-            this.graphicsManager.CommitComputeCommandList(computeCommandList);
-
-            // Logger.WriteMessage("==============================");
-            var itemCountToProcessWidth = (uint)depthBuffer.Width;
-            var itemCountToProcessHeight = (uint)depthBuffer.Height;
-            var itemCountToProcess = (uint)(MathF.Ceiling((float)itemCountToProcessWidth / threadGroupSize.X) * MathF.Ceiling((float)itemCountToProcessHeight / threadGroupSize.Y));
-
-            var previousCommandList = computeCommandList;
-
-            while (itemCountToProcess > 1)
-            {
-                itemCountToProcessWidth = itemCountToProcess;
-                itemCountToProcessHeight = 1;
-
-                var computeCommandStepList = this.graphicsManager.CreateComputeCommandList(computeMinMaxDepthCommandBuffer, "ComputeMinMaxDepthStep");
-
-                this.graphicsManager.WaitForCommandList(computeCommandStepList, previousCommandList);
-
-                // Logger.WriteMessage($"Items to process: {itemCountToProcess} {itemCountToProcessWidth} {itemCountToProcessHeight}");
-
-                // TODO: Use a indirect command buffer to dispatch the correct number of threads
-                this.graphicsManager.SetShader(computeCommandStepList, this.computeMinMaxDepthStepShader);
-                this.graphicsManager.SetShaderBuffer(computeCommandStepList, this.camerasBuffer, 1);
-                this.graphicsManager.SetShaderBuffer(computeCommandStepList, this.minMaxDepthComputeBuffer, 2);
-                threadGroupSize = this.graphicsManager.DispatchThreads(computeCommandStepList, itemCountToProcess, 1, 1);
-
-                this.graphicsManager.CommitComputeCommandList(computeCommandStepList);
-
-                previousCommandList = computeCommandStepList;
-
-                itemCountToProcess = (uint)(MathF.Ceiling((float)itemCountToProcessWidth / threadGroupSize.X) * MathF.Ceiling((float)itemCountToProcessHeight / threadGroupSize.Y));
-                // Logger.WriteMessage($"Items to process: {itemCountToProcess}");
-            }
-
-            this.graphicsManager.ExecuteCommandBuffer(computeMinMaxDepthCommandBuffer);
-
-            return previousCommandList;
-        }
-
         private CommandList ComputeLightCameras(CommandList commandListToWait)
         {
             this.graphicsManager.ResetCommandBuffer(computeLightsCamerasCommandBuffer);
@@ -1625,11 +1761,13 @@ namespace CoreEngine.Rendering
                 new ResourceGraphicsPipelineParameter("MainCameraTransparentIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.TransparentCommandListIndex]),
                 new ResourceGraphicsPipelineParameter("MainCameraTransparentDepthIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.TransparentDepthCommandListIndex]),
                 new Vector4GraphicsPipelineParameter("ClearColor", new Vector4(65 * 50, 135 * 50, 255 * 50, 1.0f) / 255.0f),
-                new IntGraphicsPipelineParameter("GeometryInstanceCount", this.currentGeometryInstanceIndex)
+                new IntGraphicsPipelineParameter("GeometryInstanceCount", this.currentGeometryInstanceIndex),
+                new ResourceGraphicsPipelineParameter("MinMaxDepthComputeBuffer", this.minMaxDepthComputeBuffer),
+                new ResourceGraphicsPipelineParameter("CamerasBuffer", this.camerasBuffer)
             };
 
             commandList = this.graphicsPipeline.Process(new CommandList[] { commandList }, graphicsPipelineParameters);
-
+            
             commandList = this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture, commandList);
 
             var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;

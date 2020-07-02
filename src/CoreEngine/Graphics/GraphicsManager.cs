@@ -282,16 +282,18 @@ namespace CoreEngine.Graphics
 
             if (commandBufferStatus == null || (commandBufferStatus != null && commandBufferStatus.Value.State != GraphicsCommandBufferState.Created))
             {
-                if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+                if (commandBufferStatus != null)
                 {
-                    this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-                }
+                    if (commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
+                    {
+                        this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
+                    }
 
-                else
-                {
-                    Logger.WriteMessage($"CommandBuffer '{commandBuffer.Label}' has not completed.");
+                    else
+                    {
+                        Logger.WriteMessage($"CommandBuffer '{commandBuffer.Label}' has not completed.");
+                    }
                 }
-
             }
             
             this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);

@@ -60,6 +60,7 @@ namespace CoreEngine.Rendering
         public Graphics2DRenderer Graphics2DRenderer { get; }
         internal int GeometryInstancesCount { get; set; }
         internal int CulledGeometryInstancesCount { get; set; }
+        internal Vector2 MainCameraDepth { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
         internal int LightsCount { get; set; }
@@ -165,7 +166,7 @@ namespace CoreEngine.Rendering
             this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
             this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
             this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 330));
-            this.Graphics2DRenderer.DrawText($"Gpu Pipeline:", new Vector2(10, 370));
+            this.Graphics2DRenderer.DrawText($"Gpu Pipeline: (Depth: {this.MainCameraDepth})", new Vector2(10, 370));
 
             this.graphicsManager.gpuTimings.Sort((a, b) => (a.StartTiming.CompareTo(b.StartTiming)));
 

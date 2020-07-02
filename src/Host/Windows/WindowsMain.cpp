@@ -215,7 +215,7 @@ int main(int argc, char const *argv[])
 	// HWND window = Win32InitWindow(applicationInstance, "Core Engine", 1280, 720);
 	HWND window = Win32InitWindow(GetModuleHandle(NULL), "Core Engine", 1280, 720);
 
-    auto graphicsService = Direct3D12GraphicsService();
+    auto graphicsService = Direct3D12GraphicsService(window, 1280, 720);
     auto inputsService = WindowsInputsService();
 
     auto coreEngineHost = CoreEngineHost(graphicsService, inputsService);
@@ -256,9 +256,10 @@ int main(int argc, char const *argv[])
                     //     gameRunning = false;
                     //     break;
                     // }
+					
+					coreEngineHost.UpdateEngine(0);
                 }
 
-				coreEngineHost.UpdateEngine(0);
             }
         }
 	}

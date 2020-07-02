@@ -61,10 +61,10 @@ void DeletePipelineStateInterop(void* context, unsigned int pipelineStateId)
     contextObject->DeletePipelineState(pipelineStateId);
 }
 
-int CreateCommandBufferInterop(void* context, unsigned int commandBufferId, char* label)
+int CreateCommandBufferInterop(void* context, unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateCommandBuffer(commandBufferId, label);
+    return contextObject->CreateCommandBuffer(commandBufferId, commandBufferType, label);
 }
 
 void DeleteCommandBufferInterop(void* context, unsigned int commandBufferId)

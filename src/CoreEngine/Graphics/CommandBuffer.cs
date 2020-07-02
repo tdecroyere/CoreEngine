@@ -6,7 +6,7 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal CommandBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, string label)
+        internal CommandBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, CommandListType commandBufferType, string label)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsResourceSystemId = systemId;
@@ -14,6 +14,7 @@ namespace CoreEngine.Graphics
             this.Label = label;
             this.ResourceType = GraphicsResourceType.CommandBuffer;
             this.IsStatic = false;
+            this.CommandBufferType = commandBufferType;
         }
 
         public uint GraphicsResourceId 
@@ -48,5 +49,6 @@ namespace CoreEngine.Graphics
 
         public GraphicsResourceType ResourceType { get; }
         public bool IsStatic { get; }
+        public CommandListType CommandBufferType { get; }
     }
 }

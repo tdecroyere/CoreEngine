@@ -2,9 +2,17 @@
 #include "WindowsCommon.h"
 #include "../Common/CoreEngine.h"
 
+using namespace std;
+using namespace Microsoft::WRL;
+
+static const int RenderBuffersCount = 2;
+
 class Direct3D12GraphicsService
 {
     public:
+        Direct3D12GraphicsService(HWND window, int width, int height);
+        ~Direct3D12GraphicsService();
+
         struct Vector2 GetRenderSize();
         void GetGraphicsAdapterName(char* output);
         
@@ -17,7 +25,7 @@ class Direct3D12GraphicsService
         int CreatePipelineState(unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* label);
         void DeletePipelineState(unsigned int pipelineStateId);
 
-        int CreateCommandBuffer(unsigned int commandBufferId, char* label);
+        int CreateCommandBuffer(unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label);
         void DeleteCommandBuffer(unsigned int commandBufferId);
         void ResetCommandBuffer(unsigned int commandBufferId);
         void ExecuteCommandBuffer(unsigned int commandBufferId);
@@ -55,4 +63,53 @@ class Direct3D12GraphicsService
         void WaitForCommandList(unsigned int commandListId, unsigned int commandListToWaitId);
         void PresentScreenBuffer(unsigned int commandBufferId);
         void WaitForAvailableScreenBuffer();
+
+    private:
+        // Device objects
+        wstring adapterName;
+        ComPtr<ID3D12Device3> graphicsDevice;
+        ComPtr<ID3D12CommandQueue> directCommandQueue;
+        ComPtr<ID3D12CommandQueue> copyCommandQueue;
+        ComPtr<ID3D12CommandQueue> computeCommandQueue;
+
+        // Swap chain objects
+        ComPtr<IDXGISwapChain3> swapChain;
+        ComPtr<ID3D12Resource> backBufferRenderTargets[RenderBuffersCount];
+        ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+        int rtvDescriptorHandleSize;
+        int currentBackBufferIndex;
+
+        // Synchronization objects
+        ComPtr<ID3D12Fence1> globalFence;
+        uint64_t globalFrameFenceValues[RenderBuffersCount] = {};
+        uint64_t globalFenceValue;
+        HANDLE globalFenceEvent;
+
+        // Command buffer objects
+        map<unsigned int, ComPtr<ID3D12CommandAllocator>> commandBuffers;
+        map<unsigned int, ComPtr<ID3D12GraphicsCommandList>> commandLists;
+        stack<ComPtr<ID3D12GraphicsCommandList>> copyCommandListCache;
+        stack<ComPtr<ID3D12GraphicsCommandList>> renderCommandListCache;
+        stack<ComPtr<ID3D12GraphicsCommandList>> computeCommandListCache;
+
+        // Heap objects
+        ComPtr<ID3D12Heap> uploadHeap;
+        uint64_t currentUploadHeapOffset;
+        ComPtr<ID3D12Heap> globalHeap;
+        uint64_t currentGlobalHeapOffset;
+
+        // Buffers
+        map<unsigned int, ComPtr<ID3D12Resource>> cpuBuffers;
+        map<unsigned int, ComPtr<ID3D12Resource>> gpuBuffers;
+
+        void EnableDebugLayer();
+        ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);
+        bool CreateDevice(const ComPtr<IDXGIFactory4> dxgiFactory, const ComPtr<IDXGIAdapter4> graphicsAdapter);
+        bool CreateOrResizeSwapChain(const ComPtr<IDXGIFactory4> dxgiFactory, HWND window, int width, int height);
+        bool CreateHeaps();
+
+        D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
+        
+        ComPtr<ID3D12GraphicsCommandList> CreateOrResetCommandList(unsigned int commandBufferId, char* label, D3D12_COMMAND_LIST_TYPE listType);
+        void ReleaseCommandList(ComPtr<ID3D12GraphicsCommandList> commandList, D3D12_COMMAND_LIST_TYPE listType);
 };

@@ -632,7 +632,16 @@ namespace CoreEngine.Rendering
                 {
                     var shaderParts = step.ShaderPath.Split('@');
                     step.Shader = resourcesManager.LoadResourceAsync<Shader>(shaderParts[0], shaderParts.Length > 1 ? shaderParts[1] : null);
-                    step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(step.Name);
+
+                    if (step.GetType() == typeof(RenderIndirectCommandBufferPipelineStep))
+                    {
+                        step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, step.Name);
+                    }
+
+                    else
+                    {
+                        step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, step.Name);
+                    }
                 }
             }
 
@@ -837,22 +846,22 @@ namespace CoreEngine.Rendering
             this.indirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(100, isStatic: false, isWriteOnly: false, label: "ComputeIndirectCommandBufferCounters");
 
             // Command Buffers
-            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer("CopySceneDataToGpu");
-            this.resetIcbCommandBuffer = this.graphicsManager.CreateCommandBuffer("ResetIndirectCommandBuffers");
-            this.generateIndirectCommandsCommandBuffer = this.graphicsManager.CreateCommandBuffer("GenerateIndirectCommands");
-            this.generateIndirectCommandsCommandBuffer2 = this.graphicsManager.CreateCommandBuffer("GenerateIndirectCommands");
+            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "CopySceneDataToGpu");
+            this.resetIcbCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "ResetIndirectCommandBuffers");
+            this.generateIndirectCommandsCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
+            this.generateIndirectCommandsCommandBuffer2 = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
 
             this.generateDepthBufferCommandBuffers = new CommandBuffer[5];
             this.convertToMomentShadowMapCommandBuffers = new CommandBuffer[5];
 
             for (var i = 0; i < 5; i++)
             {
-                this.generateDepthBufferCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer("GenerateDepthBuffer");
-                this.convertToMomentShadowMapCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer("ConvertToMomentShadowMap");
+                this.generateDepthBufferCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "GenerateDepthBuffer");
+                this.convertToMomentShadowMapCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "ConvertToMomentShadowMap");
             }
             
-            this.computeMinMaxDepthCommandBuffer = this.graphicsManager.CreateCommandBuffer("ComputeMinMaxDepth");
-            this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer("ComputeLightsCameras");
+            this.computeMinMaxDepthCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "ComputeMinMaxDepth");
+            this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "ComputeLightsCameras");
 
             // TEST Pipeline definition
 

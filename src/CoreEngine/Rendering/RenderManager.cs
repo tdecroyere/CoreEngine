@@ -51,7 +51,7 @@ namespace CoreEngine.Rendering
             this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, this.graphicsManager, graphicsSceneQueue, resourcesManager);
             this.Graphics2DRenderer = new Graphics2DRenderer(this, this.graphicsManager, resourcesManager);
             
-            this.presentCommandBuffer = this.graphicsManager.CreateCommandBuffer("PresentScreenBuffer");
+            this.presentCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "PresentScreenBuffer");
 
         }
 

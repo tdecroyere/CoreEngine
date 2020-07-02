@@ -1,9 +1,14 @@
 #pragma once
 
 #include <string>
+#include <map>
+#include <vector>
+#include <stack>
+#include <assert.h>
 
 #include <ShellScalingAPI.h>
 #include <Windows.h>
+#include <wrl/client.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 

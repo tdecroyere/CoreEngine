@@ -50,8 +50,8 @@ namespace CoreEngine.Rendering
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer");
 
-            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer("DebugRendererCopy");
-            this.commandBuffer = this.graphicsManager.CreateCommandBuffer("DebugRenderer");
+            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "DebugRendererCopy");
+            this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "DebugRenderer");
             this.currentDebugLineIndex = 0;
         }
 

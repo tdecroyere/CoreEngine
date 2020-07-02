@@ -187,7 +187,7 @@ namespace CoreEngine.Resources
                 CheckResourceLoadingTasks();
             }
             
-            this.resourceLoadingRunner!.Wait();
+            this.resourceLoadingRunner?.Wait();
         }
 
         private void CheckResourceLoadingTasks()

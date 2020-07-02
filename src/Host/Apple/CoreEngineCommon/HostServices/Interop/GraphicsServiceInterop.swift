@@ -51,9 +51,9 @@ func GraphicsService_deletePipelineStateInterop(context: UnsafeMutableRawPointer
     contextObject.deletePipelineState(UInt(pipelineStateId))
 }
 
-func GraphicsService_createCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UInt32, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
+func GraphicsService_createCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UInt32, _ commandBufferType: GraphicsCommandBufferType, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createCommandBuffer(UInt(commandBufferId), String(cString: label!)) ? 1 : 0)
+    return Int32(contextObject.createCommandBuffer(UInt(commandBufferId), commandBufferType, String(cString: label!)) ? 1 : 0)
 }
 
 func GraphicsService_deleteCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UInt32) {

@@ -1,6 +1,13 @@
 #pragma once
 #include "CoreEngine.h"
 
+enum GraphicsCommandBufferType : int
+{
+    Render, 
+    Copy, 
+    Compute
+};
+
 enum GraphicsPrimitiveType : int
 {
     Triangle, 
@@ -101,7 +108,7 @@ struct NullableGraphicsCommandBufferStatus
 };
 
 typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
-typedef char* (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context);
+typedef void (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context, char* output);
 typedef int (*GraphicsService_CreateGraphicsBufferPtr)(void* context, unsigned int graphicsBufferId, int length, int isWriteOnly, char* label);
 typedef int (*GraphicsService_CreateTexturePtr)(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
 typedef void (*GraphicsService_DeleteTexturePtr)(void* context, unsigned int textureId);
@@ -110,7 +117,7 @@ typedef int (*GraphicsService_CreateShaderPtr)(void* context, unsigned int shade
 typedef void (*GraphicsService_DeleteShaderPtr)(void* context, unsigned int shaderId);
 typedef int (*GraphicsService_CreatePipelineStatePtr)(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* label);
 typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, unsigned int pipelineStateId);
-typedef int (*GraphicsService_CreateCommandBufferPtr)(void* context, unsigned int commandBufferId, char* label);
+typedef int (*GraphicsService_CreateCommandBufferPtr)(void* context, unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label);
 typedef void (*GraphicsService_DeleteCommandBufferPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_ResetCommandBufferPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_ExecuteCommandBufferPtr)(void* context, unsigned int commandBufferId);

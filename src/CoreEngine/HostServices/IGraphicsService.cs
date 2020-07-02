@@ -8,6 +8,13 @@ namespace CoreEngine.HostServices
 {
     // TODO: Avoid the duplication of structs and enums
 
+    public enum GraphicsCommandBufferType
+    {
+        Render,
+        Copy,
+        Compute
+    }
+
     public enum GraphicsPrimitiveType
     {
         Triangle,
@@ -247,7 +254,9 @@ namespace CoreEngine.HostServices
         bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor, string label);
         void DeletePipelineState(uint pipelineStateId);
 
-        bool CreateCommandBuffer(uint commandBufferId, string label);
+        // TODO: Refactor the command buffer/command list to map it better to have fewer Allocators in DirectX12
+        // (One Command Allocator per queue type and per frame and per threads)
+        bool CreateCommandBuffer(uint commandBufferId, GraphicsCommandBufferType commandBufferType, string label);
         void DeleteCommandBuffer(uint commandBufferId);
         void ResetCommandBuffer(uint commandBufferId);
         void ExecuteCommandBuffer(uint commandBufferId);

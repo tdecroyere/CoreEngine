@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
@@ -238,10 +239,10 @@ namespace CoreEngine.Graphics
             this.graphicsService.DeleteShader(shader.ShaderId);
         }
 
-        public CommandBuffer CreateCommandBuffer(string label)
+        public CommandBuffer CreateCommandBuffer(CommandListType commandBufferType, string label)
         {
             var graphicsResourceId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateCommandBuffer(graphicsResourceId, label);
+            var result = graphicsService.CreateCommandBuffer(graphicsResourceId, (GraphicsCommandBufferType)(int)commandBufferType, label);
 
             if (!result)
             {
@@ -250,14 +251,14 @@ namespace CoreEngine.Graphics
 
 
             var graphicsResourceId2 = GetNextGraphicsResourceId();
-            result = this.graphicsService.CreateCommandBuffer(graphicsResourceId2, label);
+            result = this.graphicsService.CreateCommandBuffer(graphicsResourceId2, (GraphicsCommandBufferType)(int)commandBufferType, label);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the command buffer resource.");
             }
 
-            return new CommandBuffer(this, graphicsResourceId, graphicsResourceId2, label);
+            return new CommandBuffer(this, graphicsResourceId, graphicsResourceId2, commandBufferType, label);
         }
 
         public void DeleteCommandBuffer(CommandBuffer commandBuffer)

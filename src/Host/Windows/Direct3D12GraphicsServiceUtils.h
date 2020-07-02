@@ -1,21 +1,18 @@
 #pragma once
+#include "WindowsCommon.h"
 
-#include <d3dcompiler.h>
-#include "WindowsDirect3D12Renderer.h"
-#include "../Common/CoreEngine.h"
+// using namespace winrt;
 
-using namespace winrt;
+// com_ptr<ID3DBlob> CreateShaderBlob(void* data, int dataLength)
+// {
+//     com_ptr<ID3DBlob> shaderBlob;
+//     D3DCreateBlob(dataLength, shaderBlob.put());
 
-com_ptr<ID3DBlob> CreateShaderBlob(void* data, int dataLength)
-{
-    com_ptr<ID3DBlob> shaderBlob;
-    D3DCreateBlob(dataLength, shaderBlob.put());
+//     auto shaderByteCode = shaderBlob->GetBufferPointer();
+//     memcpy(shaderByteCode, data, dataLength);
 
-    auto shaderByteCode = shaderBlob->GetBufferPointer();
-    memcpy(shaderByteCode, data, dataLength);
-
-    return shaderBlob;
-}
+//     return shaderBlob;
+// }
 
 D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {

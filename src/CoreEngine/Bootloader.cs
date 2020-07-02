@@ -16,6 +16,9 @@ using CoreEngine.Rendering;
 
 namespace CoreEngine
 {
+    public delegate void StartEngineDelegate(string appName, ref HostPlatform hostPlatform);
+    public delegate void UpdateEngineDelegate(float deltaTime);
+    
     // TODO: Make a CoreEngine class
     public static class Bootloader
     {

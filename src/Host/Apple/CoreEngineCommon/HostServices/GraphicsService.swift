@@ -11,7 +11,7 @@ public protocol GraphicsServiceProtocol {
     func deleteShader(_ shaderId: UInt)
     func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor, _ label: String) -> Bool
     func deletePipelineState(_ pipelineStateId: UInt)
-    func createCommandBuffer(_ commandBufferId: UInt, _ label: String) -> Bool
+    func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool
     func deleteCommandBuffer(_ commandBufferId: UInt)
     func resetCommandBuffer(_ commandBufferId: UInt)
     func executeCommandBuffer(_ commandBufferId: UInt)

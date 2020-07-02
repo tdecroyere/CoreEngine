@@ -26,7 +26,7 @@ namespace CoreEngine.Graphics
             var textureData = new byte[256 * 256 * 4];
             Array.Fill<byte>(textureData, 255);
 
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer("TextureLoader");
+            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "TextureLoader");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
             this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, 256, 256, 0, 0, textureData);
@@ -83,7 +83,7 @@ namespace CoreEngine.Graphics
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer("TextureLoader");
+            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "TextureLoader");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
 

@@ -60,13 +60,15 @@ struct NullableGraphicsBlendOperation
 #include "GraphicsService.h"
 #include "InputsService.h"
 
+using namespace std;
+
 struct HostPlatform
 {
     struct GraphicsService GraphicsService;
     struct InputsService InputsService;
 };
 
-typedef void (*StartEnginePtr)(char* appName, struct HostPlatform* hostPlatform);
+typedef void (*StartEnginePtr)(const char* appName, struct HostPlatform* hostPlatform);
 typedef void (*UpdateEnginePtr)(float deltaTime);
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,
@@ -86,3 +88,111 @@ typedef int (*coreclr_create_delegate_ptr)(void* hostHandle,
 
 typedef int (*coreclr_shutdown_ptr)(void* hostHandle,
             unsigned int domainId);
+  
+
+string CoreEngineHost_BuildTpaList(string path)
+{
+    string tpaList = "";
+
+    string searchPath = path;
+    searchPath = searchPath + "\\*.dll";
+
+    WIN32_FIND_DATAA findData;
+    HANDLE fileHandle = FindFirstFile(searchPath.c_str(), &findData);
+
+    if (fileHandle != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            tpaList = tpaList + (path) + "\\" + string(findData.cFileName) + ";";
+        }
+        while (FindNextFileA(fileHandle, &findData));
+        FindClose(fileHandle);
+    }
+
+    return tpaList;
+}
+
+bool CoreEngineHost_InitCoreClr(StartEnginePtr* startEnginePointer, UpdateEnginePtr* updateEnginePointer)
+{
+    string hostPath;
+
+#ifdef _WINDOWS_
+    printf("Windows CoreEngine Host\n");
+    TCHAR tmp[MAX_PATH];
+    GetModuleFileName(NULL, tmp, MAX_PATH);
+
+    hostPath = string(tmp);
+    hostPath = hostPath.substr(0, hostPath.find_last_of( "\\/" ));
+    // hostPath = hostPath.substr(0, hostPath.find_last_of( "\\/" ));
+
+#else
+    printf("Unix CoreEngine Host\n");
+    // auto resolved = realpath(argv[0], host_path);
+    // assert(resolved != nullptr);
+#endif
+
+    const string tpaList = CoreEngineHost_BuildTpaList(hostPath);
+
+    HMODULE coreClr = LoadLibraryA("CoreClr.dll");
+
+    coreclr_initialize_ptr initializeCoreClr = (coreclr_initialize_ptr)GetProcAddress(coreClr, "coreclr_initialize");
+    coreclr_create_delegate_ptr createManagedDelegate = (coreclr_create_delegate_ptr)GetProcAddress(coreClr, "coreclr_create_delegate");
+    coreclr_shutdown_ptr shutdownCoreClr = (coreclr_shutdown_ptr)GetProcAddress(coreClr, "coreclr_shutdown");
+
+    const char* propertyKeys[1] = {
+        "TRUSTED_PLATFORM_ASSEMBLIES"
+    };
+
+    // TODO: Delete temp memory
+    const char* tpaListPtr = tpaList.c_str();
+    const char* appPathPtr = hostPath.c_str();
+
+    const char* propertyValues[1] = {
+        tpaListPtr
+    };
+
+    void* hostHandle;
+    unsigned int domainId;
+
+    int result = initializeCoreClr(appPathPtr,
+                                    "CoreEngineAppDomain",
+                                    1,
+                                    propertyKeys,
+                                    propertyValues,
+                                    &hostHandle,
+                                    &domainId);
+
+    if (result == 0)
+    {
+        void* managedDelegate;
+
+        result = createManagedDelegate(hostHandle, 
+                                        domainId,
+                                        "CoreEngine",
+                                        "CoreEngine.Bootloader",
+                                        "StartEngine",
+                                        (void**)&managedDelegate);
+
+        if (result == 0)
+        {
+            *startEnginePointer = (StartEnginePtr)managedDelegate;
+        }
+
+        result = createManagedDelegate(hostHandle, 
+                                        domainId,
+                                        "CoreEngine",
+                                        "CoreEngine.Bootloader",
+                                        "UpdateEngine",
+                                        (void**)&managedDelegate);
+
+        if (result == 0)
+        {
+            *updateEnginePointer = (UpdateEnginePtr)managedDelegate;
+        }
+    }
+
+    return true;
+
+    // TODO: Do not forget to call the shutdownCoreClr method
+}    

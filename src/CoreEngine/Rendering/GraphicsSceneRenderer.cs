@@ -815,7 +815,15 @@ namespace CoreEngine.Rendering
                     step.Shader = resourcesManager.LoadResourceAsync<Shader>(shaderParts[0], shaderParts.Length > 1 ? shaderParts[1] : null);
                 }
                 
-                step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(step.Name);
+                if (step.GetType() == typeof(RenderIndirectCommandBufferPipelineStep))
+                {
+                    step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, step.Name);
+                }
+
+                else
+                {
+                    step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, step.Name);
+                }
             }
 
             this.resources = new Dictionary<string, IGraphicsResource>();
@@ -1014,21 +1022,21 @@ namespace CoreEngine.Rendering
             this.indirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(100, isStatic: false, isWriteOnly: false, label: "ComputeIndirectCommandBufferCounters");
 
             // Command Buffers
-            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer("CopySceneDataToGpu");
-            this.resetIcbCommandBuffer = this.graphicsManager.CreateCommandBuffer("ResetIndirectCommandBuffers");
-            this.generateIndirectCommandsCommandBuffer = this.graphicsManager.CreateCommandBuffer("GenerateIndirectCommands");
-            this.generateIndirectCommandsCommandBuffer2 = this.graphicsManager.CreateCommandBuffer("GenerateIndirectCommands");
+            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "CopySceneDataToGpu");
+            this.resetIcbCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "ResetIndirectCommandBuffers");
+            this.generateIndirectCommandsCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
+            this.generateIndirectCommandsCommandBuffer2 = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
 
             this.generateDepthBufferCommandBuffers = new CommandBuffer[5];
             this.convertToMomentShadowMapCommandBuffers = new CommandBuffer[5];
 
             for (var i = 0; i < 5; i++)
             {
-                this.generateDepthBufferCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer("GenerateDepthBuffer");
-                this.convertToMomentShadowMapCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer("ConvertToMomentShadowMap");
+                this.generateDepthBufferCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "GenerateDepthBuffer");
+                this.convertToMomentShadowMapCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "ConvertToMomentShadowMap");
             }
-            
-            this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer("ComputeLightsCameras");
+
+            this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "ComputeLightsCameras");
 
             // TEST Pipeline definition
 
@@ -1601,6 +1609,11 @@ namespace CoreEngine.Rendering
 
         private CommandList GenerateIndirectCommands(uint cameraCount, CommandList commandListToWait)
         {
+            if (this.currentGeometryInstanceIndex == 0)
+            {
+                return commandListToWait;
+            }
+
             var commandBuffer = (cameraCount == 1) ? this.generateIndirectCommandsCommandBuffer : this.generateIndirectCommandsCommandBuffer2;
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
 
@@ -1772,10 +1785,10 @@ namespace CoreEngine.Rendering
 
             var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;
 
-            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 0), new Vector2(debugXOffset + 256, 256), this.shadowMaps[1], true);
-            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 256), new Vector2(debugXOffset + 256, 512), this.shadowMaps[3], true);
-            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 512), new Vector2(debugXOffset + 256, 768), this.shadowMaps[5], true);
-            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 768), new Vector2(debugXOffset + 256, 1024), this.shadowMaps[7], true);
+            // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 0), new Vector2(debugXOffset + 256, 256), this.shadowMaps[1], true);
+            // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 256), new Vector2(debugXOffset + 256, 512), this.shadowMaps[3], true);
+            // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 512), new Vector2(debugXOffset + 256, 768), this.shadowMaps[5], true);
+            // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 768), new Vector2(debugXOffset + 256, 1024), this.shadowMaps[7], true);
             //this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(0, 0), new Vector2(this.graphicsManager.GetRenderSize().X, this.graphicsManager.GetRenderSize().Y), this.occlusionDepthTexture, true);
 
             return commandList;

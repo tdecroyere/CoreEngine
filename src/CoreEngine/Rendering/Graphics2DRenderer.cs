@@ -126,7 +126,7 @@ namespace CoreEngine.Rendering
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, isStatic: true, isWriteOnly: true, label: "Graphics2DVertexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, isStatic: true, isWriteOnly: true, label: "Graphics2DIndexBuffer");
 
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRenderer");
+            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "Graphics2DRenderer");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "Graphics2DRendererCommandList");
             this.graphicsManager.UploadDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, vertexData);
@@ -138,8 +138,8 @@ namespace CoreEngine.Rendering
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, isStatic: false, isWriteOnly: true, label: "Graphics2DRenderPassBuffer");
             this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, isWriteOnly: true, label: "Graphics2DRectanbleSurfacesBuffer");
 
-            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRendererCopy");
-            this.commandBuffer = this.graphicsManager.CreateCommandBuffer("Graphics2DRenderer");
+            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "Graphics2DRendererCopy");
+            this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "Graphics2DRenderer");
         }
 
         public override void PreUpdate()
@@ -194,6 +194,11 @@ namespace CoreEngine.Rendering
 
         public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, Vector2 textureMinPoint, Vector2 textureMaxPoint, bool isOpaque)
         {
+            if (texture == null)
+            {
+                throw new ArgumentNullException(nameof(texture));
+            }
+            
             var vertexOffset = this.currentSurfaceCount * 4;
             var indexOffset = this.currentSurfaceCount * 6;
 

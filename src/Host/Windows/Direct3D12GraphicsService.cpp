@@ -31,6 +31,8 @@ Direct3D12GraphicsService::~Direct3D12GraphicsService()
 {
 	// Ensure that the GPU is no longer referencing resources that are about to be
 	// cleaned up by the destructor.
+
+	// TODO: Wait until all command queues are finished on the GPU
 	this->WaitForAvailableScreenBuffer();
 
 	// Fullscreen state should always be false before exiting the app.
@@ -46,7 +48,6 @@ struct Vector2 Direct3D12GraphicsService::GetRenderSize()
 
 void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
 { 
-    // strcpyW(output, "Test");
     this->adapterName.copy((wchar_t*)output, this->adapterName.length());
 }
 
@@ -82,15 +83,121 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 	this->currentGlobalHeapOffset += GetAlignedValue(length, alignement);
 	this->gpuBuffers[graphicsBufferId] = gpuBuffer;
 
-	void* pointer = nullptr;
-	D3D12_RANGE range = { 0, 0 };
-	cpuBuffer->Map(0, &range, &pointer);
+	// Create Descriptor heap
+	// D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
+	// descriptorHeapDesc.NumDescriptors = 1;
+	// descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	// descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+	// ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+	// AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(descriptorHeap.ReleaseAndGetAddressOf())));
+
+	// D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	// srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	// srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	// srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	// srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+   	// srvDesc.Buffer.StructureByteStride = 0;
+	// srvDesc.Buffer.NumElements = (UINT)length / 4;
+
+	// this->graphicsDevice->CreateShaderResourceView(gpuBuffer.Get(), &srvDesc, descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	// this->bufferDescriptorHeaps[graphicsBufferId] = descriptorHeap;
 
     return 1;
 }
 
 int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
 { 
+	// TODO: Switch to placed resources
+
+	D3D12_RESOURCE_DESC textureDesc = {};
+	textureDesc.MipLevels = mipLevels;
+	textureDesc.Format = ConvertTextureFormat(textureFormat);
+	textureDesc.Width = width;
+	textureDesc.Height = height;
+	textureDesc.DepthOrArraySize = 1;
+	textureDesc.SampleDesc.Count = multisampleCount;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	D3D12_CLEAR_VALUE* clearValue = nullptr;
+
+	if (isRenderTarget) 
+	{
+		if (textureFormat == GraphicsTextureFormat::Depth32Float)
+		{
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		}
+
+		else
+		{
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+			// TODO: To remove?
+			D3D12_CLEAR_VALUE rawClearValue = {};
+			rawClearValue.Color[1] = 1;
+			rawClearValue.Format = ConvertTextureFormat(textureFormat);
+			clearValue = &rawClearValue;
+		}
+	} 
+	
+	else 
+	{
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	}
+
+	D3D12_HEAP_PROPERTIES defaultHeapProperties = {};
+	defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	defaultHeapProperties.CreationNodeMask = 1;
+	defaultHeapProperties.VisibleNodeMask = 1;
+
+	ComPtr<ID3D12Resource> gpuTexture;
+	AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &textureDesc, D3D12_RESOURCE_STATE_COPY_DEST, clearValue, IID_PPV_ARGS(gpuTexture.ReleaseAndGetAddressOf())));
+	this->gpuTextures[textureId] = gpuTexture;
+	this->textureResourceStates[textureId] = D3D12_RESOURCE_STATE_COPY_DEST;
+
+	if (textureFormat != GraphicsTextureFormat::Depth32Float)
+	{
+		// Create Descriptor heap
+		D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
+		descriptorHeapDesc.NumDescriptors = 1;
+		descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+		ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
+		AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(srvDescriptorHeap.ReleaseAndGetAddressOf())));
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = ConvertTextureFormat(textureFormat);
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = mipLevels;
+
+		this->graphicsDevice->CreateShaderResourceView(gpuTexture.Get(), &srvDesc, srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+		this->srvtextureDescriptorHeaps[textureId] = srvDescriptorHeap;
+
+		if (isRenderTarget)
+		{
+			// Create Descriptor heap
+			D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
+			descriptorHeapDesc.NumDescriptors = 1;
+			descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+			ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+			AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(descriptorHeap.ReleaseAndGetAddressOf())));
+
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+			rtvDesc.Format = ConvertTextureFormat(textureFormat);
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+			this->graphicsDevice->CreateRenderTargetView(gpuTexture.Get(), &rtvDesc, descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+			this->textureDescriptorHeaps[textureId] = descriptorHeap;
+		}
+	}
+
     return 1;
 }
 
@@ -106,6 +213,37 @@ int Direct3D12GraphicsService::CreateIndirectCommandBuffer(unsigned int indirect
 
 int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label)
 { 
+	auto currentDataPtr = (unsigned char*)shaderByteCode;
+	
+	auto vertexShaderByteCodeLength = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+
+	auto vertexShaderBlob = CreateShaderBlob(currentDataPtr, vertexShaderByteCodeLength);
+	currentDataPtr += vertexShaderByteCodeLength;
+
+	auto pixelShaderByteCodeLength = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+
+	auto pixelShaderBlob = CreateShaderBlob(currentDataPtr, pixelShaderByteCodeLength);
+	currentDataPtr += pixelShaderByteCodeLength;
+
+	auto rootSignatureByteCodeLength = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+
+	auto rootSignatureBlob = CreateShaderBlob(currentDataPtr, rootSignatureByteCodeLength);
+
+	ComPtr<ID3D12RootSignature> rootSignature;
+	AssertIfFailed(this->graphicsDevice->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(rootSignature.ReleaseAndGetAddressOf())));
+
+	rootSignature->SetName((wstring(L"RootSignature") + wstring(label, label + strlen(label))).c_str());
+
+	auto shader = Shader();
+	shader.VertexShaderMethod = vertexShaderBlob;
+	shader.PixelShaderMethod = pixelShaderBlob;
+	shader.RootSignature = rootSignature;
+
+	this->shaders[shaderId] = shader;
+	
     return 1;
 }
 
@@ -116,53 +254,159 @@ void Direct3D12GraphicsService::DeleteShader(unsigned int shaderId)
 
 int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* label)
 { 
+	if (shaderId == 0)
+	{
+		return true;
+	}
+
+	if (!this->shaders.count(shaderId))
+	{
+		return false;
+	}
+
+	auto shader = this->shaders[shaderId];
+
+	// Describe and create the graphics pipeline state object (PSO)
+	const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
+	{
+		false,
+		false,
+		D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
+		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+		D3D12_LOGIC_OP_NOOP,
+		D3D12_COLOR_WRITE_ENABLE_ALL,
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.pRootSignature = shader.RootSignature.Get();
+	psoDesc.VS = { shader.VertexShaderMethod->GetBufferPointer(), shader.VertexShaderMethod->GetBufferSize() };
+	psoDesc.PS = { shader.PixelShaderMethod->GetBufferPointer(), shader.PixelShaderMethod->GetBufferSize() };
+	psoDesc.SampleMask = 0xFFFFFF;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+	if (!renderPassDescriptor.RenderTarget1TextureId.HasValue && !renderPassDescriptor.DepthTextureId.HasValue)
+	{
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB; // TODO: Fill Correct Back Buffer Format
+	}
+
+	else
+	{
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = ConvertTextureFormat(renderPassDescriptor.RenderTarget1TextureFormat.Value);
+	}
+
+	psoDesc.SampleDesc.Count = 1;
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	psoDesc.RasterizerState.FrontCounterClockwise = false;
+	psoDesc.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	psoDesc.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	psoDesc.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	psoDesc.RasterizerState.DepthClipEnable = true;
+	psoDesc.RasterizerState.MultisampleEnable = false;
+	psoDesc.RasterizerState.AntialiasedLineEnable = false;
+	psoDesc.RasterizerState.ForcedSampleCount = 0;
+	psoDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	psoDesc.DepthStencilState.DepthEnable = false;
+	psoDesc.DepthStencilState.StencilEnable = false;
+	psoDesc.BlendState.AlphaToCoverageEnable = false;
+	psoDesc.BlendState.IndependentBlendEnable = false;
+
+	// for (int i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+	// {
+	psoDesc.BlendState.RenderTarget[0] = defaultRenderTargetBlendDesc;
+	// }
+
+	ComPtr<ID3D12PipelineState> pipelineState;
+	AssertIfFailed(this->graphicsDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
+	pipelineState->SetName((wstring(L"PSO_") + wstring(label, label + strlen(label))).c_str());
+
+	this->pipelineStates[pipelineStateId] = pipelineState;
+
     return 1;
 }
 
 void Direct3D12GraphicsService::DeletePipelineState(unsigned int pipelineStateId)
 { 
-
+	this->pipelineStates.erase(pipelineStateId);
 }
 
 int Direct3D12GraphicsService::CreateCommandBuffer(unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label)
 { 
-	D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	auto listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	
+	this->commandBufferTypes[commandBufferId] = listType;
+	this->commandBufferLabels[commandBufferId] = wstring(label, label + strlen(label));
 
-	if (commandBufferType == GraphicsCommandBufferType::Copy)
-	{
-		listType = D3D12_COMMAND_LIST_TYPE_COPY;
-	}
-
-	else if (commandBufferType == GraphicsCommandBufferType::Compute)
-	{
-		listType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-	}
-
-	ComPtr<ID3D12CommandAllocator> commandBuffer;
-	AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(listType, IID_PPV_ARGS(commandBuffer.ReleaseAndGetAddressOf())));
-
-	commandBuffer->SetName(wstring(label, label + strlen(label)).c_str());
-	this->commandBuffers[commandBufferId] = commandBuffer;
     return 1;
 }
 
 void Direct3D12GraphicsService::DeleteCommandBuffer(unsigned int commandBufferId)
 { 
 	this->commandBuffers.erase(commandBufferId);
+	this->commandBufferTypes.erase(commandBufferId);
+	this->commandBufferLabels.erase(commandBufferId);
 }
 
 void Direct3D12GraphicsService::ResetCommandBuffer(unsigned int commandBufferId)
 { 
-	if (this->commandBuffers.count(commandBufferId))
+	auto listType = this->commandBufferTypes[commandBufferId];
+
+	ComPtr<ID3D12CommandAllocator> commandAllocator = this->directCommandAllocators[this->currentBackBufferIndex];
+
+	if (listType == GraphicsCommandBufferType::Copy)
+	{
+		commandAllocator = this->copyCommandAllocators[this->currentBackBufferIndex];
+	}
+
+	else if (listType == GraphicsCommandBufferType::Compute)
+	{
+		commandAllocator = this->computeCommandAllocators[this->currentBackBufferIndex];
+	}
+
+	if (!this->commandBuffers.count(commandBufferId))
+	{
+		ComPtr<ID3D12GraphicsCommandList> commandList;
+		AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
+		commandList->SetName(this->commandBufferLabels[commandBufferId].c_str());
+
+		this->commandBuffers[commandBufferId] = commandList;
+	}
+
+	else
 	{
 		auto commandBuffer = this->commandBuffers[commandBufferId];
-		commandBuffer->Reset();
+		commandBuffer->Reset(commandAllocator.Get(), nullptr);
 	}
+
+	this->shaderBound = false;
 }
 
 void Direct3D12GraphicsService::ExecuteCommandBuffer(unsigned int commandBufferId)
 { 
 	// TODO: Update Status
+	if (this->commandBuffers.count(commandBufferId))
+	{
+		auto commandBufferType = this->commandBufferTypes[commandBufferId];
+		ComPtr<ID3D12CommandQueue> commandQueue = this->directCommandQueue;
+
+		if (commandBufferType == GraphicsCommandBufferType::Copy)
+		{
+			commandQueue = this->copyCommandQueue;
+		}
+
+		else if (commandBufferType == GraphicsCommandBufferType::Compute)
+		{
+			commandQueue = this->computeCommandQueue;
+		}
+
+		auto commandBuffer = this->commandBuffers[commandBufferId];
+		commandBuffer->Close();
+
+		ID3D12CommandList* commandLists[] = { commandBuffer.Get() };
+		commandQueue->ExecuteCommandLists(1, commandLists);
+	}
 }
 
 NullableGraphicsCommandBufferStatus Direct3D12GraphicsService::GetCommandBufferStatus(unsigned int commandBufferId)
@@ -175,51 +419,72 @@ NullableGraphicsCommandBufferStatus Direct3D12GraphicsService::GetCommandBufferS
     return status; 
 }
 
-void Direct3D12GraphicsService::SetShaderBuffer(unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index){ }
+void Direct3D12GraphicsService::SetShaderBuffer(unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index)
+{ 
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto gpuBuffer = this->gpuBuffers[graphicsBufferId];
+
+	commandList->SetGraphicsRootShaderResourceView(slot, gpuBuffer->GetGPUVirtualAddress());
+}
+
 void Direct3D12GraphicsService::SetShaderBuffers(unsigned int commandListId, unsigned int* graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index){ }
-void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index){ }
+
+void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index)
+{ 
+	if (!this->shaderBound)
+	{
+		return;
+	}
+	
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto gpuTexture = this->gpuTextures[textureId];
+	auto descriptorHeap = this->srvtextureDescriptorHeaps[textureId];
+
+	TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap.Get() };
+	commandList->SetDescriptorHeaps(1, descriptorHeaps);
+	commandList->SetGraphicsRootDescriptorTable(slot, descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
 void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, unsigned int* textureIdList, int textureIdListLength, int slot, int index){ }
 void Direct3D12GraphicsService::SetShaderIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int slot, int index){ }
 void Direct3D12GraphicsService::SetShaderIndirectCommandLists(unsigned int commandListId, unsigned int* indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index){ }
 
 int Direct3D12GraphicsService::CreateCopyCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label)
 {
-	if (!this->commandBuffers.count(commandBufferId))
-	{
-		return 0;
-	}
-	
-	auto commandList = CreateOrResetCommandList(commandBufferId, label, D3D12_COMMAND_LIST_TYPE_COPY);
-	this->commandLists[commandListId] = commandList;
-
+	this->commandListBuffers[commandListId] = commandBufferId;
     return 1;
 }
 
 void Direct3D12GraphicsService::CommitCopyCommandList(unsigned int commandListId)
 { 
-	if (this->commandLists.count(commandListId))
-	{
-		auto commandList = this->commandLists[commandListId];
-		commandList->Close();
+	this->commandListBuffers.erase(commandListId);
 
-		ID3D12CommandList* commandLists[] = { commandList.Get() };
-		this->copyCommandQueue->ExecuteCommandLists(1, commandLists);
-
-		this->commandLists.erase(commandListId);
-		ReleaseCommandList(commandList, D3D12_COMMAND_LIST_TYPE_COPY);
-	}
+	// TODO: Update Command List Fence value
 }
 
 void Direct3D12GraphicsService::UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength)
 { 
-	if (!this->commandLists.count(commandListId) && !this->cpuBuffers.count(graphicsBufferId) && !this->gpuBuffers.count(graphicsBufferId))
+	if (!this->cpuBuffers.count(graphicsBufferId) && !this->gpuBuffers.count(graphicsBufferId))
 	{
 		return;
 	}
 
-	auto commandList = this->commandLists[commandListId];
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 	auto gpuBuffer = this->gpuBuffers[graphicsBufferId];
 	auto cpuBuffer = this->cpuBuffers[graphicsBufferId];
+
+	void* pointer = nullptr;
+	D3D12_RANGE range = { 0, 0 };
+	cpuBuffer->Map(0, &range, &pointer);
+
+	memcpy(pointer, data, dataLength);
 
 	commandList->CopyResource(gpuBuffer.Get(), cpuBuffer.Get());
 }
@@ -232,10 +497,16 @@ void Direct3D12GraphicsService::OptimizeIndirectCommandList(unsigned int command
 
 int Direct3D12GraphicsService::CreateComputeCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label)
 { 
+	this->commandListBuffers[commandListId] = commandBufferId;
     return 1;
 }
 
-void Direct3D12GraphicsService::CommitComputeCommandList(unsigned int commandListId){ }
+void Direct3D12GraphicsService::CommitComputeCommandList(unsigned int commandListId)
+{ 
+	this->commandListBuffers.erase(commandListId);
+
+	// TODO: Update Command List Fence value
+}
 
 struct Vector3 Direct3D12GraphicsService::DispatchThreads(unsigned int commandListId, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ)
 { 
@@ -249,29 +520,52 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 		return 0;
 	}
 	
-	auto commandList = CreateOrResetCommandList(commandBufferId, label, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	this->commandLists[commandListId] = commandList;
+	this->commandListBuffers[commandListId] = commandBufferId;
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 
-	// D3D12_VIEWPORT viewport = {};
-	// viewport.Width = (float)width;
-	// viewport.Height = (float)height;
-	// viewport.MaxDepth = 1.0f;
-	// commandList->RSSetViewports(1, &viewport);
-
-	// D3D12_RECT scissorRect = {};
-	// scissorRect.right = (long)width;
-	// scissorRect.bottom = (long)height;
-	// commandList->RSSetScissorRects(1, &scissorRect);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
-
-	if (!renderDescriptor.RenderTarget1TextureId.HasValue && !renderDescriptor.DepthTextureId.HasValue)
+	if (renderDescriptor.RenderTarget1TextureId.HasValue)
 	{
+		auto gpuTexture = this->gpuTextures[renderDescriptor.RenderTarget1TextureId.Value];
+		auto descriptorHeapHandle = this->textureDescriptorHeaps[renderDescriptor.RenderTarget1TextureId.Value]->GetCPUDescriptorHandleForHeapStart();
+
+		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		commandList->OMSetRenderTargets(1, &descriptorHeapHandle, false, nullptr);
+
+		float clearColor[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
+		commandList->ClearRenderTargetView(descriptorHeapHandle, clearColor, 0, nullptr);
+
+		D3D12_VIEWPORT viewport = {};
+		viewport.Width = (float)gpuTexture->GetDesc().Width;
+		viewport.Height = (float)gpuTexture->GetDesc().Height;
+		viewport.MaxDepth = 1.0f;
+		commandList->RSSetViewports(1, &viewport);
+
+		D3D12_RECT scissorRect = {};
+		scissorRect.right = (long)gpuTexture->GetDesc().Width;
+		scissorRect.bottom = (long)gpuTexture->GetDesc().Height;
+		commandList->RSSetScissorRects(1, &scissorRect);
+	}
+
+	else if (!renderDescriptor.RenderTarget1TextureId.HasValue && !renderDescriptor.DepthTextureId.HasValue)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
+
 		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		commandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
 
 		float clearColor[4] = { 0.0f, 0.215f, 1.0f, 0.0f };
 		commandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
+
+		D3D12_VIEWPORT viewport = {};
+		viewport.Width = (float)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Width;
+		viewport.Height = (float)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Height;
+		viewport.MaxDepth = 1.0f;
+		commandList->RSSetViewports(1, &viewport);
+
+		D3D12_RECT scissorRect = {};
+		scissorRect.right = (long)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Width;
+		scissorRect.bottom = (long)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Height;
+		commandList->RSSetScissorRects(1, &scissorRect);
 	}
 	
     return 1;
@@ -279,48 +573,100 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 
 void Direct3D12GraphicsService::CommitRenderCommandList(unsigned int commandListId)
 { 
-	if (this->commandLists.count(commandListId))
-	{
-		auto commandList = this->commandLists[commandListId];
-		commandList->Close();
+	this->commandListBuffers.erase(commandListId);
 
-		ID3D12CommandList* commandLists[] = { commandList.Get() };
-		this->directCommandQueue->ExecuteCommandLists(1, commandLists);
-
-		this->commandLists.erase(commandListId);
-		ReleaseCommandList(commandList, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	}
+	// TODO: Update Command List Fence value
 }
 
-void Direct3D12GraphicsService::SetPipelineState(unsigned int commandListId, unsigned int pipelineStateId){ }
-void Direct3D12GraphicsService::SetShader(unsigned int commandListId, unsigned int shaderId){ }
+void Direct3D12GraphicsService::SetPipelineState(unsigned int commandListId, unsigned int pipelineStateId)
+{ 
+	if (pipelineStateId == 0)
+	{
+		return;
+	}
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto pipelineState = this->pipelineStates[pipelineStateId];
+
+	if (!pipelineState)
+	{
+		return;
+	}
+
+	commandList->SetPipelineState(pipelineState.Get());
+}
+
+void Direct3D12GraphicsService::SetShader(unsigned int commandListId, unsigned int shaderId)
+{ 
+	if (shaderId == 0)
+	{
+		return;
+	}
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto shader = this->shaders[shaderId];
+
+	commandList->SetGraphicsRootSignature(shader.RootSignature.Get());
+	this->shaderBound = true;
+}
+
 void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount){ }
-void Direct3D12GraphicsService::SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId){ }
-void Direct3D12GraphicsService::DrawIndexedPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId){ }
+
+void Direct3D12GraphicsService::SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId)
+{ 
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto indexBuffer = this->gpuBuffers[graphicsBufferId];
+
+	D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
+	indexBufferView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+	indexBufferView.SizeInBytes = indexBuffer->GetDesc().Width;
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+
+	commandList->IASetIndexBuffer(&indexBufferView);
+}
+
+void Direct3D12GraphicsService::DrawIndexedPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
+{ 
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+
+	if (primitiveType == GraphicsPrimitiveType::TriangleStrip)
+	{
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	}
+
+	else if (primitiveType == GraphicsPrimitiveType::Line)
+	{
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	}
+
+	else
+	{
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
+
+	commandList->DrawIndexedInstanced(indexCount, instanceCount, startIndex, 0, baseInstanceId);
+}
 
 void Direct3D12GraphicsService::DrawPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount)
 { 
-	if (this->commandLists.count(commandListId))
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+
+	if (primitiveType == GraphicsPrimitiveType::TriangleStrip)
 	{
-		auto commandList = this->commandLists[commandListId];
-
-		if (primitiveType == GraphicsPrimitiveType::TriangleStrip)
-		{
-			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		}
-
-		else if (primitiveType == GraphicsPrimitiveType::Line)
-		{
-			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-		}
-
-		else
-		{
-			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		}
-
-		commandList->DrawInstanced(vertexCount, 1, startVertex, 0);
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	}
+
+	else if (primitiveType == GraphicsPrimitiveType::Line)
+	{
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	}
+
+	else
+	{
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
+
+	commandList->DrawInstanced(vertexCount, 1, startVertex, 0);
 }
 
 void Direct3D12GraphicsService::WaitForCommandList(unsigned int commandListId, unsigned int commandListToWaitId){ }
@@ -332,21 +678,14 @@ void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId
 		return;
 	}
 	
-	auto commandList = CreateOrResetCommandList(commandBufferId, "PresentCommandList", D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto commandList = this->commandBuffers[commandBufferId];
 	commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-	commandList->Close();
-
-	ID3D12CommandList* commandLists[] = { commandList.Get() };
-	this->directCommandQueue->ExecuteCommandLists(1, commandLists);
-
-	ReleaseCommandList(commandList, D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-	AssertIfFailed(this->swapChain->Present(1, 0));
 }
 
 void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 { 
+	AssertIfFailed(this->swapChain->Present(1, 0));
+
 	// TODO:
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
 	// This is code implemented as such for simplicity. More advanced samples 
@@ -367,6 +706,10 @@ void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 		}
 
 		this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
+
+		this->directCommandAllocators[this->currentBackBufferIndex]->Reset();
+		this->copyCommandAllocators[this->currentBackBufferIndex]->Reset();
+		this->computeCommandAllocators[this->currentBackBufferIndex]->Reset();
 	}
 }
 
@@ -437,6 +780,7 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	directCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&directCommandQueueDesc, IID_PPV_ARGS(this->directCommandQueue.ReleaseAndGetAddressOf())));
+	this->directCommandQueue->SetName(L"DirectCommandQueue");
 
 	// Create the copy command queue
 	D3D12_COMMAND_QUEUE_DESC copyCommandQueueDesc = {};
@@ -444,6 +788,7 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	copyCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
 
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&copyCommandQueueDesc, IID_PPV_ARGS(this->copyCommandQueue.ReleaseAndGetAddressOf())));
+	this->copyCommandQueue->SetName(L"CopyCommandQueue");
 
 	// Create the compute command queue
 	D3D12_COMMAND_QUEUE_DESC computeCommandQueueDesc = {};
@@ -451,15 +796,34 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	computeCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&computeCommandQueueDesc, IID_PPV_ARGS(this->computeCommandQueue.ReleaseAndGetAddressOf())));
+	this->computeCommandQueue->SetName(L"ComputeCommandQueue");
 
-	// Describe and create a render target view (RTV) descriptor heap
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-	rtvHeapDesc.NumDescriptors = RenderBuffersCount;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	
-	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(this->rtvDescriptorHeap.ReleaseAndGetAddressOf())));
-	this->rtvDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	for (int i = 0; i < RenderBuffersCount; i++)
+	{
+		ComPtr<ID3D12CommandAllocator> renderCommandAllocator;
+		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(renderCommandAllocator.ReleaseAndGetAddressOf())));
+
+		wchar_t directBuff[64] = {};
+  		swprintf(directBuff, L"DirectCommandAllocator%d", i);
+		renderCommandAllocator->SetName(directBuff);
+		this->directCommandAllocators[i] = renderCommandAllocator;
+
+		ComPtr<ID3D12CommandAllocator> copyCommandAllocator;
+		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(copyCommandAllocator.ReleaseAndGetAddressOf())));
+
+		wchar_t copyBuff[64] = {};
+  		swprintf(copyBuff, L"CopyCommandAllocator%d", i);
+		copyCommandAllocator->SetName(copyBuff);
+		this->copyCommandAllocators[i] = copyCommandAllocator;
+
+		ComPtr<ID3D12CommandAllocator> computeCommandAllocator;
+		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(computeCommandAllocator.ReleaseAndGetAddressOf())));
+
+		wchar_t computeBuff[64] = {};
+  		swprintf(computeBuff, L"ComputeCommandAllocator%d", i);
+		computeCommandAllocator->SetName(computeBuff);
+		this->computeCommandAllocators[i] = computeCommandAllocator;
+	}
 
 	return true;
 }
@@ -539,6 +903,15 @@ bool Direct3D12GraphicsService::CreateOrResizeSwapChain(const ComPtr<IDXGIFactor
         }
 	}
 
+	// Describe and create a render target view (RTV) descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = RenderBuffersCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	
+	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(this->rtvDescriptorHeap.ReleaseAndGetAddressOf())));
+	this->rtvDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
 	// Create a RTV for each back buffers
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvDecriptorHandle = this->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
@@ -597,61 +970,63 @@ D3D12_CPU_DESCRIPTOR_HANDLE Direct3D12GraphicsService::GetCurrentRenderTargetVie
 	return renderTargetViewHandle;
 }
 
-ComPtr<ID3D12GraphicsCommandList> Direct3D12GraphicsService::CreateOrResetCommandList(unsigned int commandBufferId, char* label, D3D12_COMMAND_LIST_TYPE listType)
+// TODO: Make it generic to all resource types
+void Direct3D12GraphicsService::TransitionTextureToState(unsigned int commandListId, unsigned int textureId, D3D12_RESOURCE_STATES destinationState)
 {
-	if (!this->commandBuffers.count(commandBufferId))
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto gpuTexture = this->gpuTextures[textureId];
+	auto actualState = this->textureResourceStates[textureId];
+
+	if (actualState != destinationState)
 	{
-		return nullptr;
-	}
-	
-	auto commandBuffer = this->commandBuffers[commandBufferId];
-
-	auto commandListCache = this->renderCommandListCache;
-
-	if (listType == D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		commandListCache = this->copyCommandListCache;
-	}
-
-	else if (listType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-	{
-		commandListCache = this->computeCommandListCache;
-	}
-
-	if (commandListCache.empty())
-	{
-		ComPtr<ID3D12GraphicsCommandList> commandList;
-		AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandBuffer.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
-		commandList->SetName(wstring(label, label + strlen(label)).c_str());
-
-		return commandList;
-	}
-
-	else
-	{
-		auto commandList = commandListCache.top();
-		commandListCache.pop();
-		
-		commandList->Reset(commandBuffer.Get(), nullptr);
-		commandList->SetName(wstring(label, label + strlen(label)).c_str());
-
-		return commandList;
+		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(gpuTexture.Get(), actualState, destinationState));
+		this->textureResourceStates[textureId] = destinationState;
 	}
 }
 
-void Direct3D12GraphicsService::ReleaseCommandList(ComPtr<ID3D12GraphicsCommandList> commandList, D3D12_COMMAND_LIST_TYPE listType)
+DXGI_FORMAT Direct3D12GraphicsService::ConvertTextureFormat(GraphicsTextureFormat textureFormat) 
 {
-	auto commandListCache = this->renderCommandListCache;
-
-	if (listType == D3D12_COMMAND_LIST_TYPE_COPY)
+	switch (textureFormat)
 	{
-		commandListCache = this->copyCommandListCache;
-	}
+		case GraphicsTextureFormat::Bgra8UnormSrgb:
+			return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+	
+		case GraphicsTextureFormat::Depth32Float:
+			return DXGI_FORMAT_D32_FLOAT;
+	
+		case GraphicsTextureFormat::Rgba16Float:
+			return DXGI_FORMAT_R16G16B16A16_FLOAT;
+	
+		case GraphicsTextureFormat::R16Float:
+			return DXGI_FORMAT_R16_FLOAT;
+	
+		case GraphicsTextureFormat::BC1Srgb:
+			return DXGI_FORMAT_BC1_UNORM_SRGB;
 
-	else if (listType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-	{
-		commandListCache = this->computeCommandListCache;
-	}
+		case GraphicsTextureFormat::BC2Srgb:
+			return DXGI_FORMAT_BC2_UNORM_SRGB;
 
-	commandListCache.push(commandList);
+		case GraphicsTextureFormat::BC3Srgb:
+			return DXGI_FORMAT_BC3_UNORM_SRGB;
+
+		case GraphicsTextureFormat::BC4:
+			return DXGI_FORMAT_BC4_UNORM;
+
+		case GraphicsTextureFormat::BC5:
+			return DXGI_FORMAT_BC5_UNORM;
+
+		case GraphicsTextureFormat::BC6:
+			return DXGI_FORMAT_BC6H_UF16;
+
+		case GraphicsTextureFormat::BC7Srgb:
+			return DXGI_FORMAT_BC7_UNORM_SRGB;
+
+		case GraphicsTextureFormat::Rgba32Float:
+			return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+		case GraphicsTextureFormat::Rgba16Unorm:
+			return DXGI_FORMAT_R16G16B16A16_UNORM;
+	}
+        
+	return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 }

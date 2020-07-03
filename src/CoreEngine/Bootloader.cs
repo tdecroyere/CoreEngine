@@ -38,6 +38,7 @@ namespace CoreEngine
                     
                 // TODO: Get the config from the host using hardcoded values for the moment
                 resourcesManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
+                resourcesManager.AddResourceStorage(new FileSystemResourceStorage("./Resources"));
                 resourcesManager.AddResourceLoader(new SceneResourceLoader(resourcesManager));
 
                 sceneQueue = new GraphicsSceneQueue();

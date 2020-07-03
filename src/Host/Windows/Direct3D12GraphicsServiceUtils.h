@@ -3,16 +3,16 @@
 
 // using namespace winrt;
 
-// com_ptr<ID3DBlob> CreateShaderBlob(void* data, int dataLength)
-// {
-//     com_ptr<ID3DBlob> shaderBlob;
-//     D3DCreateBlob(dataLength, shaderBlob.put());
+ComPtr<ID3DBlob> CreateShaderBlob(void* data, int dataLength)
+{
+    ComPtr<ID3DBlob> shaderBlob;
+    D3DCreateBlob(dataLength, shaderBlob.ReleaseAndGetAddressOf());
 
-//     auto shaderByteCode = shaderBlob->GetBufferPointer();
-//     memcpy(shaderByteCode, data, dataLength);
+    auto shaderByteCode = shaderBlob->GetBufferPointer();
+    memcpy(shaderByteCode, data, dataLength);
 
-//     return shaderBlob;
-// }
+    return shaderBlob;
+}
 
 D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {

@@ -7,6 +7,13 @@ using namespace Microsoft::WRL;
 
 static const int RenderBuffersCount = 2;
 
+struct Shader
+{
+    ComPtr<ID3DBlob> VertexShaderMethod;
+    ComPtr<ID3DBlob> PixelShaderMethod;
+    ComPtr<ID3D12RootSignature> RootSignature;
+};
+
 class Direct3D12GraphicsService
 {
     public:
@@ -86,11 +93,15 @@ class Direct3D12GraphicsService
         HANDLE globalFenceEvent;
 
         // Command buffer objects
-        map<unsigned int, ComPtr<ID3D12CommandAllocator>> commandBuffers;
-        map<unsigned int, ComPtr<ID3D12GraphicsCommandList>> commandLists;
-        stack<ComPtr<ID3D12GraphicsCommandList>> copyCommandListCache;
-        stack<ComPtr<ID3D12GraphicsCommandList>> renderCommandListCache;
-        stack<ComPtr<ID3D12GraphicsCommandList>> computeCommandListCache;
+        ComPtr<ID3D12CommandAllocator> directCommandAllocators[RenderBuffersCount] = {};
+        ComPtr<ID3D12CommandAllocator> copyCommandAllocators[RenderBuffersCount] = {};
+        ComPtr<ID3D12CommandAllocator> computeCommandAllocators[RenderBuffersCount] = {};
+
+        // TODO: Merge that into one structure
+        map<unsigned int, ComPtr<ID3D12GraphicsCommandList>> commandBuffers;
+        map<unsigned int, D3D12_COMMAND_LIST_TYPE> commandBufferTypes;
+        map<unsigned int, wstring> commandBufferLabels;
+        map<unsigned int, unsigned int> commandListBuffers;
 
         // Heap objects
         ComPtr<ID3D12Heap> uploadHeap;
@@ -101,6 +112,18 @@ class Direct3D12GraphicsService
         // Buffers
         map<unsigned int, ComPtr<ID3D12Resource>> cpuBuffers;
         map<unsigned int, ComPtr<ID3D12Resource>> gpuBuffers;
+        map<unsigned int, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
+
+        // Textures
+        map<unsigned int, ComPtr<ID3D12Resource>> gpuTextures;
+        map<unsigned int, ComPtr<ID3D12DescriptorHeap>> textureDescriptorHeaps;
+        map<unsigned int, ComPtr<ID3D12DescriptorHeap>> srvtextureDescriptorHeaps;
+        map<unsigned int, D3D12_RESOURCE_STATES> textureResourceStates;
+
+        // Shaders
+        map<unsigned int, Shader> shaders;
+        map<unsigned int, ComPtr<ID3D12PipelineState>> pipelineStates;
+        bool shaderBound;
 
         void EnableDebugLayer();
         ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);
@@ -109,7 +132,6 @@ class Direct3D12GraphicsService
         bool CreateHeaps();
 
         D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
-        
-        ComPtr<ID3D12GraphicsCommandList> CreateOrResetCommandList(unsigned int commandBufferId, char* label, D3D12_COMMAND_LIST_TYPE listType);
-        void ReleaseCommandList(ComPtr<ID3D12GraphicsCommandList> commandList, D3D12_COMMAND_LIST_TYPE listType);
+        void TransitionTextureToState(unsigned int commandListId, unsigned int textureId, D3D12_RESOURCE_STATES destinationState);
+        DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat);
 };

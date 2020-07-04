@@ -18,12 +18,12 @@ Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int
     createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-    ComPtr<IDXGIFactory4> dxgiFactory;
-	AssertIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(dxgiFactory.ReleaseAndGetAddressOf())));
+	this->window = window;
+	AssertIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(this->dxgiFactory.ReleaseAndGetAddressOf())));
 
 	auto graphicsAdapter = FindGraphicsAdapter(dxgiFactory);
 	AssertIfFailed(CreateDevice(dxgiFactory, graphicsAdapter));
-	AssertIfFailed(CreateOrResizeSwapChain(dxgiFactory, window, width, height));
+	AssertIfFailed(CreateOrResizeSwapChain(width, height));
 	AssertIfFailed(CreateHeaps());
 }
 
@@ -43,7 +43,7 @@ Direct3D12GraphicsService::~Direct3D12GraphicsService()
 
 struct Vector2 Direct3D12GraphicsService::GetRenderSize()
 {
-    return Vector2 { 1280, 720 };
+    return this->currentRenderSize;
 }
 
 void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
@@ -158,6 +158,40 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum Graphi
 	this->gpuTextures[textureId] = gpuTexture;
 	this->textureResourceStates[textureId] = D3D12_RESOURCE_STATE_COPY_DEST;
 
+	if (!isRenderTarget)
+	{
+		UINT64 uploadBufferSize;
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footPrint;
+
+		this->graphicsDevice->GetCopyableFootprints(&textureDesc, 0, mipLevels, 0, &footPrint, nullptr, nullptr, &uploadBufferSize);
+		this->textureFootPrints[textureId] = footPrint;
+
+		D3D12_RESOURCE_DESC textureResourceDesc = {};
+		textureResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		textureResourceDesc.Alignment = 0;
+		textureResourceDesc.Width = uploadBufferSize;
+		textureResourceDesc.Height = 1;
+		textureResourceDesc.DepthOrArraySize = 1;
+		textureResourceDesc.MipLevels = 1;
+		textureResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+		textureResourceDesc.SampleDesc.Count = 1;
+		textureResourceDesc.SampleDesc.Quality = 0;
+		textureResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		textureResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		// TODO: Don't create a cpu texture each time especially for static textures and RT!
+		D3D12_HEAP_PROPERTIES uploadHeapProperties = {};
+		uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+		uploadHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		uploadHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		uploadHeapProperties.CreationNodeMask = 1;
+		uploadHeapProperties.VisibleNodeMask = 1;
+
+		ComPtr<ID3D12Resource> cpuTexture;
+		AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &textureResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(cpuTexture.ReleaseAndGetAddressOf())));
+		this->cpuTextures[textureId] = cpuTexture;
+	}
+
 	if (textureFormat != GraphicsTextureFormat::Depth32Float)
 	{
 		// Create Descriptor heap
@@ -269,7 +303,7 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 	// Describe and create the graphics pipeline state object (PSO)
 	const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
 	{
-		false,
+		true,
 		false,
 		D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
 		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
@@ -452,7 +486,52 @@ void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, uns
 	commandList->SetGraphicsRootDescriptorTable(slot, descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
-void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, unsigned int* textureIdList, int textureIdListLength, int slot, int index){ }
+void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, unsigned int* textureIdList, int textureIdListLength, int slot, int index)
+{ 
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+
+	ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
+
+	// Create Descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
+	descriptorHeapDesc.NumDescriptors = textureIdListLength;
+	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(srvDescriptorHeap.ReleaseAndGetAddressOf())));
+
+	this->debugDescriptorHeaps[commandListId] = srvDescriptorHeap;
+
+	int srvDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto heapPtr = srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	
+	for (int i = 0; i < textureIdListLength; i++)
+	{
+		auto textureId = textureIdList[i];
+		auto gpuTexture = this->gpuTextures[textureId];
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = gpuTexture->GetDesc().Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = gpuTexture->GetDesc().MipLevels;
+		this->graphicsDevice->CreateShaderResourceView(gpuTexture.Get(), &srvDesc, heapPtr);
+
+		heapPtr.ptr += srvDescriptorHandleSize;
+
+		TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ);
+	}
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
+	commandList->SetDescriptorHeaps(1, descriptorHeaps);
+	commandList->SetGraphicsRootDescriptorTable(slot, srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
 void Direct3D12GraphicsService::SetShaderIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int slot, int index){ }
 void Direct3D12GraphicsService::SetShaderIndirectCommandLists(unsigned int commandListId, unsigned int* indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index){ }
 
@@ -491,7 +570,37 @@ void Direct3D12GraphicsService::UploadDataToGraphicsBuffer(unsigned int commandL
 
 void Direct3D12GraphicsService::CopyGraphicsBufferDataToCpu(unsigned int commandListId, unsigned int graphicsBufferId, int length){ }
 void Direct3D12GraphicsService::ReadGraphicsBufferData(unsigned int graphicsBufferId, void* data, int dataLength){ }
-void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength){ }
+
+void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength)
+{ 
+	// TODO: For the moment it only takes into account the mip level
+
+	TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_COPY_DEST);
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto gpuTexture = this->gpuTextures[textureId];
+	auto cpuTexture = this->cpuTextures[textureId];
+	auto footPrint = this->textureFootPrints[textureId];
+
+	void* pointer = nullptr;
+	D3D12_RANGE range = { 0, 0 };
+	cpuTexture->Map(0, &range, &pointer);
+
+	memcpy(pointer, data, dataLength);
+
+	D3D12_TEXTURE_COPY_LOCATION destinationLocation = {};
+	destinationLocation.pResource = gpuTexture.Get();
+	destinationLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	destinationLocation.SubresourceIndex = mipLevel;
+
+	D3D12_TEXTURE_COPY_LOCATION sourceLocation = {};
+	sourceLocation.pResource = cpuTexture.Get();
+	sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	sourceLocation.PlacedFootprint = footPrint;
+
+	commandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
+}
+
 void Direct3D12GraphicsService::ResetIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount){ }
 void Direct3D12GraphicsService::OptimizeIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount){ }
 
@@ -600,6 +709,7 @@ void Direct3D12GraphicsService::SetShader(unsigned int commandListId, unsigned i
 { 
 	if (shaderId == 0)
 	{
+	this->shaderBound = false;
 		return;
 	}
 
@@ -679,13 +789,51 @@ void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId
 	}
 	
 	auto commandList = this->commandBuffers[commandBufferId];
-	commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));	
+}
+
+// TODO: Do something better
+bool GraphicsProcessMessage(const MSG& message)
+{
+	if (message.message == WM_QUIT)
+	{
+		return false;
+	}
+
+	TranslateMessage(&message);
+	DispatchMessageA(&message);
+
+	return true;
+}
+
+bool GraphicsProcessPendingMessages()
+{
+	bool gameRunning = true;
+	MSG message;
+
+	while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE))
+	{
+		if (message.message == WM_QUIT)
+		{
+			// TODO: Change that it is a hack
+			exit(0);
+		}
+
+		TranslateMessage(&message);
+		DispatchMessageA(&message);
+	}
+
+	return gameRunning;
 }
 
 void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 { 
 	AssertIfFailed(this->swapChain->Present(1, 0));
+	WaitForGlobalFence();
+}
 
+void Direct3D12GraphicsService::WaitForGlobalFence()
+{
 	// TODO:
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
 	// This is code implemented as such for simplicity. More advanced samples 
@@ -702,7 +850,11 @@ void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 		if (this->globalFence->GetCompletedValue() < fence)
 		{
 			this->globalFence->SetEventOnCompletion(fence, this->globalFenceEvent);
-			WaitForSingleObject(this->globalFenceEvent, INFINITE);
+			
+			while(WaitForSingleObject(this->globalFenceEvent, 0))
+			{
+				GraphicsProcessPendingMessages();
+			}
 		}
 
 		this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
@@ -748,7 +900,7 @@ ComPtr<IDXGIAdapter4> Direct3D12GraphicsService::FindGraphicsAdapter(const ComPt
 
 			if (/*deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && */dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
 			{
-				this->adapterName = wstring(dxgiAdapterDesc1.Description);
+				this->adapterName = wstring(dxgiAdapterDesc1.Description) + L" (DirectX 12)";
 				maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
 				dxgiAdapter1.As(&dxgiAdapter4);
 			}
@@ -828,8 +980,15 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	return true;
 }
 
-bool Direct3D12GraphicsService::CreateOrResizeSwapChain(const ComPtr<IDXGIFactory4> dxgiFactory, HWND window, int width, int height)
+bool Direct3D12GraphicsService::CreateOrResizeSwapChain(int width, int height)
 {
+	if (width == 0 || height == 0)
+	{
+		return true;
+	}
+
+	this->currentRenderSize = { (float)width, (float)height };
+
 	// Create the swap chain
 	// TODO: Check for supported formats
 	// TODO: Add support for HDR displays
@@ -838,7 +997,7 @@ bool Direct3D12GraphicsService::CreateOrResizeSwapChain(const ComPtr<IDXGIFactor
 	if (this->swapChain)
 	{
 		// Wait until all previous GPU work is complete.
-		WaitForAvailableScreenBuffer();
+		WaitForGlobalFence();
 
 		// Release resources that are tied to the swap chain and update fence values.
 		for (int i = 0; i < RenderBuffersCount; i++)
@@ -934,6 +1093,14 @@ bool Direct3D12GraphicsService::CreateOrResizeSwapChain(const ComPtr<IDXGIFactor
     // Reset the index to the current back buffer
     this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
 
+	return true;
+}
+
+bool Direct3D12GraphicsService::SwitchScreenMode()
+{
+	BOOL fullscreenState;
+	this->swapChain->GetFullscreenState(&fullscreenState, nullptr);
+	AssertIfFailed(this->swapChain->SetFullscreenState(!fullscreenState, nullptr));
 	return true;
 }
 

@@ -7,38 +7,41 @@
 // SetProcessDPIAwareness function pointer definition
 typedef HRESULT WINAPI Set_Process_DPI_Awareness(PROCESS_DPI_AWARENESS value);
 
+Direct3D12GraphicsService* graphicsService;
 
 bool isAppActive = true;
+WINDOWPLACEMENT previousWindowPlacement;
 
-// void Win32SwitchScreenMode(Win32State* win32State)
-// {
-// 	DWORD windowStyle = GetWindowLongA(win32State->Window, GWL_STYLE);
+void Win32SwitchScreenMode(HWND window)
+{
+	DWORD windowStyle = GetWindowLongA(window, GWL_STYLE);
 
-// 	if (windowStyle & WS_OVERLAPPEDWINDOW) 
-// 	{
-// 		MONITORINFO monitorInfos = { sizeof(monitorInfos) };
+	if (windowStyle & WS_OVERLAPPEDWINDOW) 
+	{
+		MONITORINFO monitorInfos = { sizeof(monitorInfos) };
 
-// 		if (GetWindowPlacement(win32State->Window, &win32State->PreviousWindowPlacement) &&
-// 			GetMonitorInfoA(MonitorFromWindow(win32State->Window, MONITOR_DEFAULTTOPRIMARY), &monitorInfos))
-// 		{ 
-// 			SetWindowLongA(win32State->Window, GWL_STYLE, windowStyle & ~WS_OVERLAPPEDWINDOW);
-// 			SetWindowPos(win32State->Window, HWND_TOP,
-// 				monitorInfos.rcMonitor.left, monitorInfos.rcMonitor.top,
-// 				monitorInfos.rcMonitor.right - monitorInfos.rcMonitor.left,
-// 				monitorInfos.rcMonitor.bottom - monitorInfos.rcMonitor.top,
-// 				SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-// 		}
-// 	}
+		if (GetWindowPlacement(window, &previousWindowPlacement) &&
+			GetMonitorInfoA(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &monitorInfos))
+		{ 
+			SetWindowLongA(window, GWL_STYLE, windowStyle & ~WS_OVERLAPPEDWINDOW);
+			SetWindowPos(window, HWND_TOP,
+				monitorInfos.rcMonitor.left, monitorInfos.rcMonitor.top,
+				monitorInfos.rcMonitor.right - monitorInfos.rcMonitor.left,
+				monitorInfos.rcMonitor.bottom - monitorInfos.rcMonitor.top,
+				SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
 
-// 	else
-// 	{
-// 		SetWindowLongA(win32State->Window, GWL_STYLE, windowStyle | WS_OVERLAPPEDWINDOW);
-// 		SetWindowPlacement(win32State->Window, &win32State->PreviousWindowPlacement);
-// 		SetWindowPos(win32State->Window, NULL, 0, 0, 0, 0,
-// 					 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-// 	}
-// }
+			ShowWindow(window, SW_MAXIMIZE);
+		}
+	}
 
+	else
+	{
+		SetWindowLongA(window, GWL_STYLE, windowStyle | WS_OVERLAPPEDWINDOW);
+		SetWindowPlacement(window, &previousWindowPlacement);
+		SetWindowPos(window, NULL, 0, 0, 0, 0,
+					 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+	}
+}
 
 LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -53,32 +56,39 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 		isAppActive = !(wParam == WA_INACTIVE);
 		break;
 	}
+	case WM_KEYDOWN:
+	{
+		bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+	
+		switch (wParam)
+		{
+		case VK_ESCAPE:
+			::PostQuitMessage(0);
+			break;
+		case VK_RETURN:
+			if (alt)
+			{
+				Win32SwitchScreenMode(window);
+			}
+			break;
+		}
+	break;
+	}
 	case WM_SIZE:
 	{
 		// TODO: Handle minimized state
 
-		// if (globalDirect3D12)
-		// {
-		// 	RECT clientRect = {};
-		// 	GetClientRect(window, &clientRect);
+		RECT clientRect = {};
+		GetClientRect(window, &clientRect);
 
-		// 	uint32 windowWidth = clientRect.right - clientRect.left;
-		// 	uint32 windowHeight = clientRect.bottom - clientRect.top;
+		auto windowWidth = clientRect.right - clientRect.left;
+		auto windowHeight = clientRect.bottom - clientRect.top;
 
-		// 	if (windowWidth >= globalDirect3D12->Texture.Width * 2 && windowHeight >= globalDirect3D12->Texture.Height * 2)
-		// 	{
-		// 		globalDirect3D12->Width = windowWidth;
-		// 		globalDirect3D12->Height = windowHeight;
-		// 	}
-
-		// 	else
-		// 	{
-		// 		globalDirect3D12->Width = globalDirect3D12->Texture.Width;
-		// 		globalDirect3D12->Height = globalDirect3D12->Texture.Height;
-		// 	}
-
-		// 	Direct3D12InitSizeDependentResources(globalDirect3D12);
-		// }
+		if (graphicsService != nullptr)
+		{
+			graphicsService->CreateOrResizeSwapChain(windowWidth, windowHeight);
+		}
+		
 		break;
 	}
     case WM_DPICHANGED:
@@ -91,8 +101,6 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
             prcNewWindow->right - prcNewWindow->left,
             prcNewWindow->bottom - prcNewWindow->top,
             SWP_NOZORDER | SWP_NOACTIVATE);
-
-        printf("Size changed Width: %d, Height: %d (DPI: %d)\n", prcNewWindow->right - prcNewWindow->left, prcNewWindow->bottom - prcNewWindow->top, 0);
 
         break;
     }
@@ -215,10 +223,13 @@ int main(int argc, char const *argv[])
 	// HWND window = Win32InitWindow(applicationInstance, "Core Engine", 1280, 720);
 	HWND window = Win32InitWindow(GetModuleHandle(NULL), "Core Engine", 1280, 720);
 
-    auto graphicsService = Direct3D12GraphicsService(window, 1280, 720);
+	RECT windowRectangle;
+	GetClientRect(window, &windowRectangle);
+
+    graphicsService = new Direct3D12GraphicsService(window, windowRectangle.right - windowRectangle.left, windowRectangle.bottom - windowRectangle.top);
     auto inputsService = WindowsInputsService();
 
-    auto coreEngineHost = CoreEngineHost(graphicsService, inputsService);
+    auto coreEngineHost = CoreEngineHost(*graphicsService, inputsService);
     coreEngineHost.StartEngine("EcsTest");
 	
 	if (window)

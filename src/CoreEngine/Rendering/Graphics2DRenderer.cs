@@ -247,6 +247,8 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.SetShaderTextures(commandList, this.textures.ToArray(), 3);
 
                 this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
+
+                // Don't use a vertex buffer and an index, use instances instead
                 this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
                 this.graphicsManager.CommitRenderCommandList(commandList);

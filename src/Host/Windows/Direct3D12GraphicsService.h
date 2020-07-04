@@ -71,9 +71,14 @@ class Direct3D12GraphicsService
         void PresentScreenBuffer(unsigned int commandBufferId);
         void WaitForAvailableScreenBuffer();
 
+        bool CreateOrResizeSwapChain(int width, int height);
+        bool SwitchScreenMode();
+
     private:
         // Device objects
         wstring adapterName;
+        HWND window;
+        ComPtr<IDXGIFactory4> dxgiFactory; 
         ComPtr<ID3D12Device3> graphicsDevice;
         ComPtr<ID3D12CommandQueue> directCommandQueue;
         ComPtr<ID3D12CommandQueue> copyCommandQueue;
@@ -85,6 +90,7 @@ class Direct3D12GraphicsService
         ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
         int rtvDescriptorHandleSize;
         int currentBackBufferIndex;
+        Vector2 currentRenderSize;
 
         // Synchronization objects
         ComPtr<ID3D12Fence1> globalFence;
@@ -115,7 +121,9 @@ class Direct3D12GraphicsService
         map<unsigned int, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
 
         // Textures
+        map<unsigned int, ComPtr<ID3D12Resource>> cpuTextures;
         map<unsigned int, ComPtr<ID3D12Resource>> gpuTextures;
+        map<unsigned int, D3D12_PLACED_SUBRESOURCE_FOOTPRINT> textureFootPrints;
         map<unsigned int, ComPtr<ID3D12DescriptorHeap>> textureDescriptorHeaps;
         map<unsigned int, ComPtr<ID3D12DescriptorHeap>> srvtextureDescriptorHeaps;
         map<unsigned int, D3D12_RESOURCE_STATES> textureResourceStates;
@@ -125,12 +133,15 @@ class Direct3D12GraphicsService
         map<unsigned int, ComPtr<ID3D12PipelineState>> pipelineStates;
         bool shaderBound;
 
+        map<unsigned int, ComPtr<ID3D12DescriptorHeap>> debugDescriptorHeaps;
+
+
         void EnableDebugLayer();
         ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);
         bool CreateDevice(const ComPtr<IDXGIFactory4> dxgiFactory, const ComPtr<IDXGIAdapter4> graphicsAdapter);
-        bool CreateOrResizeSwapChain(const ComPtr<IDXGIFactory4> dxgiFactory, HWND window, int width, int height);
         bool CreateHeaps();
 
+        void WaitForGlobalFence();
         D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
         void TransitionTextureToState(unsigned int commandListId, unsigned int textureId, D3D12_RESOURCE_STATES destinationState);
         DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat);

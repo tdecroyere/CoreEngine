@@ -1305,7 +1305,7 @@ namespace CoreEngine.Rendering
 
                 for (var j = 0; j < meshInstance.WorldBoundingBoxList.Count; j++)
                 {
-                    //this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBoxList[j], new Vector3(0, 1, 0));
+                    this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBoxList[j], new Vector3(0, 1, 0));
                 }
 
                 if (meshInstance.Material != null)

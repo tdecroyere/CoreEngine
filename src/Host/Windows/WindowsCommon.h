@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #include <string>
 #include <map>
 #include <vector>
@@ -17,3 +19,5 @@
 #else
 #include <dxgi1_5.h>
 #endif
+
+#define AssertIfFailed(result) assert(!FAILED(result))

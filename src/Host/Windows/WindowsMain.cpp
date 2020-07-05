@@ -7,7 +7,7 @@
 // SetProcessDPIAwareness function pointer definition
 typedef HRESULT WINAPI Set_Process_DPI_Awareness(PROCESS_DPI_AWARENESS value);
 
-Direct3D12GraphicsService* graphicsService;
+Direct3D12GraphicsService* globalGraphicsService;
 
 bool isAppActive = true;
 WINDOWPLACEMENT previousWindowPlacement;
@@ -84,11 +84,11 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 		auto windowWidth = clientRect.right - clientRect.left;
 		auto windowHeight = clientRect.bottom - clientRect.top;
 
-		if (graphicsService != nullptr)
+		if (globalGraphicsService)
 		{
-			graphicsService->CreateOrResizeSwapChain(windowWidth, windowHeight);
+			globalGraphicsService->CreateOrResizeSwapChain(windowWidth, windowHeight);
 		}
-		
+
 		break;
 	}
     case WM_DPICHANGED:
@@ -217,30 +217,34 @@ bool Win32ProcessPendingMessages()
 	return gameRunning;
 }
 
+
 // int CALLBACK WinMain(HINSTANCE applicationInstance, HINSTANCE, LPSTR, int)
 int main(int argc, char const *argv[])
 {
+	GameState gameState = {};
+	gameState.GameRunning = true;
+
 	// HWND window = Win32InitWindow(applicationInstance, "Core Engine", 1280, 720);
 	HWND window = Win32InitWindow(GetModuleHandle(NULL), "Core Engine", 1280, 720);
 
 	RECT windowRectangle;
 	GetClientRect(window, &windowRectangle);
 
-    graphicsService = new Direct3D12GraphicsService(window, windowRectangle.right - windowRectangle.left, windowRectangle.bottom - windowRectangle.top);
-    auto inputsService = WindowsInputsService();
+    auto graphicsService = Direct3D12GraphicsService(window, windowRectangle.right - windowRectangle.left, windowRectangle.bottom - windowRectangle.top, &gameState);
+	globalGraphicsService = &graphicsService;
+	
+    auto inputsService = WindowsInputsService(window);
 
-    auto coreEngineHost = CoreEngineHost(*graphicsService, inputsService);
+    auto coreEngineHost = CoreEngineHost(graphicsService, inputsService);
     coreEngineHost.StartEngine("EcsTest");
 	
 	if (window)
 	{
-        bool gameRunning = true;
-
-        while (gameRunning)
+        while (gameState.GameRunning)
         {
-            gameRunning = Win32ProcessPendingMessages();
+            gameState.GameRunning = Win32ProcessPendingMessages();
 
-            if (gameRunning)
+            if (gameState.GameRunning)
             {
                 if (isAppActive)
                 {
@@ -268,10 +272,11 @@ int main(int argc, char const *argv[])
                     //     break;
                     // }
 					
-					coreEngineHost.UpdateEngine(0);
+					coreEngineHost.UpdateEngine(1.0f / 60.0f);
                 }
-
             }
         }
+
+		graphicsService.WaitForGlobalFence();
 	}
 }

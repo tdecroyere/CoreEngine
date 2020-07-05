@@ -7,6 +7,11 @@ using namespace Microsoft::WRL;
 
 static const int RenderBuffersCount = 2;
 
+struct GameState
+{
+	bool GameRunning;
+};
+
 struct Shader
 {
     ComPtr<ID3DBlob> VertexShaderMethod;
@@ -17,7 +22,7 @@ struct Shader
 class Direct3D12GraphicsService
 {
     public:
-        Direct3D12GraphicsService(HWND window, int width, int height);
+        Direct3D12GraphicsService(HWND window, int width, int height, GameState* gameState);
         ~Direct3D12GraphicsService();
 
         struct Vector2 GetRenderSize();
@@ -73,8 +78,11 @@ class Direct3D12GraphicsService
 
         bool CreateOrResizeSwapChain(int width, int height);
         bool SwitchScreenMode();
+        void WaitForGlobalFence();
 
     private:
+        GameState* gameState;
+
         // Device objects
         wstring adapterName;
         HWND window;
@@ -141,7 +149,6 @@ class Direct3D12GraphicsService
         bool CreateDevice(const ComPtr<IDXGIFactory4> dxgiFactory, const ComPtr<IDXGIAdapter4> graphicsAdapter);
         bool CreateHeaps();
 
-        void WaitForGlobalFence();
         D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
         void TransitionTextureToState(unsigned int commandListId, unsigned int textureId, D3D12_RESOURCE_STATES destinationState);
         DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat);

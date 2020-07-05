@@ -6,11 +6,11 @@
 using namespace std;
 using namespace Microsoft::WRL;
 
-#define AssertIfFailed(result) assert(!FAILED(result))
 #define GetAlignedValue(value, alignement) (value + (alignement - (value % alignement)) % alignement)
 
-Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int height)
+Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int height, GameState* gameState)
 {
+	this->gameState = gameState;
     UINT createFactoryFlags = 0;
 
 #ifdef DEBUG
@@ -108,10 +108,10 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 
 int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
 { 
+	// TODO: Support mip levels
 	// TODO: Switch to placed resources
-
 	D3D12_RESOURCE_DESC textureDesc = {};
-	textureDesc.MipLevels = mipLevels;
+	textureDesc.MipLevels = 1;//mipLevels;
 	textureDesc.Format = ConvertTextureFormat(textureFormat);
 	textureDesc.Width = width;
 	textureDesc.Height = height;
@@ -119,6 +119,7 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum Graphi
 	textureDesc.SampleDesc.Count = multisampleCount;
 	textureDesc.SampleDesc.Quality = 0;
 	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
 	D3D12_CLEAR_VALUE* clearValue = nullptr;
 
@@ -135,7 +136,6 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum Graphi
 
 			// TODO: To remove?
 			D3D12_CLEAR_VALUE rawClearValue = {};
-			rawClearValue.Color[1] = 1;
 			rawClearValue.Format = ConvertTextureFormat(textureFormat);
 			clearValue = &rawClearValue;
 		}
@@ -163,7 +163,7 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum Graphi
 		UINT64 uploadBufferSize;
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footPrint;
 
-		this->graphicsDevice->GetCopyableFootprints(&textureDesc, 0, mipLevels, 0, &footPrint, nullptr, nullptr, &uploadBufferSize);
+		this->graphicsDevice->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footPrint, nullptr, nullptr, &uploadBufferSize);
 		this->textureFootPrints[textureId] = footPrint;
 
 		D3D12_RESOURCE_DESC textureResourceDesc = {};
@@ -207,7 +207,7 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum Graphi
 		srvDesc.Format = ConvertTextureFormat(textureFormat);
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Texture2D.MipLevels = mipLevels;
+		srvDesc.Texture2D.MipLevels = 1;//mipLevels;
 
 		this->graphicsDevice->CreateShaderResourceView(gpuTexture.Get(), &srvDesc, srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 		this->srvtextureDescriptorHeaps[textureId] = srvDescriptorHeap;
@@ -237,7 +237,7 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum Graphi
 
 void Direct3D12GraphicsService::DeleteTexture(unsigned int textureId)
 { 
-
+	this->textureFootPrints.erase(textureId);
 }
 
 int Direct3D12GraphicsService::CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount, char* label)
@@ -299,6 +299,15 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 	}
 
 	auto shader = this->shaders[shaderId];
+	auto labelString = string(label);
+
+	auto primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+	// TODO: Remove that hack
+	if (labelString == "DebugRender")
+	{
+		primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+	}
 
 	// Describe and create the graphics pipeline state object (PSO)
 	const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
@@ -316,7 +325,7 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 	psoDesc.VS = { shader.VertexShaderMethod->GetBufferPointer(), shader.VertexShaderMethod->GetBufferSize() };
 	psoDesc.PS = { shader.PixelShaderMethod->GetBufferPointer(), shader.PixelShaderMethod->GetBufferSize() };
 	psoDesc.SampleMask = 0xFFFFFF;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.PrimitiveTopologyType = primitiveTopologyType;
 
 	if (!renderPassDescriptor.RenderTarget1TextureId.HasValue && !renderPassDescriptor.DepthTextureId.HasValue)
 	{
@@ -369,6 +378,16 @@ void Direct3D12GraphicsService::DeletePipelineState(unsigned int pipelineStateId
 int Direct3D12GraphicsService::CreateCommandBuffer(unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label)
 { 
 	auto listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+	if (commandBufferType == GraphicsCommandBufferType::Copy)
+	{
+		listType = D3D12_COMMAND_LIST_TYPE_COPY;
+	}
+
+	else if (commandBufferType == GraphicsCommandBufferType::Compute)
+	{
+		listType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	}
 	
 	this->commandBufferTypes[commandBufferId] = listType;
 	this->commandBufferLabels[commandBufferId] = wstring(label, label + strlen(label));
@@ -389,12 +408,12 @@ void Direct3D12GraphicsService::ResetCommandBuffer(unsigned int commandBufferId)
 
 	ComPtr<ID3D12CommandAllocator> commandAllocator = this->directCommandAllocators[this->currentBackBufferIndex];
 
-	if (listType == GraphicsCommandBufferType::Copy)
+	if (listType == D3D12_COMMAND_LIST_TYPE_COPY)
 	{
 		commandAllocator = this->copyCommandAllocators[this->currentBackBufferIndex];
 	}
 
-	else if (listType == GraphicsCommandBufferType::Compute)
+	else if (listType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 	{
 		commandAllocator = this->computeCommandAllocators[this->currentBackBufferIndex];
 	}
@@ -425,12 +444,12 @@ void Direct3D12GraphicsService::ExecuteCommandBuffer(unsigned int commandBufferI
 		auto commandBufferType = this->commandBufferTypes[commandBufferId];
 		ComPtr<ID3D12CommandQueue> commandQueue = this->directCommandQueue;
 
-		if (commandBufferType == GraphicsCommandBufferType::Copy)
+		if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COPY)
 		{
 			commandQueue = this->copyCommandQueue;
 		}
 
-		else if (commandBufferType == GraphicsCommandBufferType::Compute)
+		else if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 		{
 			commandQueue = this->computeCommandQueue;
 		}
@@ -574,6 +593,10 @@ void Direct3D12GraphicsService::ReadGraphicsBufferData(unsigned int graphicsBuff
 void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength)
 { 
 	// TODO: For the moment it only takes into account the mip level
+	if (mipLevel > 0)
+	{
+		return;
+	}
 
 	TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_COPY_DEST);
 
@@ -640,8 +663,11 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		commandList->OMSetRenderTargets(1, &descriptorHeapHandle, false, nullptr);
 
-		float clearColor[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
-		commandList->ClearRenderTargetView(descriptorHeapHandle, clearColor, 0, nullptr);
+		if (renderDescriptor.RenderTarget1ClearColor.HasValue)
+		{
+			float clearColor[4] = { renderDescriptor.RenderTarget1ClearColor.Value.X, renderDescriptor.RenderTarget1ClearColor.Value.Y, renderDescriptor.RenderTarget1ClearColor.Value.Z, renderDescriptor.RenderTarget1ClearColor.Value.W };
+			commandList->ClearRenderTargetView(descriptorHeapHandle, clearColor, 0, nullptr);
+		}
 
 		D3D12_VIEWPORT viewport = {};
 		viewport.Width = (float)gpuTexture->GetDesc().Width;
@@ -661,9 +687,6 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 
 		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		commandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
-
-		float clearColor[4] = { 0.0f, 0.215f, 1.0f, 0.0f };
-		commandList->ClearRenderTargetView(renderTargetViewHandle, clearColor, 0, nullptr);
 
 		D3D12_VIEWPORT viewport = {};
 		viewport.Width = (float)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Width;
@@ -811,16 +834,16 @@ bool GraphicsProcessPendingMessages()
 	bool gameRunning = true;
 	MSG message;
 
-	while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE))
+	// NOTE: The 2 loops are needed only because of RawInput which require that we let the WM_INPUT messages
+	// in the windows message queue...
+	while (PeekMessageA(&message, nullptr, 0, WM_INPUT - 1, PM_REMOVE))
 	{
-		if (message.message == WM_QUIT)
-		{
-			// TODO: Change that it is a hack
-			exit(0);
-		}
+		gameRunning = GraphicsProcessMessage(message);
+	}
 
-		TranslateMessage(&message);
-		DispatchMessageA(&message);
+	while (PeekMessageA(&message, nullptr, WM_INPUT + 1, 0xFFFFFFFF, PM_REMOVE))
+	{
+		gameRunning = GraphicsProcessMessage(message);
 	}
 
 	return gameRunning;
@@ -830,6 +853,12 @@ void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 { 
 	AssertIfFailed(this->swapChain->Present(1, 0));
 	WaitForGlobalFence();
+
+	this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
+
+	this->directCommandAllocators[this->currentBackBufferIndex]->Reset();
+	this->copyCommandAllocators[this->currentBackBufferIndex]->Reset();
+	this->computeCommandAllocators[this->currentBackBufferIndex]->Reset();
 }
 
 void Direct3D12GraphicsService::WaitForGlobalFence()
@@ -851,17 +880,11 @@ void Direct3D12GraphicsService::WaitForGlobalFence()
 		{
 			this->globalFence->SetEventOnCompletion(fence, this->globalFenceEvent);
 			
-			while(WaitForSingleObject(this->globalFenceEvent, 0))
+			while (WaitForSingleObject(this->globalFenceEvent, 0))
 			{
-				GraphicsProcessPendingMessages();
+				this->gameState->GameRunning = GraphicsProcessPendingMessages();
 			}
 		}
-
-		this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
-
-		this->directCommandAllocators[this->currentBackBufferIndex]->Reset();
-		this->copyCommandAllocators[this->currentBackBufferIndex]->Reset();
-		this->computeCommandAllocators[this->currentBackBufferIndex]->Reset();
 	}
 }
 

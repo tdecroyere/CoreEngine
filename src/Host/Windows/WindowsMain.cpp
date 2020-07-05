@@ -7,9 +7,8 @@
 // SetProcessDPIAwareness function pointer definition
 typedef HRESULT WINAPI Set_Process_DPI_Awareness(PROCESS_DPI_AWARENESS value);
 
-Direct3D12GraphicsService* globalGraphicsService;
-
 bool isAppActive = true;
+bool doChangeSize = false;
 WINDOWPLACEMENT previousWindowPlacement;
 
 void Win32SwitchScreenMode(HWND window)
@@ -76,19 +75,8 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 	}
 	case WM_SIZE:
 	{
+		doChangeSize = true;
 		// TODO: Handle minimized state
-
-		RECT clientRect = {};
-		GetClientRect(window, &clientRect);
-
-		auto windowWidth = clientRect.right - clientRect.left;
-		auto windowHeight = clientRect.bottom - clientRect.top;
-
-		if (globalGraphicsService)
-		{
-			globalGraphicsService->CreateOrResizeSwapChain(windowWidth, windowHeight);
-		}
-
 		break;
 	}
     case WM_DPICHANGED:
@@ -231,8 +219,6 @@ int main(int argc, char const *argv[])
 	GetClientRect(window, &windowRectangle);
 
     auto graphicsService = Direct3D12GraphicsService(window, windowRectangle.right - windowRectangle.left, windowRectangle.bottom - windowRectangle.top, &gameState);
-	globalGraphicsService = &graphicsService;
-	
     auto inputsService = WindowsInputsService(window);
 
     auto coreEngineHost = CoreEngineHost(graphicsService, inputsService);
@@ -248,6 +234,17 @@ int main(int argc, char const *argv[])
             {
                 if (isAppActive)
                 {
+					if (doChangeSize)
+					{
+						RECT clientRect = {};
+						GetClientRect(window, &clientRect);
+
+						auto windowWidth = clientRect.right - clientRect.left;
+						auto windowHeight = clientRect.bottom - clientRect.top;
+
+						graphicsService.CreateOrResizeSwapChain(windowWidth, windowHeight);
+						doChangeSize = false;
+					}
                     //Win32UpdateRawInputState(&rawInput, &gameInput);
 
                     // TODO: Move system key processing into a separate function?

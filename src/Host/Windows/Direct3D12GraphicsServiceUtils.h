@@ -27,3 +27,29 @@ D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource,
 
 	return resourceBarrier;
 }
+
+D3D12_RENDER_TARGET_BLEND_DESC InitBlendState(GraphicsBlendOperation blendOperation)
+{
+	switch (blendOperation)
+	{
+		case GraphicsBlendOperation::AlphaBlending:
+			return {
+				true,
+				false,
+				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
+				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
+				D3D12_LOGIC_OP_NOOP,
+				D3D12_COLOR_WRITE_ENABLE_ALL,
+			};
+
+		default:
+			return {
+				false,
+				false,
+				D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+				D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+				D3D12_LOGIC_OP_NOOP,
+				D3D12_COLOR_WRITE_ENABLE_ALL,
+			};
+	}
+}

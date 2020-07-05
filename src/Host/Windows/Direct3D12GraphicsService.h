@@ -6,6 +6,7 @@ using namespace std;
 using namespace Microsoft::WRL;
 
 static const int RenderBuffersCount = 2;
+static const int CommandAllocatorsCount = 2;
 
 struct GameState
 {
@@ -77,7 +78,6 @@ class Direct3D12GraphicsService
         void WaitForAvailableScreenBuffer();
 
         bool CreateOrResizeSwapChain(int width, int height);
-        bool SwitchScreenMode();
         void WaitForGlobalFence();
 
     private:
@@ -102,20 +102,24 @@ class Direct3D12GraphicsService
 
         // Synchronization objects
         ComPtr<ID3D12Fence1> globalFence;
-        uint64_t globalFrameFenceValues[RenderBuffersCount] = {};
+        ComPtr<ID3D12Fence1> globalCopyFence;
+        ComPtr<ID3D12Fence1> globalComputeFence;
         uint64_t globalFenceValue;
         HANDLE globalFenceEvent;
+        bool isWaitingForGlobalFence;
 
         // Command buffer objects
-        ComPtr<ID3D12CommandAllocator> directCommandAllocators[RenderBuffersCount] = {};
-        ComPtr<ID3D12CommandAllocator> copyCommandAllocators[RenderBuffersCount] = {};
-        ComPtr<ID3D12CommandAllocator> computeCommandAllocators[RenderBuffersCount] = {};
+        ComPtr<ID3D12CommandAllocator> directCommandAllocators[CommandAllocatorsCount] = {};
+        ComPtr<ID3D12CommandAllocator> copyCommandAllocators[CommandAllocatorsCount] = {};
+        ComPtr<ID3D12CommandAllocator> computeCommandAllocators[CommandAllocatorsCount] = {};
+        int currentAllocatorIndex = 0;
 
         // TODO: Merge that into one structure
         map<unsigned int, ComPtr<ID3D12GraphicsCommandList>> commandBuffers;
         map<unsigned int, D3D12_COMMAND_LIST_TYPE> commandBufferTypes;
         map<unsigned int, wstring> commandBufferLabels;
         map<unsigned int, unsigned int> commandListBuffers;
+        map<unsigned int, ComPtr<ID3D12Fence1>> commandListFences;
 
         // Heap objects
         ComPtr<ID3D12Heap> uploadHeap;

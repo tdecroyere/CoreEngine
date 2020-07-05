@@ -11,6 +11,7 @@ using namespace Microsoft::WRL;
 Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int height, GameState* gameState)
 {
 	this->gameState = gameState;
+	this->isWaitingForGlobalFence = false;
     UINT createFactoryFlags = 0;
 
 #ifdef DEBUG
@@ -356,10 +357,16 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 	psoDesc.BlendState.AlphaToCoverageEnable = false;
 	psoDesc.BlendState.IndependentBlendEnable = false;
 
-	// for (int i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-	// {
-	psoDesc.BlendState.RenderTarget[0] = defaultRenderTargetBlendDesc;
-	// }
+	if (renderPassDescriptor.RenderTarget1BlendOperation.HasValue)
+	{
+		auto blendOperation = renderPassDescriptor.RenderTarget1BlendOperation.Value;
+		psoDesc.BlendState.RenderTarget[0] = InitBlendState(blendOperation);
+	}
+
+	else
+	{
+		psoDesc.BlendState.RenderTarget[0] = InitBlendState(GraphicsBlendOperation::None);
+	}
 
 	ComPtr<ID3D12PipelineState> pipelineState;
 	AssertIfFailed(this->graphicsDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
@@ -406,16 +413,16 @@ void Direct3D12GraphicsService::ResetCommandBuffer(unsigned int commandBufferId)
 { 
 	auto listType = this->commandBufferTypes[commandBufferId];
 
-	ComPtr<ID3D12CommandAllocator> commandAllocator = this->directCommandAllocators[this->currentBackBufferIndex];
+	ComPtr<ID3D12CommandAllocator> commandAllocator = this->directCommandAllocators[this->currentAllocatorIndex];
 
 	if (listType == D3D12_COMMAND_LIST_TYPE_COPY)
 	{
-		commandAllocator = this->copyCommandAllocators[this->currentBackBufferIndex];
+		commandAllocator = this->copyCommandAllocators[this->currentAllocatorIndex];
 	}
 
 	else if (listType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 	{
-		commandAllocator = this->computeCommandAllocators[this->currentBackBufferIndex];
+		commandAllocator = this->computeCommandAllocators[this->currentAllocatorIndex];
 	}
 
 	if (!this->commandBuffers.count(commandBufferId))
@@ -557,14 +564,22 @@ void Direct3D12GraphicsService::SetShaderIndirectCommandLists(unsigned int comma
 int Direct3D12GraphicsService::CreateCopyCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label)
 {
 	this->commandListBuffers[commandListId] = commandBufferId;
+
+	ComPtr<ID3D12Fence1> fence;
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence.ReleaseAndGetAddressOf())));
+
+	this->commandListFences[commandListId] = fence;
+	
     return 1;
 }
 
 void Direct3D12GraphicsService::CommitCopyCommandList(unsigned int commandListId)
 { 
-	this->commandListBuffers.erase(commandListId);
+	auto fence = this->commandListFences[commandListId];
+	ComPtr<ID3D12CommandQueue> commandQueue = this->copyCommandQueue;
+	commandQueue->Signal(fence.Get(), 1);
 
-	// TODO: Update Command List Fence value
+	this->commandListBuffers.erase(commandListId);
 }
 
 void Direct3D12GraphicsService::UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength)
@@ -630,14 +645,22 @@ void Direct3D12GraphicsService::OptimizeIndirectCommandList(unsigned int command
 int Direct3D12GraphicsService::CreateComputeCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label)
 { 
 	this->commandListBuffers[commandListId] = commandBufferId;
+
+	ComPtr<ID3D12Fence1> fence;
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence.ReleaseAndGetAddressOf())));
+
+	this->commandListFences[commandListId] = fence;
+
     return 1;
 }
 
 void Direct3D12GraphicsService::CommitComputeCommandList(unsigned int commandListId)
 { 
-	this->commandListBuffers.erase(commandListId);
+	auto fence = this->commandListFences[commandListId];
+	ComPtr<ID3D12CommandQueue> commandQueue = this->computeCommandQueue;
+	commandQueue->Signal(fence.Get(), 1);
 
-	// TODO: Update Command List Fence value
+	this->commandListBuffers.erase(commandListId);
 }
 
 struct Vector3 Direct3D12GraphicsService::DispatchThreads(unsigned int commandListId, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ)
@@ -655,6 +678,11 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 	this->commandListBuffers[commandListId] = commandBufferId;
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 
+	ComPtr<ID3D12Fence1> fence;
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence.ReleaseAndGetAddressOf())));
+
+	this->commandListFences[commandListId] = fence;
+
 	if (renderDescriptor.RenderTarget1TextureId.HasValue)
 	{
 		auto gpuTexture = this->gpuTextures[renderDescriptor.RenderTarget1TextureId.Value];
@@ -665,7 +693,8 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 
 		if (renderDescriptor.RenderTarget1ClearColor.HasValue)
 		{
-			float clearColor[4] = { renderDescriptor.RenderTarget1ClearColor.Value.X, renderDescriptor.RenderTarget1ClearColor.Value.Y, renderDescriptor.RenderTarget1ClearColor.Value.Z, renderDescriptor.RenderTarget1ClearColor.Value.W };
+			// float clearColor[4] = { renderDescriptor.RenderTarget1ClearColor.Value.X, renderDescriptor.RenderTarget1ClearColor.Value.Y, renderDescriptor.RenderTarget1ClearColor.Value.Z, renderDescriptor.RenderTarget1ClearColor.Value.W };
+			float clearColor[4] = {};
 			commandList->ClearRenderTargetView(descriptorHeapHandle, clearColor, 0, nullptr);
 		}
 
@@ -705,9 +734,11 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 
 void Direct3D12GraphicsService::CommitRenderCommandList(unsigned int commandListId)
 { 
-	this->commandListBuffers.erase(commandListId);
+	auto fence = this->commandListFences[commandListId];
+	ComPtr<ID3D12CommandQueue> commandQueue = this->directCommandQueue;
+	commandQueue->Signal(fence.Get(), 1);
 
-	// TODO: Update Command List Fence value
+	this->commandListBuffers.erase(commandListId);
 }
 
 void Direct3D12GraphicsService::SetPipelineState(unsigned int commandListId, unsigned int pipelineStateId)
@@ -802,7 +833,26 @@ void Direct3D12GraphicsService::DrawPrimitives(unsigned int commandListId, enum 
 	commandList->DrawInstanced(vertexCount, 1, startVertex, 0);
 }
 
-void Direct3D12GraphicsService::WaitForCommandList(unsigned int commandListId, unsigned int commandListToWaitId){ }
+void Direct3D12GraphicsService::WaitForCommandList(unsigned int commandListId, unsigned int commandListToWaitId)
+{ 
+	auto commandBufferId = this->commandListBuffers[commandListId];
+	auto fence = this->commandListFences[commandListToWaitId];
+
+	auto commandBufferType = this->commandBufferTypes[commandBufferId];
+	ComPtr<ID3D12CommandQueue> commandQueue = this->directCommandQueue;
+
+	if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		commandQueue = this->copyCommandQueue;
+	}
+
+	else if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		commandQueue = this->computeCommandQueue;
+	}
+
+	commandQueue->Wait(fence.Get(), 1);
+}
 
 void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId)
 { 
@@ -852,39 +902,61 @@ bool GraphicsProcessPendingMessages()
 void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 { 
 	AssertIfFailed(this->swapChain->Present(1, 0));
+	AssertIfFailed(this->directCommandQueue->Signal(this->globalFence.Get(), this->globalFenceValue));
+	AssertIfFailed(this->copyCommandQueue->Signal(this->globalCopyFence.Get(), this->globalFenceValue));
+	AssertIfFailed(this->computeCommandQueue->Signal(this->globalComputeFence.Get(), this->globalFenceValue));
+
 	WaitForGlobalFence();
 
 	this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
+	this->currentAllocatorIndex = (this->currentAllocatorIndex + 1) % CommandAllocatorsCount;
 
-	this->directCommandAllocators[this->currentBackBufferIndex]->Reset();
-	this->copyCommandAllocators[this->currentBackBufferIndex]->Reset();
-	this->computeCommandAllocators[this->currentBackBufferIndex]->Reset();
+	this->directCommandAllocators[this->currentAllocatorIndex]->Reset();
+	this->copyCommandAllocators[this->currentAllocatorIndex]->Reset();
+	this->computeCommandAllocators[this->currentAllocatorIndex]->Reset();
+
+	this->commandListFences.clear();
 }
 
 void Direct3D12GraphicsService::WaitForGlobalFence()
 {
-	// TODO:
-	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-	// This is code implemented as such for simplicity. More advanced samples 
-	// illustrate how to use fences for efficient resource usage.
-
-	if (this->globalFence)
+	if (this->globalFence && !this->isWaitingForGlobalFence)
 	{
-		// Signal and increment the fence value
-		const UINT64 fence = this->globalFenceValue;
-		this->directCommandQueue->Signal(this->globalFence.Get(), fence);
-		this->globalFenceValue++;
+		this->isWaitingForGlobalFence = true;
 
 		// Wait until the previous frame is finished
-		if (this->globalFence->GetCompletedValue() < fence)
+		if (this->globalFence->GetCompletedValue() < this->globalFenceValue - 1)
 		{
-			this->globalFence->SetEventOnCompletion(fence, this->globalFenceEvent);
+			this->globalFence->SetEventOnCompletion(this->globalFenceValue - 1, this->globalFenceEvent);
 			
 			while (WaitForSingleObject(this->globalFenceEvent, 0))
 			{
 				this->gameState->GameRunning = GraphicsProcessPendingMessages();
 			}
 		}
+
+		if (this->globalCopyFence->GetCompletedValue() < this->globalFenceValue - 1)
+		{
+			this->globalCopyFence->SetEventOnCompletion(this->globalFenceValue - 1, this->globalFenceEvent);
+			
+			while (WaitForSingleObject(this->globalFenceEvent, 0))
+			{
+				this->gameState->GameRunning = GraphicsProcessPendingMessages();
+			}
+		}
+
+		if (this->globalComputeFence->GetCompletedValue() < this->globalFenceValue - 1)
+		{
+			this->globalComputeFence->SetEventOnCompletion(this->globalFenceValue - 1, this->globalFenceEvent);
+			
+			while (WaitForSingleObject(this->globalFenceEvent, 0))
+			{
+				this->gameState->GameRunning = GraphicsProcessPendingMessages();
+			}
+		}
+
+		this->isWaitingForGlobalFence = false;
+		this->globalFenceValue++;
 	}
 }
 
@@ -949,6 +1021,9 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 		AssertIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf())));
 	}
 
+	this->globalFenceValue = 1;
+	this->globalFenceEvent = CreateEventA(nullptr, false, false, nullptr);
+
 	// Create the direct command queue
 	D3D12_COMMAND_QUEUE_DESC directCommandQueueDesc = {};
 	directCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -956,6 +1031,8 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&directCommandQueueDesc, IID_PPV_ARGS(this->directCommandQueue.ReleaseAndGetAddressOf())));
 	this->directCommandQueue->SetName(L"DirectCommandQueue");
+
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->globalFence.ReleaseAndGetAddressOf())));
 
 	// Create the copy command queue
 	D3D12_COMMAND_QUEUE_DESC copyCommandQueueDesc = {};
@@ -965,6 +1042,8 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&copyCommandQueueDesc, IID_PPV_ARGS(this->copyCommandQueue.ReleaseAndGetAddressOf())));
 	this->copyCommandQueue->SetName(L"CopyCommandQueue");
 
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->globalCopyFence.ReleaseAndGetAddressOf())));
+
 	// Create the compute command queue
 	D3D12_COMMAND_QUEUE_DESC computeCommandQueueDesc = {};
 	computeCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -973,7 +1052,10 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&computeCommandQueueDesc, IID_PPV_ARGS(this->computeCommandQueue.ReleaseAndGetAddressOf())));
 	this->computeCommandQueue->SetName(L"ComputeCommandQueue");
 
-	for (int i = 0; i < RenderBuffersCount; i++)
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->globalComputeFence.ReleaseAndGetAddressOf())));
+
+	// Init command allocators for each frame in flight
+	for (int i = 0; i < CommandAllocatorsCount; i++)
 	{
 		ComPtr<ID3D12CommandAllocator> renderCommandAllocator;
 		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(renderCommandAllocator.ReleaseAndGetAddressOf())));
@@ -1026,7 +1108,6 @@ bool Direct3D12GraphicsService::CreateOrResizeSwapChain(int width, int height)
 		for (int i = 0; i < RenderBuffersCount; i++)
 		{
 			this->backBufferRenderTargets[i].Reset();
-			this->globalFrameFenceValues[i] = this->globalFrameFenceValues[this->currentBackBufferIndex];
 		}
 	}
 
@@ -1051,13 +1132,6 @@ bool Direct3D12GraphicsService::CreateOrResizeSwapChain(int width, int height)
 		swapChainFullScreenDesc.Windowed = true;
 		
 		AssertIfFailed(dxgiFactory->CreateSwapChainForHwnd(this->directCommandQueue.Get(), window, &swapChainDesc, &swapChainFullScreenDesc, nullptr, (IDXGISwapChain1**)this->swapChain.ReleaseAndGetAddressOf()));
-
-		// Create a fence object used to synchronize the CPU with the GPU
-		AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->globalFence.ReleaseAndGetAddressOf())));
-		this->globalFenceValue = 1;
-
-		// Create an event handle to use for frame synchronization
-		this->globalFenceEvent = CreateEventA(nullptr, false, false, nullptr);
 	}
 
 	else
@@ -1116,14 +1190,6 @@ bool Direct3D12GraphicsService::CreateOrResizeSwapChain(int width, int height)
     // Reset the index to the current back buffer
     this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
 
-	return true;
-}
-
-bool Direct3D12GraphicsService::SwitchScreenMode()
-{
-	BOOL fullscreenState;
-	this->swapChain->GetFullscreenState(&fullscreenState, nullptr);
-	AssertIfFailed(this->swapChain->SetFullscreenState(!fullscreenState, nullptr));
 	return true;
 }
 

@@ -14,26 +14,17 @@ ComPtr<ID3DBlob> CreateShaderBlob(void* data, int dataLength)
     return shaderBlob;
 }
 
-D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter, bool isUAV)
+D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {
 	D3D12_RESOURCE_BARRIER resourceBarrier = {};
 
-	resourceBarrier.Type = isUAV ? D3D12_RESOURCE_BARRIER_TYPE_UAV : D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	resourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	resourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-	if (isUAV)
-	{
-		resourceBarrier.UAV.pResource = resource;
-	}
-
-	else
-	{
-		resourceBarrier.Transition.pResource = resource;
-		resourceBarrier.Transition.StateBefore = stateBefore;
-		resourceBarrier.Transition.StateAfter = stateAfter;
-		resourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	}
-
+	resourceBarrier.Transition.pResource = resource;
+	resourceBarrier.Transition.StateBefore = stateBefore;
+	resourceBarrier.Transition.StateAfter = stateAfter;
+	resourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	
 	return resourceBarrier;
 }
 

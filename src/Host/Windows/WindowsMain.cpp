@@ -234,17 +234,7 @@ int main(int argc, char const *argv[])
             {
                 if (isAppActive)
                 {
-					if (doChangeSize)
-					{
-						RECT clientRect = {};
-						GetClientRect(window, &clientRect);
-
-						auto windowWidth = clientRect.right - clientRect.left;
-						auto windowHeight = clientRect.bottom - clientRect.top;
-
-						graphicsService.CreateOrResizeSwapChain(windowWidth, windowHeight);
-						doChangeSize = false;
-					}
+					
                     //Win32UpdateRawInputState(&rawInput, &gameInput);
 
                     // TODO: Move system key processing into a separate function?
@@ -270,6 +260,18 @@ int main(int argc, char const *argv[])
                     // }
 					
 					coreEngineHost.UpdateEngine(1.0f / 60.0f);
+
+					if (doChangeSize)
+					{
+						RECT clientRect = {};
+						GetClientRect(window, &clientRect);
+
+						auto windowWidth = clientRect.right - clientRect.left;
+						auto windowHeight = clientRect.bottom - clientRect.top;
+
+						graphicsService.CreateOrResizeSwapChain(windowWidth, windowHeight);
+						doChangeSize = false;
+					}
                 }
             }
         }

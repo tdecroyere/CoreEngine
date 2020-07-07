@@ -564,7 +564,7 @@ void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, uns
 
 	if (commandBufferType == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-		TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ, false);
+		TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 		auto descriptorHeapdOffset = this->srvtextureDescriptorOffets[textureId];
 
@@ -578,7 +578,7 @@ void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, uns
 	{
 		if (isReadOnly)
 		{
-			TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ, false);
+			TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ);
 			
 			auto descriptorHeapdOffset = this->srvtextureDescriptorOffets[textureId];
 
@@ -590,7 +590,7 @@ void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, uns
 
 		else
 		{
-			TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ, true);
+			TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ);
 			
 			auto descriptorHeapdOffset = this->uavTextureDescriptorOffets[textureId];
 
@@ -640,7 +640,7 @@ void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, un
 
 		heapPtr.ptr += srvDescriptorHandleSize;
 
-		TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ, false);
+		TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 
 	// TODO: Change that because if the next shader invoke needs the global heap it will not work
@@ -695,7 +695,7 @@ void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, 
 		return;
 	}
 
-	TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_COPY_DEST, false);
+	TransitionTextureToState(commandListId, textureId, D3D12_RESOURCE_STATE_COPY_DEST);
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 	auto gpuTexture = this->gpuTextures[textureId];
@@ -768,7 +768,7 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 		D3D12_CPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
 		descriptorHeapHandle.ptr = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + descriptorHeapdOffset;
 
-		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_RENDER_TARGET, false);
+		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		commandList->OMSetRenderTargets(1, &descriptorHeapHandle, false, nullptr);
 
 		if (renderDescriptor.RenderTarget1ClearColor.HasValue)
@@ -794,7 +794,7 @@ int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListI
 	{
 		D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
 
-		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET, false));
+		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		commandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
 
 		D3D12_VIEWPORT viewport = {};
@@ -819,7 +819,7 @@ void Direct3D12GraphicsService::CommitRenderCommandList(unsigned int commandList
 	if (renderDescriptor.RenderTarget1TextureId.HasValue)
 	{
 		auto gpuTexture = this->gpuTextures[renderDescriptor.RenderTarget1TextureId.Value];
-		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_GENERIC_READ, false);
+		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 
 	this->commandListRenderPassDescriptors.erase(commandListId);
@@ -977,7 +977,7 @@ void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId
 	}
 	
 	auto commandList = this->commandBuffers[commandBufferId];
-	commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT, false));	
+	commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));	
 }
 
 // TODO: Do something better
@@ -1017,9 +1017,9 @@ bool GraphicsProcessPendingMessages()
 void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 { 
 	AssertIfFailed(this->swapChain->Present(1, 0));
-	AssertIfFailed(this->directCommandQueue->Signal(this->globalFence.Get(), this->globalFenceValue));
-	AssertIfFailed(this->copyCommandQueue->Signal(this->globalCopyFence.Get(), this->globalFenceValue));
-	AssertIfFailed(this->computeCommandQueue->Signal(this->globalComputeFence.Get(), this->globalFenceValue));
+	AssertIfFailed(this->directCommandQueue->Signal(this->directFence.Get(), this->directFenceValue++));
+	AssertIfFailed(this->copyCommandQueue->Signal(this->copyFence.Get(), this->copyFenceValue++));
+	AssertIfFailed(this->computeCommandQueue->Signal(this->computeFence.Get(), this->computeFenceValue++));
 
 	WaitForGlobalFence();
 
@@ -1033,14 +1033,14 @@ void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 
 void Direct3D12GraphicsService::WaitForGlobalFence()
 {
-	if (this->globalFence && !this->isWaitingForGlobalFence)
+	if (!this->isWaitingForGlobalFence)
 	{
 		this->isWaitingForGlobalFence = true;
 
 		// Wait until the previous frame is finished
-		if (this->globalFence->GetCompletedValue() < this->globalFenceValue - 1)
+		if (this->directFence->GetCompletedValue() < this->directFenceValue - 1)
 		{
-			this->globalFence->SetEventOnCompletion(this->globalFenceValue - 1, this->globalFenceEvent);
+			this->directFence->SetEventOnCompletion(this->directFenceValue - 1, this->globalFenceEvent);
 			
 			while (WaitForSingleObject(this->globalFenceEvent, 0))
 			{
@@ -1048,9 +1048,9 @@ void Direct3D12GraphicsService::WaitForGlobalFence()
 			}
 		}
 
-		if (this->globalCopyFence->GetCompletedValue() < this->globalFenceValue - 1)
+		if (this->copyFence->GetCompletedValue() < this->copyFenceValue - 1)
 		{
-			this->globalCopyFence->SetEventOnCompletion(this->globalFenceValue - 1, this->globalFenceEvent);
+			this->copyFence->SetEventOnCompletion(this->copyFenceValue - 1, this->globalFenceEvent);
 			
 			while (WaitForSingleObject(this->globalFenceEvent, 0))
 			{
@@ -1058,9 +1058,9 @@ void Direct3D12GraphicsService::WaitForGlobalFence()
 			}
 		}
 
-		if (this->globalComputeFence->GetCompletedValue() < this->globalFenceValue - 1)
+		if (this->computeFence->GetCompletedValue() < this->computeFenceValue - 1)
 		{
-			this->globalComputeFence->SetEventOnCompletion(this->globalFenceValue - 1, this->globalFenceEvent);
+			this->computeFence->SetEventOnCompletion(this->computeFenceValue - 1, this->globalFenceEvent);
 			
 			while (WaitForSingleObject(this->globalFenceEvent, 0))
 			{
@@ -1069,7 +1069,6 @@ void Direct3D12GraphicsService::WaitForGlobalFence()
 		}
 
 		this->isWaitingForGlobalFence = false;
-		this->globalFenceValue++;
 	}
 }
 
@@ -1134,7 +1133,6 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 		AssertIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf())));
 	}
 
-	this->globalFenceValue = 1;
 	this->globalFenceEvent = CreateEventA(nullptr, false, false, nullptr);
 
 	// Create the direct command queue
@@ -1144,8 +1142,6 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&directCommandQueueDesc, IID_PPV_ARGS(this->directCommandQueue.ReleaseAndGetAddressOf())));
 	this->directCommandQueue->SetName(L"DirectCommandQueue");
-
-	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->globalFence.ReleaseAndGetAddressOf())));
 
 	ComPtr<ID3D12Fence1> directFence;
 	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(directFence.ReleaseAndGetAddressOf())));
@@ -1160,8 +1156,6 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&copyCommandQueueDesc, IID_PPV_ARGS(this->copyCommandQueue.ReleaseAndGetAddressOf())));
 	this->copyCommandQueue->SetName(L"CopyCommandQueue");
 
-	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->globalCopyFence.ReleaseAndGetAddressOf())));
-
 	ComPtr<ID3D12Fence1> copyFence;
 	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(copyFence.ReleaseAndGetAddressOf())));
 	copyFence->SetName(L"CopyQueueFence");
@@ -1174,8 +1168,6 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&computeCommandQueueDesc, IID_PPV_ARGS(this->computeCommandQueue.ReleaseAndGetAddressOf())));
 	this->computeCommandQueue->SetName(L"ComputeCommandQueue");
-
-	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->globalComputeFence.ReleaseAndGetAddressOf())));
 
 	ComPtr<ID3D12Fence1> computeFence;
 	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(computeFence.ReleaseAndGetAddressOf())));
@@ -1377,26 +1369,15 @@ D3D12_CPU_DESCRIPTOR_HANDLE Direct3D12GraphicsService::GetCurrentRenderTargetVie
 }
 
 // TODO: Make it generic to all resource types
-void Direct3D12GraphicsService::TransitionTextureToState(unsigned int commandListId, unsigned int textureId, D3D12_RESOURCE_STATES destinationState, bool isUAV)
+void Direct3D12GraphicsService::TransitionTextureToState(unsigned int commandListId, unsigned int textureId, D3D12_RESOURCE_STATES destinationState)
 {
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 	auto gpuTexture = this->gpuTextures[textureId];
 	auto actualState = this->textureResourceStates[textureId];
 
-	if (isUAV)
-	{
-		destinationState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-	}
-
 	if (actualState != destinationState)
 	{
-		if (actualState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
-		{
-			commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(gpuTexture.Get(), actualState, destinationState, true));
-			actualState = D3D12_RESOURCE_STATE_GENERIC_READ;
-		}
-
-		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(gpuTexture.Get(), actualState, destinationState, isUAV));
+		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(gpuTexture.Get(), actualState, destinationState));
 		this->textureResourceStates[textureId] = destinationState;
 	}
 }

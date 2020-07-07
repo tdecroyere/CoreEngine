@@ -102,19 +102,14 @@ class Direct3D12GraphicsService
         Vector2 currentRenderSize;
 
         // Synchronization objects
-        ComPtr<ID3D12Fence1> globalFence;
-        ComPtr<ID3D12Fence1> globalCopyFence;
-        ComPtr<ID3D12Fence1> globalComputeFence;
-        uint64_t globalFenceValue;
-        HANDLE globalFenceEvent;
-        bool isWaitingForGlobalFence;
-
         ComPtr<ID3D12Fence1> directFence;
         ComPtr<ID3D12Fence1> copyFence;
         ComPtr<ID3D12Fence1> computeFence;
         uint64_t directFenceValue = 0;
         uint64_t copyFenceValue = 0;
         uint64_t computeFenceValue = 0;
+        HANDLE globalFenceEvent;
+        bool isWaitingForGlobalFence;
 
         // Command buffer objects
         ComPtr<ID3D12CommandAllocator> directCommandAllocators[CommandAllocatorsCount] = {};
@@ -171,6 +166,6 @@ class Direct3D12GraphicsService
         bool CreateHeaps();
 
         D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
-        void TransitionTextureToState(uint32_t commandListId, uint32_t textureId, D3D12_RESOURCE_STATES destinationState, bool isUAV);
+        void TransitionTextureToState(uint32_t commandListId, uint32_t textureId, D3D12_RESOURCE_STATES destinationState);
         DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat);
 };

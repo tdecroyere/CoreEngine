@@ -179,6 +179,8 @@ namespace CoreEngine.Rendering
                 var renderTarget = new RenderTargetDescriptor(this.renderManager.MainRenderTargetTexture, null, BlendOperation.None);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareLess, true);
                 var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
+
+                this.graphicsManager.WaitForCommandList(commandList, copyCommandList);
                 this.graphicsManager.WaitForCommandList(commandList, previousCommandList);
 
                 this.graphicsManager.SetShader(commandList, this.shader);

@@ -243,6 +243,7 @@ namespace CoreEngine.HostServices
         // TODO: Remove isWriteOnly?
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string label);
 
+        // TODO: Find a way to specify if the texture will only be used as RenderTarget or UAV
         bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
         void DeleteTexture(uint textureId);
 

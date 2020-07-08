@@ -223,6 +223,8 @@ int main(int argc, char const *argv[])
 
     auto coreEngineHost = CoreEngineHost(graphicsService, inputsService);
     coreEngineHost.StartEngine("EcsTest");
+
+	bool firstRun = true;
 	
 	if (window)
 	{
@@ -234,34 +236,7 @@ int main(int argc, char const *argv[])
             {
                 if (isAppActive)
                 {
-					
-                    //Win32UpdateRawInputState(&rawInput, &gameInput);
-
-                    // TODO: Move system key processing into a separate function?
-                    // Change display mode
-                    // if (gameInput.Keyboard.AlternateKey.Value == 1.0f && gameInput.Keyboard.Enter.Value == 1.0f && gameInput.Keyboard.Enter.TransitionCount == 1.0f)
-                    // {
-                    //     if (!direct3D12.IsInitialized || forceGdi)
-                    //     {
-                    //         Win32SwitchScreenMode(&win32State);
-                    //     }
-
-                    //     else
-                    //     {
-                    //         Direct3D12SwitchScreenMode(&direct3D12);
-                    //     }
-                    // }
-
-                    // Application Exit
-                    // if (gameInput.Keyboard.AlternateKey.Value == 1.0f && gameInput.Keyboard.F4.Value == 1.0f && gameInput.Keyboard.F4.TransitionCount == 1.0f)
-                    // {
-                    //     gameRunning = false;
-                    //     break;
-                    // }
-					
-					coreEngineHost.UpdateEngine(1.0f / 60.0f);
-
-					if (doChangeSize)
+					if (doChangeSize && !firstRun)
 					{
 						RECT clientRect = {};
 						GetClientRect(window, &clientRect);
@@ -272,10 +247,13 @@ int main(int argc, char const *argv[])
 						graphicsService.CreateOrResizeSwapChain(windowWidth, windowHeight);
 						doChangeSize = false;
 					}
+
+					coreEngineHost.UpdateEngine(1.0f / 60.0f);
+					firstRun = false;
                 }
             }
         }
 
-		graphicsService.WaitForGlobalFence();
+		graphicsService.WaitForGlobalFence(true);
 	}
 }

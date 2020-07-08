@@ -7,6 +7,7 @@ using namespace Microsoft::WRL;
 
 static const int RenderBuffersCount = 2;
 static const int CommandAllocatorsCount = 2;
+static const int QueryHeapMaxSize = 1000;
 
 struct GameState
 {
@@ -79,7 +80,7 @@ class Direct3D12GraphicsService
         void WaitForAvailableScreenBuffer();
 
         bool CreateOrResizeSwapChain(int width, int height);
-        void WaitForGlobalFence();
+        void WaitForGlobalFence(bool waitForAllPendingWork);
 
     private:
         GameState* gameState;
@@ -92,6 +93,20 @@ class Direct3D12GraphicsService
         ComPtr<ID3D12CommandQueue> directCommandQueue;
         ComPtr<ID3D12CommandQueue> copyCommandQueue;
         ComPtr<ID3D12CommandQueue> computeCommandQueue;
+        bool isPresentBarrier = false;
+
+        // Timing objects
+        ComPtr<ID3D12QueryHeap> queryHeap;
+        ComPtr<ID3D12QueryHeap> copyQueryHeap;
+        uint32_t startQueryIndex = 0;
+        uint32_t startCopyQueryIndex = 0;
+        uint32_t queryHeapIndex = 0;
+        uint32_t copyQueryHeapIndex = 0;
+        uint64_t* currentCpuQueryHeap;
+        uint64_t* currentCpuCopyQueryHeap;
+        uint64_t directQueueFrequency = 0;
+        uint64_t computeQueueFrequency = 0;
+        uint64_t copyQueueFrequency = 0;
 
         // Swap chain objects
         ComPtr<IDXGISwapChain3> swapChain;
@@ -110,6 +125,7 @@ class Direct3D12GraphicsService
         uint64_t computeFenceValue = 0;
         HANDLE globalFenceEvent;
         bool isWaitingForGlobalFence;
+        uint64_t presentFences[RenderBuffersCount];
 
         // Command buffer objects
         ComPtr<ID3D12CommandAllocator> directCommandAllocators[CommandAllocatorsCount] = {};
@@ -124,12 +140,17 @@ class Direct3D12GraphicsService
         map<uint32_t, uint32_t> commandListBuffers;
         map<uint32_t, GraphicsRenderPassDescriptor> commandListRenderPassDescriptors;
         map<uint32_t, uint64_t> commandBufferFenceValues;
+        map<uint32_t, uint32_t> commandBufferStartQueryIndex;
+        map<uint32_t, uint32_t> commandBufferEndQueryIndex;
 
         // Heap objects
         ComPtr<ID3D12Heap> uploadHeap;
-        uint64_t currentUploadHeapOffset;
+        uint64_t currentUploadHeapOffset = 0;
+        ComPtr<ID3D12Heap> readBackHeap;
+        uint64_t currentReadBackHeapOffset = 0;
         ComPtr<ID3D12Heap> globalHeap;
         uint64_t currentGlobalHeapOffset;
+
         ComPtr<ID3D12DescriptorHeap> globalDescriptorHeap;
         uint32_t globalDescriptorHandleSize;
         uint32_t currentGlobalDescriptorOffset;
@@ -140,6 +161,7 @@ class Direct3D12GraphicsService
 
         // Buffers
         map<uint32_t, ComPtr<ID3D12Resource>> cpuBuffers;
+        map<uint32_t, ComPtr<ID3D12Resource>> readBackBuffers;
         map<uint32_t, ComPtr<ID3D12Resource>> gpuBuffers;
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
 
@@ -168,4 +190,6 @@ class Direct3D12GraphicsService
         D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
         void TransitionTextureToState(uint32_t commandListId, uint32_t textureId, D3D12_RESOURCE_STATES destinationState);
         DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat);
+
+        void InitGpuProfiling();
 };

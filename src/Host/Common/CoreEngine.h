@@ -60,7 +60,6 @@ struct NullableGraphicsBlendOperation
 #include "GraphicsService.h"
 #include "InputsService.h"
 
-using namespace std;
 
 struct HostPlatform
 {
@@ -89,6 +88,8 @@ typedef int (*coreclr_create_delegate_ptr)(void* hostHandle,
 typedef int (*coreclr_shutdown_ptr)(void* hostHandle,
             unsigned int domainId);
   
+#ifdef _WINDOWS_
+using namespace std;
 
 string CoreEngineHost_BuildTpaList(string path)
 {
@@ -196,3 +197,4 @@ bool CoreEngineHost_InitCoreClr(StartEnginePtr* startEnginePointer, UpdateEngine
 
     // TODO: Do not forget to call the shutdownCoreClr method
 }    
+#endif

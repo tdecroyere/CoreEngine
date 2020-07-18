@@ -183,8 +183,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return Vector2(X: Float(self.renderWidth), Y: Float(self.renderHeight))
     }
 
-    public func getGraphicsAdapterName() -> String {
-        return self.metalLayer.device!.name + " (Metal 3)"
+    public func getGraphicsAdapterName(_ output: UnsafeMutablePointer<Int8>?) {
+        let result = self.metalLayer.device!.name + " (Metal 3)";
+
+        // let buffer = UnsafeMutableBufferPointer(start: output, count: result.utf16.count)
+        // buffer.initialize(from: result.utf16)
+
+        memcpy(output, strdup(result), result.count)
+        output![result.count] = 0
     }
 
     public func changeRenderSize(renderWidth: Int, renderHeight: Int) {
@@ -470,7 +476,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.computePipelineStates[pipelineStateId] = nil
     }
 
-    public func createCommandBuffer(_ commandBufferId: UInt, _ label: String) -> Bool {
+    public func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool {
         return true
     }
 

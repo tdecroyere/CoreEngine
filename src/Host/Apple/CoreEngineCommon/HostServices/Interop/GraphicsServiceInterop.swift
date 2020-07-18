@@ -6,9 +6,9 @@ func GraphicsService_getRenderSizeInterop(context: UnsafeMutableRawPointer?) -> 
     return contextObject.getRenderSize()
 }
 
-func GraphicsService_getGraphicsAdapterNameInterop(context: UnsafeMutableRawPointer?) -> UnsafeMutablePointer<Int8>? {
+func GraphicsService_getGraphicsAdapterNameInterop(context: UnsafeMutableRawPointer?, _ output: UnsafeMutablePointer<Int8>?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return UnsafeMutablePointer<Int8>?(strdup(contextObject.getGraphicsAdapterName()))
+    contextObject.getGraphicsAdapterName(output)
 }
 
 func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32, _ length: Int32, _ isWriteOnly: Int32, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {

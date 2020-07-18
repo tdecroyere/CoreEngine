@@ -2,7 +2,7 @@ import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
     func getRenderSize() -> Vector2
-    func getGraphicsAdapterName() -> String
+    func getGraphicsAdapterName(_ output: UnsafeMutablePointer<Int8>?)
     func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int, _ isWriteOnly: Bool, _ label: String) -> Bool
     func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ label: String) -> Bool
     func deleteTexture(_ textureId: UInt)

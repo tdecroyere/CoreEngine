@@ -243,6 +243,7 @@ namespace CoreEngine.HostServices
         // TODO: Remove isWriteOnly?
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string label);
 
+        // TODO: Find a way to specify if the texture will only be used as RenderTarget or UAV
         bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
         void DeleteTexture(uint textureId);
 
@@ -254,6 +255,8 @@ namespace CoreEngine.HostServices
         bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor, string label);
         void DeletePipelineState(uint pipelineStateId);
 
+        // TODO: Implement a barrier ressource
+
         // TODO: Refactor the command buffer/command list to map it better to have fewer Allocators in DirectX12
         // (One Command Allocator per queue type and per frame and per threads)
         bool CreateCommandBuffer(uint commandBufferId, GraphicsCommandBufferType commandBufferType, string label);
@@ -263,6 +266,7 @@ namespace CoreEngine.HostServices
         GraphicsCommandBufferStatus? GetCommandBufferStatus(uint commandBufferId);
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
+        // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
         void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index);
         void SetShaderBuffers(uint commandListId, ReadOnlySpan<uint> graphicsBufferIdList, int slot, int index);
         void SetShaderTexture(uint commandListId, uint textureId, int slot, bool isReadOnly, int index);
@@ -300,6 +304,8 @@ namespace CoreEngine.HostServices
         // TODO: Merge SetIndexBuffer to DrawIndexedPrimitives
         void SetIndexBuffer(uint commandListId, uint graphicsBufferId);
         void DrawIndexedPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
+
+        // TODO: Change that to take instances params
         void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
         
         void WaitForCommandList(uint commandListId, uint commandListToWaitId);

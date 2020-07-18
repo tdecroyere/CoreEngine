@@ -765,7 +765,7 @@ namespace CoreEngine.Rendering
                     
                     if (resourceBinding is ShaderGraphicsPipelineResourceBinding shaderResourceBinding && pipelineResource.ResourceType == GraphicsResourceType.Texture)
                     {
-                        graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                        graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline), isReadOnly: false);
                     }
                 }
             }
@@ -1491,7 +1491,7 @@ namespace CoreEngine.Rendering
 
                 for (var j = 0; j < meshInstance.WorldBoundingBoxList.Count; j++)
                 {
-                    //this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBoxList[j], new Vector3(0, 1, 0));
+                    this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBoxList[j], new Vector3(0, 1, 0));
                 }
 
                 if (meshInstance.Material != null)

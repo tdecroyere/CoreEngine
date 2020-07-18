@@ -136,7 +136,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.DeleteCommandBuffer(commandBuffer);
 
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, isStatic: false, isWriteOnly: true, label: "Graphics2DRenderPassBuffer");
-            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, isWriteOnly: true, label: "Graphics2DRectanbleSurfacesBuffer");
+            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, isWriteOnly: true, label: "Graphics2DRectangleSurfacesBuffer");
 
             this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "Graphics2DRendererCopy");
             this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "Graphics2DRenderer");
@@ -247,6 +247,8 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.SetShaderTextures(commandList, this.textures.ToArray(), 3);
 
                 this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
+
+                // Don't use a vertex buffer and an index, use instances instead
                 this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
                 this.graphicsManager.CommitRenderCommandList(commandList);

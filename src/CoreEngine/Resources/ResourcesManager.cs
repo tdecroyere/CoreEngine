@@ -152,19 +152,26 @@ namespace CoreEngine.Resources
                 return (T)resource;
             }
 
-            var loadingTask = new Task<Resource>(parameters => {
-                var resourceLoadingParameters = parameters as ResourceLoadingParameters;
+            // var loadingTask = new Task<Resource>(parameters => {
+                // var resourceLoadingParameters = parameters as ResourceLoadingParameters;
 
-                if (resourceLoadingParameters == null)
-                {
-                    throw new ArgumentNullException(nameof(parameters));
-                }
+                // if (resourceLoadingParameters == null)
+                // {
+                //     throw new ArgumentNullException(nameof(parameters));
+                // }
 
-                var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
-                return resource.ResourceLoader.LoadResourceData(resource, resourceData);
-            }, new ResourceLoadingParameters(resource, resourceStorage));
+                // var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
+                // return resource.ResourceLoader.LoadResourceData(resource, resourceData);
+            // }, new ResourceLoadingParameters(resource, resourceStorage));
 
-            this.resourceLoadingQueue.Enqueue(loadingTask);
+            // this.resourceLoadingQueue.Enqueue(loadingTask);
+
+            Logger.BeginAction($"Reading resource data");
+            var resourceData = resourceStorage.ReadResourceDataAsync(resource.Path).Result;
+            Logger.EndAction();
+            resource = resource.ResourceLoader.LoadResourceData(resource, resourceData);
+            resource.IsLoaded = true;
+            
             Logger.EndAction();
 
             return (T)resource;
@@ -174,8 +181,8 @@ namespace CoreEngine.Resources
         {
             // TODO: Deactivated because it took 7 ms !
             
-            CheckResourceLoadingTasks();
-            WaitForPendingResources();
+            //CheckResourceLoadingTasks();
+            //WaitForPendingResources();
             //CheckForUpdatedResources();
             // RemoveUnusedResources();
         }

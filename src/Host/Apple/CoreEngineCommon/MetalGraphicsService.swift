@@ -3,6 +3,18 @@ import QuartzCore.CAMetalLayer
 import simd
 import CoreEngineCommonInterop
 
+class MetalHeap {
+    let heapType: GraphicsServiceHeapType 
+    let length: UInt
+    let heapObject: MTLHeap
+
+    init (_ heapType: GraphicsServiceHeapType, _ length: UInt, _ heapObject: MTLHeap) {
+        self.heapType = heapType
+        self.length = length
+        self.heapObject = heapObject
+    }
+}
+
 class Shader {
     let shaderId: UInt
     let vertexShaderFunction: MTLFunction?
@@ -75,6 +87,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var depthWriteOperationState: MTLDepthStencilState!
     var depthNoneOperationState: MTLDepthStencilState!
 
+    var graphicsHeaps: [UInt: MetalHeap]
+
     var shaders: [UInt: Shader]
     var renderPipelineStates: [UInt: MTLRenderPipelineState]
     var computePipelineStates: [UInt: MTLComputePipelineState]
@@ -89,7 +103,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var renderCommandEncoders: [UInt: MTLRenderCommandEncoder]
 
     var graphicsBuffers: [UInt: MTLBuffer]
-    var cpuGraphicsBuffers: [UInt: MTLBuffer]
     var readCpuGraphicsBuffers: [UInt: MTLBuffer]
     var textures: [UInt: MTLTexture]
     var indirectCommandBuffers: [UInt: MTLIndirectCommandBuffer]
@@ -123,6 +136,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             self.metalLayer.colorspace = colorSpace
         }
 
+        self.graphicsHeaps = [:]
         self.shaders = [:]
         self.renderPipelineStates = [:]
         self.computePipelineStates = [:]
@@ -132,7 +146,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.computeCommandEncoders = [:]
         self.renderCommandEncoders = [:]
         self.graphicsBuffers = [:]
-        self.cpuGraphicsBuffers = [:]
         self.readCpuGraphicsBuffers = [:]
         self.textures = [:]
         self.indirectCommandBuffers = [:]
@@ -183,6 +196,17 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return Vector2(X: Float(self.renderWidth), Y: Float(self.renderHeight))
     }
 
+    public func getTextureAllocationInfos(_ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> GraphicsAllocationInfos {
+        let descriptor = createTextureDescriptor(textureFormat, width, height, faceCount, mipLevels, multisampleCount, false)
+        let sizeAndAlign = self.device.heapTextureSizeAndAlign(descriptor: descriptor)
+
+        var result = GraphicsAllocationInfos()
+        result.Length = Int32(sizeAndAlign.size)
+        result.Alignment = Int32(sizeAndAlign.align)
+
+        return result
+    }
+
     public func getGraphicsAdapterName(_ output: UnsafeMutablePointer<Int8>?) {
         let result = self.metalLayer.device!.name + " (Metal 3)";
 
@@ -200,32 +224,89 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
     }
 
-    public func createGraphicsBuffer(_ graphicsBufferId: UInt, _ length: Int, _ isWriteOnly: Bool, _ label: String) -> Bool {
-        // TODO: Page Align the length to avoid the copy of the buffer later
-        // TODO: Check for errors
+    public func createGraphicsHeap(_ graphicsHeapId: UInt, _ type: GraphicsServiceHeapType, _ length: UInt, _ label: String) -> Bool {
+        let heapDescriptor = MTLHeapDescriptor()
+        heapDescriptor.storageMode = .private
+        heapDescriptor.type = .placement
+        heapDescriptor.size = Int(length)
+        heapDescriptor.hazardTrackingMode = .untracked
 
-        if (isWriteOnly) {
-            // Create a the metal buffer on the CPU
-            let cpuBuffer = self.device.makeBuffer(length: length, options: [.storageModeShared, .cpuCacheModeWriteCombined, .hazardTrackingModeUntracked])!
-            cpuBuffer.label = "\(label)Cpu"
-            self.cpuGraphicsBuffers[graphicsBufferId] = cpuBuffer
-        } else {
-            // Create a the metal buffer on the CPU
-            let cpuBuffer = self.device.makeBuffer(length: length, options: [.storageModeShared, .hazardTrackingModeUntracked])!
-            cpuBuffer.label = "\(label)Cpu"
-            self.cpuGraphicsBuffers[graphicsBufferId] = cpuBuffer
-
-            let readCpuBuffer = self.device.makeBuffer(length: length, options: [.storageModeShared, .hazardTrackingModeUntracked])!
-            readCpuBuffer.label = "\(label)ReadCpu"
-            self.readCpuGraphicsBuffers[graphicsBufferId] = readCpuBuffer
+        if (type == Upload || type == ReadBack)
+        {
+            // TODO: Check why metal doesn't allow for upload heaps
+            return true
+            heapDescriptor.storageMode = .managed
         }
 
-        // Create the metal buffer on the GPU
-        let gpuBuffer = self.globalHeap.makeBuffer(length: length, options: [.storageModePrivate, .hazardTrackingModeUntracked])!
-        gpuBuffer.label = "\(label)Gpu"
-        self.graphicsBuffers[graphicsBufferId] = gpuBuffer
+        if (type == Upload)
+        {
+            heapDescriptor.cpuCacheMode = .writeCombined
+        }
+
+        guard let graphicsHeap = self.device.makeHeap(descriptor: heapDescriptor) else {
+            print("createGraphicsHeap: Creation failed.")
+            return false
+        }
+
+        graphicsHeap.label = label
+
+        let metalHeap = MetalHeap(type, length, graphicsHeap)
+        self.graphicsHeaps[graphicsHeapId] = metalHeap
 
         return true
+    }
+
+    public func deleteGraphicsHeap(_ graphicsHeapId: UInt) {
+        self.graphicsHeaps[graphicsHeapId] = nil
+    }
+
+    public func createGraphicsBuffer(_ graphicsBufferId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ length: Int, _ label: String) -> Bool {
+        let graphicsHeap = self.graphicsHeaps[graphicsHeapId]
+
+        var options: MTLResourceOptions = [.storageModePrivate, .hazardTrackingModeUntracked]
+
+        // if (graphicsHeap.heapType == ReadBack) {
+        //     options = [.storageModeShared, .hazardTrackingModeUntracked]
+        // }
+
+        if (graphicsHeap == nil) {
+            // TODO: CPU cache mode write combined seems to be slower on eGPU
+            options = [.storageModeShared]//, .cpuCacheModeWriteCombined]
+        }
+
+        if (graphicsHeap == nil) {
+            guard let gpuBuffer = self.device.makeBuffer(length: length, options: options) else {
+                print("createGraphicsBuffer: Creation failed.")
+                return false
+            }
+
+            gpuBuffer.label = label
+            self.graphicsBuffers[graphicsBufferId] = gpuBuffer
+        }
+        else {
+            guard let gpuBuffer = graphicsHeap!.heapObject.makeBuffer(length: length, options: options, offset: Int(heapOffset)) else {
+                print("createGraphicsBuffer: Creation failed.")
+                return false
+            }
+
+            gpuBuffer.label = label
+            self.graphicsBuffers[graphicsBufferId] = gpuBuffer
+        }
+
+        return true
+    }
+
+    public func getGraphicsBufferCpuPointer(_ graphicsBufferId: UInt) -> UnsafeMutableRawPointer? {
+        guard let graphicsBuffer = self.graphicsBuffers[graphicsBufferId] else {
+            print("ERROR: Graphics buffer was not found")
+            return nil
+        }
+
+        return graphicsBuffer.contents()
+    }
+
+    public func deleteGraphicsBuffer(_ graphicsBufferId: UInt) {
+        self.graphicsBuffers[graphicsBufferId] = nil
     }
 
     private func convertTextureFormat(_ textureFormat: GraphicsTextureFormat) -> MTLPixelFormat {
@@ -260,7 +341,67 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return .rgba8Unorm_srgb
     }
 
-    public func createTexture(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ label: String) -> Bool {
+    private func createTextureDescriptor(_ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool) -> MTLTextureDescriptor {
+        // TODO: Check for errors
+        let descriptor = MTLTextureDescriptor()
+
+        descriptor.width = width
+        descriptor.height = height
+        descriptor.depth = 1
+        descriptor.mipmapLevelCount = mipLevels
+        descriptor.arrayLength = 1
+        descriptor.sampleCount = multisampleCount
+        descriptor.storageMode = .private
+        descriptor.hazardTrackingMode = .untracked
+        descriptor.pixelFormat = convertTextureFormat(textureFormat)
+
+        if (isRenderTarget) {
+            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
+        } else {
+            descriptor.usage = [.shaderRead]
+        }
+
+        if (multisampleCount > 1) {
+            descriptor.textureType = .type2DMultisample
+        } else if (faceCount > 1) {
+            descriptor.textureType = .typeCube
+        } else {
+            descriptor.textureType = .type2D
+        }
+
+        return descriptor
+    }
+
+    public func createTexture(_ textureId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ label: String) -> Bool {
+        guard let graphicsHeap = self.graphicsHeaps[graphicsHeapId] else {
+            print("createGraphicsBuffer: Graphics heap was not found")
+            return false
+        }
+
+        let descriptor = createTextureDescriptor(textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget)
+
+        if (isRenderTarget) {
+            guard let gpuTexture = self.device.makeTexture(descriptor: descriptor) else {
+                print("createTexture: Creation failed.")
+                return false
+            }
+
+            gpuTexture.label = label
+            self.textures[textureId] = gpuTexture
+        } else {
+            guard let gpuTexture = graphicsHeap.heapObject.makeTexture(descriptor: descriptor, offset: Int(heapOffset)) else {
+                print("createTexture: Creation failed.")
+                return false
+            }
+
+            gpuTexture.label = label
+            self.textures[textureId] = gpuTexture
+        }
+
+        return true
+    }
+
+    public func createTextureOld(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ label: String) -> Bool {
         // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
@@ -570,19 +711,16 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.copyCommandEncoders[commandListId] = nil
     }
 
-    public func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ length: Int) {
-        guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
-            print("ERROR: GPU graphics buffer was not found")
+    public func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ destinationGraphicsBufferId: UInt, _ sourceGraphicsBufferId: UInt, _ length: Int) {
+        guard let destinationBuffer = self.graphicsBuffers[destinationGraphicsBufferId] else {
+            print("ERROR: Destination graphics buffer was not found")
             return
         }
 
-        guard let cpuBuffer = self.cpuGraphicsBuffers[graphicsBufferId] else {
-            print("ERROR: CPU graphics buffer was not found")
+        guard let sourceBuffer = self.graphicsBuffers[sourceGraphicsBufferId] else {
+            print("ERROR: Source graphics buffer was not found")
             return
         }
-
-        // TODO: Try to avoid the copy
-        cpuBuffer.contents().copyMemory(from: data.assumingMemoryBound(to: UInt8.self), byteCount: (length * MemoryLayout<UInt8>.stride))
 
         guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
             print("uploadDataToGraphicsBuffer: Copy command encoder is nil.")
@@ -590,10 +728,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         // TODO: Add parameters to be able to update partially the buffer
-        copyCommandEncoder.copy(from: cpuBuffer, sourceOffset: 0, to: gpuBuffer, destinationOffset: 0, size: length)
+        copyCommandEncoder.copy(from: sourceBuffer, sourceOffset: 0, to: destinationBuffer, destinationOffset: 0, size: length)
     }
 
-    public func copyGraphicsBufferDataToCpu(_ commandListId: UInt, _ graphicsBufferId: UInt, _ length: Int) {
+    public func copyGraphicsBufferDataToCpuOld(_ commandListId: UInt, _ graphicsBufferId: UInt, _ length: Int) {
         guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
             print("ERROR: GPU graphics buffer was not found")
             return
@@ -613,7 +751,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         copyCommandEncoder.copy(from: gpuBuffer, sourceOffset: 0, to: cpuBuffer, destinationOffset: 0, size: length)
     }
 
-    public func readGraphicsBufferData(_ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ dataLength: Int) {
+    public func readGraphicsBufferDataOld(_ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ dataLength: Int) {
         guard let cpuBuffer = self.readCpuGraphicsBuffers[graphicsBufferId] else {
             print("ERROR: CPU graphics buffer was not found")
             return
@@ -627,7 +765,55 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         data.copyMemory(from: cpuBuffer.contents().assumingMemoryBound(to: UInt8.self), byteCount: (dataLength * MemoryLayout<UInt8>.stride))
     }
 
-    public func uploadDataToTexture(_ commandListId: UInt, _ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
+    let performanceTimer = PerformanceTimer()
+
+    public func uploadDataToTexture(_ commandListId: UInt, _ destinationTextureId: UInt, _ sourceGraphicsBufferId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int) {
+        guard let destinationTexture = self.textures[destinationTextureId] else {
+            print("uploadDataToTexture: Destination texture was not found")
+            return
+        }
+
+        guard let sourceGraphicsBuffer = self.graphicsBuffers[sourceGraphicsBufferId] else {
+            print("uploadDataToTexture: Source graphics buffer was not found")
+            return
+        }
+
+        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
+            print("uploadDataToTexture: Copy command encoder is nil.")
+            return
+        }
+
+        // TODO: Try to get the texture footprint from the device
+        var sourceBytesPerRow = 4 * width
+        var sourceBytesPerImage = 4 * width * height
+
+        if (textureFormat == BC2Srgb || textureFormat == BC3Srgb || textureFormat == BC5 || textureFormat == BC6 || textureFormat == BC7Srgb) {
+            sourceBytesPerRow = 16 * Int(ceil(Double(width) / 4.0))
+            sourceBytesPerImage = 16 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
+        } else if (textureFormat == BC1Srgb || textureFormat == BC4) {
+            sourceBytesPerRow = 8 * Int(ceil(Double(width) / 4.0))
+            sourceBytesPerImage = 8 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
+        } else if (textureFormat == Rgba16Float) {
+            sourceBytesPerRow = 8 * width
+            sourceBytesPerImage = 8 * width * height
+        } else if (textureFormat == Rgba32Float) {
+            sourceBytesPerRow = 16 * width
+            sourceBytesPerImage = 16 * width * height
+        }
+
+        // TODO: Add parameters to be able to update partially the buffer
+        copyCommandEncoder.copy(from: sourceGraphicsBuffer, 
+                                sourceOffset: 0, 
+                                sourceBytesPerRow: sourceBytesPerRow,
+                                sourceBytesPerImage: sourceBytesPerImage,
+                                sourceSize: MTLSize(width: width, height: height , depth: 1),
+                                to: destinationTexture, 
+                                destinationSlice: slice,
+                                destinationLevel: mipLevel,
+                                destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
+    }
+
+    public func uploadDataToTextureOld(_ commandListId: UInt, _ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
         guard let gpuTexture = self.textures[textureId] else {
             print("ERROR: GPU texture was not found")
             return
@@ -635,11 +821,15 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         // Create a the metal buffer on the CPU
         // TODO: Create a pool of cpu buffers
+        performanceTimer.start();
         let cpuTexture = self.device.makeBuffer(length: length, options: .cpuCacheModeWriteCombined)!
         cpuTexture.label = "Texture - CPU buffer"
+        performanceTimer.stop("MakeBuffer");
 
         // TODO: Try to avoid the copy
+        performanceTimer.start();
         cpuTexture.contents().copyMemory(from: data.assumingMemoryBound(to: UInt8.self), byteCount: (length * MemoryLayout<UInt8>.stride))
+        performanceTimer.stop("CopyMemory");
 
         guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
             print("uploadDataToTexture: Copy command encoder is nil.")
@@ -969,6 +1159,28 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         self.currentShader = shader
+    }
+
+    public func bindGraphicsHeap(_ commandListId: UInt, _ graphicsHeapId: UInt) {
+        guard let graphicsHeap = self.graphicsHeaps[graphicsHeapId] else {
+            print("useGraphicsHeap: GraphicsHeap is nil.")
+            return
+        }
+
+        if (self.renderCommandEncoders[commandListId] != nil) {
+            guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+                print("useGraphicsHeap: Render command encoder is nil.")
+                return
+            }
+            
+            renderCommandEncoder.useHeap(graphicsHeap.heapObject)
+        } else if (self.computeCommandEncoders[commandListId] != nil) {
+            guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
+                print("useGraphicsHeap: Compute command encoder is nil.")
+                return
+            }
+            computeCommandEncoder.useHeap(graphicsHeap.heapObject)
+        }
     }
 
     public func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int) {

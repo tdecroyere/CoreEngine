@@ -16,13 +16,13 @@ public class PerformanceTimer {
         self.lastCounter = mach_absolute_time()
     }
 
-    public func stop() -> Double {
+    public func stop(_ message: String) -> Double {
         let currentCounter = mach_absolute_time()
         let elapsed = currentCounter - self.lastCounter		
         let nanoSeconds = elapsed * UInt64(self.machTimebaseInfo.numer) / UInt64(self.machTimebaseInfo.denom)		
         let milliSeconds = Double(nanoSeconds) / 1_000_000	
 
-        print(currentCounter)
+        print("\(message) - \(milliSeconds)")
 
         return milliSeconds
     }

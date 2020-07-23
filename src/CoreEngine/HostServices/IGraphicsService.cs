@@ -8,6 +8,13 @@ namespace CoreEngine.HostServices
 {
     // TODO: Avoid the duplication of structs and enums
 
+    public enum GraphicsServiceHeapType
+    {
+        Gpu,
+        Upload,
+        ReadBack
+    }
+
     public enum GraphicsCommandBufferType
     {
         Render,
@@ -65,6 +72,12 @@ namespace CoreEngine.HostServices
         Scheduled,
         Completed,
         Error
+    }
+
+    public readonly struct GraphicsAllocationInfos
+    {
+        public int Length { get; }
+        public int Alignment { get; }
     }
 
     public readonly struct GraphicsRenderPassDescriptor : IEquatable<GraphicsRenderPassDescriptor>
@@ -225,26 +238,32 @@ namespace CoreEngine.HostServices
     [HostService]
     public interface IGraphicsService
     {
+        // TODO: Add an adapter object and list method that can be passed to other methods
+        // TODO: For the moment we always use the best GPU available in the system
+
+        // GraphicsAdapterInfos GetGraphicsAdapterInfos();
+        string GetGraphicsAdapterName();
+
+        // TODO: This function should be merged into a GetSystemState function
+
         // bool CreateSwapChain(uint swapChainId, int width, int height, GraphicsTextureFormat textureFormat);
         // void DeleteSwapChain(uint swapChainId);
         // void ResizeSwapChain(uint swapChainId, int with, int height);
         // Vector2 GetSwapChainSize();
         // uint GetNextSwapChainTexture(uint swapChainId);
-
-        // TODO: Rename commandListId parameter to specialized name when there is a restriction
-        // TODO: Add functions to manage resource transitions
-
-        // TODO: This function should be merged into a GetSystemState function
         Vector2 GetRenderSize();
-        string GetGraphicsAdapterName();
-        
-        // TODO: Create a heap resource so that the engine can apply multiple allocation strategies (buddy system, transient/aliases, etc.)
-        // TODO: All create/remove for resources should take as parameter an heap and an offset
-        // TODO: Remove isWriteOnly?
-        bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string label);
+        GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+
+        bool CreateGraphicsHeap(uint graphicsHeapId, GraphicsServiceHeapType type, ulong length, string label);
+        void DeleteGraphicsHeap(uint graphicsHeapId);
+
+        bool CreateGraphicsBuffer(uint graphicsBufferId, uint graphicsHeapId, ulong heapOffset, int length, string label);
+        IntPtr GetGraphicsBufferCpuPointer(uint graphicsBufferId);
+        void DeleteGraphicsBuffer(uint graphicsBufferId);
 
         // TODO: Find a way to specify if the texture will only be used as RenderTarget or UAV
-        bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
+        bool CreateTexture(uint textureId, uint graphicsHeapId, ulong heapOffset, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
+        bool CreateTextureOld(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
         void DeleteTexture(uint textureId);
 
         bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount, string label);
@@ -263,6 +282,8 @@ namespace CoreEngine.HostServices
         void DeleteCommandBuffer(uint commandBufferId);
         void ResetCommandBuffer(uint commandBufferId);
         void ExecuteCommandBuffer(uint commandBufferId);
+
+        // TODO: Replace that with an api that insert gpu timing events into the command lists
         GraphicsCommandBufferStatus? GetCommandBufferStatus(uint commandBufferId);
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
@@ -276,10 +297,13 @@ namespace CoreEngine.HostServices
 
         bool CreateCopyCommandList(uint commandListId, uint commandBufferId, string label);
         void CommitCopyCommandList(uint commandListId);
-        void UploadDataToGraphicsBuffer(uint commandListId, uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void CopyGraphicsBufferDataToCpu(uint commandListId, uint graphicsBufferId, int length);
-        void ReadGraphicsBufferData(uint graphicsBufferId, ReadOnlySpan<byte> data);
-        void UploadDataToTexture(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data);
+        void UploadDataToGraphicsBuffer(uint commandListId, uint destinationGraphicsBufferId, uint sourceGraphicsBufferId, int length);
+
+        void CopyGraphicsBufferDataToCpuOld(uint commandListId, uint graphicsBufferId, int length);
+        void ReadGraphicsBufferDataOld(uint graphicsBufferId, ReadOnlySpan<byte> data);
+
+        void UploadDataToTexture(uint commandListId, uint destinationTextureId, uint sourceGraphicsBufferId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
+        void UploadDataToTextureOld(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data);
 
         // TODO: Rename that to IndirectCommandBuffer
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
@@ -298,6 +322,7 @@ namespace CoreEngine.HostServices
 
         // TODO: This function should be removed. Only pipeline states can be set 
         void SetShader(uint commandListId, uint shaderId);
+        void BindGraphicsHeap(uint commandListId, uint graphicsHeapId);
 
         void ExecuteIndirectCommandBuffer(uint commandListId, uint indirectCommandBufferId, int maxCommandCount);
 

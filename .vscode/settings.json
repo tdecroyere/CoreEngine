@@ -67,7 +67,6 @@
         "stack": "cpp",
         "deque": "cpp"
     },
-    "omnisharp.path": "latest",
     "C_Cpp.default.cppStandard": "c++17",
     "omnisharp.enableRoslynAnalyzers": false,
     "dotnetCoreExplorer.logpanel": true

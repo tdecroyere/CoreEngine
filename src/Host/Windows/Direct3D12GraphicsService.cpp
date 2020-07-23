@@ -8,6 +8,8 @@ using namespace Microsoft::WRL;
 
 #define GetAlignedValue(value, alignement) (value + (alignement - (value % alignement)) % alignement)
 
+bool enableTiming = false;
+
 Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int height, GameState* gameState)
 {
 	this->gameState = gameState;
@@ -61,7 +63,7 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 	D3D12_RESOURCE_DESC resourceDesc = {};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	resourceDesc.Alignment = 0;
-	resourceDesc.Width = GetAlignedValue(length, alignement);
+	resourceDesc.Width = isWriteOnly ? GetAlignedValue(length, alignement) : length;
 	resourceDesc.Height = 1;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.MipLevels = 1;
@@ -69,29 +71,81 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.SampleDesc.Quality = 0;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	// Create a Direct3D12 buffer on the GPU
+	ComPtr<ID3D12Resource> gpuBuffer;
+
+	// if (isWriteOnly)
+	// {
+	// 	AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->globalHeap.Get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(gpuBuffer.ReleaseAndGetAddressOf())));
+	// 	gpuBuffer->SetName((wstring(L"GpuBuffer_") + wstring(label, label + strlen(label))).c_str());
+	// 	this->currentGlobalHeapOffset += GetAlignedValue(length, alignement);
+	// }
+
+	// else
+	// {
+		D3D12_HEAP_PROPERTIES defaultHeapProperties = {};
+		defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+		defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		defaultHeapProperties.CreationNodeMask = 0;
+		defaultHeapProperties.VisibleNodeMask = 0;
+
+		AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(gpuBuffer.ReleaseAndGetAddressOf())));
+	//}
+
+	this->gpuBuffers[graphicsBufferId] = gpuBuffer;
+	this->bufferResourceStates[graphicsBufferId] = D3D12_RESOURCE_STATE_COPY_DEST;
+
+
 	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 	// Create a Direct3D12 buffer on the CPU
+	defaultHeapProperties = {};
+	defaultHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+	defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	defaultHeapProperties.CreationNodeMask = 1;
+	defaultHeapProperties.VisibleNodeMask = 1;
+
 	ComPtr<ID3D12Resource> cpuBuffer;
-	AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->uploadHeap.Get(), this->currentUploadHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(cpuBuffer.ReleaseAndGetAddressOf())));
+	AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(cpuBuffer.ReleaseAndGetAddressOf())));
 	cpuBuffer->SetName((wstring(L"CpuBuffer_") + wstring(label, label + strlen(label))).c_str());
 	this->currentUploadHeapOffset += GetAlignedValue(length, alignement);
 	this->cpuBuffers[graphicsBufferId] = cpuBuffer;
 
-	// Create a Direct3D12 buffer on the GPU
-	ComPtr<ID3D12Resource> gpuBuffer;
-	AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->globalHeap.Get(), this->currentGlobalHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(gpuBuffer.ReleaseAndGetAddressOf())));
-	cpuBuffer->SetName((wstring(L"GpuBuffer_") + wstring(label, label + strlen(label))).c_str());
-	this->currentGlobalHeapOffset += GetAlignedValue(length, alignement);
-	this->gpuBuffers[graphicsBufferId] = gpuBuffer;
-
 	if (!isWriteOnly)
 	{
+		defaultHeapProperties = {};
+		defaultHeapProperties.Type = D3D12_HEAP_TYPE_READBACK;
+		defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		defaultHeapProperties.CreationNodeMask = 1;
+		defaultHeapProperties.VisibleNodeMask = 1;
+
 		ComPtr<ID3D12Resource> readBackBuffer;
-		AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->readBackHeap.Get(), this->currentReadBackHeapOffset, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(readBackBuffer.ReleaseAndGetAddressOf())));
+		AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(readBackBuffer.ReleaseAndGetAddressOf())));
 		readBackBuffer->SetName((wstring(L"ReadBackBuffer_") + wstring(label, label + strlen(label))).c_str());
 		this->currentReadBackHeapOffset += GetAlignedValue(length, alignement);
 		this->readBackBuffers[graphicsBufferId] = readBackBuffer;
+	}
+
+	if (!isWriteOnly)
+	{
+		// UAV View
+		D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
+		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		uavDesc.Buffer.NumElements = length / 24;
+		uavDesc.Buffer.StructureByteStride = 24; // TODO: Change that
+
+		auto globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		globalDescriptorHeapHandle.ptr += this->currentGlobalDescriptorOffset;
+
+		this->graphicsDevice->CreateUnorderedAccessView(gpuBuffer.Get(), nullptr, &uavDesc, globalDescriptorHeapHandle);
+		this->uavBufferDescriptorOffets[graphicsBufferId] = this->currentGlobalDescriptorOffset;
+		this->currentGlobalDescriptorOffset += this->globalDescriptorHandleSize;
 	}
 
 	// Create Descriptor heap
@@ -261,9 +315,35 @@ void Direct3D12GraphicsService::DeleteTexture(unsigned int textureId)
 	this->textureFootPrints.erase(textureId);
 }
 
+// TODO: To remove
+struct IndirectCommand
+{
+	D3D12_GPU_VIRTUAL_ADDRESS cbv;
+	D3D12_DRAW_ARGUMENTS drawArguments;
+};
+
 int Direct3D12GraphicsService::CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount, char* label)
 { 
-    return 1;
+	// TODO: Remove that hack, we need to pass the shader definition to the create method
+	auto indirectCommandShader = this->currentShaderIndirectCommand;
+	
+	// Each command consists of a CBV update and a DrawInstanced call.
+	D3D12_INDIRECT_ARGUMENT_DESC argumentDescs[2] = {};
+	argumentDescs[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW;
+	argumentDescs[0].ShaderResourceView.RootParameterIndex = 0;
+	argumentDescs[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+	commandSignatureDesc.pArgumentDescs = argumentDescs;
+	commandSignatureDesc.NumArgumentDescs = 2;
+	commandSignatureDesc.ByteStride = sizeof(IndirectCommand);
+
+	ComPtr<ID3D12CommandSignature> commandSignature;
+	AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, indirectCommandShader.RootSignature.Get(), IID_PPV_ARGS(&commandSignature)));
+	// AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(&commandSignature)));
+	this->indirectCommandBufferSignatures[indirectCommandBufferId] = commandSignature;
+
+	return CreateGraphicsBuffer(indirectCommandBufferId, maxCommandCount * sizeof(IndirectCommand), false, label);
 }
 
 int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label)
@@ -279,7 +359,8 @@ int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* compute
 
 	ComPtr<ID3D12RootSignature> rootSignature;
 	AssertIfFailed(this->graphicsDevice->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(rootSignature.ReleaseAndGetAddressOf())));
-	rootSignature->SetName((wstring(L"RootSignature") + wstring(label, label + strlen(label))).c_str());
+	auto rootSignatureName = (wstring(L"RootSignature") + wstring(label, label + strlen(label)));
+	rootSignature->SetName(rootSignatureName.c_str());
 
 	shader.RootSignature = rootSignature;
 	
@@ -321,6 +402,12 @@ int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* compute
 	}
 
 	this->shaders[shaderId] = shader;
+
+	// TODO: Remove that hack
+	if (rootSignatureName.compare(L"RootSignatureRenderMeshInstanceShader") == 0)
+	{
+		this->currentShaderIndirectCommand = shader;
+	}
 	
     return 1;
 }
@@ -427,6 +514,7 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 
 void Direct3D12GraphicsService::DeletePipelineState(unsigned int pipelineStateId)
 { 
+	// TODO: Do a delay release after the pso is not in flight anymore
 	this->pipelineStates.erase(pipelineStateId);
 }
 
@@ -479,18 +567,21 @@ void Direct3D12GraphicsService::ResetCommandBuffer(unsigned int commandBufferId)
 		AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
 		commandList->SetName(this->commandBufferLabels[commandBufferId].c_str());
 
-		if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
+		if (enableTiming)
 		{
-			commandList->EndQuery(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->queryHeapIndex);
-			this->commandBufferStartQueryIndex[commandBufferId] = this->queryHeapIndex - this->startQueryIndex;
-			this->queryHeapIndex = (this->queryHeapIndex + 1) % QueryHeapMaxSize;
-		}
+			if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
+			{
+				commandList->EndQuery(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->queryHeapIndex);
+				this->commandBufferStartQueryIndex[commandBufferId] = this->queryHeapIndex - this->startQueryIndex;
+				this->queryHeapIndex = (this->queryHeapIndex + 1) % QueryHeapMaxSize;
+			}
 
-		else
-		{
-			commandList->EndQuery(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->copyQueryHeapIndex);
-			this->commandBufferStartQueryIndex[commandBufferId] = this->copyQueryHeapIndex - this->startCopyQueryIndex;
-			this->copyQueryHeapIndex = (this->copyQueryHeapIndex + 1) % QueryHeapMaxSize;
+			else
+			{
+				commandList->EndQuery(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->copyQueryHeapIndex);
+				this->commandBufferStartQueryIndex[commandBufferId] = this->copyQueryHeapIndex - this->startCopyQueryIndex;
+				this->copyQueryHeapIndex = (this->copyQueryHeapIndex + 1) % QueryHeapMaxSize;
+			}
 		}
 
 		this->commandBuffers[commandBufferId] = commandList;
@@ -507,18 +598,21 @@ void Direct3D12GraphicsService::ResetCommandBuffer(unsigned int commandBufferId)
 		auto commandBuffer = this->commandBuffers[commandBufferId];
 		commandBuffer->Reset(commandAllocator.Get(), nullptr);
 
-		if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
+		if (enableTiming)
 		{
-			commandBuffer->EndQuery(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->queryHeapIndex);
-			this->commandBufferStartQueryIndex[commandBufferId] = this->queryHeapIndex - this->startQueryIndex;
-			this->queryHeapIndex = (this->queryHeapIndex + 1) % QueryHeapMaxSize;
-		}
+			if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
+			{
+				commandBuffer->EndQuery(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->queryHeapIndex);
+				this->commandBufferStartQueryIndex[commandBufferId] = this->queryHeapIndex - this->startQueryIndex;
+				this->queryHeapIndex = (this->queryHeapIndex + 1) % QueryHeapMaxSize;
+			}
 
-		else
-		{
-			commandBuffer->EndQuery(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->copyQueryHeapIndex);
-			this->commandBufferStartQueryIndex[commandBufferId] = this->copyQueryHeapIndex - this->startCopyQueryIndex;
-			this->copyQueryHeapIndex = (this->copyQueryHeapIndex + 1) % QueryHeapMaxSize;
+			else
+			{
+				commandBuffer->EndQuery(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->copyQueryHeapIndex);
+				this->commandBufferStartQueryIndex[commandBufferId] = this->copyQueryHeapIndex - this->startCopyQueryIndex;
+				this->copyQueryHeapIndex = (this->copyQueryHeapIndex + 1) % QueryHeapMaxSize;
+			}
 		}
 
 		if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
@@ -557,38 +651,44 @@ void Direct3D12GraphicsService::ExecuteCommandBuffer(unsigned int commandBufferI
 
 		auto commandBuffer = this->commandBuffers[commandBufferId];
 
-		if (commandBufferType != D3D12_COMMAND_LIST_TYPE_COPY)
+		if (enableTiming)
 		{
-			commandBuffer->EndQuery(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->queryHeapIndex);
-			this->commandBufferEndQueryIndex[commandBufferId] = this->queryHeapIndex - this->startQueryIndex;
-			this->queryHeapIndex = (this->queryHeapIndex + 1) % QueryHeapMaxSize;
-		}
+			if (commandBufferType != D3D12_COMMAND_LIST_TYPE_COPY)
+			{
+				commandBuffer->EndQuery(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->queryHeapIndex);
+				this->commandBufferEndQueryIndex[commandBufferId] = this->queryHeapIndex - this->startQueryIndex;
+				this->queryHeapIndex = (this->queryHeapIndex + 1) % QueryHeapMaxSize;
+			}
 
-		else
-		{
-			commandBuffer->EndQuery(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->copyQueryHeapIndex);
-			this->commandBufferEndQueryIndex[commandBufferId] = this->copyQueryHeapIndex - this->startCopyQueryIndex;
-			this->copyQueryHeapIndex = (this->copyQueryHeapIndex + 1) % QueryHeapMaxSize;
+			else
+			{
+				commandBuffer->EndQuery(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->copyQueryHeapIndex);
+				this->commandBufferEndQueryIndex[commandBufferId] = this->copyQueryHeapIndex - this->startCopyQueryIndex;
+				this->copyQueryHeapIndex = (this->copyQueryHeapIndex + 1) % QueryHeapMaxSize;
+			}
 		}
 
 		if (this->isPresentBarrier)
 		{
-			// TODO: Replace magic number with something better
-			auto readBackBuffer = this->currentBackBufferIndex == 0 ? this->readBackBuffers[10000] : this->readBackBuffers[10001];
-			commandBuffer->ResolveQueryData(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->startQueryIndex, this->queryHeapIndex - this->startQueryIndex, readBackBuffer.Get(), 0);
+			if (enableTiming)
+			{
+				// TODO: Replace magic number with something better
+				auto readBackBuffer = this->currentBackBufferIndex == 0 ? this->readBackBuffers[10000] : this->readBackBuffers[10001];
+				commandBuffer->ResolveQueryData(this->queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->startQueryIndex, this->queryHeapIndex - this->startQueryIndex, readBackBuffer.Get(), 0);
 
-			// Resolve copy timings
-			// TODO: Remove that command list creation!
-			auto commandAllocator = this->copyCommandAllocators[this->currentAllocatorIndex];
-			ComPtr<ID3D12GraphicsCommandList> commandList;
-			AssertIfFailed(this->graphicsDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
+				// Resolve copy timings
+				// TODO: Remove that command list creation!
+				auto commandAllocator = this->copyCommandAllocators[this->currentAllocatorIndex];
+				ComPtr<ID3D12GraphicsCommandList> commandList;
+				AssertIfFailed(this->graphicsDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
 
-			readBackBuffer = this->currentBackBufferIndex == 0 ? this->readBackBuffers[10002] : this->readBackBuffers[10003];
-			commandList->ResolveQueryData(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->startCopyQueryIndex, this->copyQueryHeapIndex - this->startCopyQueryIndex, readBackBuffer.Get(), 0);
-			commandList->Close();
+				readBackBuffer = this->currentBackBufferIndex == 0 ? this->readBackBuffers[10002] : this->readBackBuffers[10003];
+				commandList->ResolveQueryData(this->copyQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, this->startCopyQueryIndex, this->copyQueryHeapIndex - this->startCopyQueryIndex, readBackBuffer.Get(), 0);
+				commandList->Close();
 
-			ID3D12CommandList* copyCommandLists[] = { commandList.Get() };
-			this->copyCommandQueue->ExecuteCommandLists(1, copyCommandLists);
+				ID3D12CommandList* copyCommandLists[] = { commandList.Get() };
+				this->copyCommandQueue->ExecuteCommandLists(1, copyCommandLists);
+			}
 
 			this->isPresentBarrier = false;
 		}
@@ -626,7 +726,6 @@ NullableGraphicsCommandBufferStatus Direct3D12GraphicsService::GetCommandBufferS
 		status.Value.ExecutionEndTime = (cpuQueryHeap[this->commandBufferEndQueryIndex[commandBufferId]] / (double)frequency) * 1000.0;
 	}
 
-
     return status; 
 }
 
@@ -638,12 +737,30 @@ void Direct3D12GraphicsService::SetShaderBuffer(unsigned int commandListId, unsi
 	}
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
 	auto gpuBuffer = this->gpuBuffers[graphicsBufferId];
 
-	commandList->SetGraphicsRootShaderResourceView(slot, gpuBuffer->GetGPUVirtualAddress());
+	if (commandBufferType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{
+		commandList->SetGraphicsRootShaderResourceView(slot, gpuBuffer->GetGPUVirtualAddress());
+	}
+
+	else if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		// TODO: Remove that hack
+		if (slot == 1)
+		{
+			auto gpuAddress = gpuBuffer->GetGPUVirtualAddress();
+			commandList->SetComputeRoot32BitConstants(0, 2, &gpuAddress, 0);
+			commandList->SetComputeRootShaderResourceView(slot, gpuBuffer->GetGPUVirtualAddress());
+		}
+	}
 }
 
-void Direct3D12GraphicsService::SetShaderBuffers(unsigned int commandListId, unsigned int* graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index){ }
+void Direct3D12GraphicsService::SetShaderBuffers(unsigned int commandListId, unsigned int* graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index)
+{ 
+	
+}
 
 void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index)
 { 
@@ -704,6 +821,14 @@ void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, un
 		return;
 	}
 
+	// TODO: Remove that hack
+	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
+
+	if (commandBufferType != D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{
+		return;
+	}
+
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 
 	ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
@@ -726,6 +851,11 @@ void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, un
 		auto textureId = textureIdList[i];
 		auto gpuTexture = this->gpuTextures[textureId];
 
+		if (gpuTexture->GetDesc().Format == DXGI_FORMAT_D32_FLOAT)
+		{
+			return;
+		}
+
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = gpuTexture->GetDesc().Format;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -746,7 +876,35 @@ void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, un
 }
 
 void Direct3D12GraphicsService::SetShaderIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int slot, int index){ }
-void Direct3D12GraphicsService::SetShaderIndirectCommandLists(unsigned int commandListId, unsigned int* indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index){ }
+void Direct3D12GraphicsService::SetShaderIndirectCommandLists(unsigned int commandListId, unsigned int* indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index)
+{ 
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	// TODO: Remove that hack
+	if (slot != 30006)
+	{
+		return;
+	}
+
+	auto bufferId = indirectCommandListIdList[3];
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto gpuBuffer = this->gpuBuffers[bufferId];
+
+	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
+
+	TransitionBufferToState(commandListId, bufferId, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	auto descriptorHeapdOffset = this->uavBufferDescriptorOffets[bufferId];
+
+	D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
+	descriptorHeapHandle.ptr = this->globalDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr + descriptorHeapdOffset;
+
+	commandList->SetComputeRootDescriptorTable(2, descriptorHeapHandle);
+}
 
 int Direct3D12GraphicsService::CreateCopyCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label)
 {
@@ -963,7 +1121,24 @@ void Direct3D12GraphicsService::SetShader(unsigned int commandListId, unsigned i
 	this->shaderBound = true;
 }
 
-void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount){ }
+void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount)
+{ 
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto indirectCommandBuffer = this->gpuBuffers[indirectCommandBufferId];
+	TransitionBufferToState(commandListId, indirectCommandBufferId, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+	auto signature = this->indirectCommandBufferSignatures[indirectCommandBufferId];
+
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// TODO: Compute the count in the shader?
+	commandList->ExecuteIndirect(signature.Get(), 1, indirectCommandBuffer.Get(), 0, nullptr, 0);
+}
 
 void Direct3D12GraphicsService::SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId)
 { 
@@ -1499,6 +1674,20 @@ void Direct3D12GraphicsService::TransitionTextureToState(unsigned int commandLis
 	{
 		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(gpuTexture.Get(), actualState, destinationState));
 		this->textureResourceStates[textureId] = destinationState;
+	}
+}
+
+// TODO: Make it generic to all resource types
+void Direct3D12GraphicsService::TransitionBufferToState(unsigned int commandListId, unsigned int bufferId, D3D12_RESOURCE_STATES destinationState)
+{
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto gpuBuffer = this->gpuBuffers[bufferId];
+	auto actualState = this->bufferResourceStates[bufferId];
+
+	if (actualState != destinationState)
+	{
+		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(gpuBuffer.Get(), actualState, destinationState));
+		this->bufferResourceStates[bufferId] = destinationState;
 	}
 }
 

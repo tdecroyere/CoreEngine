@@ -11,6 +11,10 @@ bool isAppActive = true;
 bool doChangeSize = false;
 WINDOWPLACEMENT previousWindowPlacement;
 
+bool firstRun = true;
+
+CoreEngineHost* globalCoreEngineHost = nullptr;
+
 void Win32SwitchScreenMode(HWND window)
 {
 	DWORD windowStyle = GetWindowLongA(window, GWL_STYLE);
@@ -50,6 +54,13 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 
 	switch (message)
 	{
+	// case WM_PAINT:
+	// 	if (globalCoreEngineHost != nullptr)
+	// 	{
+	// 		//globalCoreEngineHost->UpdateEngine(1.0f / 60.0f);
+	// 		firstRun = false;
+	// 	}
+	// 	break;
 	case WM_ACTIVATE:
 	{
 		isAppActive = !(wParam == WA_INACTIVE);
@@ -222,9 +233,9 @@ int main(int argc, char const *argv[])
     auto inputsService = WindowsInputsService(window);
 
     auto coreEngineHost = CoreEngineHost(graphicsService, inputsService);
+	globalCoreEngineHost = &coreEngineHost;
     coreEngineHost.StartEngine("EcsTest");
 
-	bool firstRun = true;
 	
 	if (window)
 	{

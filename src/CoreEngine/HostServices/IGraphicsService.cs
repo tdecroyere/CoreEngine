@@ -222,6 +222,7 @@ namespace CoreEngine.HostServices
         public readonly string? ErrorMessage { get; }
     }
 
+    // TODO: Make all method thread safe!
     [HostService]
     public interface IGraphicsService
     {
@@ -234,19 +235,21 @@ namespace CoreEngine.HostServices
         // TODO: Rename commandListId parameter to specialized name when there is a restriction
         // TODO: Add functions to manage resource transitions
 
-        // TODO: This function should be merged into a GetSystemState function
+        // TODO: This function should be merged into a GetAdapterInfos that will returns also the alignments and system support flags
         Vector2 GetRenderSize();
         string GetGraphicsAdapterName();
         
         // TODO: Create a heap resource so that the engine can apply multiple allocation strategies (buddy system, transient/aliases, etc.)
         // TODO: All create/remove for resources should take as parameter an heap and an offset
         // TODO: Remove isWriteOnly?
+        // TODO: Pass the stride of the data type
         bool CreateGraphicsBuffer(uint graphicsBufferId, int length, bool isWriteOnly, string label);
 
         // TODO: Find a way to specify if the texture will only be used as RenderTarget or UAV
         bool CreateTexture(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
         void DeleteTexture(uint textureId);
 
+        // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
         bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount, string label);
 
         bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label);

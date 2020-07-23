@@ -164,6 +164,9 @@ class Direct3D12GraphicsService
         map<uint32_t, ComPtr<ID3D12Resource>> readBackBuffers;
         map<uint32_t, ComPtr<ID3D12Resource>> gpuBuffers;
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
+        map<uint32_t, uint32_t> uavBufferDescriptorOffets;
+        map<uint32_t, D3D12_RESOURCE_STATES> bufferResourceStates;
+        map<uint32_t, ComPtr<ID3D12CommandSignature>> indirectCommandBufferSignatures;
 
         // Textures
         map<uint32_t, ComPtr<ID3D12Resource>> cpuTextures;
@@ -178,6 +181,7 @@ class Direct3D12GraphicsService
         map<uint32_t, Shader> shaders;
         map<uint32_t, ComPtr<ID3D12PipelineState>> pipelineStates;
         bool shaderBound;
+        Shader currentShaderIndirectCommand = {}; // TODO: To remove
 
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> debugDescriptorHeaps;
 
@@ -189,6 +193,7 @@ class Direct3D12GraphicsService
 
         D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
         void TransitionTextureToState(uint32_t commandListId, uint32_t textureId, D3D12_RESOURCE_STATES destinationState);
+        void TransitionBufferToState(uint32_t commandListId, uint32_t bufferId, D3D12_RESOURCE_STATES destinationState);
         DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat);
 
         void InitGpuProfiling();

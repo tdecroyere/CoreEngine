@@ -56,8 +56,14 @@ namespace CoreEngine.Rendering
             var vertexBufferSize = geometryPacketVertexCount * vertexSize;
             var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
 
-            var vertexBufferData = reader.ReadBytes(vertexBufferSize);
-            var indexBufferData = reader.ReadBytes(indexBufferSize);
+            var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferSize, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer", GraphicsHeapType.Upload);
+            var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferSize, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer", GraphicsHeapType.Upload);
+
+            var vertexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuVertexBuffer);
+            reader.Read(vertexBufferData);
+
+            var indexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuIndexBuffer);
+            reader.Read(indexBufferData);
 
             var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferData.Length, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
             var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferData.Length, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
@@ -65,8 +71,8 @@ namespace CoreEngine.Rendering
             var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "MeshLoader");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "MeshLoaderCommandList");
-            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, vertexBufferData);
-            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, indexBufferData);
+            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, cpuVertexBuffer, vertexBufferSize);
+            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, cpuIndexBuffer, indexBufferSize);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
             this.graphicsManager.DeleteCommandBuffer(commandBuffer);

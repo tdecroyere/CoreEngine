@@ -8,5 +8,8 @@ namespace CoreEngine.Graphics
         bool IsStatic { get; }
         GraphicsResourceType ResourceType { get; }
         string Label { get; }
+
+        // TODO: To Activate
+        // GraphicsMemoryAllocation GraphicsMemoryAllocation { get; }
     }
 }

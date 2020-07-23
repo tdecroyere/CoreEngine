@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.IO;
 using Microsoft.Win32.SafeHandles;
+using System.Globalization;
 
 namespace CoreEngine.Diagnostics
 {
@@ -78,7 +79,7 @@ namespace CoreEngine.Diagnostics
             {
                 currentLevel--;
                 var stopwatch = stopwatchStack.Pop();
-                WriteMessage($"{message} done. (Elapsed: {stopwatch.ElapsedMilliseconds} ms)", LogMessageTypes.Success);
+                WriteMessage($"{message} done. (Elapsed: {stopwatch.Elapsed.TotalMilliseconds.ToString("0.00", CultureInfo.InvariantCulture)} ms)", LogMessageTypes.Success);
             }
         }
 

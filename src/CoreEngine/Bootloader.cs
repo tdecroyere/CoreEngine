@@ -44,8 +44,13 @@ namespace CoreEngine
                 sceneQueue = new GraphicsSceneQueue();
                 sceneManager = new GraphicsSceneManager(sceneQueue);
 
+                Logger.BeginAction("Init Graphics Manager");
                 graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
+                Logger.EndAction();
+
+                Logger.BeginAction("Init Render Manager");
                 renderManager = new RenderManager(graphicsManager, resourcesManager, sceneQueue);
+                Logger.EndAction();
 
                 var systemManagerContainer = new SystemManagerContainer();
 

@@ -49,12 +49,12 @@ namespace CoreEngine
                 return resource;
             }
 
-            Logger.WriteMessage("Scene Loading");
+            //Logger.WriteMessage("Scene Loading");
 
             var entityLayoutsCount = reader.ReadInt32();
             var entitiesCount = reader.ReadInt32();
 
-            Logger.WriteMessage($"Loading {entitiesCount} entities (Layouts: {entityLayoutsCount})");
+            //Logger.WriteMessage($"Loading {entitiesCount} entities (Layouts: {entityLayoutsCount})");
 
             var sceneEntityLayoutsList = new List<ComponentLayout?>();
 
@@ -68,7 +68,7 @@ namespace CoreEngine
                 {
                     var typeFullName = reader.ReadString();
                     var type = FindType(typeFullName);
-                    Logger.WriteMessage($"Found Type: {type}");
+                    //Logger.WriteMessage($"Found Type: {type}");
 
                     if (type == null)
                     {
@@ -104,8 +104,8 @@ namespace CoreEngine
                 var componentsCount = reader.ReadInt32();
 
                 Logger.BeginAction($"Create Entity '{entityName}'");
-                Logger.WriteMessage($"Components Count: {componentsCount}");
-                Logger.WriteMessage($"EntityLayoutIndex: {entityLayoutIndex}");
+                // Logger.WriteMessage($"Components Count: {componentsCount}");
+                // Logger.WriteMessage($"EntityLayoutIndex: {entityLayoutIndex}");
 
                 var entityLayout = sceneEntityLayoutsList[entityLayoutIndex];
                 Entity? entity = null;
@@ -151,7 +151,7 @@ namespace CoreEngine
 
                             if (propertyInfo != null)
                             {
-                                Logger.WriteMessage($"PropertyInfo: {propertyInfo.ToString()}");
+                                // Logger.WriteMessage($"PropertyInfo: {propertyInfo.ToString()}");
                             }
                         }
 
@@ -275,7 +275,7 @@ namespace CoreEngine
 
                     foreach (var value in entry.Value)
                     {
-                        Logger.WriteMessage($"Found entity with Id: {value.entity.EntityId}");
+                        // Logger.WriteMessage($"Found entity with Id: {value.entity.EntityId}");
 
                         value.property.SetValue(value.component, resolvedEntity);
                         scene.EntityManager.SetComponentData(value.entity, value.componentType, value.component);

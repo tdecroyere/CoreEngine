@@ -11,15 +11,15 @@ namespace CoreEngine.Rendering
         private readonly RenderManager renderManager;
 
         private Shader shader;
+        private GraphicsBuffer cpuVertexBuffer;
         private GraphicsBuffer vertexBuffer;
+        private GraphicsBuffer cpuIndexBuffer;
         private GraphicsBuffer indexBuffer;
 
         public CommandBuffer copyCommandBuffer;
         public CommandBuffer commandBuffer;
 
         private int currentDebugLineIndex;
-        private Vector4[] vertexData;
-        private uint[] indexData;
 
         public DebugRenderer(GraphicsManager graphicsManager, RenderManager renderManager, ResourcesManager resourcesManager)
         {
@@ -44,10 +44,10 @@ namespace CoreEngine.Rendering
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/DebugRender.shader");
 
             var maxLineCount = 100000;
-            this.vertexData = new Vector4[maxLineCount * 4];
-            this.indexData = new uint[maxLineCount * 2];
 
+            this.cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer", GraphicsHeapType.Upload);
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer");
+            this.cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer", GraphicsHeapType.Upload);
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer");
 
             this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "DebugRendererCopy");
@@ -67,13 +67,17 @@ namespace CoreEngine.Rendering
 
         public void DrawLine(Vector3 point1, Vector3 point2, Vector3 color)
         {
-            this.vertexData[this.currentDebugLineIndex * 4] = new Vector4(point1, 0);
-            this.vertexData[this.currentDebugLineIndex * 4 + 1] = new Vector4(color, 0);
-            this.vertexData[this.currentDebugLineIndex * 4 + 2] = new Vector4(point2, 0);
-            this.vertexData[this.currentDebugLineIndex * 4 + 3] = new Vector4(color, 0);
+            var vertexData = this.graphicsManager.GetCpuGraphicsBufferPointer<Vector4>(this.cpuVertexBuffer);
 
-            this.indexData[this.currentDebugLineIndex * 2] = (uint)this.currentDebugLineIndex * 2;
-            this.indexData[this.currentDebugLineIndex * 2 + 1] = (uint)this.currentDebugLineIndex * 2 + 1;
+            vertexData[this.currentDebugLineIndex * 4] = new Vector4(point1, 0);
+            vertexData[this.currentDebugLineIndex * 4 + 1] = new Vector4(color, 0);
+            vertexData[this.currentDebugLineIndex * 4 + 2] = new Vector4(point2, 0);
+            vertexData[this.currentDebugLineIndex * 4 + 3] = new Vector4(color, 0);
+
+            var indexData = this.graphicsManager.GetCpuGraphicsBufferPointer<uint>(this.cpuIndexBuffer);
+
+            indexData[this.currentDebugLineIndex * 2] = (uint)this.currentDebugLineIndex * 2;
+            indexData[this.currentDebugLineIndex * 2 + 1] = (uint)this.currentDebugLineIndex * 2 + 1;
 
             this.currentDebugLineIndex++;
         }
@@ -169,8 +173,8 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
 
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList(this.copyCommandBuffer, "DebugCopyCommandList");
-                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.vertexData.AsSpan().Slice(0, this.currentDebugLineIndex * 4));
-                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.indexData.AsSpan().Slice(0, this.currentDebugLineIndex * 2));
+                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.cpuVertexBuffer, this.currentDebugLineIndex * 4);
+                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.cpuIndexBuffer, this.currentDebugLineIndex * 2);
                 this.graphicsManager.CommitCopyCommandList(copyCommandList);
                 this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 

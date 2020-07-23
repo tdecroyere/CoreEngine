@@ -7,9 +7,11 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal Texture(GraphicsManager graphicsManager, uint systemId, uint? systemId2, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
+        internal Texture(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, uint systemId, uint? systemId2, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
         {
             this.graphicsManager = graphicsManager;
+            this.GraphicsMemoryAllocation = graphicsMemoryAllocation;
+            this.GraphicsMemoryAllocation2 = graphicsMemoryAllocation2;
             this.GraphicsResourceSystemId = systemId;
             this.GraphicsResourceSystemId2 = systemId2;
             this.TextureFormat = textureFormat;
@@ -71,6 +73,8 @@ namespace CoreEngine.Graphics
         public int MultiSampleCount { get; internal set; }
         public GraphicsResourceType ResourceType { get; }
         public bool IsStatic { get; }
+        public GraphicsMemoryAllocation GraphicsMemoryAllocation { get; }
+        public GraphicsMemoryAllocation? GraphicsMemoryAllocation2 { get; }
 
         public string Label
         {

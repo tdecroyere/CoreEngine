@@ -8,7 +8,7 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal GraphicsBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int length, bool isStatic, string label)
+        internal GraphicsBuffer(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, uint systemId, uint? systemId2, int length, bool isStatic, string label)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsResourceSystemId = systemId;
@@ -17,6 +17,8 @@ namespace CoreEngine.Graphics
             this.IsStatic = isStatic;
             this.ResourceType = GraphicsResourceType.Buffer;
             this.Label = label;
+            this.GraphicsMemoryAllocation = graphicsMemoryAllocation;
+            this.GraphicsMemoryAllocation2 = graphicsMemoryAllocation2;
         }
 
         public uint GraphicsResourceId 
@@ -48,6 +50,8 @@ namespace CoreEngine.Graphics
 
         public GraphicsResourceType ResourceType { get; }
         public bool IsStatic { get; }
+        public GraphicsMemoryAllocation GraphicsMemoryAllocation { get; }
+        public GraphicsMemoryAllocation? GraphicsMemoryAllocation2 { get; }
 
         public string Label
         {

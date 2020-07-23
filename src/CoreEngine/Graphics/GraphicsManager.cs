@@ -26,21 +26,22 @@ namespace CoreEngine.Graphics
 
     public class GraphicsManager : SystemManager
     {
+        // TODO: Remove internal
         internal readonly IGraphicsService graphicsService;
+        private readonly GraphicsMemoryAllocator graphicsMemoryAllocator;
 
         private static object syncObject = new object();
         private uint currentGraphicsResourceId;
         
         // TODO: Remove internal
         internal string graphicsAdapterName;
-        internal ulong allocatedGpuMemory = 0;
         internal int gpuMemoryUploaded = 0;
         internal int cpuDrawCount;
         internal int cpuDispatchCount;
 
         private Dictionary<uint, GraphicsRenderPassDescriptor> renderPassDescriptors;
         internal List<GpuTiming> gpuTimings = new List<GpuTiming>();
-
+        
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
             if (graphicsService == null)
@@ -54,9 +55,12 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService = graphicsService;
+            this.graphicsMemoryAllocator = new GraphicsMemoryAllocator(graphicsService);
 
+            Logger.BeginAction("Get Graphics Adapter Infos");
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
             this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
+            Logger.EndAction();
 
             this.currentGraphicsResourceId = 0;
             
@@ -72,18 +76,26 @@ namespace CoreEngine.Graphics
             set;
         }
 
+        public ulong AllocatedGpuMemory 
+        { 
+            get
+            {
+                return this.graphicsMemoryAllocator.AllocatedGpuMemory;
+            }
+        }
+
         public Vector2 GetRenderSize()
         {
             return this.graphicsService.GetRenderSize();
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, bool isStatic, bool isWriteOnly, string label) where T : struct
+        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, bool isStatic, bool isWriteOnly, string label, GraphicsHeapType heapType = GraphicsHeapType.Gpu) where T : struct
         {
             var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
 
+            var allocation = this.graphicsMemoryAllocator.AllocateBuffer(sizeInBytes, heapType);
             var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, sizeInBytes, isWriteOnly, label);
-            this.allocatedGpuMemory += (ulong)sizeInBytes;
+            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, allocation.GraphicsHeap.Id, allocation.Offset, sizeInBytes, $"{label}{(isStatic ? string.Empty : "0") }");
 
             if (!result)
             {
@@ -91,12 +103,13 @@ namespace CoreEngine.Graphics
             }
 
             uint? graphicsBufferId2 = null;
+            GraphicsMemoryAllocation? allocation2 = null;
 
             if (!isStatic)
             {
+                allocation2 = this.graphicsMemoryAllocator.AllocateBuffer(sizeInBytes, heapType);
                 graphicsBufferId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, sizeInBytes, isWriteOnly, label);
-                this.allocatedGpuMemory += (ulong)sizeInBytes;
+                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, sizeInBytes, $"{label}1");
 
                 if (!result)
                 {
@@ -104,13 +117,44 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new GraphicsBuffer(this, graphicsBufferId, graphicsBufferId2, sizeInBytes, isStatic, label);
+            return new GraphicsBuffer(this, allocation, allocation2, graphicsBufferId, graphicsBufferId2, sizeInBytes, isStatic, label);
+        }
+
+        public unsafe Span<T> GetCpuGraphicsBufferPointer<T>(GraphicsBuffer graphicsBuffer) where T : struct
+        {
+            // TODO: Check if the buffer is allocated in a CPU Heap
+
+            var cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.GraphicsResourceId);
+            return new Span<T>(cpuPointer.ToPointer(), graphicsBuffer.Length / Marshal.SizeOf(typeof(T)));
+        }
+
+        public void DeleteGraphicsBuffer(GraphicsBuffer graphicsBuffer)
+        {
+            this.graphicsService.DeleteGraphicsBuffer(graphicsBuffer.GraphicsResourceSystemId);
+            this.graphicsMemoryAllocator.FreeAllocation(graphicsBuffer.GraphicsMemoryAllocation);
+
+            if (!graphicsBuffer.IsStatic)
+            {
+                if (graphicsBuffer.GraphicsResourceSystemId2 != null)
+                {
+                    this.graphicsService.DeleteGraphicsBuffer(graphicsBuffer.GraphicsResourceSystemId2.Value);
+                }
+
+                if (graphicsBuffer.GraphicsMemoryAllocation2 != null)
+                {
+                    this.graphicsMemoryAllocator.FreeAllocation(graphicsBuffer.GraphicsMemoryAllocation2.Value);
+                }
+            }
         }
 
         public Texture CreateTexture(TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, bool isStatic, string label)
         {
             var textureId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateTexture(textureId, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
+
+            Logger.BeginAction("Create Device Texture");
+            var allocation = this.graphicsMemoryAllocator.AllocateTexture(textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget);
+            var result = this.graphicsService.CreateTexture(textureId, allocation.GraphicsHeap.Id, allocation.Offset, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
+            Logger.EndAction();
 
             if (!result)
             {
@@ -118,31 +162,24 @@ namespace CoreEngine.Graphics
             }
 
             uint? textureId2 = null;
+            GraphicsMemoryAllocation? allocation2 = null;
 
             if (!isStatic)
             {
                 textureId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateTexture(textureId2.Value, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
-
+                allocation2 = this.graphicsMemoryAllocator.AllocateTexture(textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget);
+                result = this.graphicsService.CreateTexture(textureId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
+                
                 if (!result)
                 {
                     throw new InvalidOperationException("There was an error while creating the texture resource.");
                 }
             }
 
-            var texture = new Texture(this, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
-            var textureSizeInBytes = ComputeTextureSizeInBytes(texture);
-            
-            if (isStatic)
-            {
-                this.allocatedGpuMemory += (ulong)textureSizeInBytes;
-            }
-        
-            else
-            {
-                this.allocatedGpuMemory += (ulong)textureSizeInBytes * 2;
-            }
-            
+            Logger.BeginAction("Create Texture Object");
+            var texture = new Texture(this, allocation, allocation2, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
+            Logger.EndAction();
+
             return texture;
         }
 
@@ -154,6 +191,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService.DeleteTexture(texture.GraphicsResourceSystemId);
+            this.graphicsMemoryAllocator.FreeAllocation(texture.GraphicsMemoryAllocation);
 
             if (!texture.IsStatic)
             {
@@ -161,18 +199,11 @@ namespace CoreEngine.Graphics
                 {
                     this.graphicsService.DeleteTexture(texture.GraphicsResourceSystemId2.Value);
                 }
-            }
 
-            var textureSizeInBytes = ComputeTextureSizeInBytes(texture);
-            
-            if (texture.IsStatic)
-            {
-                this.allocatedGpuMemory -= (ulong)textureSizeInBytes;
-            }
-        
-            else
-            {
-                this.allocatedGpuMemory -= (ulong)textureSizeInBytes * 2;
+                if (texture.GraphicsMemoryAllocation2 != null)
+                {
+                    this.graphicsMemoryAllocator.FreeAllocation(texture.GraphicsMemoryAllocation2.Value);
+                }
             }
         }
 
@@ -323,46 +354,38 @@ namespace CoreEngine.Graphics
             this.graphicsService.CommitCopyCommandList(commandList.Id);
         }
 
-        public void UploadDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer graphicsBuffer, ReadOnlySpan<T> data) where T : struct
+        public void UploadDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, int length) where T : struct
         {
-            if (data.Length == 0)
-            {
-                return;
-            }
+            // TODO: Check that the source was allocated in a cpu heap
 
-            // TODO: Do something for memory alignement of data in the shaders?
-            var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, rawData);
-            this.gpuMemoryUploaded += rawData.Length;
+            var sizeInBytes = length * Marshal.SizeOf(typeof(T));
+
+            this.graphicsService.UploadDataToGraphicsBuffer(commandList.Id, destination.GraphicsResourceId, source.GraphicsResourceId, sizeInBytes);
+            this.gpuMemoryUploaded += sizeInBytes;
         }
 
         public void CopyGraphicsBufferDataToCpu(CommandList commandList, GraphicsBuffer graphicsBuffer, int length)
         {
-            this.graphicsService.CopyGraphicsBufferDataToCpu(commandList.Id, graphicsBuffer.GraphicsResourceId, length);
+            this.graphicsService.CopyGraphicsBufferDataToCpuOld(commandList.Id, graphicsBuffer.GraphicsResourceId, length);
         }
 
         public ReadOnlySpan<T> ReadGraphicsBufferData<T>(GraphicsBuffer graphicsBuffer) where T : struct
         {
             var rawData = new byte[graphicsBuffer.Length].AsSpan();
-            this.graphicsService.ReadGraphicsBufferData(graphicsBuffer.GraphicsResourceId, rawData);
+            this.graphicsService.ReadGraphicsBufferDataOld(graphicsBuffer.GraphicsResourceId, rawData);
             return MemoryMarshal.Cast<byte, T>(rawData);
         }
 
-        public void UploadDataToTexture<T>(CommandList commandList, Texture texture, int width, int height, int slice, int mipLevel, ReadOnlySpan<T> data) where T : struct
+        public void UploadDataToTexture<T>(CommandList commandList, Texture destination, GraphicsBuffer source, int width, int height, int slice, int mipLevel) where T : struct
         {
-            if (texture == null)
+            // TODO: Check that the source was allocated in a cpu heap
+            if (destination == null)
             {
-                throw new ArgumentNullException(nameof(texture));
+                throw new ArgumentNullException(nameof(destination));
             }
 
-            if (data.Length == 0)
-            {
-                return;
-            }
-
-            var rawData = MemoryMarshal.Cast<T, byte>(data);
-            this.graphicsService.UploadDataToTexture(commandList.Id, texture.GraphicsResourceId, (GraphicsTextureFormat)texture.TextureFormat, width, height, slice, mipLevel, rawData);
-            this.gpuMemoryUploaded += rawData.Length;
+            this.graphicsService.UploadDataToTexture(commandList.Id, destination.GraphicsResourceId, source.GraphicsResourceId, (GraphicsTextureFormat)destination.TextureFormat, width, height, slice, mipLevel);
+            this.gpuMemoryUploaded += source.Length;
         }
 
         public void ResetIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
@@ -385,7 +408,9 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("There was an error while creating the compute command list resource.");
             }
 
-            return new CommandList(commandListId, CommandListType.Compute);
+            var commandList = new CommandList(commandListId, CommandListType.Compute);
+            this.graphicsMemoryAllocator.BindGpuHeaps(commandList);
+            return commandList;
         }
 
         public void CommitComputeCommandList(CommandList commandList)
@@ -437,7 +462,9 @@ namespace CoreEngine.Graphics
 
             this.renderPassDescriptors.Add(commandListId, graphicsRenderPassDescriptor);
 
-            return new CommandList(commandListId, CommandListType.Render);
+            var commandList = new CommandList(commandListId, CommandListType.Render);
+            this.graphicsMemoryAllocator.BindGpuHeaps(commandList);
+            return commandList;
         }
 
         public void CommitRenderCommandList(CommandList commandList)
@@ -623,8 +650,10 @@ namespace CoreEngine.Graphics
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)
         {
+            Logger.BeginAction("Init Resource Loaders");
             resourcesManager.AddResourceLoader(new TextureResourceLoader(resourcesManager, this));
             resourcesManager.AddResourceLoader(new ShaderResourceLoader(resourcesManager, this));
+            Logger.EndAction();
         }
 
         private uint GetNextGraphicsResourceId()
@@ -637,56 +666,6 @@ namespace CoreEngine.Graphics
             }
 
             return result;
-        }
-
-        private static int ComputeTextureSizeInBytes(Texture texture)
-        {
-            var pixelSizeInBytes = 4;
-            var isBlockCompression = false;
-
-            if (texture.TextureFormat == TextureFormat.Rgba16Float || texture.TextureFormat == TextureFormat.Rgba16Unorm)
-            {
-                pixelSizeInBytes = 8;
-            }
-
-            else if (texture.TextureFormat == TextureFormat.Rgba32Float)
-            {
-                pixelSizeInBytes = 16;
-            }
-
-            else if (texture.TextureFormat == TextureFormat.BC1Srgb || texture.TextureFormat == TextureFormat.BC4)
-            {
-                pixelSizeInBytes = 8;
-                isBlockCompression = true;
-            }
-
-            else if (texture.TextureFormat == TextureFormat.BC2Srgb || texture.TextureFormat == TextureFormat.BC3Srgb || texture.TextureFormat == TextureFormat.BC5 || texture.TextureFormat == TextureFormat.BC6 || texture.TextureFormat == TextureFormat.BC7Srgb)
-            {
-                pixelSizeInBytes = 16;
-                isBlockCompression = true;
-            }
-
-            var textureMemory = 0;
-            var textureWidth = texture.Width;
-            var textureHeight = texture.Height;
-
-            for (var i = 0; i < texture.MipLevels; i++)
-            {
-                if (isBlockCompression)
-                {
-                    textureMemory += pixelSizeInBytes * (int)MathF.Ceiling((float)textureWidth / 4.0f) * (int)MathF.Ceiling((float)textureHeight / 4.0f);
-                }
-                
-                else
-                {
-                    textureMemory += textureWidth * textureHeight * pixelSizeInBytes * texture.MultiSampleCount;
-                }
-
-                textureWidth = (textureWidth > 1) ? textureWidth / 2 : 1;
-                textureHeight = (textureHeight > 1) ? textureHeight / 2 : 1;
-            }
-
-            return textureMemory;
         }
     }
 }

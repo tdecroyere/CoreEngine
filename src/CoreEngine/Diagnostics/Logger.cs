@@ -12,9 +12,10 @@ namespace CoreEngine.Diagnostics
     public static class Logger
     {
         // TODO: This code is not thread-safe!
-        private static ConcurrentStack<string> messageStack = new ConcurrentStack<string>();
+        private static Stack<string> messageStack = new Stack<string>();
         private static int currentLevel = 0;
-        private static Stack<Stopwatch> stopwatchStack = new Stack<Stopwatch>();
+        private static Stopwatch globalStopwatch = new Stopwatch();
+        private static Stack<long> elapsedTimeStack = new Stack<long>();
 
         public static void WriteMessage(string message, LogMessageTypes messageType = LogMessageTypes.Normal)
         {
@@ -64,13 +65,21 @@ namespace CoreEngine.Diagnostics
 
         public static void BeginAction(string message)
         {
-            messageStack.Push(message);
-            WriteMessage($"{message}...", LogMessageTypes.Action);
-            currentLevel++;
+            if (!globalStopwatch.IsRunning)
+            {
+                globalStopwatch.Start();
+            }
 
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
-            stopwatchStack.Push(stopwatch);
+            elapsedTimeStack.Push(globalStopwatch.ElapsedTicks);
+
+            var absoluteTime = (double)(globalStopwatch.ElapsedTicks) / (double)Stopwatch.Frequency * 1000.0;
+
+            messageStack.Push(message);
+
+            globalStopwatch.Stop();
+            WriteMessage($"{message}... ({absoluteTime.ToString("0.00", CultureInfo.InvariantCulture)})", LogMessageTypes.Action);
+            globalStopwatch.Start();
+            currentLevel++;
         }
 
         public static void EndAction()
@@ -78,8 +87,15 @@ namespace CoreEngine.Diagnostics
             if (messageStack.TryPop(out var message))
             {
                 currentLevel--;
-                var stopwatch = stopwatchStack.Pop();
-                WriteMessage($"{message} done. (Elapsed: {stopwatch.Elapsed.TotalMilliseconds.ToString("0.00", CultureInfo.InvariantCulture)} ms)", LogMessageTypes.Success);
+                var startTime = elapsedTimeStack.Pop();
+                var endTime = globalStopwatch.ElapsedTicks;
+
+                var duration = (double)(endTime - startTime) / (double)Stopwatch.Frequency * 1000.0;
+                var absoluteTime = (double)(globalStopwatch.ElapsedTicks) / (double)Stopwatch.Frequency * 1000.0;
+
+                globalStopwatch.Stop();
+                WriteMessage($"{message} done. (Elapsed: {duration.ToString("0.00", CultureInfo.InvariantCulture)} ms, {absoluteTime.ToString("0.00", CultureInfo.InvariantCulture)})", LogMessageTypes.Success);
+                globalStopwatch.Start();
             }
         }
 
@@ -88,7 +104,7 @@ namespace CoreEngine.Diagnostics
             if (messageStack.TryPop(out var message))
             {
                 currentLevel--;
-                stopwatchStack.Pop();
+                elapsedTimeStack.Pop();
                 WriteMessage($"{message} failed.", LogMessageTypes.Error);
             }
         }
@@ -98,7 +114,7 @@ namespace CoreEngine.Diagnostics
             if (messageStack.TryPop(out var stackMessage))
             {
                 currentLevel--;
-                stopwatchStack.Pop();
+                elapsedTimeStack.Pop();
 
                 WriteMessage($"{message}.", LogMessageTypes.Warning);
             }

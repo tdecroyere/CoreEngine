@@ -1820,9 +1820,12 @@ namespace CoreEngine.Rendering
         private void SetupCamera(Camera camera)
         {
             var renderPassConstants = this.graphicsManager.GetCpuGraphicsBufferPointer<RenderPassConstants>(this.cpuRenderPassParametersGraphicsBuffer);
+            var value = new RenderPassConstants();
 
-            renderPassConstants[0].ViewMatrix = camera.ViewMatrix;
-            renderPassConstants[0].ProjectionMatrix = camera.ProjectionMatrix;
+            value.ViewMatrix = camera.ViewMatrix;
+            value.ProjectionMatrix = camera.ProjectionMatrix;
+
+            renderPassConstants[0] = value;
         }
     }
 }

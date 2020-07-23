@@ -55,7 +55,129 @@ void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
     this->adapterName.copy((wchar_t*)output, this->adapterName.length());
 }
 
-int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferId, int length, int isWriteOnly, char* label)
+GraphicsAllocationInfos Direct3D12GraphicsService::GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount)
+{
+	auto textureDesc = CreateTextureResourceDescription(textureFormat, width, height, faceCount, mipLevels, multisampleCount);
+	auto allocationInfos = this->graphicsDevice->GetResourceAllocationInfo(0, 1, &textureDesc);
+
+	GraphicsAllocationInfos result = {};
+	result.Length = allocationInfos.SizeInBytes;
+	result.Alignment = allocationInfos.Alignment;
+
+	return result;
+}
+
+int Direct3D12GraphicsService::CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes, char* label)
+{
+	// Create cpu heap
+	D3D12_HEAP_DESC heapDescriptor = {};
+
+	if (type == GraphicsServiceHeapType::Upload)
+	{
+		heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_UPLOAD;
+		heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapDescriptor.SizeInBytes = sizeInBytes;
+		heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+	}
+
+	else if (type == GraphicsServiceHeapType::ReadBack)
+	{
+		heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_READBACK;
+		heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapDescriptor.SizeInBytes = sizeInBytes;
+		heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+	}
+
+	else
+	{
+		heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+		heapDescriptor.SizeInBytes = sizeInBytes;
+		heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+	}
+
+	ComPtr<ID3D12Heap> graphicsHeap;
+	AssertIfFailed(this->graphicsDevice->CreateHeap(&heapDescriptor, IID_PPV_ARGS(graphicsHeap.ReleaseAndGetAddressOf())));
+	graphicsHeap->SetName(wstring(label, label + strlen(label)).c_str());
+
+	this->graphicsHeaps[graphicsHeapId] = graphicsHeap;
+	this->graphicsHeapTypes[graphicsHeapId] = type;
+
+	return 1;
+}
+
+void Direct3D12GraphicsService::DeleteGraphicsHeap(unsigned int graphicsHeapId)
+{
+	this->graphicsHeaps.erase(graphicsHeapId);
+}
+
+int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int sizeInBytes, char* label)
+{ 
+	if (!this->graphicsHeaps.count(graphicsHeapId))
+	{
+		return false;
+	}
+
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = sizeInBytes;
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	auto resourceState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+	if (this->graphicsHeapTypes[graphicsHeapId] == GraphicsServiceHeapType::Upload)
+	{
+		resourceState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	}
+
+	// Create a Direct3D12 buffer on the GPU
+	ComPtr<ID3D12Resource> graphicsBuffer;
+	AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->graphicsHeaps[graphicsHeapId].Get(), heapOffset, &resourceDesc, resourceState, nullptr, IID_PPV_ARGS(graphicsBuffer.ReleaseAndGetAddressOf())));
+	graphicsBuffer->SetName(wstring(label, label + strlen(label)).c_str());
+
+	this->gpuBuffers[graphicsBufferId] = graphicsBuffer;
+	this->bufferResourceStates[graphicsBufferId] = resourceState;
+	
+    return 1;
+}
+
+void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId)
+{
+	if (!this->gpuBuffers.count(graphicsBufferId))
+	{
+		return nullptr;
+	}
+
+	if (this->graphicsBufferPointers.count(graphicsBufferId))
+	{
+		return this->graphicsBufferPointers[graphicsBufferId];
+	}
+
+	auto graphicsBuffer = this->gpuBuffers[graphicsBufferId];
+
+	void* pointer = nullptr;
+	D3D12_RANGE range = { 0, 0 };
+	graphicsBuffer->Map(0, &range, &pointer);
+
+	this->graphicsBufferPointers[graphicsBufferId] = pointer;
+
+	return pointer;
+}
+
+void Direct3D12GraphicsService::DeleteGraphicsBuffer(unsigned int graphicsBufferId)
+{
+	// TODO: Wait for next frame for releasing resources
+
+	//this->gpuBuffers.erase(graphicsBufferId);
+}
+
+int Direct3D12GraphicsService::CreateGraphicsBufferOld(unsigned int graphicsBufferId, int sizeInBytes, int isWriteOnly, char* label)
 { 
 	// For the moment, all data is aligned in a 64 KB alignement
 	uint64_t alignement = 64 * 1024;
@@ -63,7 +185,7 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 	D3D12_RESOURCE_DESC resourceDesc = {};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	resourceDesc.Alignment = 0;
-	resourceDesc.Width = isWriteOnly ? GetAlignedValue(length, alignement) : length;
+	resourceDesc.Width = isWriteOnly ? GetAlignedValue(sizeInBytes, alignement) : sizeInBytes;
 	resourceDesc.Height = 1;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.MipLevels = 1;
@@ -112,7 +234,7 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 	ComPtr<ID3D12Resource> cpuBuffer;
 	AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(cpuBuffer.ReleaseAndGetAddressOf())));
 	cpuBuffer->SetName((wstring(L"CpuBuffer_") + wstring(label, label + strlen(label))).c_str());
-	this->currentUploadHeapOffset += GetAlignedValue(length, alignement);
+	this->currentUploadHeapOffset += GetAlignedValue(sizeInBytes, alignement);
 	this->cpuBuffers[graphicsBufferId] = cpuBuffer;
 
 	if (!isWriteOnly)
@@ -127,7 +249,7 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 		ComPtr<ID3D12Resource> readBackBuffer;
 		AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(readBackBuffer.ReleaseAndGetAddressOf())));
 		readBackBuffer->SetName((wstring(L"ReadBackBuffer_") + wstring(label, label + strlen(label))).c_str());
-		this->currentReadBackHeapOffset += GetAlignedValue(length, alignement);
+		this->currentReadBackHeapOffset += GetAlignedValue(sizeInBytes, alignement);
 		this->readBackBuffers[graphicsBufferId] = readBackBuffer;
 	}
 
@@ -137,7 +259,7 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 		D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
 		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-		uavDesc.Buffer.NumElements = length / 24;
+		uavDesc.Buffer.NumElements = sizeInBytes / 24;
 		uavDesc.Buffer.StructureByteStride = 24; // TODO: Change that
 
 		auto globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -171,22 +293,136 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
     return 1;
 }
 
-int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
+int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
+{
+	if (!this->graphicsHeaps.count(graphicsHeapId))
+	{
+		return false;
+	}
+
+	auto textureName = wstring(label, label + strlen(label));
+
+	// TODO: Support mip levels
+	// TODO: Switch to placed resources
+	auto textureDesc = CreateTextureResourceDescription(textureFormat, width, height, faceCount, mipLevels, multisampleCount);
+
+	D3D12_CLEAR_VALUE* clearValue = nullptr;
+
+	D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+	if (isRenderTarget) 
+	{
+		if (textureFormat == GraphicsTextureFormat::Depth32Float)
+		{
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		}
+
+		else
+		{
+			// TODO: Change this, mixing UAV and RenderTarget is not recommanded
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+			// TODO: To remove?
+			D3D12_CLEAR_VALUE rawClearValue = {};
+			rawClearValue.Format = ConvertTextureFormat(textureFormat);
+			clearValue = &rawClearValue;
+			initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		}
+	} 
+	
+	else 
+	{
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	}
+
+	D3D12_HEAP_PROPERTIES defaultHeapProperties = {};
+	defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	defaultHeapProperties.CreationNodeMask = 1;
+	defaultHeapProperties.VisibleNodeMask = 1;
+
+	if (!isRenderTarget)
+	{
+		ComPtr<ID3D12Resource> gpuTexture;
+		AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->graphicsHeaps[graphicsHeapId].Get(), heapOffset, &textureDesc, initialState, clearValue, IID_PPV_ARGS(gpuTexture.ReleaseAndGetAddressOf())));
+		gpuTexture->SetName(textureName.c_str());
+		this->gpuTextures[textureId] = gpuTexture;
+		this->textureResourceStates[textureId] = initialState;
+
+		UINT64 uploadBufferSize;
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footPrint;
+
+		this->graphicsDevice->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footPrint, nullptr, nullptr, &uploadBufferSize);
+		this->textureFootPrints[textureId] = footPrint;
+	}
+
+	if (textureFormat != GraphicsTextureFormat::Depth32Float)
+	{
+		D3D12_HEAP_PROPERTIES defaultHeapProperties = {};
+		defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+		defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		defaultHeapProperties.CreationNodeMask = 1;
+		defaultHeapProperties.VisibleNodeMask = 1;
+
+		ComPtr<ID3D12Resource> gpuTexture;
+		AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &textureDesc, initialState, clearValue, IID_PPV_ARGS(gpuTexture.ReleaseAndGetAddressOf())));
+		gpuTexture->SetName(textureName.c_str());
+		this->gpuTextures[textureId] = gpuTexture;
+		this->textureResourceStates[textureId] = initialState;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = ConvertTextureFormat(textureFormat);
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = 1;//mipLevels;
+
+		auto globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		globalDescriptorHeapHandle.ptr += this->currentGlobalDescriptorOffset;
+
+		this->graphicsDevice->CreateShaderResourceView(gpuTexture.Get(), &srvDesc, globalDescriptorHeapHandle);
+		this->srvtextureDescriptorOffets[textureId] = this->currentGlobalDescriptorOffset;
+		this->currentGlobalDescriptorOffset += this->globalDescriptorHandleSize;
+
+		if (isRenderTarget)
+		{
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+			rtvDesc.Format = ConvertTextureFormat(textureFormat);
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+			auto globalRtvDescriptorHeapHandle = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+			globalRtvDescriptorHeapHandle.ptr += this->currentGlobalRtvDescriptorOffset;
+
+			this->graphicsDevice->CreateRenderTargetView(gpuTexture.Get(), &rtvDesc, globalRtvDescriptorHeapHandle);
+			this->textureDescriptorOffets[textureId] = this->currentGlobalRtvDescriptorOffset;
+			this->currentGlobalRtvDescriptorOffset += this->globalRtvDescriptorHandleSize;
+
+			// UAV View
+			D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
+			uavDesc.Format = ConvertTextureFormat(textureFormat);
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			uavDesc.Texture2D.MipSlice = 0;
+
+			globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+			globalDescriptorHeapHandle.ptr += this->currentGlobalDescriptorOffset;
+
+			this->graphicsDevice->CreateUnorderedAccessView(gpuTexture.Get(), nullptr, &uavDesc, globalDescriptorHeapHandle);
+			this->uavTextureDescriptorOffets[textureId] = this->currentGlobalDescriptorOffset;
+			this->currentGlobalDescriptorOffset += this->globalDescriptorHandleSize;
+		}
+	}
+
+	return 1;
+}
+
+int Direct3D12GraphicsService::CreateTextureOld(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
 { 
 	auto textureName = wstring(label, label + strlen(label));
 
 	// TODO: Support mip levels
 	// TODO: Switch to placed resources
-	D3D12_RESOURCE_DESC textureDesc = {};
-	textureDesc.MipLevels = 1;//mipLevels;
-	textureDesc.Format = ConvertTextureFormat(textureFormat);
-	textureDesc.Width = width;
-	textureDesc.Height = height;
-	textureDesc.DepthOrArraySize = 1;
-	textureDesc.SampleDesc.Count = multisampleCount;
-	textureDesc.SampleDesc.Quality = 0;
-	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	auto textureDesc = CreateTextureResourceDescription(textureFormat, width, height, faceCount, mipLevels, multisampleCount);
 
 	D3D12_CLEAR_VALUE* clearValue = nullptr;
 
@@ -343,7 +579,7 @@ int Direct3D12GraphicsService::CreateIndirectCommandBuffer(unsigned int indirect
 	// AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(&commandSignature)));
 	this->indirectCommandBufferSignatures[indirectCommandBufferId] = commandSignature;
 
-	return CreateGraphicsBuffer(indirectCommandBufferId, maxCommandCount * sizeof(IndirectCommand), false, label);
+	return CreateGraphicsBufferOld(indirectCommandBufferId, maxCommandCount * sizeof(IndirectCommand), false, label);
 }
 
 int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label)
@@ -917,30 +1153,57 @@ void Direct3D12GraphicsService::CommitCopyCommandList(unsigned int commandListId
 { 
 }
 
-void Direct3D12GraphicsService::UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength)
+void Direct3D12GraphicsService::UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int sizeInBytes)
 { 
-	if (!this->cpuBuffers.count(graphicsBufferId) && !this->gpuBuffers.count(graphicsBufferId))
+	if (!this->gpuBuffers.count(destinationGraphicsBufferId) && !this->gpuBuffers.count(sourceGraphicsBufferId))
 	{
 		return;
 	}
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
-	auto gpuBuffer = this->gpuBuffers[graphicsBufferId];
-	auto cpuBuffer = this->cpuBuffers[graphicsBufferId];
+	auto destinationGraphicsBuffer = this->gpuBuffers[destinationGraphicsBufferId];
+	auto sourceGraphicsBuffer = this->gpuBuffers[sourceGraphicsBufferId];
 
-	void* pointer = nullptr;
-	D3D12_RANGE range = { 0, 0 };
-	cpuBuffer->Map(0, &range, &pointer);
-
-	memcpy(pointer, data, dataLength);
-
-	commandList->CopyBufferRegion(gpuBuffer.Get(), 0, cpuBuffer.Get(), 0, dataLength);
+	commandList->CopyBufferRegion(destinationGraphicsBuffer.Get(), 0, sourceGraphicsBuffer.Get(), 0, sizeInBytes);
 }
 
-void Direct3D12GraphicsService::CopyGraphicsBufferDataToCpu(unsigned int commandListId, unsigned int graphicsBufferId, int length){ }
-void Direct3D12GraphicsService::ReadGraphicsBufferData(unsigned int graphicsBufferId, void* data, int dataLength){ }
+void Direct3D12GraphicsService::CopyGraphicsBufferDataToCpuOld(unsigned int commandListId, unsigned int graphicsBufferId, int length){ }
+void Direct3D12GraphicsService::ReadGraphicsBufferDataOld(unsigned int graphicsBufferId, void* data, int dataLength){ }
 
-void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength)
+void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)
+{
+	if (!this->gpuTextures.count(destinationTextureId) && !this->gpuBuffers.count(sourceGraphicsBufferId))
+	{
+		return;
+	}
+
+	// TODO: For the moment it only takes into account the mip level
+	if (mipLevel > 0)
+	{
+		return;
+	}
+
+	TransitionTextureToState(commandListId, destinationTextureId, D3D12_RESOURCE_STATE_COPY_DEST);
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto destinationTexture = this->gpuTextures[destinationTextureId];
+	auto sourceGraphicsBuffer = this->gpuBuffers[sourceGraphicsBufferId];
+	auto footPrint = this->textureFootPrints[destinationTextureId];
+
+	D3D12_TEXTURE_COPY_LOCATION destinationLocation = {};
+	destinationLocation.pResource = destinationTexture.Get();
+	destinationLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	destinationLocation.SubresourceIndex = mipLevel;
+
+	D3D12_TEXTURE_COPY_LOCATION sourceLocation = {};
+	sourceLocation.pResource = sourceGraphicsBuffer.Get();
+	sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	sourceLocation.PlacedFootprint = footPrint;
+
+	commandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
+}
+
+void Direct3D12GraphicsService::UploadDataToTextureOld(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength)
 { 
 	// TODO: For the moment it only takes into account the mip level
 	if (mipLevel > 0)
@@ -1119,6 +1382,11 @@ void Direct3D12GraphicsService::SetShader(unsigned int commandListId, unsigned i
 	}
 
 	this->shaderBound = true;
+}
+
+void Direct3D12GraphicsService::BindGraphicsHeap(unsigned int commandListId, unsigned int graphicsHeapId)
+{
+
 }
 
 void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount)
@@ -1691,53 +1959,6 @@ void Direct3D12GraphicsService::TransitionBufferToState(unsigned int commandList
 	}
 }
 
-DXGI_FORMAT Direct3D12GraphicsService::ConvertTextureFormat(GraphicsTextureFormat textureFormat) 
-{
-	switch (textureFormat)
-	{
-		case GraphicsTextureFormat::Bgra8UnormSrgb:
-			return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-	
-		case GraphicsTextureFormat::Depth32Float:
-			return DXGI_FORMAT_D32_FLOAT;
-	
-		case GraphicsTextureFormat::Rgba16Float:
-			return DXGI_FORMAT_R16G16B16A16_FLOAT;
-	
-		case GraphicsTextureFormat::R16Float:
-			return DXGI_FORMAT_R16_FLOAT;
-	
-		case GraphicsTextureFormat::BC1Srgb:
-			return DXGI_FORMAT_BC1_UNORM_SRGB;
-
-		case GraphicsTextureFormat::BC2Srgb:
-			return DXGI_FORMAT_BC2_UNORM_SRGB;
-
-		case GraphicsTextureFormat::BC3Srgb:
-			return DXGI_FORMAT_BC3_UNORM_SRGB;
-
-		case GraphicsTextureFormat::BC4:
-			return DXGI_FORMAT_BC4_UNORM;
-
-		case GraphicsTextureFormat::BC5:
-			return DXGI_FORMAT_BC5_UNORM;
-
-		case GraphicsTextureFormat::BC6:
-			return DXGI_FORMAT_BC6H_UF16;
-
-		case GraphicsTextureFormat::BC7Srgb:
-			return DXGI_FORMAT_BC7_UNORM_SRGB;
-
-		case GraphicsTextureFormat::Rgba32Float:
-			return DXGI_FORMAT_R32G32B32A32_FLOAT;
-
-		case GraphicsTextureFormat::Rgba16Unorm:
-			return DXGI_FORMAT_R16G16B16A16_UNORM;
-	}
-        
-	return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-}
-
 void Direct3D12GraphicsService::InitGpuProfiling()
 {
 	D3D12_QUERY_HEAP_DESC heapDesc = {};
@@ -1747,8 +1968,8 @@ void Direct3D12GraphicsService::InitGpuProfiling()
 
 	AssertIfFailed(this->graphicsDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(this->queryHeap.ReleaseAndGetAddressOf())));
 
-	CreateGraphicsBuffer(10000, QueryHeapMaxSize * sizeof(uint64_t), false, "QueryReadBackBuffer0");
-	CreateGraphicsBuffer(10001, QueryHeapMaxSize * sizeof(uint64_t), false, "QueryReadBackBuffer1");
+	CreateGraphicsBufferOld(10000, QueryHeapMaxSize * sizeof(uint64_t), false, "QueryReadBackBuffer0");
+	CreateGraphicsBufferOld(10001, QueryHeapMaxSize * sizeof(uint64_t), false, "QueryReadBackBuffer1");
 
 	heapDesc = {};
 	heapDesc.Count = QueryHeapMaxSize;
@@ -1757,8 +1978,8 @@ void Direct3D12GraphicsService::InitGpuProfiling()
 
 	AssertIfFailed(this->graphicsDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(this->copyQueryHeap.ReleaseAndGetAddressOf())));
 
-	CreateGraphicsBuffer(10002, QueryHeapMaxSize * sizeof(uint64_t), false, "CopyQueryReadBackBuffer0");
-	CreateGraphicsBuffer(10003, QueryHeapMaxSize * sizeof(uint64_t), false, "CopyQueryReadBackBuffer1");
+	CreateGraphicsBufferOld(10002, QueryHeapMaxSize * sizeof(uint64_t), false, "CopyQueryReadBackBuffer0");
+	CreateGraphicsBufferOld(10003, QueryHeapMaxSize * sizeof(uint64_t), false, "CopyQueryReadBackBuffer1");
 
 	this->currentCpuQueryHeap = new uint64_t[QueryHeapMaxSize];
 	this->currentCpuCopyQueryHeap = new uint64_t[QueryHeapMaxSize];

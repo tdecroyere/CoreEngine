@@ -30,10 +30,7 @@
             "windows": {
                 "cwd": "${workspaceFolder}/build/Windows/",
                 "program": "./CoreEngine.exe"
-            },
-            "logging": {
-                "engineLogging": true
-             }
+            }
         },
         {
             "name": "(MacOS) Launch",

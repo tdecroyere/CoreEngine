@@ -30,10 +30,19 @@ class Direct3D12GraphicsService
 
         struct Vector2 GetRenderSize();
         void GetGraphicsAdapterName(char* output);
+        GraphicsAllocationInfos GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount);
         
-        int CreateGraphicsBuffer(unsigned int graphicsBufferId, int length, int isWriteOnly, char* label);
-        int CreateTexture(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
+        int CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes, char* label);
+        void DeleteGraphicsHeap(unsigned int graphicsHeapId);
+
+        int CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int sizeInBytes, char* label);
+        void* GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId);
+        void DeleteGraphicsBuffer(unsigned int graphicsBufferId);
+
+        int CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
+        int CreateTextureOld(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
         void DeleteTexture(unsigned int textureId);
+
         int CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount, char* label);
         int CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label);
         void DeleteShader(unsigned int shaderId);
@@ -55,10 +64,11 @@ class Direct3D12GraphicsService
 
         int CreateCopyCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label);
         void CommitCopyCommandList(unsigned int commandListId);
-        void UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int graphicsBufferId, void* data, int dataLength);
-        void CopyGraphicsBufferDataToCpu(unsigned int commandListId, unsigned int graphicsBufferId, int length);
-        void ReadGraphicsBufferData(unsigned int graphicsBufferId, void* data, int dataLength);
-        void UploadDataToTexture(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength);
+        void UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int sizeInBytes);
+        void CopyGraphicsBufferDataToCpuOld(unsigned int commandListId, unsigned int graphicsBufferId, int length);
+        void ReadGraphicsBufferDataOld(unsigned int graphicsBufferId, void* data, int dataLength);
+        void UploadDataToTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
+        void UploadDataToTextureOld(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength);
         void ResetIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
         void OptimizeIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 
@@ -70,6 +80,7 @@ class Direct3D12GraphicsService
         void CommitRenderCommandList(unsigned int commandListId);
         void SetPipelineState(unsigned int commandListId, unsigned int pipelineStateId);
         void SetShader(unsigned int commandListId, unsigned int shaderId);
+        void BindGraphicsHeap(unsigned int commandListId, unsigned int graphicsHeapId);
         void ExecuteIndirectCommandBuffer(unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount);
         void SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId);
         void DrawIndexedPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
@@ -144,6 +155,9 @@ class Direct3D12GraphicsService
         map<uint32_t, uint32_t> commandBufferEndQueryIndex;
 
         // Heap objects
+        map<uint32_t, ComPtr<ID3D12Heap>> graphicsHeaps;
+        map<uint32_t, GraphicsServiceHeapType> graphicsHeapTypes;
+
         ComPtr<ID3D12Heap> uploadHeap;
         uint64_t currentUploadHeapOffset = 0;
         ComPtr<ID3D12Heap> readBackHeap;
@@ -160,9 +174,11 @@ class Direct3D12GraphicsService
         uint32_t currentGlobalRtvDescriptorOffset;
 
         // Buffers
+        map<uint32_t, ComPtr<ID3D12Resource>> gpuBuffers;
+        map<uint32_t, void*> graphicsBufferPointers;
+
         map<uint32_t, ComPtr<ID3D12Resource>> cpuBuffers;
         map<uint32_t, ComPtr<ID3D12Resource>> readBackBuffers;
-        map<uint32_t, ComPtr<ID3D12Resource>> gpuBuffers;
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
         map<uint32_t, uint32_t> uavBufferDescriptorOffets;
         map<uint32_t, D3D12_RESOURCE_STATES> bufferResourceStates;
@@ -185,6 +201,8 @@ class Direct3D12GraphicsService
 
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> debugDescriptorHeaps;
 
+        // TODO: To Remove
+        int CreateGraphicsBufferOld(unsigned int graphicsBufferId, int sizeInBytes, int isWriteOnly, char* label);
 
         void EnableDebugLayer();
         ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);
@@ -194,7 +212,6 @@ class Direct3D12GraphicsService
         D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
         void TransitionTextureToState(uint32_t commandListId, uint32_t textureId, D3D12_RESOURCE_STATES destinationState);
         void TransitionBufferToState(uint32_t commandListId, uint32_t bufferId, D3D12_RESOURCE_STATES destinationState);
-        DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat);
 
         void InitGpuProfiling();
 };

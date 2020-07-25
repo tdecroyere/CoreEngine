@@ -10,6 +10,11 @@ namespace CoreEngine
             return (value + (alignment - (value % alignment)) % alignment);
         }
 
+        public static ulong MegaBytesToBytes(ulong value)
+        {
+            return value * 1024 * 1024;
+        }
+
         public static ulong GigaBytesToBytes(ulong value)
         {
             return value * 1024 * 1024 * 1024;

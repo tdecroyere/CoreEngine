@@ -55,7 +55,7 @@ namespace CoreEngine.Graphics
                 this.graphicsManager.DeleteShader(shader);
             }
 
-            var computeFunction = (resource.Parameters.Length > 0) ? resource.Parameters.Span[0] : null;
+            var computeFunction = (!resource.Parameters.IsEmpty) ? resource.Parameters.Span[0] : null;
 
             var createdShader = this.graphicsManager.CreateShader(computeFunction, shaderByteCode, $"{Path.GetFileNameWithoutExtension(shader.Path)}Shader");
             shader.ShaderId = createdShader.ShaderId;

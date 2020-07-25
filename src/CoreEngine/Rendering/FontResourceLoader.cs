@@ -74,7 +74,7 @@ namespace CoreEngine.Rendering
             
             var textureDataLength = reader.ReadInt32();
 
-            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(textureDataLength, isStatic: true, isWriteOnly: true, label: "TextureCpuBuffer", GraphicsHeapType.Upload);
+            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(textureDataLength, isStatic: true, label: "TextureCpuBuffer", GraphicsHeapType.Upload);
             var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             reader.Read(textureData);
 

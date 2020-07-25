@@ -13,9 +13,9 @@ namespace CoreEngine.Diagnostics
     {
         // TODO: This code is not thread-safe!
         private static Stack<string> messageStack = new Stack<string>();
-        private static int currentLevel = 0;
         private static Stopwatch globalStopwatch = new Stopwatch();
         private static Stack<long> elapsedTimeStack = new Stack<long>();
+        private static int currentLevel;
 
         public static void WriteMessage(string message, LogMessageTypes messageType = LogMessageTypes.Normal)
         {

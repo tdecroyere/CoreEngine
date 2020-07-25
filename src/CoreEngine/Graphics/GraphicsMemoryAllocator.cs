@@ -23,7 +23,8 @@ namespace CoreEngine.Graphics
         private ulong currentGlobalGpuHeapOffset;
         private GraphicsHeap globalUploadHeap;
         private ulong currentGlobalUploadHeapOffset;
-        private GraphicsHeap readBackHeap;
+        private GraphicsHeap globalReadBackHeap;
+        private ulong currentGlobalReadBackHeapOffset;
 
         public GraphicsMemoryAllocator(IGraphicsService graphicsService)
         {
@@ -51,14 +52,28 @@ namespace CoreEngine.Graphics
             }
 
             this.globalUploadHeap = new GraphicsHeap(globalUploadHeapId, GraphicsHeapType.Upload, globalUploadHeapSize);
+
+            var globalReadBackHeapId = currentGraphicsResourceId++;
+            var globalReadBackHeapSize = Utils.MegaBytesToBytes(32); // Allocate 32MB
+            this.currentGlobalReadBackHeapOffset = 0;
+            
+            if(!this.graphicsService.CreateGraphicsHeap(globalReadBackHeapId, (GraphicsServiceHeapType)GraphicsHeapType.ReadBack, globalReadBackHeapSize, "GlobalReadBackHeap"))
+            {
+                throw new InvalidOperationException("Cannot create global ReadBack heap");
+            }
+
+            this.globalReadBackHeap = new GraphicsHeap(globalReadBackHeapId, GraphicsHeapType.ReadBack, globalReadBackHeapSize);
         }
 
         public ulong AllocatedGpuMemory { get; private set; }
         public ulong AllocatedCpuMemory { get; private set; }
+        public ulong AllocatedReadBackMemory { get; private set; }
 
         // TODO: Change that, currently we are just blindly sequentially allocate memory without freeing it
         public GraphicsMemoryAllocation AllocateBuffer(int length, GraphicsHeapType heapType)
         {
+            // TODO: Check for remaining space!
+
             if (heapType == GraphicsHeapType.Upload)
             {
                 // TODO: Get the alignment from the device
@@ -66,8 +81,22 @@ namespace CoreEngine.Graphics
                 var alignment = (ulong)64 * 1024;
                 this.currentGlobalUploadHeapOffset = Utils.AlignValue(this.currentGlobalUploadHeapOffset, alignment);
 
-                var allocation = new GraphicsMemoryAllocation(this.globalUploadHeap, this.currentGlobalUploadHeapOffset);
+                var allocation = new GraphicsMemoryAllocation(this.globalUploadHeap, this.currentGlobalUploadHeapOffset, length);
                 this.currentGlobalUploadHeapOffset += (ulong)length;
+                this.AllocatedCpuMemory += (ulong)length;
+                
+                return allocation;
+            }
+
+            else if (heapType == GraphicsHeapType.ReadBack)
+            {
+                // TODO: Get the alignment from the device
+
+                var alignment = (ulong)64 * 1024;
+                this.currentGlobalReadBackHeapOffset = Utils.AlignValue(this.currentGlobalReadBackHeapOffset, alignment);
+
+                var allocation = new GraphicsMemoryAllocation(this.globalReadBackHeap, this.currentGlobalReadBackHeapOffset, length);
+                this.currentGlobalReadBackHeapOffset += (ulong)length;
                 this.AllocatedCpuMemory += (ulong)length;
                 
                 return allocation;
@@ -79,7 +108,7 @@ namespace CoreEngine.Graphics
                 var alignment = (ulong)64 * 1024;
                 this.currentGlobalGpuHeapOffset = Utils.AlignValue(this.currentGlobalGpuHeapOffset, alignment);
 
-                var allocation = new GraphicsMemoryAllocation(this.globalGpuHeap, this.currentGlobalGpuHeapOffset);
+                var allocation = new GraphicsMemoryAllocation(this.globalGpuHeap, this.currentGlobalGpuHeapOffset, length);
                 this.currentGlobalGpuHeapOffset += (ulong)length;
                 this.AllocatedGpuMemory += (ulong)length;
 
@@ -99,7 +128,7 @@ namespace CoreEngine.Graphics
 
             this.currentGlobalGpuHeapOffset = Utils.AlignValue(this.currentGlobalGpuHeapOffset, (ulong)allocationInfos.Alignment);
 
-            var allocation = new GraphicsMemoryAllocation(this.globalGpuHeap, this.currentGlobalGpuHeapOffset);
+            var allocation = new GraphicsMemoryAllocation(this.globalGpuHeap, this.currentGlobalGpuHeapOffset, allocationInfos.Length);
             this.currentGlobalGpuHeapOffset += (ulong)allocationInfos.Length;
             this.AllocatedGpuMemory += (ulong)allocationInfos.Length;
 
@@ -108,6 +137,8 @@ namespace CoreEngine.Graphics
 
         public void FreeAllocation(GraphicsMemoryAllocation allocation)
         {
+            this.AllocatedGpuMemory -= (ulong)allocation.SizeInBytes;
+
             // TODO: Free allocation
             // TODO: Don't delete graphics buffer until next frame to not overwrite data
         }

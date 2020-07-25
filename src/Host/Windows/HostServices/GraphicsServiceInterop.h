@@ -19,7 +19,7 @@ struct GraphicsAllocationInfos GetTextureAllocationInfosInterop(void* context, e
     return contextObject->GetTextureAllocationInfos(textureFormat, width, height, faceCount, mipLevels, multisampleCount);
 }
 
-int CreateGraphicsHeapInterop(void* context, unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long length, char* label)
+int CreateGraphicsHeapInterop(void* context, unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, struct ulong length, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     return contextObject->CreateGraphicsHeap(graphicsHeapId, type, length, label);
@@ -31,13 +31,13 @@ void DeleteGraphicsHeapInterop(void* context, unsigned int graphicsHeapId)
     contextObject->DeleteGraphicsHeap(graphicsHeapId);
 }
 
-int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int length, char* label)
+int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, unsigned int graphicsHeapId, struct ulong heapOffset, int length, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     return contextObject->CreateGraphicsBuffer(graphicsBufferId, graphicsHeapId, heapOffset, length, label);
 }
 
-void* GetGraphicsBufferCpuPointerInterop(void* context, unsigned int graphicsBufferId)
+struct IntPtr GetGraphicsBufferCpuPointerInterop(void* context, unsigned int graphicsBufferId)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     return contextObject->GetGraphicsBufferCpuPointer(graphicsBufferId);
@@ -49,7 +49,7 @@ void DeleteGraphicsBufferInterop(void* context, unsigned int graphicsBufferId)
     contextObject->DeleteGraphicsBuffer(graphicsBufferId);
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
+int CreateTextureInterop(void* context, unsigned int textureId, unsigned int graphicsHeapId, struct ulong heapOffset, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     return contextObject->CreateTexture(textureId, graphicsHeapId, heapOffset, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
@@ -199,12 +199,6 @@ void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsig
     contextObject->UploadDataToTexture(commandListId, destinationTextureId, sourceGraphicsBufferId, textureFormat, width, height, slice, mipLevel);
 }
 
-void UploadDataToTextureOldInterop(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->UploadDataToTextureOld(commandListId, textureId, textureFormat, width, height, slice, mipLevel, data, dataLength);
-}
-
 void ResetIndirectCommandListInterop(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -343,7 +337,6 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_CopyGraphicsBufferDataToCpuOld = CopyGraphicsBufferDataToCpuOldInterop;
     service->GraphicsService_ReadGraphicsBufferDataOld = ReadGraphicsBufferDataOldInterop;
     service->GraphicsService_UploadDataToTexture = UploadDataToTextureInterop;
-    service->GraphicsService_UploadDataToTextureOld = UploadDataToTextureOldInterop;
     service->GraphicsService_ResetIndirectCommandList = ResetIndirectCommandListInterop;
     service->GraphicsService_OptimizeIndirectCommandList = OptimizeIndirectCommandListInterop;
     service->GraphicsService_CreateComputeCommandList = CreateComputeCommandListInterop;

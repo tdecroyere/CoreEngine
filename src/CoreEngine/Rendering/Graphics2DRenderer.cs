@@ -78,8 +78,8 @@ namespace CoreEngine.Rendering
         private GraphicsBuffer rectangleSurfacesGraphicsBuffer;
 
         private List<Texture> textures;
-        public CommandBuffer copyCommandBuffer;
-        public CommandBuffer commandBuffer;
+        public CommandBuffer copyCommandBuffer { get; }
+        public CommandBuffer commandBuffer { get; }
 
         public Graphics2DRenderer(RenderManager renderManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
@@ -107,8 +107,8 @@ namespace CoreEngine.Rendering
 
             var maxSurfaceCount = 10000;
 
-            var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(4, isStatic: true, isWriteOnly: true, label: "CpuGraphics2DVertexBuffer", GraphicsHeapType.Upload);
-            var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(6, isStatic: true, isWriteOnly: true, label: "CpuGraphics2DIndexBuffer", GraphicsHeapType.Upload);
+            var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(4, isStatic: true, label: "CpuGraphics2DVertexBuffer", GraphicsHeapType.Upload);
+            var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(6, isStatic: true, label: "CpuGraphics2DIndexBuffer", GraphicsHeapType.Upload);
 
             var vertexData = this.graphicsManager.GetCpuGraphicsBufferPointer<Graphics2DVertex>(cpuVertexBuffer);
             var indexData = this.graphicsManager.GetCpuGraphicsBufferPointer<uint>(cpuIndexBuffer);
@@ -127,8 +127,8 @@ namespace CoreEngine.Rendering
             indexData[4] = 1;
             indexData[5] = 3;
 
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, isStatic: true, isWriteOnly: true, label: "Graphics2DVertexBuffer");
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, isStatic: true, isWriteOnly: true, label: "Graphics2DIndexBuffer");
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(vertexData.Length, isStatic: true, label: "Graphics2DVertexBuffer");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(indexData.Length, isStatic: true, label: "Graphics2DIndexBuffer");
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "Graphics2DRenderer");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
@@ -142,10 +142,10 @@ namespace CoreEngine.Rendering
             this.graphicsManager.DeleteGraphicsBuffer(cpuVertexBuffer);
             this.graphicsManager.DeleteGraphicsBuffer(cpuIndexBuffer);
 
-            this.cpuRenderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, isStatic: false, isWriteOnly: true, label: "Graphics2DRenderPassBuffer", GraphicsHeapType.Upload);
-            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, isStatic: false, isWriteOnly: true, label: "Graphics2DRenderPassBuffer");
-            this.cpuRectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, isWriteOnly: true, label: "Graphics2DRectangleSurfacesBuffer", GraphicsHeapType.Upload);
-            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, isWriteOnly: true, label: "Graphics2DRectangleSurfacesBuffer");
+            this.cpuRenderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, isStatic: false, label: "Graphics2DRenderPassBuffer", GraphicsHeapType.Upload);
+            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(1, isStatic: false, label: "Graphics2DRenderPassBuffer");
+            this.cpuRectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer", GraphicsHeapType.Upload);
+            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer");
 
             this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "Graphics2DRendererCopy");
             this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "Graphics2DRenderer");

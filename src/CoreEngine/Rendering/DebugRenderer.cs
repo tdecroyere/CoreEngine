@@ -16,8 +16,8 @@ namespace CoreEngine.Rendering
         private GraphicsBuffer cpuIndexBuffer;
         private GraphicsBuffer indexBuffer;
 
-        public CommandBuffer copyCommandBuffer;
-        public CommandBuffer commandBuffer;
+        public CommandBuffer copyCommandBuffer { get; }
+        public CommandBuffer commandBuffer { get; }
 
         private int currentDebugLineIndex;
 
@@ -45,10 +45,10 @@ namespace CoreEngine.Rendering
 
             var maxLineCount = 100000;
 
-            this.cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer", GraphicsHeapType.Upload);
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer");
-            this.cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer", GraphicsHeapType.Upload);
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer");
+            this.cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, label: "DebugVertexBuffer", GraphicsHeapType.Upload);
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, label: "DebugVertexBuffer");
+            this.cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer", GraphicsHeapType.Upload);
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer");
 
             this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "DebugRendererCopy");
             this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "DebugRenderer");

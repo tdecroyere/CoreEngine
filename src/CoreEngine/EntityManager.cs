@@ -376,7 +376,7 @@ namespace CoreEngine
 
                 if (!typeof(IComponentData).IsAssignableFrom(componentType))
                 {
-                    throw new ArgumentException(nameof(componentTypes));
+                    throw new ArgumentException("Type doesn't inherit from IComponentData", nameof(componentTypes));
                 }
 
                 var typeHashCode = componentType.GetHashCode();

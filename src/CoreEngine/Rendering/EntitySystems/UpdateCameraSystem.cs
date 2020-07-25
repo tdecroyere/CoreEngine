@@ -44,7 +44,7 @@ namespace CoreEngine.Rendering.EntitySystems
 
             var sceneEntities = entityManager.GetEntitiesByComponentType<SceneComponent>();
 
-            if (sceneEntities.Length > 0)
+            if (!sceneEntities.IsEmpty)
             {
                 sceneEntity = sceneEntities[0];
                 sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);

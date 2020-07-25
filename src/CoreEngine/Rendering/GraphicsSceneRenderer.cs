@@ -298,6 +298,11 @@ namespace CoreEngine.Rendering
         // TODO: Replace pipeline by pipeline context so we can run multiple pipelines concurrently
         public T Evaluate(GraphicsPipeline pipeline)
         {
+            if (pipeline == null)
+            {
+                throw new ArgumentNullException(nameof(pipeline));
+            }
+
             IGraphicsResource? resource;
 
             if (this.PipelineResource != null)
@@ -437,12 +442,22 @@ namespace CoreEngine.Rendering
 
         public ComputeMinMaxPipelineStep(string name, ResourcesManager resourcesManager, ReadOnlyMemory<GraphicsPipelineResourceBinding> inputs, ReadOnlyMemory<GraphicsPipelineResourceBinding> outputs) : base(name, null, inputs, outputs)
         {
+            if (resourcesManager == null)
+            {
+                throw new ArgumentNullException(nameof(resourcesManager));
+            }
+
             this.computeMinMaxDepthInitialShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeMinMaxDepth.shader", "ComputeMinMaxDepthInitial");
             this.computeMinMaxDepthStepShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeMinMaxDepth.shader", "ComputeMinMaxDepthStep");
         }
 
         public override CommandList Process(GraphicsPipeline pipeline, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
         {
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
             if (this.CommandBuffer == null)
             {
                 throw new InvalidOperationException($"Command buffer for step '{this.Name}' doesn't exist.");
@@ -518,7 +533,7 @@ namespace CoreEngine.Rendering
 
             if (depthBuffer == null)
             {
-                throw new ArgumentNullException(nameof(depthBuffer));
+                throw new InvalidOperationException("Depth buffer is null");
             }
           
             var threadGroupSize = graphicsManager.DispatchThreads(computeCommandList, (uint)depthBuffer.Width, (uint)depthBuffer.Height, 1);
@@ -620,6 +635,11 @@ namespace CoreEngine.Rendering
 
         public override CommandList Process(GraphicsPipeline pipeline, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
         {
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
             if (this.CommandBuffer == null)
             {
                 throw new InvalidOperationException($"Command buffer for step '{this.Name}' doesn't exist.");
@@ -725,10 +745,15 @@ namespace CoreEngine.Rendering
             this.Threads = threads;
         }
 
-        public GraphicsPipelineParameterBinding<int>[] Threads { get; }
+        private GraphicsPipelineParameterBinding<int>[] Threads { get; }
 
         public override CommandList Process(GraphicsPipeline pipeline, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
         {
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
             if (this.CommandBuffer == null)
             {
                 throw new InvalidOperationException($"Command buffer for step '{this.Name}' doesn't exist.");
@@ -801,6 +826,16 @@ namespace CoreEngine.Rendering
 
         public GraphicsPipeline(GraphicsManager graphicsManager, ResourcesManager resourcesManager, ReadOnlyMemory<GraphicsPipelineResourceDeclaration> resourceDeclarations, ReadOnlyMemory<GraphicsPipelineStep> steps)
         {
+            if (graphicsManager == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
+            if (resourcesManager == null)
+            {
+                throw new ArgumentNullException(nameof(resourcesManager));
+            }
+
             this.graphicsManager = graphicsManager;
             this.ResourceDeclarations = resourceDeclarations;
             this.Steps = steps;
@@ -959,8 +994,6 @@ namespace CoreEngine.Rendering
         private Texture cubeMap;
         private Texture irradianceCubeMap;
 
-        private readonly int multisampleCount = 1;
-
         // Compute shaders data structures
         private GraphicsBuffer cpuScenePropertiesBuffer;
         private GraphicsBuffer scenePropertiesBuffer;
@@ -1011,29 +1044,29 @@ namespace CoreEngine.Rendering
             this.computeLightCamerasShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeLightCameras.shader", "ComputeLightCameras");
             this.convertToMomentShadowMapShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ConvertToMomentShadowMap.shader");
 
-            this.minMaxDepthComputeBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector2>(10000, isStatic: true, isWriteOnly: true, label: "ComputeMinMaxDepthWorkingBuffer");
+            this.minMaxDepthComputeBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector2>(10000, isStatic: true, label: "ComputeMinMaxDepthWorkingBuffer");
 
-            this.cpuRenderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, isStatic: false, isWriteOnly: true, label: "RenderPassConstantBufferOld", GraphicsHeapType.Upload);
-            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, isStatic: false, isWriteOnly: true, label: "RenderPassConstantBufferOld");
+            this.cpuRenderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, isStatic: false, label: "RenderPassConstantBufferOld", GraphicsHeapType.Upload);
+            this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants>(1, isStatic: false, label: "RenderPassConstantBufferOld");
 
             this.cubeMap = resourcesManager.LoadResourceAsync<Texture>("/BistroV4/san_giuseppe_bridge_4k_cubemap.texture");
             this.irradianceCubeMap = resourcesManager.LoadResourceAsync<Texture>("/BistroV4/san_giuseppe_bridge_4k_irradiance_cubemap.texture");
 
             // Compute buffers
-            this.cpuScenePropertiesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderSceneProperties>(1, isStatic: false, isWriteOnly: true, label: "ComputeSceneProperties", GraphicsHeapType.Upload);
-            this.scenePropertiesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderSceneProperties>(1, isStatic: false, isWriteOnly: true, label: "ComputeSceneProperties");
-            this.cpuCamerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(10000, isStatic: false, isWriteOnly: false, label: "ComputeCameras", GraphicsHeapType.Upload);
-            this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(10000, isStatic: false, isWriteOnly: false, label: "ComputeCameras");
-            this.cpuLightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(10000, isStatic: false, isWriteOnly: true, label: "ComputeLights", GraphicsHeapType.Upload);
-            this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(10000, isStatic: false, isWriteOnly: true, label: "ComputeLights");
-            this.cpuMaterialsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMaterial>(10000, isStatic: false, isWriteOnly: true, label: "ComputeMaterials", GraphicsHeapType.Upload);
-            this.materialsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMaterial>(10000, isStatic: false, isWriteOnly: true, label: "ComputeMaterials");
-            this.cpuGeometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, isStatic: false, isWriteOnly: true, label: "ComputeGeometryPackets", GraphicsHeapType.Upload);
-            this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, isStatic: false, isWriteOnly: true, label: "ComputeGeometryPackets");
-            this.cpuGeometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(100000, isStatic: false, isWriteOnly: true, label: "ComputeGeometryInstances", GraphicsHeapType.Upload);
-            this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(100000, isStatic: false, isWriteOnly: true, label: "ComputeGeometryInstances");
-            this.cpuIndirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(100, isStatic: false, isWriteOnly: false, label: "ComputeIndirectCommandBufferCounters", GraphicsHeapType.Upload);
-            this.indirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(100, isStatic: false, isWriteOnly: false, label: "ComputeIndirectCommandBufferCounters");
+            this.cpuScenePropertiesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderSceneProperties>(1, isStatic: false, label: "ComputeSceneProperties", GraphicsHeapType.Upload);
+            this.scenePropertiesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderSceneProperties>(1, isStatic: false, label: "ComputeSceneProperties");
+            this.cpuCamerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(10000, isStatic: false, label: "ComputeCameras", GraphicsHeapType.Upload);
+            this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(10000, isStatic: false, label: "ComputeCameras");
+            this.cpuLightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(10000, isStatic: false, label: "ComputeLights", GraphicsHeapType.Upload);
+            this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(10000, isStatic: false, label: "ComputeLights");
+            this.cpuMaterialsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMaterial>(10000, isStatic: false, label: "ComputeMaterials", GraphicsHeapType.Upload);
+            this.materialsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMaterial>(10000, isStatic: false, label: "ComputeMaterials");
+            this.cpuGeometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, isStatic: false, label: "ComputeGeometryPackets", GraphicsHeapType.Upload);
+            this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(10000, isStatic: false, label: "ComputeGeometryPackets");
+            this.cpuGeometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(100000, isStatic: false, label: "ComputeGeometryInstances", GraphicsHeapType.Upload);
+            this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(100000, isStatic: false, label: "ComputeGeometryInstances");
+            this.cpuIndirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(100, isStatic: false, label: "ComputeIndirectCommandBufferCounters", GraphicsHeapType.Upload);
+            this.indirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(100, isStatic: false, label: "ComputeIndirectCommandBufferCounters");
 
             // Command Buffers
             this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "CopySceneDataToGpu");
@@ -1060,10 +1093,7 @@ namespace CoreEngine.Rendering
             //     new 
             // };
 
-            var depthGraphicsPipelineResourceDeclarations = new GraphicsPipelineResourceDeclaration[]
-            {
-
-            };
+            var depthGraphicsPipelineResourceDeclarations = Array.Empty<GraphicsPipelineResourceDeclaration>();
 
             var depthGraphicsPipelineSteps = new GraphicsPipelineStep[]
             {
@@ -1208,28 +1238,28 @@ namespace CoreEngine.Rendering
         }
 
         GraphicsBuffer[] graphicsBufferList = new GraphicsBuffer[10000];
-        int currentGraphicsBufferIndex = 0;
+        int currentGraphicsBufferIndex;
 
-        int currentCameraIndex = 0;
-        int currentLightIndex = 0;
-        int currentMaterialIndex = 0;
-        int currentGeometryPacketIndex = 0;
-        int currentGeometryInstanceIndex = 0;
+        int currentCameraIndex;
+        int currentLightIndex;
+        int currentMaterialIndex;
+        int currentGeometryPacketIndex;
+        int currentGeometryInstanceIndex;
 
         ShaderCamera mainCamera;
 
         Dictionary<uint, int> materialListIndexes = new Dictionary<uint, int>();
         Texture[] textureList = new Texture[10000];
-        int currentTextureIndex = 0;
+        int currentTextureIndex;
 
         Texture[] cubeTextureList = new Texture[10000];
-        int currentCubeTextureIndex = 0;
+        int currentCubeTextureIndex;
 
         Texture[] shadowMaps = new Texture[100];
-        int currentShadowMapIndex = 0;
+        int currentShadowMapIndex;
 
         IndirectCommandBuffer[] indirectCommandBufferList = new IndirectCommandBuffer[100];
-        int currentIndirectCommandBufferIndex = 0;
+        int currentIndirectCommandBufferIndex;
 
         private int AddIndirectCommandBuffer(string label)
         {
@@ -1689,7 +1719,7 @@ namespace CoreEngine.Rendering
             return copyCommandList;
         }
 
-        int currentDepthCommandBuffer = 0;
+        // int currentDepthCommandBuffer = 0;
 
         // private CommandList GenerateDepthBuffer(ShaderCamera camera, CommandList commandListToWait)
         // {
@@ -1717,7 +1747,7 @@ namespace CoreEngine.Rendering
         //     return transparentCommandList;
         // }
 
-        int currentMomentCommandBuffer = 0;
+        int currentMomentCommandBuffer;
 
         private CommandList ConvertToMomentShadowMap(ShaderCamera camera, CommandList commandListToWait)
         {
@@ -1764,7 +1794,7 @@ namespace CoreEngine.Rendering
 
         private CommandList RunRenderPipeline()
         {
-            this.currentDepthCommandBuffer = 0;
+            // this.currentDepthCommandBuffer = 0;
             this.currentMomentCommandBuffer = 0;
 
             var commandList = CopyGpuData();

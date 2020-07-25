@@ -58,7 +58,7 @@ namespace CoreEngine.Rendering
             set
             {
                 // TODO: Problems with enums not IEquatable
-                this.LightType = value;
+                this.lightType = value;
             } 
         }
     }

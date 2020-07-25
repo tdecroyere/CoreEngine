@@ -35,7 +35,7 @@ namespace CoreEngine.Graphics
         
         // TODO: Remove internal
         internal string graphicsAdapterName;
-        internal int gpuMemoryUploaded = 0;
+        internal int gpuMemoryUploaded;
         internal int cpuDrawCount;
         internal int cpuDispatchCount;
 
@@ -89,7 +89,7 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetRenderSize();
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, bool isStatic, bool isWriteOnly, string label, GraphicsHeapType heapType = GraphicsHeapType.Gpu) where T : struct
+        public GraphicsBuffer CreateGraphicsBuffer<T>(int length, bool isStatic, string label, GraphicsHeapType heapType = GraphicsHeapType.Gpu) where T : struct
         {
             var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
 
@@ -151,10 +151,8 @@ namespace CoreEngine.Graphics
         {
             var textureId = GetNextGraphicsResourceId();
 
-            Logger.BeginAction("Create Device Texture");
             var allocation = this.graphicsMemoryAllocator.AllocateTexture(textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget);
             var result = this.graphicsService.CreateTexture(textureId, allocation.GraphicsHeap.Id, allocation.Offset, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
-            Logger.EndAction();
 
             if (!result)
             {
@@ -176,10 +174,7 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            Logger.BeginAction("Create Texture Object");
             var texture = new Texture(this, allocation, allocation2, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
-            Logger.EndAction();
-
             return texture;
         }
 

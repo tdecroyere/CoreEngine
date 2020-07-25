@@ -305,7 +305,6 @@ namespace CoreEngine.HostServices
         void ReadGraphicsBufferDataOld(uint graphicsBufferId, ReadOnlySpan<byte> data);
 
         void UploadDataToTexture(uint commandListId, uint destinationTextureId, uint sourceGraphicsBufferId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
-        void UploadDataToTextureOld(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data);
 
         // TODO: Rename that to IndirectCommandBuffer
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);

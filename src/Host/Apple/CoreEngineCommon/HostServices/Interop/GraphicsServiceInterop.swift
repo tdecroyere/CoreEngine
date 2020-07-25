@@ -166,11 +166,6 @@ func GraphicsService_uploadDataToTextureInterop(context: UnsafeMutableRawPointer
     contextObject.uploadDataToTexture(UInt(commandListId), UInt(destinationTextureId), UInt(sourceGraphicsBufferId), textureFormat, Int(width), Int(height), Int(slice), Int(mipLevel))
 }
 
-func GraphicsService_uploadDataToTextureOldInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ textureId: UInt32, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ slice: Int32, _ mipLevel: Int32, _ data: UnsafeMutableRawPointer?, _ dataLength: Int32) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.uploadDataToTextureOld(UInt(commandListId), UInt(textureId), textureFormat, Int(width), Int(height), Int(slice), Int(mipLevel), data!, Int(dataLength))
-}
-
 func GraphicsService_resetIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandListId: UInt32, _ maxCommandCount: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.resetIndirectCommandList(UInt(commandListId), UInt(indirectCommandListId), Int(maxCommandCount))
@@ -291,7 +286,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CopyGraphicsBufferDataToCpuOld = GraphicsService_copyGraphicsBufferDataToCpuOldInterop
     service.GraphicsService_ReadGraphicsBufferDataOld = GraphicsService_readGraphicsBufferDataOldInterop
     service.GraphicsService_UploadDataToTexture = GraphicsService_uploadDataToTextureInterop
-    service.GraphicsService_UploadDataToTextureOld = GraphicsService_uploadDataToTextureOldInterop
     service.GraphicsService_ResetIndirectCommandList = GraphicsService_resetIndirectCommandListInterop
     service.GraphicsService_OptimizeIndirectCommandList = GraphicsService_optimizeIndirectCommandListInterop
     service.GraphicsService_CreateComputeCommandList = GraphicsService_createComputeCommandListInterop

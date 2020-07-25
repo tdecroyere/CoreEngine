@@ -19,8 +19,8 @@ namespace CoreEngine.Rendering
         
         private Stopwatch globalStopwatch;
         private uint startMeasureFrameNumber;
-        private int framePerSeconds = 0;
-        private int gpuMemoryUploadedPerSeconds = 0;
+        private int framePerSeconds;
+        private int gpuMemoryUploadedPerSeconds;
 
 
         private CommandBuffer presentCommandBuffer;
@@ -32,6 +32,11 @@ namespace CoreEngine.Rendering
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
+            if (resourcesManager == null)
+            {
+                throw new ArgumentNullException(nameof(resourcesManager));
             }
 
             this.graphicsManager = graphicsManager;
@@ -168,7 +173,17 @@ namespace CoreEngine.Rendering
             this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 330));
             this.Graphics2DRenderer.DrawText($"Gpu Pipeline: (Depth: {this.MainCameraDepth})", new Vector2(10, 370));
 
-            this.graphicsManager.gpuTimings.Sort((a, b) => (a.StartTiming.CompareTo(b.StartTiming)));
+            this.graphicsManager.gpuTimings.Sort((a, b) => 
+            {
+                var result = Math.Round(a.StartTiming, 2).CompareTo(Math.Round(b.StartTiming, 2));
+
+                if (result == 0)
+                {
+                    return a.Name.CompareTo(b.Name);
+                }
+
+                return result;
+            });
 
             if (this.graphicsManager.gpuTimings.Count < this.previousGpuTiming.Count)
             {

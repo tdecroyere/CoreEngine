@@ -4,7 +4,7 @@ import simd
 import CoreEngineCommonInterop
 
 class MetalHeap {
-    let heapType: GraphicsServiceHeapType 
+    let heapType: GraphicsServiceHeapType
     let length: UInt
     let heapObject: MTLHeap
 
@@ -233,9 +233,9 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         if (type == Upload || type == ReadBack)
         {
+            heapDescriptor.storageMode = .managed
             // TODO: Check why metal doesn't allow for upload heaps
             return true
-            heapDescriptor.storageMode = .managed
         }
 
         if (type == Upload)
@@ -356,7 +356,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         descriptor.pixelFormat = convertTextureFormat(textureFormat)
 
         if (isRenderTarget) {
-            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
+            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite] // TODO: Change that because shader write seems to correspond to UAV mode in Metal
         } else {
             descriptor.usage = [.shaderRead]
         }
@@ -808,58 +808,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                                 sourceBytesPerImage: sourceBytesPerImage,
                                 sourceSize: MTLSize(width: width, height: height , depth: 1),
                                 to: destinationTexture, 
-                                destinationSlice: slice,
-                                destinationLevel: mipLevel,
-                                destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
-    }
-
-    public func uploadDataToTextureOld(_ commandListId: UInt, _ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
-        guard let gpuTexture = self.textures[textureId] else {
-            print("ERROR: GPU texture was not found")
-            return
-        }
-
-        // Create a the metal buffer on the CPU
-        // TODO: Create a pool of cpu buffers
-        performanceTimer.start();
-        let cpuTexture = self.device.makeBuffer(length: length, options: .cpuCacheModeWriteCombined)!
-        cpuTexture.label = "Texture - CPU buffer"
-        performanceTimer.stop("MakeBuffer");
-
-        // TODO: Try to avoid the copy
-        performanceTimer.start();
-        cpuTexture.contents().copyMemory(from: data.assumingMemoryBound(to: UInt8.self), byteCount: (length * MemoryLayout<UInt8>.stride))
-        performanceTimer.stop("CopyMemory");
-
-        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
-            print("uploadDataToTexture: Copy command encoder is nil.")
-            return
-        }
-
-        var sourceBytesPerRow = 4 * width
-        var sourceBytesPerImage = 4 * width * height
-
-        if (textureFormat == BC2Srgb || textureFormat == BC3Srgb || textureFormat == BC5 || textureFormat == BC6 || textureFormat == BC7Srgb) {
-            sourceBytesPerRow = 16 * Int(ceil(Double(width) / 4.0))
-            sourceBytesPerImage = 16 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
-        } else if (textureFormat == BC1Srgb || textureFormat == BC4) {
-            sourceBytesPerRow = 8 * Int(ceil(Double(width) / 4.0))
-            sourceBytesPerImage = 8 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
-        } else if (textureFormat == Rgba16Float) {
-            sourceBytesPerRow = 8 * width
-            sourceBytesPerImage = 8 * width * height
-        } else if (textureFormat == Rgba32Float) {
-            sourceBytesPerRow = 16 * width
-            sourceBytesPerImage = 16 * width * height
-        }
-
-        // TODO: Add parameters to be able to update partially the buffer
-        copyCommandEncoder.copy(from: cpuTexture, 
-                                sourceOffset: 0, 
-                                sourceBytesPerRow: sourceBytesPerRow,
-                                sourceBytesPerImage: sourceBytesPerImage,
-                                sourceSize: MTLSize(width: width, height: height , depth: 1),
-                                to: gpuTexture, 
                                 destinationSlice: slice,
                                 destinationLevel: mipLevel,
                                 destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
@@ -1499,7 +1447,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ commandBufferId: UInt) {
         if (commandBuffer.error != nil) {
             //self.gpuError = true
-            print("GPU ERROR: \(commandBuffer.error)")
+            print("GPU ERROR: \(commandBuffer.error!)")
         }
 
         commandBufferStatusConcurrentQueue.sync() {

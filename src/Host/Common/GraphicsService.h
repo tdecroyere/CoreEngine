@@ -159,7 +159,6 @@ typedef void (*GraphicsService_UploadDataToGraphicsBufferPtr)(void* context, uns
 typedef void (*GraphicsService_CopyGraphicsBufferDataToCpuOldPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int length);
 typedef void (*GraphicsService_ReadGraphicsBufferDataOldPtr)(void* context, unsigned int graphicsBufferId, void* data, int dataLength);
 typedef void (*GraphicsService_UploadDataToTexturePtr)(void* context, unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
-typedef void (*GraphicsService_UploadDataToTextureOldPtr)(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength);
 typedef void (*GraphicsService_ResetIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef void (*GraphicsService_OptimizeIndirectCommandListPtr)(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 typedef int (*GraphicsService_CreateComputeCommandListPtr)(void* context, unsigned int commandListId, unsigned int commandBufferId, char* label);
@@ -214,7 +213,6 @@ struct GraphicsService
     GraphicsService_CopyGraphicsBufferDataToCpuOldPtr GraphicsService_CopyGraphicsBufferDataToCpuOld;
     GraphicsService_ReadGraphicsBufferDataOldPtr GraphicsService_ReadGraphicsBufferDataOld;
     GraphicsService_UploadDataToTexturePtr GraphicsService_UploadDataToTexture;
-    GraphicsService_UploadDataToTextureOldPtr GraphicsService_UploadDataToTextureOld;
     GraphicsService_ResetIndirectCommandListPtr GraphicsService_ResetIndirectCommandList;
     GraphicsService_OptimizeIndirectCommandListPtr GraphicsService_OptimizeIndirectCommandList;
     GraphicsService_CreateComputeCommandListPtr GraphicsService_CreateComputeCommandList;

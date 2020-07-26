@@ -22,9 +22,7 @@ namespace CoreEngine.Rendering
         private int framePerSeconds;
         private int gpuMemoryUploadedPerSeconds;
 
-
         private CommandBuffer presentCommandBuffer;
-
         private Shader computeDirectTransferShader;
 
         public RenderManager(GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
@@ -49,7 +47,7 @@ namespace CoreEngine.Rendering
             this.globalStopwatch.Start();
 
             this.currentFrameSize = this.graphicsManager.graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = this.graphicsManager.CreateTexture(TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, isStatic: true, label: "MainRenderTarget");
+            this.MainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, isStatic: true, label: "MainRenderTarget");
 
             this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
 
@@ -89,29 +87,15 @@ namespace CoreEngine.Rendering
             this.graphicsManager.graphicsService.PresentScreenBuffer(presentCommandBuffer.GraphicsResourceId);
             this.graphicsManager.ExecuteCommandBuffer(presentCommandBuffer);
 
-            this.graphicsManager.graphicsService.WaitForAvailableScreenBuffer();
-
-            // TODO: A modulo here with Int.MaxValue
-            this.graphicsManager.CurrentFrameNumber++;
-            this.graphicsManager.cpuDrawCount = 0;
-            this.graphicsManager.cpuDispatchCount = 0;
-            
-            this.graphicsManager.gpuTimings.Clear();
+            this.graphicsManager.WaitForAvailableScreenBuffer();
         }
 
         List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
 
         internal void Render()
         {
-            var frameSize = this.graphicsManager.graphicsService.GetRenderSize();
-
-            if (frameSize != this.currentFrameSize)
-            {
-                Logger.WriteMessage("Recreating final render target");
-                this.currentFrameSize = frameSize;
-
-                this.graphicsManager.ResizeTexture(this.MainRenderTargetTexture, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y);
-            }
+            this.currentFrameSize = this.graphicsManager.graphicsService.GetRenderSize();
+            this.MainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, isStatic: true, label: "MainRenderTarget");
 
             var renderCommandList = this.GraphicsSceneRenderer.Render();
 
@@ -164,8 +148,8 @@ namespace CoreEngine.Rendering
             }
 
             this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
-            this.Graphics2DRenderer.DrawText($"    Allocated Memory: {BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB", new Vector2(10, 90));
-            this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
+            this.Graphics2DRenderer.DrawText($"    Allocated Memory: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory + this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB (Static: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}, Transient: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)})", new Vector2(10, 90));
+            this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {Utils.BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
             this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 210));
             this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
@@ -237,11 +221,6 @@ namespace CoreEngine.Rendering
             resourcesManager.AddResourceLoader(new FontResourceLoader(resourcesManager, this.graphicsManager));
             resourcesManager.AddResourceLoader(new MaterialResourceLoader(resourcesManager, this.graphicsManager));
             resourcesManager.AddResourceLoader(new MeshResourceLoader(resourcesManager, this.graphicsManager));
-        }
-
-        private static float BytesToMegaBytes(ulong value)
-        {
-            return (float)value / 1024 / 1024;
         }
     }
 }

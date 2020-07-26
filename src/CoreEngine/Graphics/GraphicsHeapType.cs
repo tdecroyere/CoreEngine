@@ -4,6 +4,7 @@ namespace CoreEngine.Graphics
     {
         Gpu,
         Upload,
-        ReadBack
+        ReadBack,
+        TransientGpu
     }
 }

@@ -26,17 +26,17 @@ namespace CoreEngine.Graphics
             // TODO: Remove the responsability of the loader to create empty resources
             Logger.BeginAction("Create Empty Texture");
             Logger.BeginAction("Create Resource");
-            this.emptyTexture = graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, 1, false, isStatic: true, label: "EmptyTexture");
+            this.emptyTexture = graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, 1, false, isStatic: true, label: "EmptyTexture");
             Logger.EndAction();
 
-            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(256 * 256 * 4, isStatic: true, label: "TextureCpuBuffer", GraphicsHeapType.Upload);
+            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, 256 * 256 * 4, isStatic: true, label: "TextureCpuBuffer");
             var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             textureData.Fill(255);
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "TextureLoader");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
-            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, this.emptyTexture, cpuBuffer, 256, 256, 0, 0);
+            this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, this.emptyTexture, cpuBuffer, 256, 256, 0, 0);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
             this.graphicsManager.DeleteCommandBuffer(commandBuffer);
@@ -88,7 +88,7 @@ namespace CoreEngine.Graphics
             }
 
             // TODO: Wait for the command buffer to finish execution before switching the system ids.
-            var createdTexture = this.graphicsManager.CreateTexture(texture.TextureFormat, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, false, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
+            var createdTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, texture.TextureFormat, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, false, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 
@@ -105,7 +105,7 @@ namespace CoreEngine.Graphics
                 {
                     var textureDataLength = reader.ReadInt32();
                  
-                    var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(textureDataLength, isStatic: true, label: "TextureCpuBuffer", GraphicsHeapType.Upload);
+                    var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
                     var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
                     
                     reader.Read(textureData);
@@ -117,7 +117,7 @@ namespace CoreEngine.Graphics
                     }
 
                     // TODO: Make only one frame copy command list for all resource loaders
-                    this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, texture, cpuBuffer, textureWidth, textureHeight, i, j);
+                    this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, texture, cpuBuffer, textureWidth, textureHeight, i, j);
                     this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
                 }
             }

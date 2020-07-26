@@ -11,9 +11,9 @@ func GraphicsService_getRenderSizeInterop(context: UnsafeMutableRawPointer?) -> 
     return contextObject.getRenderSize()
 }
 
-func GraphicsService_getTextureAllocationInfosInterop(context: UnsafeMutableRawPointer?, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32) -> GraphicsAllocationInfos {
+func GraphicsService_getTextureAllocationInfosInterop(context: UnsafeMutableRawPointer?, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32, _ isRenderTarget: Int32) -> GraphicsAllocationInfos {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.getTextureAllocationInfos(textureFormat, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount))
+    return contextObject.getTextureAllocationInfos(textureFormat, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount), Bool(isRenderTarget == 1))
 }
 
 func GraphicsService_createGraphicsHeapInterop(context: UnsafeMutableRawPointer?, _ graphicsHeapId: UInt32, _ type: GraphicsServiceHeapType, _ length: UInt, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
@@ -26,9 +26,9 @@ func GraphicsService_deleteGraphicsHeapInterop(context: UnsafeMutableRawPointer?
     contextObject.deleteGraphicsHeap(UInt(graphicsHeapId))
 }
 
-func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32, _ graphicsHeapId: UInt32, _ heapOffset: UInt, _ length: Int32, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
+func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32, _ graphicsHeapId: UInt32, _ heapOffset: UInt, _ isAliasable: Int32, _ sizeInBytes: Int32, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createGraphicsBuffer(UInt(graphicsBufferId), UInt(graphicsHeapId), heapOffset, Int(length), String(cString: label!)) ? 1 : 0)
+    return Int32(contextObject.createGraphicsBuffer(UInt(graphicsBufferId), UInt(graphicsHeapId), heapOffset, Bool(isAliasable == 1), Int(sizeInBytes), String(cString: label!)) ? 1 : 0)
 }
 
 func GraphicsService_getGraphicsBufferCpuPointerInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32) -> UnsafeMutableRawPointer? {
@@ -41,14 +41,9 @@ func GraphicsService_deleteGraphicsBufferInterop(context: UnsafeMutableRawPointe
     contextObject.deleteGraphicsBuffer(UInt(graphicsBufferId))
 }
 
-func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32, _ graphicsHeapId: UInt32, _ heapOffset: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32, _ isRenderTarget: Int32, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
+func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32, _ graphicsHeapId: UInt32, _ heapOffset: UInt, _ isAliasable: Int32, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32, _ isRenderTarget: Int32, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createTexture(UInt(textureId), UInt(graphicsHeapId), heapOffset, textureFormat, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount), Bool(isRenderTarget == 1), String(cString: label!)) ? 1 : 0)
-}
-
-func GraphicsService_createTextureOldInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32, _ isRenderTarget: Int32, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return Int32(contextObject.createTextureOld(UInt(textureId), textureFormat, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount), Bool(isRenderTarget == 1), String(cString: label!)) ? 1 : 0)
+    return Int32(contextObject.createTexture(UInt(textureId), UInt(graphicsHeapId), heapOffset, Bool(isAliasable == 1), textureFormat, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount), Bool(isRenderTarget == 1), String(cString: label!)) ? 1 : 0)
 }
 
 func GraphicsService_deleteTextureInterop(context: UnsafeMutableRawPointer?, _ textureId: UInt32) {
@@ -146,24 +141,14 @@ func GraphicsService_commitCopyCommandListInterop(context: UnsafeMutableRawPoint
     contextObject.commitCopyCommandList(UInt(commandListId))
 }
 
-func GraphicsService_uploadDataToGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ destinationGraphicsBufferId: UInt32, _ sourceGraphicsBufferId: UInt32, _ length: Int32) {
+func GraphicsService_copyDataToGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ destinationGraphicsBufferId: UInt32, _ sourceGraphicsBufferId: UInt32, _ length: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.uploadDataToGraphicsBuffer(UInt(commandListId), UInt(destinationGraphicsBufferId), UInt(sourceGraphicsBufferId), Int(length))
+    contextObject.copyDataToGraphicsBuffer(UInt(commandListId), UInt(destinationGraphicsBufferId), UInt(sourceGraphicsBufferId), Int(length))
 }
 
-func GraphicsService_copyGraphicsBufferDataToCpuOldInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ graphicsBufferId: UInt32, _ length: Int32) {
+func GraphicsService_copyDataToTextureInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ destinationTextureId: UInt32, _ sourceGraphicsBufferId: UInt32, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ slice: Int32, _ mipLevel: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.copyGraphicsBufferDataToCpuOld(UInt(commandListId), UInt(graphicsBufferId), Int(length))
-}
-
-func GraphicsService_readGraphicsBufferDataOldInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferId: UInt32, _ data: UnsafeMutableRawPointer?, _ dataLength: Int32) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.readGraphicsBufferDataOld(UInt(graphicsBufferId), data!, Int(dataLength))
-}
-
-func GraphicsService_uploadDataToTextureInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ destinationTextureId: UInt32, _ sourceGraphicsBufferId: UInt32, _ textureFormat: GraphicsTextureFormat, _ width: Int32, _ height: Int32, _ slice: Int32, _ mipLevel: Int32) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.uploadDataToTexture(UInt(commandListId), UInt(destinationTextureId), UInt(sourceGraphicsBufferId), textureFormat, Int(width), Int(height), Int(slice), Int(mipLevel))
+    contextObject.copyDataToTexture(UInt(commandListId), UInt(destinationTextureId), UInt(sourceGraphicsBufferId), textureFormat, Int(width), Int(height), Int(slice), Int(mipLevel))
 }
 
 func GraphicsService_resetIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandListId: UInt32, _ maxCommandCount: Int32) {
@@ -209,11 +194,6 @@ func GraphicsService_setPipelineStateInterop(context: UnsafeMutableRawPointer?, 
 func GraphicsService_setShaderInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ shaderId: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.setShader(UInt(commandListId), UInt(shaderId))
-}
-
-func GraphicsService_bindGraphicsHeapInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ graphicsHeapId: UInt32) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.bindGraphicsHeap(UInt(commandListId), UInt(graphicsHeapId))
 }
 
 func GraphicsService_executeIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ indirectCommandBufferId: UInt32, _ maxCommandCount: Int32) {
@@ -262,7 +242,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_GetGraphicsBufferCpuPointer = GraphicsService_getGraphicsBufferCpuPointerInterop
     service.GraphicsService_DeleteGraphicsBuffer = GraphicsService_deleteGraphicsBufferInterop
     service.GraphicsService_CreateTexture = GraphicsService_createTextureInterop
-    service.GraphicsService_CreateTextureOld = GraphicsService_createTextureOldInterop
     service.GraphicsService_DeleteTexture = GraphicsService_deleteTextureInterop
     service.GraphicsService_CreateIndirectCommandBuffer = GraphicsService_createIndirectCommandBufferInterop
     service.GraphicsService_CreateShader = GraphicsService_createShaderInterop
@@ -282,10 +261,8 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetShaderIndirectCommandLists = GraphicsService_setShaderIndirectCommandListsInterop
     service.GraphicsService_CreateCopyCommandList = GraphicsService_createCopyCommandListInterop
     service.GraphicsService_CommitCopyCommandList = GraphicsService_commitCopyCommandListInterop
-    service.GraphicsService_UploadDataToGraphicsBuffer = GraphicsService_uploadDataToGraphicsBufferInterop
-    service.GraphicsService_CopyGraphicsBufferDataToCpuOld = GraphicsService_copyGraphicsBufferDataToCpuOldInterop
-    service.GraphicsService_ReadGraphicsBufferDataOld = GraphicsService_readGraphicsBufferDataOldInterop
-    service.GraphicsService_UploadDataToTexture = GraphicsService_uploadDataToTextureInterop
+    service.GraphicsService_CopyDataToGraphicsBuffer = GraphicsService_copyDataToGraphicsBufferInterop
+    service.GraphicsService_CopyDataToTexture = GraphicsService_copyDataToTextureInterop
     service.GraphicsService_ResetIndirectCommandList = GraphicsService_resetIndirectCommandListInterop
     service.GraphicsService_OptimizeIndirectCommandList = GraphicsService_optimizeIndirectCommandListInterop
     service.GraphicsService_CreateComputeCommandList = GraphicsService_createComputeCommandListInterop
@@ -295,7 +272,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CommitRenderCommandList = GraphicsService_commitRenderCommandListInterop
     service.GraphicsService_SetPipelineState = GraphicsService_setPipelineStateInterop
     service.GraphicsService_SetShader = GraphicsService_setShaderInterop
-    service.GraphicsService_BindGraphicsHeap = GraphicsService_bindGraphicsHeapInterop
     service.GraphicsService_ExecuteIndirectCommandBuffer = GraphicsService_executeIndirectCommandBufferInterop
     service.GraphicsService_SetIndexBuffer = GraphicsService_setIndexBufferInterop
     service.GraphicsService_DrawIndexedPrimitives = GraphicsService_drawIndexedPrimitivesInterop

@@ -74,7 +74,7 @@ namespace CoreEngine.Rendering
             
             var textureDataLength = reader.ReadInt32();
 
-            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(textureDataLength, isStatic: true, isWriteOnly: true, label: "TextureCpuBuffer", GraphicsHeapType.Upload);
+            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
             var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             reader.Read(textureData);
 
@@ -83,13 +83,13 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.DeleteTexture(font.Texture);
             }
 
-            font.Texture = this.graphicsManager.CreateTexture(TextureFormat.Rgba8UnormSrgb, width, height, 1, 1, 1, false, isStatic: true, label: "FontTexture");
+            font.Texture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, TextureUsage.ShaderRead, width, height, 1, 1, 1, isStatic: true, label: "FontTexture");
 
             // TODO: Make only one frame copy command list for all resource loaders
             var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "FontLoader");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "FontLoaderCommandList");
-            this.graphicsManager.UploadDataToTexture<byte>(copyCommandList, font.Texture, cpuBuffer, font.Texture.Width, font.Texture.Height, 0, 0);
+            this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, font.Texture, cpuBuffer, font.Texture.Width, font.Texture.Height, 0, 0);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
             this.graphicsManager.DeleteCommandBuffer(commandBuffer);

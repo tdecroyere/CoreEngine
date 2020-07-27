@@ -56,8 +56,8 @@ namespace CoreEngine.Rendering
             var vertexBufferSize = geometryPacketVertexCount * vertexSize;
             var indexBufferSize = geometryPacketIndexCount * sizeof(uint);
 
-            var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferSize, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer", GraphicsHeapType.Upload);
-            var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferSize, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer", GraphicsHeapType.Upload);
+            var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, vertexBufferSize, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
+            var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, indexBufferSize, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
 
             var vertexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuVertexBuffer);
             reader.Read(vertexBufferData);
@@ -65,14 +65,14 @@ namespace CoreEngine.Rendering
             var indexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuIndexBuffer);
             reader.Read(indexBufferData);
 
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(vertexBufferData.Length, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(indexBufferData.Length, isStatic: true, isWriteOnly: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, vertexBufferData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, indexBufferData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
 
             var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "MeshLoader");
             this.graphicsManager.ResetCommandBuffer(commandBuffer);
             var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "MeshLoaderCommandList");
-            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, cpuVertexBuffer, vertexBufferSize);
-            this.graphicsManager.UploadDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, cpuIndexBuffer, indexBufferSize);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, cpuVertexBuffer, vertexBufferSize);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, cpuIndexBuffer, indexBufferSize);
             this.graphicsManager.CommitCopyCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
             this.graphicsManager.DeleteCommandBuffer(commandBuffer);

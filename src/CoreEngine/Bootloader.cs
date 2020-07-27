@@ -22,11 +22,11 @@ namespace CoreEngine
     // TODO: Make a CoreEngine class
     public static class Bootloader
     {
-        private static CoreEngineApp? coreEngineApp = null;
-        private static GraphicsManager? graphicsManager = null;
-        private static RenderManager? renderManager = null;
-        private static GraphicsSceneQueue? sceneQueue = null;
-        private static GraphicsSceneManager? sceneManager = null;
+        private static CoreEngineApp? coreEngineApp ;
+        private static GraphicsManager? graphicsManager;
+        private static RenderManager? renderManager;
+        private static GraphicsSceneQueue? sceneQueue;
+        private static GraphicsSceneManager? sceneManager;
 
         public static void StartEngine(string appName, ref HostPlatform hostPlatform)
         {

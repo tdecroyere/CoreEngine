@@ -12,14 +12,14 @@ public class InputsManager: InputsServiceProtocol {
         self.keyboardManager = KeyboardManager()
         self.gamepadManager = MacOSGamepadManager()
 
-        let controllers = GCController.controllers()
+        // let controllers = GCController.controllers()
 
-        print("test")
-        for controller in controllers {
-            print("ok")
-        }
+        // print("test")
+        // for controller in controllers {
+        //     print("ok")
+        // }
 
-        print(GCKeyboard.coalesced);
+        // print(GCKeyboard.coalesced);
     }
 
     public func getInputsState() -> InputsState {

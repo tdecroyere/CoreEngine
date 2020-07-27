@@ -6,7 +6,7 @@ namespace CoreEngine.Graphics
     {
         None,
         CompareEqual,
-        CompareLess,
+        CompareGreater,
         Write,
         ClearWrite
     }

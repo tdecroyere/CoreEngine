@@ -166,9 +166,7 @@ namespace CoreEngine.Resources
 
             // this.resourceLoadingQueue.Enqueue(loadingTask);
 
-            Logger.BeginAction($"Reading resource data");
             var resourceData = resourceStorage.ReadResourceDataAsync(resource.Path).Result;
-            Logger.EndAction();
             resource = resource.ResourceLoader.LoadResourceData(resource, resourceData);
             resource.IsLoaded = true;
             
@@ -203,7 +201,7 @@ namespace CoreEngine.Resources
             // For the moment, it seems that there is a crash because the global heap is creating resources
             // at the same time and at the same location
 
-            if ((this.resourceLoadingRunner == null || this.resourceLoadingRunner.IsCompleted) && this.resourceLoadingQueue.Count > 0)
+            if ((this.resourceLoadingRunner == null || this.resourceLoadingRunner.IsCompleted) && !this.resourceLoadingQueue.IsEmpty)
             {
                 this.resourceLoadingRunner = new Task(() => {
                     while (this.resourceLoadingQueue.TryDequeue(out var resourceLoadingTask))

@@ -4,7 +4,7 @@ import simd
 import CoreEngineCommonInterop
 
 class MetalHeap {
-    let heapType: GraphicsServiceHeapType 
+    let heapType: GraphicsServiceHeapType
     let length: UInt
     let heapObject: MTLHeap
 
@@ -77,13 +77,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var renderHeight: Int
 
     var frameSemaphore: DispatchSemaphore
-
     var commandQueue: MTLCommandQueue!
-    var globalHeap: MTLHeap!
-    var staticHeap: MTLHeap!
 
     var depthCompareEqualState: MTLDepthStencilState!
-    var depthCompareLessState: MTLDepthStencilState!
+    var depthCompareGreaterState: MTLDepthStencilState!
     var depthWriteOperationState: MTLDepthStencilState!
     var depthNoneOperationState: MTLDepthStencilState!
 
@@ -101,9 +98,9 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var copyCommandEncoders: [UInt: MTLBlitCommandEncoder]
     var computeCommandEncoders: [UInt: MTLComputeCommandEncoder]
     var renderCommandEncoders: [UInt: MTLRenderCommandEncoder]
+    var renderCommandRTs: [UInt: [MTLTexture]]
 
     var graphicsBuffers: [UInt: MTLBuffer]
-    var readCpuGraphicsBuffers: [UInt: MTLBuffer]
     var textures: [UInt: MTLTexture]
     var indirectCommandBuffers: [UInt: MTLIndirectCommandBuffer]
 
@@ -146,10 +143,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.computeCommandEncoders = [:]
         self.renderCommandEncoders = [:]
         self.graphicsBuffers = [:]
-        self.readCpuGraphicsBuffers = [:]
         self.textures = [:]
         self.indirectCommandBuffers = [:]
         self.commandBuffersStatus = [:]
+        self.renderCommandRTs = [:]
 
         self.frameSemaphore = DispatchSemaphore.init(value: 1);
 
@@ -159,12 +156,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.depthCompareEqualState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         depthStencilDescriptor = MTLDepthStencilDescriptor()
-        depthStencilDescriptor.depthCompareFunction = .lessEqual
+        depthStencilDescriptor.depthCompareFunction = .greaterEqual
         depthStencilDescriptor.isDepthWriteEnabled = false
-        self.depthCompareLessState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
+        self.depthCompareGreaterState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         depthStencilDescriptor = MTLDepthStencilDescriptor()
-        depthStencilDescriptor.depthCompareFunction = .less
+        depthStencilDescriptor.depthCompareFunction = .greater
         depthStencilDescriptor.isDepthWriteEnabled = true
         self.depthWriteOperationState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
@@ -175,20 +172,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         self.commandQueue = self.device.makeCommandQueue(maxCommandBufferCount: 1000)
 
-        // TODO: Implement aliasing for render targets
-        var heapDescriptor = MTLHeapDescriptor()
-        heapDescriptor.storageMode = .private
-        heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
-        heapDescriptor.size = 1024 * 1024 * 512 // Allocate 512MB for now
-        self.globalHeap = self.device.makeHeap(descriptor: heapDescriptor)!
-
-        heapDescriptor = MTLHeapDescriptor()
-        heapDescriptor.storageMode = .private
-        heapDescriptor.type = .automatic // TODO: Switch to placement mode for manual memory management
-        heapDescriptor.size = 1024 * 1024 * 2048 // Allocate 512MB for now
-        heapDescriptor.cpuCacheMode = .writeCombined
-        self.staticHeap = self.device.makeHeap(descriptor: heapDescriptor)!
-
         self.commandBufferStatusConcurrentQueue = DispatchQueue(label: "MetalGraphicsService.resetCommandBuffer", qos: .userInteractive)
     }
 
@@ -196,12 +179,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return Vector2(X: Float(self.renderWidth), Y: Float(self.renderHeight))
     }
 
-    public func getTextureAllocationInfos(_ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> GraphicsAllocationInfos {
-        let descriptor = createTextureDescriptor(textureFormat, width, height, faceCount, mipLevels, multisampleCount, false)
+    public func getTextureAllocationInfos(_ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> GraphicsAllocationInfos {
+        let descriptor = createTextureDescriptor(textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount)
         let sizeAndAlign = self.device.heapTextureSizeAndAlign(descriptor: descriptor)
 
         var result = GraphicsAllocationInfos()
-        result.Length = Int32(sizeAndAlign.size)
+        result.SizeInBytes = Int32(sizeAndAlign.size)
         result.Alignment = Int32(sizeAndAlign.align)
 
         return result
@@ -233,9 +216,9 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         if (type == Upload || type == ReadBack)
         {
+            heapDescriptor.storageMode = .managed
             // TODO: Check why metal doesn't allow for upload heaps
             return true
-            heapDescriptor.storageMode = .managed
         }
 
         if (type == Upload)
@@ -260,7 +243,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.graphicsHeaps[graphicsHeapId] = nil
     }
 
-    public func createGraphicsBuffer(_ graphicsBufferId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ length: Int, _ label: String) -> Bool {
+    public func createGraphicsBuffer(_ graphicsBufferId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ sizeInBytes: Int, _ label: String) -> Bool {
         let graphicsHeap = self.graphicsHeaps[graphicsHeapId]
 
         var options: MTLResourceOptions = [.storageModePrivate, .hazardTrackingModeUntracked]
@@ -274,8 +257,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             options = [.storageModeShared]//, .cpuCacheModeWriteCombined]
         }
 
+        // Apple Metal doesn't support creating shared memory heaps so we create related
+        // buffers via the Device
         if (graphicsHeap == nil) {
-            guard let gpuBuffer = self.device.makeBuffer(length: length, options: options) else {
+            guard let gpuBuffer = self.device.makeBuffer(length: sizeInBytes, options: options) else {
                 print("createGraphicsBuffer: Creation failed.")
                 return false
             }
@@ -284,13 +269,18 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             self.graphicsBuffers[graphicsBufferId] = gpuBuffer
         }
         else {
-            guard let gpuBuffer = graphicsHeap!.heapObject.makeBuffer(length: length, options: options, offset: Int(heapOffset)) else {
+            guard let gpuBuffer = graphicsHeap!.heapObject.makeBuffer(length: sizeInBytes, options: options, offset: Int(heapOffset)) else {
                 print("createGraphicsBuffer: Creation failed.")
                 return false
             }
 
             gpuBuffer.label = label
             self.graphicsBuffers[graphicsBufferId] = gpuBuffer
+
+            if (isAliasable)
+            {
+                gpuBuffer.makeAliasable()
+            }
         }
 
         return true
@@ -341,7 +331,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return .rgba8Unorm_srgb
     }
 
-    private func createTextureDescriptor(_ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool) -> MTLTextureDescriptor {
+    private func createTextureDescriptor(_ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> MTLTextureDescriptor {
         // TODO: Check for errors
         let descriptor = MTLTextureDescriptor()
 
@@ -355,8 +345,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         descriptor.hazardTrackingMode = .untracked
         descriptor.pixelFormat = convertTextureFormat(textureFormat)
 
-        if (isRenderTarget) {
-            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
+        if (usage == RenderTarget) {
+            descriptor.usage = [.shaderRead, .renderTarget]
+        } else if (usage == ShaderWrite) {
+            descriptor.usage = [.shaderRead, .shaderWrite]
         } else {
             descriptor.usage = [.shaderRead]
         }
@@ -372,79 +364,25 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return descriptor
     }
 
-    public func createTexture(_ textureId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ label: String) -> Bool {
+    public func createTexture(_ textureId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ label: String) -> Bool {
         guard let graphicsHeap = self.graphicsHeaps[graphicsHeapId] else {
             print("createGraphicsBuffer: Graphics heap was not found")
             return false
         }
 
-        let descriptor = createTextureDescriptor(textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget)
+        let descriptor = createTextureDescriptor(textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount)
 
-        if (isRenderTarget) {
-            guard let gpuTexture = self.device.makeTexture(descriptor: descriptor) else {
-                print("createTexture: Creation failed.")
-                return false
-            }
-
-            gpuTexture.label = label
-            self.textures[textureId] = gpuTexture
-        } else {
-            guard let gpuTexture = graphicsHeap.heapObject.makeTexture(descriptor: descriptor, offset: Int(heapOffset)) else {
-                print("createTexture: Creation failed.")
-                return false
-            }
-
-            gpuTexture.label = label
-            self.textures[textureId] = gpuTexture
+        guard let gpuTexture = graphicsHeap.heapObject.makeTexture(descriptor: descriptor, offset: Int(heapOffset)) else {
+            print("createTexture: Creation failed.")
+            return false
         }
 
-        return true
-    }
+        gpuTexture.label = label
+        self.textures[textureId] = gpuTexture
 
-    public func createTextureOld(_ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ isRenderTarget: Bool, _ label: String) -> Bool {
-        // TODO: Check for errors
-        let descriptor = MTLTextureDescriptor()
-
-        descriptor.width = width
-        descriptor.height = height
-        descriptor.depth = 1
-        descriptor.mipmapLevelCount = mipLevels
-        descriptor.arrayLength = 1
-        descriptor.sampleCount = multisampleCount
-        descriptor.storageMode = .private
-        descriptor.hazardTrackingMode = .untracked
-        descriptor.pixelFormat = convertTextureFormat(textureFormat)
-
-        if (isRenderTarget) {
-            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
-        } else {
-            descriptor.cpuCacheMode = .writeCombined
-        }
-
-        if (multisampleCount > 1) {
-            descriptor.textureType = .type2DMultisample
-        } else if (faceCount > 1) {
-            descriptor.textureType = .typeCube
-        } else {
-            descriptor.textureType = .type2D
-        }
-
-        if (isRenderTarget) {
-            guard let gpuTexture = self.device.makeTexture(descriptor: descriptor) else {
-                print("createTexture: Creation failed.")
-                return false
-            }
-
-            gpuTexture.label = label
-            self.textures[textureId] = gpuTexture
-        } else {
-            guard let gpuTexture = self.staticHeap.makeTexture(descriptor: descriptor) else {
-                print("createTexture: Creation failed.")
-                return false
-            }
-
-            gpuTexture.label = label
-            self.textures[textureId] = gpuTexture
+        if (isAliasable)
+        {
+            gpuTexture.makeAliasable()
         }
 
         return true
@@ -711,19 +649,19 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.copyCommandEncoders[commandListId] = nil
     }
 
-    public func uploadDataToGraphicsBuffer(_ commandListId: UInt, _ destinationGraphicsBufferId: UInt, _ sourceGraphicsBufferId: UInt, _ length: Int) {
+    public func copyDataToGraphicsBuffer(_ commandListId: UInt, _ destinationGraphicsBufferId: UInt, _ sourceGraphicsBufferId: UInt, _ length: Int) {
         guard let destinationBuffer = self.graphicsBuffers[destinationGraphicsBufferId] else {
-            print("ERROR: Destination graphics buffer was not found")
+            print("copyDataToGraphicsBuffer: Destination graphics buffer was not found")
             return
         }
 
         guard let sourceBuffer = self.graphicsBuffers[sourceGraphicsBufferId] else {
-            print("ERROR: Source graphics buffer was not found")
+            print("copyDataToGraphicsBuffer: Source graphics buffer was not found")
             return
         }
 
         guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
-            print("uploadDataToGraphicsBuffer: Copy command encoder is nil.")
+            print("copyDataToGraphicsBuffer: Copy command encoder is nil.")
             return
         }
 
@@ -731,55 +669,21 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         copyCommandEncoder.copy(from: sourceBuffer, sourceOffset: 0, to: destinationBuffer, destinationOffset: 0, size: length)
     }
 
-    public func copyGraphicsBufferDataToCpuOld(_ commandListId: UInt, _ graphicsBufferId: UInt, _ length: Int) {
-        guard let gpuBuffer = self.graphicsBuffers[graphicsBufferId] else {
-            print("ERROR: GPU graphics buffer was not found")
-            return
-        }
-
-        guard let cpuBuffer = self.readCpuGraphicsBuffers[graphicsBufferId] else {
-            print("ERROR: CPU graphics buffer was not found")
-            return
-        }
-
-        guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
-            print("copyGraphicsBufferDataToCpu: Copy command encoder is nil.")
-            return
-        }
-
-        // TODO: Add parameters to be able to update partially the buffer
-        copyCommandEncoder.copy(from: gpuBuffer, sourceOffset: 0, to: cpuBuffer, destinationOffset: 0, size: length)
-    }
-
-    public func readGraphicsBufferDataOld(_ graphicsBufferId: UInt, _ data: UnsafeMutableRawPointer, _ dataLength: Int) {
-        guard let cpuBuffer = self.readCpuGraphicsBuffers[graphicsBufferId] else {
-            print("ERROR: CPU graphics buffer was not found")
-            return
-        }
-
-        // Dump
-        // let urbp = UnsafeRawBufferPointer(start: cpuBuffer.contents(), count: dataLength)
-        // print(urbp.map{String(format: "%02X", $0)}.joined(separator: " "))
-
-        // TODO: Try to avoid the copy
-        data.copyMemory(from: cpuBuffer.contents().assumingMemoryBound(to: UInt8.self), byteCount: (dataLength * MemoryLayout<UInt8>.stride))
-    }
-
     let performanceTimer = PerformanceTimer()
 
-    public func uploadDataToTexture(_ commandListId: UInt, _ destinationTextureId: UInt, _ sourceGraphicsBufferId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int) {
+    public func copyDataToTexture(_ commandListId: UInt, _ destinationTextureId: UInt, _ sourceGraphicsBufferId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int) {
         guard let destinationTexture = self.textures[destinationTextureId] else {
-            print("uploadDataToTexture: Destination texture was not found")
+            print("copyDataToTexture: Destination texture was not found")
             return
         }
 
         guard let sourceGraphicsBuffer = self.graphicsBuffers[sourceGraphicsBufferId] else {
-            print("uploadDataToTexture: Source graphics buffer was not found")
+            print("copyDataToTexture: Source graphics buffer was not found")
             return
         }
 
         guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
-            print("uploadDataToTexture: Copy command encoder is nil.")
+            print("copyDataToTexture: Copy command encoder is nil.")
             return
         }
 
@@ -813,56 +717,24 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                                 destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
     }
 
-    public func uploadDataToTextureOld(_ commandListId: UInt, _ textureId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int, _ data: UnsafeMutableRawPointer, _ length: Int) {
-        guard let gpuTexture = self.textures[textureId] else {
-            print("ERROR: GPU texture was not found")
+    public func copyTexture(_ commandListId: UInt, _ destinationTextureId: UInt, _ sourceTextureId: UInt) {
+        guard let destinationTexture = self.textures[destinationTextureId] else {
+            print("copyTexture: Destination texture was not found")
             return
         }
 
-        // Create a the metal buffer on the CPU
-        // TODO: Create a pool of cpu buffers
-        performanceTimer.start();
-        let cpuTexture = self.device.makeBuffer(length: length, options: .cpuCacheModeWriteCombined)!
-        cpuTexture.label = "Texture - CPU buffer"
-        performanceTimer.stop("MakeBuffer");
-
-        // TODO: Try to avoid the copy
-        performanceTimer.start();
-        cpuTexture.contents().copyMemory(from: data.assumingMemoryBound(to: UInt8.self), byteCount: (length * MemoryLayout<UInt8>.stride))
-        performanceTimer.stop("CopyMemory");
+        guard let sourceTexture = self.textures[sourceTextureId] else {
+            print("copyTexture: Source texture was not found")
+            return
+        }
 
         guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
-            print("uploadDataToTexture: Copy command encoder is nil.")
+            print("copyTexture: Copy command encoder is nil.")
             return
         }
 
-        var sourceBytesPerRow = 4 * width
-        var sourceBytesPerImage = 4 * width * height
-
-        if (textureFormat == BC2Srgb || textureFormat == BC3Srgb || textureFormat == BC5 || textureFormat == BC6 || textureFormat == BC7Srgb) {
-            sourceBytesPerRow = 16 * Int(ceil(Double(width) / 4.0))
-            sourceBytesPerImage = 16 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
-        } else if (textureFormat == BC1Srgb || textureFormat == BC4) {
-            sourceBytesPerRow = 8 * Int(ceil(Double(width) / 4.0))
-            sourceBytesPerImage = 8 * Int(ceil(Double(width) / 4.0)) * Int(ceil(Double(height) / 4.0))
-        } else if (textureFormat == Rgba16Float) {
-            sourceBytesPerRow = 8 * width
-            sourceBytesPerImage = 8 * width * height
-        } else if (textureFormat == Rgba32Float) {
-            sourceBytesPerRow = 16 * width
-            sourceBytesPerImage = 16 * width * height
-        }
-
-        // TODO: Add parameters to be able to update partially the buffer
-        copyCommandEncoder.copy(from: cpuTexture, 
-                                sourceOffset: 0, 
-                                sourceBytesPerRow: sourceBytesPerRow,
-                                sourceBytesPerImage: sourceBytesPerImage,
-                                sourceSize: MTLSize(width: width, height: height , depth: 1),
-                                to: gpuTexture, 
-                                destinationSlice: slice,
-                                destinationLevel: mipLevel,
-                                destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
+        copyCommandEncoder.copy(from: sourceTexture, to: destinationTexture)
+        // copyCommandEncoder.copy(from: sourceTexture, sourceSlice: 0, sourceLevel: 0, to: destinationTexture, destinationSlice: 0, destinationLevel: 0, sliceCount: 1, levelCount: 1)
     }
 
     public func resetIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int) {
@@ -908,9 +780,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.computeCommandEncoders[commandListId] = computeCommandEncoder
 
         createFence(commandListId, commandBufferId, label)
-
-        computeCommandEncoder.useHeap(self.globalHeap)
-        computeCommandEncoder.useHeap(self.staticHeap)
+        bindGraphicsHeaps(commandListId);
 
         return true
     }
@@ -926,6 +796,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
+        computeCommandEncoder.memoryBarrier(scope: [.textures])
         computeCommandEncoder.updateFence(fence)
         computeCommandEncoder.endEncoding()
         
@@ -966,6 +837,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return false
         }
 
+        var renderTargetList: [MTLTexture] = []
+
         // Create render command encoder        
         let renderPassDescriptor = MTLRenderPassDescriptor()
         
@@ -991,6 +864,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 return false
             }
 
+            renderTargetList.append(colorTexture)
             renderPassDescriptor.colorAttachments[0].texture = colorTexture
             renderPassDescriptor.colorAttachments[0].storeAction = .store
         }
@@ -1001,6 +875,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 return false
             }
 
+            renderTargetList.append(colorTexture)
             renderPassDescriptor.colorAttachments[1].texture = colorTexture
             renderPassDescriptor.colorAttachments[1].storeAction = .store
 
@@ -1018,6 +893,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 return false
             }
 
+            renderTargetList.append(colorTexture)
             renderPassDescriptor.colorAttachments[2].texture = colorTexture
             renderPassDescriptor.colorAttachments[2].storeAction = .store
 
@@ -1035,6 +911,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 return false
             }
 
+            renderTargetList.append(colorTexture)
             renderPassDescriptor.colorAttachments[3].texture = colorTexture
             renderPassDescriptor.colorAttachments[3].storeAction = .store
 
@@ -1051,13 +928,15 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 print("createRenderCommandList: Depth Texture is nil.")
                 return false
             }
+
+            renderTargetList.append(depthTexture)
             renderPassDescriptor.depthAttachment.texture = depthTexture
         }
 
         if (renderDescriptor.DepthBufferOperation != DepthNone) {
             if (renderDescriptor.DepthBufferOperation == ClearWrite) {
                 renderPassDescriptor.depthAttachment.loadAction = .clear
-                renderPassDescriptor.depthAttachment.clearDepth = 1.0
+                renderPassDescriptor.depthAttachment.clearDepth = 0.0
             } else {
                 renderPassDescriptor.depthAttachment.loadAction = .load
             }
@@ -1081,8 +960,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderCommandEncoder.setDepthStencilState(self.depthWriteOperationState)
         } else if (renderDescriptor.DepthBufferOperation == CompareEqual) {
             renderCommandEncoder.setDepthStencilState(self.depthCompareEqualState)
-        } else if (renderDescriptor.DepthBufferOperation == CompareLess) {
-            renderCommandEncoder.setDepthStencilState(self.depthCompareLessState)
+        } else if (renderDescriptor.DepthBufferOperation == CompareGreater) {
+            renderCommandEncoder.setDepthStencilState(self.depthCompareGreaterState)
         } else {
             renderCommandEncoder.setDepthStencilState(self.depthNoneOperationState)
         }
@@ -1100,9 +979,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         createFence(commandListId, commandBufferId, label)
-
-        renderCommandEncoder.useHeap(self.globalHeap)
-        renderCommandEncoder.useHeap(self.staticHeap)
+        self.renderCommandRTs[commandListId] = renderTargetList
 
         return true
     }
@@ -1121,6 +998,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         renderCommandEncoder.updateFence(fence, after: .fragment)
         renderCommandEncoder.endEncoding()
         self.renderCommandEncoders[commandListId] = nil
+        self.renderCommandRTs[commandListId] = nil
     }
 
     public func setPipelineState(_ commandListId: UInt, _ pipelineStateId: UInt) {
@@ -1136,6 +1014,9 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             }
 
             renderCommandEncoder.setRenderPipelineState(pipelineState)
+
+            bindGraphicsHeaps(commandListId);
+            renderCommandEncoder.useResources(self.renderCommandRTs[commandListId]!, usage: [.read, .write])
         } else if (self.computeCommandEncoders[commandListId] != nil) {
             guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
                 print("setPipelineState: Compute command encoder is nil.")
@@ -1161,10 +1042,11 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.currentShader = shader
     }
 
-    public func bindGraphicsHeap(_ commandListId: UInt, _ graphicsHeapId: UInt) {
-        guard let graphicsHeap = self.graphicsHeaps[graphicsHeapId] else {
-            print("useGraphicsHeap: GraphicsHeap is nil.")
-            return
+    private func bindGraphicsHeaps(_ commandListId: UInt) {
+        var heapList: [MTLHeap] = []
+
+        for (_, value) in self.graphicsHeaps {
+            heapList.append(value.heapObject)
         }
 
         if (self.renderCommandEncoders[commandListId] != nil) {
@@ -1173,13 +1055,13 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 return
             }
             
-            renderCommandEncoder.useHeap(graphicsHeap.heapObject)
+            renderCommandEncoder.useHeaps(heapList)
         } else if (self.computeCommandEncoders[commandListId] != nil) {
             guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
                 print("useGraphicsHeap: Compute command encoder is nil.")
                 return
             }
-            computeCommandEncoder.useHeap(graphicsHeap.heapObject)
+            computeCommandEncoder.useHeaps(heapList)
         }
     }
 
@@ -1229,32 +1111,35 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
-        guard let texture = self.textures[textureId] else {
-            return
-        }
-
         guard let argumentEncoder = shader.argumentEncoder else {
             return
         }
 
-        argumentEncoder.setTexture(texture, index: slot)        
+        guard let texture = self.textures[textureId] else {
+            return
+        }
 
-        // TODO: This code is needed because render targets are not allocated on the heap for the moment
-        if (texture.usage == [.renderTarget, .shaderRead, .shaderWrite]) {
+        if (texture.usage == [.shaderRead, .renderTarget] || texture.usage == [.shaderRead, .shaderWrite]) {
             if (self.computeCommandEncoders[commandListId] != nil) {
                 let computeCommandEncoder = self.computeCommandEncoders[commandListId]!
 
                 if (isReadOnly) {
-                computeCommandEncoder.useResource(texture, usage: .read)
+                    computeCommandEncoder.useResource(texture, usage: .read)
                 } else {
-                computeCommandEncoder.useResource(texture, usage: .write)
-
+                    computeCommandEncoder.useResource(texture, usage: .write)
                 }
             } else if (self.renderCommandEncoders[commandListId] != nil) {
-                let computeCommandEncoder = self.renderCommandEncoders[commandListId]!
-                computeCommandEncoder.useResource(texture, usage: .read)
+                let renderCommandEncoder = self.renderCommandEncoders[commandListId]!
+
+                if (isReadOnly) {
+                    renderCommandEncoder.useResource(texture, usage: .read)
+                } else {
+                    renderCommandEncoder.useResource(texture, usage: .write)
+                }
             }
         }
+
+        argumentEncoder.setTexture(texture, index: slot)        
     }
 
     public func setShaderTextures(_ commandListId: UInt, _ textureIdList: [UInt32], _ slot: Int, _ index: Int) {
@@ -1269,23 +1154,24 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         var textureList: [MTLTexture] = []
 
         for i in 0..<textureIdList.count {
-            guard let texture = self.textures[UInt(textureIdList[i])] else {
-                print("TEXTURE ERROR \(UInt(textureIdList[i]))")
+            let textureId = UInt(textureIdList[i])
+
+            guard let texture = self.textures[textureId] else {
+                print("TEXTURE ERROR \(textureId)")
                 return
             }
 
-            textureList.append(texture)
-
-            // TODO: This code is needed because render targets are not allocated on the heap for the moment
-            if (texture.usage == [.renderTarget, .shaderRead, .shaderWrite]) {
+            if (texture.usage == [.shaderRead, .renderTarget] || texture.usage == [.shaderRead, .shaderWrite]) {
                 if (self.computeCommandEncoders[commandListId] != nil) {
                     let computeCommandEncoder = self.computeCommandEncoders[commandListId]!
                     computeCommandEncoder.useResource(texture, usage: .read)
                 } else if (self.renderCommandEncoders[commandListId] != nil) {
-                    let computeCommandEncoder = self.renderCommandEncoders[commandListId]!
-                    computeCommandEncoder.useResource(texture, usage: .read)
+                    let renderCommandEncoder = self.renderCommandEncoders[commandListId]!
+                    renderCommandEncoder.useResource(texture, usage: .read)
                 }
             }
+
+            textureList.append(texture)
         }
 
         argumentEncoder.setTextures(textureList, range: (slot + index)..<(slot + index) + textureIdList.count)
@@ -1499,7 +1385,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     private func commandBufferCompleted(_ commandBuffer: MTLCommandBuffer, _ commandBufferId: UInt) {
         if (commandBuffer.error != nil) {
             //self.gpuError = true
-            print("GPU ERROR: \(commandBuffer.error)")
+            print("GPU ERROR: \(commandBuffer.error!)")
         }
 
         commandBufferStatusConcurrentQueue.sync() {

@@ -16,8 +16,8 @@ namespace CoreEngine.Rendering
         private GraphicsBuffer cpuIndexBuffer;
         private GraphicsBuffer indexBuffer;
 
-        public CommandBuffer copyCommandBuffer;
-        public CommandBuffer commandBuffer;
+        public CommandBuffer copyCommandBuffer { get; }
+        public CommandBuffer commandBuffer { get; }
 
         private int currentDebugLineIndex;
 
@@ -45,10 +45,10 @@ namespace CoreEngine.Rendering
 
             var maxLineCount = 100000;
 
-            this.cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer", GraphicsHeapType.Upload);
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(maxLineCount * 4, isStatic: false, isWriteOnly: true, label: "DebugVertexBuffer");
-            this.cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer", GraphicsHeapType.Upload);
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(maxLineCount * 2, isStatic: false, isWriteOnly: true, label: "DebugIndexBuffer");
+            this.cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(GraphicsHeapType.Upload, maxLineCount * 4, isStatic: false, label: "DebugVertexBuffer");
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector4>(GraphicsHeapType.Gpu, maxLineCount * 4, isStatic: false, label: "DebugVertexBuffer");
+            this.cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer");
 
             this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "DebugRendererCopy");
             this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "DebugRenderer");
@@ -166,22 +166,22 @@ namespace CoreEngine.Rendering
             }
         }
 
-        public CommandList Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture? depthTexture, CommandList previousCommandList)
+        public CommandList Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture renderTargetTexture, Texture? depthTexture, CommandList previousCommandList)
         {
             if (this.currentDebugLineIndex > 0)
             {
                 this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
 
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList(this.copyCommandBuffer, "DebugCopyCommandList");
-                this.graphicsManager.UploadDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.cpuVertexBuffer, this.currentDebugLineIndex * 4);
-                this.graphicsManager.UploadDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.cpuIndexBuffer, this.currentDebugLineIndex * 2);
+                this.graphicsManager.CopyDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.cpuVertexBuffer, this.currentDebugLineIndex * 4);
+                this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.cpuIndexBuffer, this.currentDebugLineIndex * 2);
                 this.graphicsManager.CommitCopyCommandList(copyCommandList);
                 this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
                 this.graphicsManager.ResetCommandBuffer(commandBuffer);
 
-                var renderTarget = new RenderTargetDescriptor(this.renderManager.MainRenderTargetTexture, null, BlendOperation.None);
-                var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareLess, true);
+                var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
+                var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, true);
                 var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
 
                 this.graphicsManager.WaitForCommandList(commandList, copyCommandList);

@@ -47,11 +47,18 @@ namespace CoreEngine.HostServices
         Rgba16Unorm
     }
 
+    public enum GraphicsTextureUsage
+    {
+        ShaderRead,
+        ShaderWrite,
+        RenderTarget
+    }
+
     public enum GraphicsDepthBufferOperation
     {
         DepthNone,
         CompareEqual,
-        CompareLess,
+        CompareGreater,
         Write,
         ClearWrite
     }
@@ -76,7 +83,7 @@ namespace CoreEngine.HostServices
 
     public readonly struct GraphicsAllocationInfos
     {
-        public int Length { get; }
+        public int SizeInBytes { get; }
         public int Alignment { get; }
     }
 
@@ -253,18 +260,16 @@ namespace CoreEngine.HostServices
         // Vector2 GetSwapChainSize();
         // uint GetNextSwapChainTexture(uint swapChainId);
         Vector2 GetRenderSize();
-        GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+        GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 
         bool CreateGraphicsHeap(uint graphicsHeapId, GraphicsServiceHeapType type, ulong length, string label);
         void DeleteGraphicsHeap(uint graphicsHeapId);
 
-        bool CreateGraphicsBuffer(uint graphicsBufferId, uint graphicsHeapId, ulong heapOffset, int length, string label);
+        bool CreateGraphicsBuffer(uint graphicsBufferId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, int sizeInBytes, string label);
         IntPtr GetGraphicsBufferCpuPointer(uint graphicsBufferId);
         void DeleteGraphicsBuffer(uint graphicsBufferId);
 
-        // TODO: Find a way to specify if the texture will only be used as RenderTarget or UAV
-        bool CreateTexture(uint textureId, uint graphicsHeapId, ulong heapOffset, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
-        bool CreateTextureOld(uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, string label);
+        bool CreateTexture(uint textureId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, string label);
         void DeleteTexture(uint textureId);
 
         // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
@@ -285,6 +290,8 @@ namespace CoreEngine.HostServices
         void ResetCommandBuffer(uint commandBufferId);
         void ExecuteCommandBuffer(uint commandBufferId);
 
+        // TODO: Add a general SetDebugLabel method and remove the label parameter from the create methods
+
         // TODO: Replace that with an api that insert gpu timing events into the command lists
         GraphicsCommandBufferStatus? GetCommandBufferStatus(uint commandBufferId);
 
@@ -299,13 +306,9 @@ namespace CoreEngine.HostServices
 
         bool CreateCopyCommandList(uint commandListId, uint commandBufferId, string label);
         void CommitCopyCommandList(uint commandListId);
-        void UploadDataToGraphicsBuffer(uint commandListId, uint destinationGraphicsBufferId, uint sourceGraphicsBufferId, int length);
-
-        void CopyGraphicsBufferDataToCpuOld(uint commandListId, uint graphicsBufferId, int length);
-        void ReadGraphicsBufferDataOld(uint graphicsBufferId, ReadOnlySpan<byte> data);
-
-        void UploadDataToTexture(uint commandListId, uint destinationTextureId, uint sourceGraphicsBufferId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
-        void UploadDataToTextureOld(uint commandListId, uint textureId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, ReadOnlySpan<byte> data);
+        void CopyDataToGraphicsBuffer(uint commandListId, uint destinationGraphicsBufferId, uint sourceGraphicsBufferId, int length);
+        void CopyDataToTexture(uint commandListId, uint destinationTextureId, uint sourceGraphicsBufferId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
+        void CopyTexture(uint commandListId, uint destinationTextureId, uint sourceTextureId);
 
         // TODO: Rename that to IndirectCommandBuffer
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
@@ -324,8 +327,6 @@ namespace CoreEngine.HostServices
 
         // TODO: This function should be removed. Only pipeline states can be set 
         void SetShader(uint commandListId, uint shaderId);
-        void BindGraphicsHeap(uint commandListId, uint graphicsHeapId);
-
         void ExecuteIndirectCommandBuffer(uint commandListId, uint indirectCommandBufferId, int maxCommandCount);
 
         // TODO: Merge SetIndexBuffer to DrawIndexedPrimitives

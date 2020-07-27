@@ -7,7 +7,7 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal Texture(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, uint systemId, uint? systemId2, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
+        internal Texture(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, uint systemId, uint? systemId2, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsMemoryAllocation = graphicsMemoryAllocation;
@@ -15,6 +15,7 @@ namespace CoreEngine.Graphics
             this.GraphicsResourceSystemId = systemId;
             this.GraphicsResourceSystemId2 = systemId2;
             this.TextureFormat = textureFormat;
+            this.Usage = usage;
             this.Width = width;
             this.Height = height;
             this.FaceCount = faceCount;
@@ -66,6 +67,7 @@ namespace CoreEngine.Graphics
         }
 
         public TextureFormat TextureFormat { get; internal set; }
+        public TextureUsage Usage { get; internal set; }
         public int Width { get; internal set; }
         public int Height { get; internal set; }
         public int FaceCount { get; internal set; }

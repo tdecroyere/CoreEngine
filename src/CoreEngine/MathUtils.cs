@@ -38,8 +38,8 @@ namespace CoreEngine
 
             var row1 = new Vector4(height / aspectRatio, 0, 0, 0);
             var row2 = new Vector4(0, height, 0, 0);
-            var row3 = new Vector4(0, 0, farPlaneDistance / (farPlaneDistance - nearPlaneDistance), 1);
-            var row4 = new Vector4(0, 0, -nearPlaneDistance * farPlaneDistance / (farPlaneDistance - nearPlaneDistance), 0);
+            var row3 = new Vector4(0, 0, 1.0f - farPlaneDistance / (farPlaneDistance - nearPlaneDistance), 1);
+            var row4 = new Vector4(0, 0, 1.0f - -nearPlaneDistance * farPlaneDistance / (farPlaneDistance - nearPlaneDistance), 0);
 
             return new Matrix4x4(row1.X, row1.Y, row1.Z, row1.W,
                                  row2.X, row2.Y, row2.Z, row2.W,
@@ -61,8 +61,8 @@ namespace CoreEngine
                 result.M22 = 2.0f / height;
 			}
 
-            result.M33 = 1.0f / (farPlaneDistance - nearPlaneDistance);
-            result.M43 = nearPlaneDistance / (nearPlaneDistance - farPlaneDistance);
+            result.M33 = 1.0f - 1.0f / (farPlaneDistance - nearPlaneDistance);
+            result.M43 = 1.0f - nearPlaneDistance / (nearPlaneDistance - farPlaneDistance);
             result.M44 = 1.0f;
 
 			return result;

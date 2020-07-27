@@ -13,10 +13,10 @@ struct Vector2 GetRenderSizeInterop(void* context)
     return contextObject->GetRenderSize();
 }
 
-struct GraphicsAllocationInfos GetTextureAllocationInfosInterop(void* context, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount)
+struct GraphicsAllocationInfos GetTextureAllocationInfosInterop(void* context, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->GetTextureAllocationInfos(textureFormat, width, height, faceCount, mipLevels, multisampleCount);
+    return contextObject->GetTextureAllocationInfos(textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
 }
 
 int CreateGraphicsHeapInterop(void* context, unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long length, char* label)
@@ -31,10 +31,10 @@ void DeleteGraphicsHeapInterop(void* context, unsigned int graphicsHeapId)
     contextObject->DeleteGraphicsHeap(graphicsHeapId);
 }
 
-int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int length, char* label)
+int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateGraphicsBuffer(graphicsBufferId, graphicsHeapId, heapOffset, length, label);
+    return contextObject->CreateGraphicsBuffer(graphicsBufferId, graphicsHeapId, heapOffset, isAliasable, sizeInBytes, label);
 }
 
 void* GetGraphicsBufferCpuPointerInterop(void* context, unsigned int graphicsBufferId)
@@ -49,16 +49,10 @@ void DeleteGraphicsBufferInterop(void* context, unsigned int graphicsBufferId)
     contextObject->DeleteGraphicsBuffer(graphicsBufferId);
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
+int CreateTextureInterop(void* context, unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateTexture(textureId, graphicsHeapId, heapOffset, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
-}
-
-int CreateTextureOldInterop(void* context, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateTextureOld(textureId, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, label);
+    return contextObject->CreateTexture(textureId, graphicsHeapId, heapOffset, isAliasable, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, label);
 }
 
 void DeleteTextureInterop(void* context, unsigned int textureId)
@@ -175,34 +169,22 @@ void CommitCopyCommandListInterop(void* context, unsigned int commandListId)
     contextObject->CommitCopyCommandList(commandListId);
 }
 
-void UploadDataToGraphicsBufferInterop(void* context, unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int length)
+void CopyDataToGraphicsBufferInterop(void* context, unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int length)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->UploadDataToGraphicsBuffer(commandListId, destinationGraphicsBufferId, sourceGraphicsBufferId, length);
+    contextObject->CopyDataToGraphicsBuffer(commandListId, destinationGraphicsBufferId, sourceGraphicsBufferId, length);
 }
 
-void CopyGraphicsBufferDataToCpuOldInterop(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int length)
+void CopyDataToTextureInterop(void* context, unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->CopyGraphicsBufferDataToCpuOld(commandListId, graphicsBufferId, length);
+    contextObject->CopyDataToTexture(commandListId, destinationTextureId, sourceGraphicsBufferId, textureFormat, width, height, slice, mipLevel);
 }
 
-void ReadGraphicsBufferDataOldInterop(void* context, unsigned int graphicsBufferId, void* data, int dataLength)
+void CopyTextureInterop(void* context, unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceTextureId)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->ReadGraphicsBufferDataOld(graphicsBufferId, data, dataLength);
-}
-
-void UploadDataToTextureInterop(void* context, unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->UploadDataToTexture(commandListId, destinationTextureId, sourceGraphicsBufferId, textureFormat, width, height, slice, mipLevel);
-}
-
-void UploadDataToTextureOldInterop(void* context, unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->UploadDataToTextureOld(commandListId, textureId, textureFormat, width, height, slice, mipLevel, data, dataLength);
+    contextObject->CopyTexture(commandListId, destinationTextureId, sourceTextureId);
 }
 
 void ResetIndirectCommandListInterop(void* context, unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount)
@@ -259,12 +241,6 @@ void SetShaderInterop(void* context, unsigned int commandListId, unsigned int sh
     contextObject->SetShader(commandListId, shaderId);
 }
 
-void BindGraphicsHeapInterop(void* context, unsigned int commandListId, unsigned int graphicsHeapId)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->BindGraphicsHeap(commandListId, graphicsHeapId);
-}
-
 void ExecuteIndirectCommandBufferInterop(void* context, unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -319,7 +295,6 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_GetGraphicsBufferCpuPointer = GetGraphicsBufferCpuPointerInterop;
     service->GraphicsService_DeleteGraphicsBuffer = DeleteGraphicsBufferInterop;
     service->GraphicsService_CreateTexture = CreateTextureInterop;
-    service->GraphicsService_CreateTextureOld = CreateTextureOldInterop;
     service->GraphicsService_DeleteTexture = DeleteTextureInterop;
     service->GraphicsService_CreateIndirectCommandBuffer = CreateIndirectCommandBufferInterop;
     service->GraphicsService_CreateShader = CreateShaderInterop;
@@ -339,11 +314,9 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_SetShaderIndirectCommandLists = SetShaderIndirectCommandListsInterop;
     service->GraphicsService_CreateCopyCommandList = CreateCopyCommandListInterop;
     service->GraphicsService_CommitCopyCommandList = CommitCopyCommandListInterop;
-    service->GraphicsService_UploadDataToGraphicsBuffer = UploadDataToGraphicsBufferInterop;
-    service->GraphicsService_CopyGraphicsBufferDataToCpuOld = CopyGraphicsBufferDataToCpuOldInterop;
-    service->GraphicsService_ReadGraphicsBufferDataOld = ReadGraphicsBufferDataOldInterop;
-    service->GraphicsService_UploadDataToTexture = UploadDataToTextureInterop;
-    service->GraphicsService_UploadDataToTextureOld = UploadDataToTextureOldInterop;
+    service->GraphicsService_CopyDataToGraphicsBuffer = CopyDataToGraphicsBufferInterop;
+    service->GraphicsService_CopyDataToTexture = CopyDataToTextureInterop;
+    service->GraphicsService_CopyTexture = CopyTextureInterop;
     service->GraphicsService_ResetIndirectCommandList = ResetIndirectCommandListInterop;
     service->GraphicsService_OptimizeIndirectCommandList = OptimizeIndirectCommandListInterop;
     service->GraphicsService_CreateComputeCommandList = CreateComputeCommandListInterop;
@@ -353,7 +326,6 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_CommitRenderCommandList = CommitRenderCommandListInterop;
     service->GraphicsService_SetPipelineState = SetPipelineStateInterop;
     service->GraphicsService_SetShader = SetShaderInterop;
-    service->GraphicsService_BindGraphicsHeap = BindGraphicsHeapInterop;
     service->GraphicsService_ExecuteIndirectCommandBuffer = ExecuteIndirectCommandBufferInterop;
     service->GraphicsService_SetIndexBuffer = SetIndexBufferInterop;
     service->GraphicsService_DrawIndexedPrimitives = DrawIndexedPrimitivesInterop;

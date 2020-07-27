@@ -83,7 +83,7 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.DeleteTexture(font.Texture);
             }
 
-            font.Texture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, width, height, 1, 1, 1, false, isStatic: true, label: "FontTexture");
+            font.Texture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, TextureUsage.ShaderRead, width, height, 1, 1, 1, isStatic: true, label: "FontTexture");
 
             // TODO: Make only one frame copy command list for all resource loaders
             var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "FontLoader");

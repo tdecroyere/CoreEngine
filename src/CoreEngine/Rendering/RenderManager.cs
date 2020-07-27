@@ -47,8 +47,6 @@ namespace CoreEngine.Rendering
             this.globalStopwatch.Start();
 
             this.currentFrameSize = this.graphicsManager.graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, isStatic: true, label: "MainRenderTarget");
-
             this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
 
             this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, this.graphicsManager, graphicsSceneQueue, resourcesManager);
@@ -58,7 +56,6 @@ namespace CoreEngine.Rendering
 
         }
 
-        public Texture MainRenderTargetTexture { get; private set; }
         public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
         public Graphics2DRenderer Graphics2DRenderer { get; }
         internal int GeometryInstancesCount { get; set; }
@@ -68,7 +65,25 @@ namespace CoreEngine.Rendering
         internal int TexturesCount { get; set; }
         internal int LightsCount { get; set; }
 
-        public void PresentScreenBuffer(CommandList previousCommandList)
+        List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
+
+        internal void Render()
+        {
+            this.currentFrameSize = this.graphicsManager.graphicsService.GetRenderSize();
+            var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
+
+            var renderCommandList = this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
+
+            DrawDebugMessages();
+            var graphics2DCommandList = this.Graphics2DRenderer.Render(mainRenderTargetTexture, renderCommandList);
+
+            this.PresentScreenBuffer(mainRenderTargetTexture, graphics2DCommandList);
+
+            // TODO: If doing restart stopwatch here, the CPU time is more than 10ms
+            this.stopwatch.Restart();
+        }
+
+        private void PresentScreenBuffer(Texture mainRenderTargetTexture, CommandList previousCommandList)
         {
             // TODO: Use a compute shader
             this.graphicsManager.ResetCommandBuffer(presentCommandBuffer);
@@ -79,7 +94,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.WaitForCommandList(renderCommandList, previousCommandList);
 
             this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
-            this.graphicsManager.SetShaderTexture(renderCommandList, this.MainRenderTargetTexture, 0);
+            this.graphicsManager.SetShaderTexture(renderCommandList, mainRenderTargetTexture, 0);
             this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
             this.graphicsManager.CommitRenderCommandList(renderCommandList);
@@ -88,24 +103,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.ExecuteCommandBuffer(presentCommandBuffer);
 
             this.graphicsManager.WaitForAvailableScreenBuffer();
-        }
-
-        List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
-
-        internal void Render()
-        {
-            this.currentFrameSize = this.graphicsManager.graphicsService.GetRenderSize();
-            this.MainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, true, isStatic: true, label: "MainRenderTarget");
-
-            var renderCommandList = this.GraphicsSceneRenderer.Render();
-
-            DrawDebugMessages();
-            var graphics2DCommandList = this.Graphics2DRenderer.Render(renderCommandList);
-
-            this.PresentScreenBuffer(graphics2DCommandList);
-
-            // TODO: If doing restart stopwatch here, the CPU time is more than 10ms
-            this.stopwatch.Restart();
         }
 
         private void DrawDebugMessages()

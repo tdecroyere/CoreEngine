@@ -26,7 +26,7 @@ namespace CoreEngine.Graphics
             // TODO: Remove the responsability of the loader to create empty resources
             Logger.BeginAction("Create Empty Texture");
             Logger.BeginAction("Create Resource");
-            this.emptyTexture = graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, 256, 256, 1, 1, 1, false, isStatic: true, label: "EmptyTexture");
+            this.emptyTexture = graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, TextureUsage.ShaderRead, 256, 256, 1, 1, 1, isStatic: true, label: "EmptyTexture");
             Logger.EndAction();
 
             var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, 256 * 256 * 4, isStatic: true, label: "TextureCpuBuffer");
@@ -88,7 +88,7 @@ namespace CoreEngine.Graphics
             }
 
             // TODO: Wait for the command buffer to finish execution before switching the system ids.
-            var createdTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, texture.TextureFormat, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, false, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
+            var createdTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, texture.TextureFormat, TextureUsage.ShaderRead, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 

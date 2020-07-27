@@ -61,7 +61,6 @@ namespace CoreEngine.Rendering
     public class Graphics2DRenderer : SystemManager
     {
         private readonly GraphicsManager graphicsManager;
-        private readonly RenderManager renderManager;
         
         private int currentSurfaceCount;
         private float scaleFactor = 1.0f;
@@ -98,7 +97,6 @@ namespace CoreEngine.Rendering
                 throw new ArgumentNullException(nameof(resourcesManager));
             }
 
-            this.renderManager = renderManager;
             this.graphicsManager = graphicsManager;
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/Graphics2DRender.shader");
@@ -232,7 +230,7 @@ namespace CoreEngine.Rendering
             this.currentSurfaceCount++;
         }
 
-        public CommandList Render(CommandList previousCommandList)
+        public CommandList Render(Texture renderTargetTexture, CommandList previousCommandList)
         {
             if (this.currentSurfaceCount > 0)
             {
@@ -245,7 +243,7 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
                 this.graphicsManager.ResetCommandBuffer(commandBuffer);
-                var renderTarget = new RenderTargetDescriptor(this.renderManager.MainRenderTargetTexture, null, BlendOperation.AlphaBlending);
+                var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
                 var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
 

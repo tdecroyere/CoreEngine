@@ -166,7 +166,7 @@ namespace CoreEngine.Rendering
             }
         }
 
-        public CommandList Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture? depthTexture, CommandList previousCommandList)
+        public CommandList Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture renderTargetTexture, Texture? depthTexture, CommandList previousCommandList)
         {
             if (this.currentDebugLineIndex > 0)
             {
@@ -180,7 +180,7 @@ namespace CoreEngine.Rendering
 
                 this.graphicsManager.ResetCommandBuffer(commandBuffer);
 
-                var renderTarget = new RenderTargetDescriptor(this.renderManager.MainRenderTargetTexture, null, BlendOperation.None);
+                var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, true);
                 var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
 

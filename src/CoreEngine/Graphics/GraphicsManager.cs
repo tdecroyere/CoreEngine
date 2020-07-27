@@ -97,7 +97,6 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetRenderSize();
         }
 
-        // TODO: Change the order of parameters and make heapType mandatory
         public GraphicsBuffer CreateGraphicsBuffer<T>(GraphicsHeapType heapType, int length, bool isStatic, string label) where T : struct
         {
             var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
@@ -156,13 +155,11 @@ namespace CoreEngine.Graphics
             }
         }
 
-        // TODO: Change the order of parameters and make heapType mandatory
-        public Texture CreateTexture(GraphicsHeapType heapType, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget, bool isStatic, string label)
+        public Texture CreateTexture(GraphicsHeapType heapType, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isStatic, string label)
         {
             var textureId = GetNextGraphicsResourceId();
-
-            var allocation = this.graphicsMemoryManager.AllocateTexture(heapType, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget);
-            var result = this.graphicsService.CreateTexture(textureId, allocation.GraphicsHeap.Id, allocation.Offset, allocation.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, $"{label}{(isStatic ? string.Empty : "0") }");
+            var allocation = this.graphicsMemoryManager.AllocateTexture(heapType, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
+            var result = this.graphicsService.CreateTexture(textureId, allocation.GraphicsHeap.Id, allocation.Offset, allocation.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount, $"{label}{(isStatic ? string.Empty : "0") }");
 
             if (!result)
             {
@@ -175,8 +172,8 @@ namespace CoreEngine.Graphics
             if (!isStatic)
             {
                 textureId2 = GetNextGraphicsResourceId();
-                allocation2 = this.graphicsMemoryManager.AllocateTexture(heapType, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget);
-                result = this.graphicsService.CreateTexture(textureId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, allocation2.Value.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget, $"{label}1");
+                allocation2 = this.graphicsMemoryManager.AllocateTexture(heapType, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
+                result = this.graphicsService.CreateTexture(textureId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, allocation2.Value.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount, $"{label}1");
                 
                 if (!result)
                 {
@@ -184,8 +181,7 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            var texture = new Texture(this, allocation, allocation2, textureId, textureId2, textureFormat, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
-            return texture;
+            return new Texture(this, allocation, allocation2, textureId, textureId2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
         }
 
         public void DeleteTexture(Texture texture)
@@ -368,6 +364,21 @@ namespace CoreEngine.Graphics
             this.gpuMemoryUploaded += source.Length;
         }
 
+        public void CopyTexture(CommandList commandList, Texture destination, Texture source)
+        {
+            if (destination == null)
+            {
+                throw new ArgumentNullException(nameof(destination));
+            }
+
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            this.graphicsService.CopyTexture(commandList.Id, destination.GraphicsResourceId, source.GraphicsResourceId);
+        }
+
         public void ResetIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
         {
             this.graphicsService.ResetIndirectCommandList(commandList.Id, indirectCommandList.GraphicsResourceId, maxCommandCount);
@@ -524,6 +535,11 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(texture));
             }
 
+            if (texture.Usage == TextureUsage.RenderTarget && !isReadOnly)
+            {
+                throw new InvalidOperationException("A Render Target cannot be set as a write shader resource.");
+            }
+
             this.graphicsService.SetShaderTexture(commandList.Id, texture.GraphicsResourceId, slot, isReadOnly, index);
         }
 
@@ -538,7 +554,8 @@ namespace CoreEngine.Graphics
 
             for (var i = 0; i < textures.Length; i++)
             {
-                textureIdsList[i] = textures[i].GraphicsResourceId;
+                var texture = textures[i];
+                textureIdsList[i] = texture.GraphicsResourceId;
             }
 
             this.graphicsService.SetShaderTextures(commandList.Id, textureIdsList.AsSpan(), slot, index);

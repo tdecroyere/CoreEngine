@@ -4,14 +4,11 @@ using System.Numerics;
 
 namespace CoreEngine.HostServices.Interop
 {
-    internal unsafe delegate InputsState InputsService_GetInputsStateDelegate(IntPtr context);
-    internal unsafe delegate void InputsService_SendVibrationCommandDelegate(IntPtr context, uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms);
-
-    public struct InputsService : IInputsService
+    public unsafe struct InputsService : IInputsService
     {
         private IntPtr context { get; }
 
-        private InputsService_GetInputsStateDelegate inputsService_GetInputsStateDelegate { get; }
+        private delegate* cdecl<IntPtr, InputsState> inputsService_GetInputsStateDelegate { get; }
         public unsafe InputsState GetInputsState()
         {
             if (this.context != null && this.inputsService_GetInputsStateDelegate != null)
@@ -22,7 +19,7 @@ namespace CoreEngine.HostServices.Interop
             return default(InputsState);
         }
 
-        private InputsService_SendVibrationCommandDelegate inputsService_SendVibrationCommandDelegate { get; }
+        private delegate* cdecl<IntPtr, uint, float, float, float, float, uint, void> inputsService_SendVibrationCommandDelegate { get; }
         public unsafe void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms)
         {
             if (this.context != null && this.inputsService_SendVibrationCommandDelegate != null)

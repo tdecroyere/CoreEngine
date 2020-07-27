@@ -51,9 +51,9 @@ namespace CoreEngine.Graphics
             return memoryAllocator.AllocateMemory(sizeInBytes, alignment);
         }
 
-        public GraphicsMemoryAllocation AllocateTexture(GraphicsHeapType heapType, TextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isRenderTarget)
+        public GraphicsMemoryAllocation AllocateTexture(GraphicsHeapType heapType, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
         {
-            var allocationInfos = this.graphicsService.GetTextureAllocationInfos((GraphicsTextureFormat)textureFormat, width, height, faceCount, mipLevels, multisampleCount, isRenderTarget);
+            var allocationInfos = this.graphicsService.GetTextureAllocationInfos((GraphicsTextureFormat)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount);
 
             if (heapType == GraphicsHeapType.TransientGpu)
             {

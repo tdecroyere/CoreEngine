@@ -205,14 +205,16 @@ namespace CoreEngine.Rendering
 
     public class GraphicsPipelineTextureResourceDeclaration : GraphicsPipelineResourceDeclaration
     {
-        public GraphicsPipelineTextureResourceDeclaration(string name, TextureFormat textureFormat, IRenderPipelineParameterBinding<int> width, IRenderPipelineParameterBinding<int> height) : base(name)
+        public GraphicsPipelineTextureResourceDeclaration(string name, TextureFormat textureFormat, TextureUsage usage, IRenderPipelineParameterBinding<int> width, IRenderPipelineParameterBinding<int> height) : base(name)
         {
             this.TextureFormat = textureFormat;
+            this.Usage = usage;
             this.Width = width;
             this.Height = height;
         }
 
         public TextureFormat TextureFormat { get; }
+        public TextureUsage Usage { get; }
         public IRenderPipelineParameterBinding<int> Width { get; }
         public IRenderPipelineParameterBinding<int> Height { get; }
     }
@@ -903,7 +905,7 @@ namespace CoreEngine.Rendering
 
                 if (resourceDeclaration is GraphicsPipelineTextureResourceDeclaration textureDeclaration)
                 {
-                    var texture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, textureDeclaration.TextureFormat, textureDeclaration.Width.Evaluate(this), textureDeclaration.Height.Evaluate(this), 1, 1, 1, true, isStatic: true, label: textureDeclaration.Name);
+                    var texture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, textureDeclaration.TextureFormat, textureDeclaration.Usage, textureDeclaration.Width.Evaluate(this), textureDeclaration.Height.Evaluate(this), 1, 1, 1, isStatic: true, label: textureDeclaration.Name);
                     this.localResources.Add(textureDeclaration.Name, texture);
                 }
             }
@@ -1001,6 +1003,7 @@ namespace CoreEngine.Rendering
         private CommandBuffer[] generateDepthBufferCommandBuffers;
         private CommandBuffer[] convertToMomentShadowMapCommandBuffers;
         private CommandBuffer computeLightsCamerasCommandBuffer;
+        private CommandBuffer copyRTCommandBuffer;
 
         private GraphicsPipeline depthGraphicsPipeline;
         private GraphicsPipeline graphicsPipeline;
@@ -1068,6 +1071,7 @@ namespace CoreEngine.Rendering
             }
 
             this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "ComputeLightsCameras");
+            this.copyRTCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "CopyRT");
 
             // TEST Pipeline definition
 
@@ -1108,11 +1112,12 @@ namespace CoreEngine.Rendering
 
             var graphicsPipelineResourceDeclarations = new GraphicsPipelineResourceDeclaration[]
             {
-                new GraphicsPipelineTextureResourceDeclaration("MainCameraDepthBuffer", TextureFormat.Depth32Float, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-                new GraphicsPipelineTextureResourceDeclaration("OpaqueHdrRenderTarget", TextureFormat.Rgba16Float, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-                new GraphicsPipelineTextureResourceDeclaration("TransparentHdrRenderTarget", TextureFormat.Rgba16Float, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-                new GraphicsPipelineTextureResourceDeclaration("TransparentRevealageRenderTarget", TextureFormat.R16Float, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-                new GraphicsPipelineTextureResourceDeclaration("ResolveRenderTarget", TextureFormat.Rgba16Float, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height"))
+                new GraphicsPipelineTextureResourceDeclaration("MainCameraDepthBuffer", TextureFormat.Depth32Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+                new GraphicsPipelineTextureResourceDeclaration("OpaqueHdrRenderTarget", TextureFormat.Rgba16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+                new GraphicsPipelineTextureResourceDeclaration("TransparentHdrRenderTarget", TextureFormat.Rgba16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+                new GraphicsPipelineTextureResourceDeclaration("TransparentRevealageRenderTarget", TextureFormat.R16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+                new GraphicsPipelineTextureResourceDeclaration("ResolveRenderTarget", TextureFormat.Rgba16Float, TextureUsage.ShaderWrite, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+                new GraphicsPipelineTextureResourceDeclaration("ToneMapRenderTarget", TextureFormat.Rgba16Float, TextureUsage.ShaderWrite, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height"))
             };
 
             var graphicsPipelineSteps = new GraphicsPipelineStep[]
@@ -1186,7 +1191,7 @@ namespace CoreEngine.Rendering
                                                 }, 
                                                 new GraphicsPipelineResourceBinding[]
                                                 {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainRenderTarget"), new ConstantPipelineParameterBinding<int>(1))
+                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ToneMapRenderTarget"), new ConstantPipelineParameterBinding<int>(1))
                                                 }, 
                                                 new GraphicsPipelineParameterBinding<int>[]
                                                 {  
@@ -1198,7 +1203,7 @@ namespace CoreEngine.Rendering
             this.graphicsPipeline = new GraphicsPipeline(this.graphicsManager, resourcesManager, graphicsPipelineResourceDeclarations, graphicsPipelineSteps);
         }
 
-        public CommandList Render()
+        public CommandList Render(Texture mainRenderTargetTexture)
         {
             var scene = this.sceneQueue.WaitForNextScene();
             var camera = scene.DebugCamera;
@@ -1218,7 +1223,7 @@ namespace CoreEngine.Rendering
 
             InitializeGpuData(scene);
 
-            return RunRenderPipeline();
+            return RunRenderPipeline(mainRenderTargetTexture);
         }
 
         GraphicsBuffer[] graphicsBufferList = new GraphicsBuffer[10000];
@@ -1272,12 +1277,12 @@ namespace CoreEngine.Rendering
         {
             if (!isMomentShadowMap)
             {
-                this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, shadowMapSize, shadowMapSize, 1, 1, 1, true, isStatic: true, label: "ShadowMapDepth");
+                this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, shadowMapSize, shadowMapSize, 1, 1, 1, isStatic: true, label: "ShadowMapDepth");
             }
 
             else
             {
-                this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Unorm, shadowMapSize, shadowMapSize, 1, 1, 1, true, isStatic: true, label: "ShadowMapMoment");
+                this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Unorm, TextureUsage.ShaderWrite, shadowMapSize, shadowMapSize, 1, 1, 1, isStatic: true, label: "ShadowMapMoment");
             }
 
             return this.currentShadowMapIndex++;
@@ -1763,7 +1768,7 @@ namespace CoreEngine.Rendering
             return computeCommandList;
         }
 
-        private CommandList RunRenderPipeline()
+        private CommandList RunRenderPipeline(Texture mainRenderTargetTexture)
         {
             // this.currentDepthCommandBuffer = 0;
             this.currentMomentCommandBuffer = 0;
@@ -1792,7 +1797,7 @@ namespace CoreEngine.Rendering
 
             var graphicsPipelineParameters = new GraphicsPipelineParameter[]
             {
-                new ResourceGraphicsPipelineParameter("MainRenderTarget", this.renderManager.MainRenderTargetTexture),
+                new ResourceGraphicsPipelineParameter("MainRenderTarget", mainRenderTargetTexture),
                 new ResourceGraphicsPipelineParameter("MainCameraIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.OpaqueCommandListIndex]),
                 new ResourceGraphicsPipelineParameter("MainCameraDepthIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.OpaqueDepthCommandListIndex]),
                 new ResourceGraphicsPipelineParameter("MainCameraTransparentIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.TransparentCommandListIndex]),
@@ -1804,8 +1809,18 @@ namespace CoreEngine.Rendering
             };
 
             commandList = this.graphicsPipeline.Process(new CommandList[] { commandList }, graphicsPipelineParameters);
-            
-            commandList = this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture, commandList);
+
+            var toneMapRenderTarget = this.graphicsPipeline.ResolveResource("ToneMapRenderTarget") as Texture;
+
+            this.graphicsManager.ResetCommandBuffer(this.copyRTCommandBuffer);
+            var copyRTCommandList = this.graphicsManager.CreateCopyCommandList(this.copyRTCommandBuffer, "CopyRT");
+            this.graphicsManager.WaitForCommandList(copyRTCommandList, commandList);
+            this.graphicsManager.CopyTexture(copyRTCommandList, mainRenderTargetTexture, toneMapRenderTarget);
+            this.graphicsManager.CommitCopyCommandList(copyRTCommandList);
+            this.graphicsManager.ExecuteCommandBuffer(this.copyRTCommandBuffer);
+            commandList = copyRTCommandList;
+
+            commandList = this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, mainRenderTargetTexture, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture, commandList);
 
             var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;
 

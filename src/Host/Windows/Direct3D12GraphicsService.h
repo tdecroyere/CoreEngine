@@ -30,17 +30,17 @@ class Direct3D12GraphicsService
 
         struct Vector2 GetRenderSize();
         void GetGraphicsAdapterName(char* output);
-        GraphicsAllocationInfos GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+        GraphicsAllocationInfos GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
         
         int CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes, char* label);
         void DeleteGraphicsHeap(unsigned int graphicsHeapId);
 
-        int CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int sizeInBytes, char* label);
+        int CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes, char* label);
         void* GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId);
         void DeleteGraphicsBuffer(unsigned int graphicsBufferId);
 
-        int CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
-        int CreateTextureOld(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
+        int CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, char* label);
+        //int CreateTextureOld(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
         void DeleteTexture(unsigned int textureId);
 
         int CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount, char* label);
@@ -64,11 +64,9 @@ class Direct3D12GraphicsService
 
         int CreateCopyCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label);
         void CommitCopyCommandList(unsigned int commandListId);
-        void UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int sizeInBytes);
-        void CopyGraphicsBufferDataToCpuOld(unsigned int commandListId, unsigned int graphicsBufferId, int length);
-        void ReadGraphicsBufferDataOld(unsigned int graphicsBufferId, void* data, int dataLength);
-        void UploadDataToTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
-        void UploadDataToTextureOld(unsigned int commandListId, unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel, void* data, int dataLength);
+        void CopyDataToGraphicsBuffer(unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int sizeInBytes);
+        void CopyDataToTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
+        void CopyTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceTextureId);
         void ResetIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
         void OptimizeIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
 

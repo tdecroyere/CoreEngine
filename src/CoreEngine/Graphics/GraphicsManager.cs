@@ -41,6 +41,8 @@ namespace CoreEngine.Graphics
 
         private Dictionary<uint, GraphicsRenderPassDescriptor> renderPassDescriptors;
         internal List<GpuTiming> gpuTimings = new List<GpuTiming>();
+
+        private List<uint> aliasableResources = new List<uint>();
         
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
@@ -155,6 +157,7 @@ namespace CoreEngine.Graphics
             }
         }
 
+        // TODO: Do not forget to find a way to delete the transient resource
         public Texture CreateTexture(GraphicsHeapType heapType, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, bool isStatic, string label)
         {
             var textureId = GetNextGraphicsResourceId();
@@ -166,6 +169,11 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("There was an error while creating the texture resource.");
             }
 
+            if (allocation.IsAliasable)
+            {
+                aliasableResources.Add(textureId);
+            }
+
             uint? textureId2 = null;
             GraphicsMemoryAllocation? allocation2 = null;
 
@@ -173,6 +181,12 @@ namespace CoreEngine.Graphics
             {
                 textureId2 = GetNextGraphicsResourceId();
                 allocation2 = this.graphicsMemoryManager.AllocateTexture(heapType, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
+
+                if (allocation2.Value.IsAliasable)
+                {
+                    aliasableResources.Add(textureId2.Value);
+                }
+
                 result = this.graphicsService.CreateTexture(textureId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, allocation2.Value.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount, $"{label}1");
                 
                 if (!result)
@@ -653,6 +667,16 @@ namespace CoreEngine.Graphics
             this.cpuDispatchCount = 0;
 
             this.graphicsMemoryManager.Reset(this.CurrentFrameNumber);
+
+            // TODO: We can have an issue here because the D3D resource can be released while still being used
+            // We should do a kind of soft delete
+            for (var i = 0; i < this.aliasableResources.Count; i++)
+            {
+                this.graphicsService.DeleteTexture(this.aliasableResources[i]);
+            }
+
+            this.aliasableResources.Clear();
+
             this.gpuTimings.Clear();
         }
 

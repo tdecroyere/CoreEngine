@@ -61,7 +61,7 @@ DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat)
 	return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 }
 
-D3D12_RESOURCE_DESC CreateTextureResourceDescription(enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount)
+D3D12_RESOURCE_DESC CreateTextureResourceDescription(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
 	// TODO: Support mip levels
 	
@@ -75,6 +75,23 @@ D3D12_RESOURCE_DESC CreateTextureResourceDescription(enum GraphicsTextureFormat 
 	textureDesc.SampleDesc.Quality = 0;
 	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	if (usage == GraphicsTextureUsage::RenderTarget) 
+	{
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	}
+
+	else if (usage == GraphicsTextureUsage::ShaderWrite) 
+	{
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	}
+
+	// TODO: Implement this
+	// if (textureFormat == GraphicsTextureFormat::Depth32Float)
+	// {
+	// 	textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	// }
 
 	return textureDesc;
 }

@@ -174,7 +174,7 @@ class Direct3D12GraphicsService
         uint32_t currentGlobalRtvDescriptorOffset;
 
         // Buffers
-        map<uint32_t, ComPtr<ID3D12Resource>> gpuBuffers;
+        map<uint32_t, ComPtr<ID3D12Resource>> graphicsBuffers;
         map<uint32_t, void*> graphicsBufferPointers;
 
         map<uint32_t, ComPtr<ID3D12Resource>> cpuBuffers;

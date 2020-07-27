@@ -8,7 +8,7 @@ using namespace Microsoft::WRL;
 
 #define GetAlignedValue(value, alignement) (value + (alignement - (value % alignement)) % alignement)
 
-bool enableTiming = false;
+bool enableTiming = true;
 
 Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int height, GameState* gameState)
 {
@@ -136,12 +136,11 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 		resourceState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	}
 
-	// Create a Direct3D12 buffer on the GPU
 	ComPtr<ID3D12Resource> graphicsBuffer;
 	AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->graphicsHeaps[graphicsHeapId].Get(), heapOffset, &resourceDesc, resourceState, nullptr, IID_PPV_ARGS(graphicsBuffer.ReleaseAndGetAddressOf())));
 	graphicsBuffer->SetName(wstring(label, label + strlen(label)).c_str());
 
-	this->gpuBuffers[graphicsBufferId] = graphicsBuffer;
+	this->graphicsBuffers[graphicsBufferId] = graphicsBuffer;
 	this->bufferResourceStates[graphicsBufferId] = resourceState;
 	
     return 1;
@@ -149,7 +148,7 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 
 void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId)
 {
-	if (!this->gpuBuffers.count(graphicsBufferId))
+	if (!this->graphicsBuffers.count(graphicsBufferId))
 	{
 		return nullptr;
 	}
@@ -159,7 +158,7 @@ void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(unsigned int graphi
 		return this->graphicsBufferPointers[graphicsBufferId];
 	}
 
-	auto graphicsBuffer = this->gpuBuffers[graphicsBufferId];
+	auto graphicsBuffer = this->graphicsBuffers[graphicsBufferId];
 
 	void* pointer = nullptr;
 	D3D12_RANGE range = { 0, 0 };
@@ -217,7 +216,7 @@ int Direct3D12GraphicsService::CreateGraphicsBufferOld(unsigned int graphicsBuff
 		AssertIfFailed(this->graphicsDevice->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(gpuBuffer.ReleaseAndGetAddressOf())));
 	//}
 
-	this->gpuBuffers[graphicsBufferId] = gpuBuffer;
+	this->graphicsBuffers[graphicsBufferId] = gpuBuffer;
 	this->bufferResourceStates[graphicsBufferId] = D3D12_RESOURCE_STATE_COPY_DEST;
 
 
@@ -974,7 +973,7 @@ void Direct3D12GraphicsService::SetShaderBuffer(unsigned int commandListId, unsi
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
-	auto gpuBuffer = this->gpuBuffers[graphicsBufferId];
+	auto gpuBuffer = this->graphicsBuffers[graphicsBufferId];
 
 	if (commandBufferType == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
@@ -1128,7 +1127,7 @@ void Direct3D12GraphicsService::SetShaderIndirectCommandLists(unsigned int comma
 	auto bufferId = indirectCommandListIdList[3];
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
-	auto gpuBuffer = this->gpuBuffers[bufferId];
+	auto gpuBuffer = this->graphicsBuffers[bufferId];
 
 	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
 
@@ -1155,14 +1154,14 @@ void Direct3D12GraphicsService::CommitCopyCommandList(unsigned int commandListId
 
 void Direct3D12GraphicsService::UploadDataToGraphicsBuffer(unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int sizeInBytes)
 { 
-	if (!this->gpuBuffers.count(destinationGraphicsBufferId) && !this->gpuBuffers.count(sourceGraphicsBufferId))
+	if (!this->graphicsBuffers.count(destinationGraphicsBufferId) && !this->graphicsBuffers.count(sourceGraphicsBufferId))
 	{
 		return;
 	}
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
-	auto destinationGraphicsBuffer = this->gpuBuffers[destinationGraphicsBufferId];
-	auto sourceGraphicsBuffer = this->gpuBuffers[sourceGraphicsBufferId];
+	auto destinationGraphicsBuffer = this->graphicsBuffers[destinationGraphicsBufferId];
+	auto sourceGraphicsBuffer = this->graphicsBuffers[sourceGraphicsBufferId];
 
 	commandList->CopyBufferRegion(destinationGraphicsBuffer.Get(), 0, sourceGraphicsBuffer.Get(), 0, sizeInBytes);
 }
@@ -1172,7 +1171,7 @@ void Direct3D12GraphicsService::ReadGraphicsBufferDataOld(unsigned int graphicsB
 
 void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)
 {
-	if (!this->gpuTextures.count(destinationTextureId) && !this->gpuBuffers.count(sourceGraphicsBufferId))
+	if (!this->gpuTextures.count(destinationTextureId) && !this->graphicsBuffers.count(sourceGraphicsBufferId))
 	{
 		return;
 	}
@@ -1187,7 +1186,7 @@ void Direct3D12GraphicsService::UploadDataToTexture(unsigned int commandListId, 
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
 	auto destinationTexture = this->gpuTextures[destinationTextureId];
-	auto sourceGraphicsBuffer = this->gpuBuffers[sourceGraphicsBufferId];
+	auto sourceGraphicsBuffer = this->graphicsBuffers[sourceGraphicsBufferId];
 	auto footPrint = this->textureFootPrints[destinationTextureId];
 
 	D3D12_TEXTURE_COPY_LOCATION destinationLocation = {};
@@ -1397,7 +1396,7 @@ void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int comman
 	}
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
-	auto indirectCommandBuffer = this->gpuBuffers[indirectCommandBufferId];
+	auto indirectCommandBuffer = this->graphicsBuffers[indirectCommandBufferId];
 	TransitionBufferToState(commandListId, indirectCommandBufferId, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 	auto signature = this->indirectCommandBufferSignatures[indirectCommandBufferId];
@@ -1411,7 +1410,7 @@ void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int comman
 void Direct3D12GraphicsService::SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId)
 { 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
-	auto indexBuffer = this->gpuBuffers[graphicsBufferId];
+	auto indexBuffer = this->graphicsBuffers[graphicsBufferId];
 
 	D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
 	indexBufferView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
@@ -1949,7 +1948,7 @@ void Direct3D12GraphicsService::TransitionTextureToState(unsigned int commandLis
 void Direct3D12GraphicsService::TransitionBufferToState(unsigned int commandListId, unsigned int bufferId, D3D12_RESOURCE_STATES destinationState)
 {
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
-	auto gpuBuffer = this->gpuBuffers[bufferId];
+	auto gpuBuffer = this->graphicsBuffers[bufferId];
 	auto actualState = this->bufferResourceStates[bufferId];
 
 	if (actualState != destinationState)

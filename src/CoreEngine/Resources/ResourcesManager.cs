@@ -183,7 +183,7 @@ namespace CoreEngine.Resources
             
             //CheckResourceLoadingTasks();
             //WaitForPendingResources();
-            //CheckForUpdatedResources();
+            CheckForUpdatedResources();
             // RemoveUnusedResources();
         }
 
@@ -259,20 +259,24 @@ namespace CoreEngine.Resources
                                     resource.DependentResources.Clear();
                                     resource.LastUpdateDateTime = lastUpdateDate.Value;
 
-                                    var loadingTask = new Task<Resource>(parameters => {
-                                        var resourceLoadingParameters = parameters as ResourceLoadingParameters;
+                                    // var loadingTask = new Task<Resource>(parameters => {
+                                    //     var resourceLoadingParameters = parameters as ResourceLoadingParameters;
 
-                                        if (resourceLoadingParameters == null)
-                                        {
-                                            throw new ArgumentNullException(nameof(parameters));
-                                        }
+                                    //     if (resourceLoadingParameters == null)
+                                    //     {
+                                    //         throw new ArgumentNullException(nameof(parameters));
+                                    //     }
 
-                                        var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
-                                        return resource.ResourceLoader.LoadResourceData(resource, resourceData);
-                                    }, new ResourceLoadingParameters(resource, this.resourceStorages[i]));
+                                    //     var resourceData = resourceLoadingParameters.ResourceStorage.ReadResourceDataAsync(resource.Path).Result;
+                                    //     return resource.ResourceLoader.LoadResourceData(resource, resourceData);
+                                    // }, new ResourceLoadingParameters(resource, this.resourceStorages[i]));
 
 
-                                    this.resourceLoadingQueue.Enqueue(loadingTask);
+                                    // this.resourceLoadingQueue.Enqueue(loadingTask);
+
+                                    var resourceData = this.resourceStorages[i].ReadResourceDataAsync(resource.Path).Result;
+                                    resource = resource.ResourceLoader.LoadResourceData(resource, resourceData);
+                                    resource.IsLoaded = true;
                                 }
                             }
                         }

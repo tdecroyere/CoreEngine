@@ -69,5 +69,6 @@
     },
     "C_Cpp.default.cppStandard": "c++17",
     "omnisharp.enableRoslynAnalyzers": false,
-    "dotnetCoreExplorer.logpanel": true
+    "dotnetCoreExplorer.logpanel": true,
+    "csharp.referencesCodeLens.enabled": false
 }

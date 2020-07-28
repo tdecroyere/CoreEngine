@@ -244,7 +244,7 @@ namespace CoreEngine.Rendering
 
                 this.graphicsManager.ResetCommandBuffer(commandBuffer);
                 var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
-                var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
+                var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.Triangle);
                 var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
 
                 this.graphicsManager.WaitForCommandList(commandList, copyCommandList);

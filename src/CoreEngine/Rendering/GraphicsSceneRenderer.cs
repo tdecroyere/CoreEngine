@@ -726,7 +726,7 @@ namespace CoreEngine.Rendering
             // TODO: Add Backface Culling parameter
             // TODO: Add BlendOperation parameter
 
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget0, renderTarget1, depthBufferTexture, depthBufferOperation, this.backfaceCulling);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget0, renderTarget1, depthBufferTexture, depthBufferOperation, this.backfaceCulling, PrimitiveType.Triangle);
             var renderCommandList = graphicsManager.CreateRenderCommandList(this.CommandBuffer.Value, renderPassDescriptor, this.Name);
 
             graphicsManager.WaitForCommandLists(renderCommandList, commandListsToWait);
@@ -1732,7 +1732,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.ResetCommandBuffer(convertToMomentShadowMapCommandBuffers[currentMomentCommandBuffer]);
 
             var renderTarget = new RenderTargetDescriptor(this.textureList[camera.MomentShadowMapIndex], null, BlendOperation.None);
-            var hdrTransferRenderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
+            var hdrTransferRenderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
             var commandList = this.graphicsManager.CreateRenderCommandList(convertToMomentShadowMapCommandBuffers[currentMomentCommandBuffer], hdrTransferRenderPassDescriptor, "ConvertToMomentShadowMap");
 
             this.graphicsManager.WaitForCommandList(commandList, commandListToWait);
@@ -1835,7 +1835,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.ResetCommandBuffer(this.transferCommandBuffer);
 
             var renderTarget = new RenderTargetDescriptor(destinationTexture, null, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.TriangleStrip);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(this.transferCommandBuffer, renderPassDescriptor, "TransferTextureCommandList");
 
             this.graphicsManager.WaitForCommandList(renderCommandList, previousCommandList);

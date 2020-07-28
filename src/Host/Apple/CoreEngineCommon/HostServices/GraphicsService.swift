@@ -4,17 +4,24 @@ public protocol GraphicsServiceProtocol {
     func getGraphicsAdapterName(_ output: UnsafeMutablePointer<Int8>?)
     func getRenderSize() -> Vector2
     func getTextureAllocationInfos(_ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> GraphicsAllocationInfos
-    func createGraphicsHeap(_ graphicsHeapId: UInt, _ type: GraphicsServiceHeapType, _ length: UInt, _ label: String) -> Bool
+    func createGraphicsHeap(_ graphicsHeapId: UInt, _ type: GraphicsServiceHeapType, _ length: UInt) -> Bool
+    func setGraphicsHeapLabel(_ graphicsHeapId: UInt, _ label: String)
     func deleteGraphicsHeap(_ graphicsHeapId: UInt)
-    func createGraphicsBuffer(_ graphicsBufferId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ sizeInBytes: Int, _ label: String) -> Bool
-    func getGraphicsBufferCpuPointer(_ graphicsBufferId: UInt) -> UnsafeMutableRawPointer?
+    func createGraphicsBuffer(_ graphicsBufferId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ sizeInBytes: Int) -> Bool
+    func setGraphicsBufferLabel(_ graphicsBufferId: UInt, _ label: String)
     func deleteGraphicsBuffer(_ graphicsBufferId: UInt)
-    func createTexture(_ textureId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ label: String) -> Bool
+    func getGraphicsBufferCpuPointer(_ graphicsBufferId: UInt) -> UnsafeMutableRawPointer?
+    func createTexture(_ textureId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> Bool
+    func setTextureLabel(_ textureId: UInt, _ label: String)
     func deleteTexture(_ textureId: UInt)
-    func createIndirectCommandBuffer(_ indirectCommandBufferId: UInt, _ maxCommandCount: Int, _ label: String) -> Bool
-    func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ label: String) -> Bool
+    func createIndirectCommandBuffer(_ indirectCommandBufferId: UInt, _ maxCommandCount: Int) -> Bool
+    func setIndirectCommandBufferLabel(_ indirectCommandBufferId: UInt, _ label: String)
+    func deleteIndirectCommandBuffer(_ indirectCommandBufferId: UInt)
+    func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> Bool
+    func setShaderLabel(_ shaderId: UInt, _ label: String)
     func deleteShader(_ shaderId: UInt)
-    func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor, _ label: String) -> Bool
+    func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> Bool
+    func setPipelineStateLabel(_ pipelineStateId: UInt, _ label: String)
     func deletePipelineState(_ pipelineStateId: UInt)
     func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool
     func deleteCommandBuffer(_ commandBufferId: UInt)

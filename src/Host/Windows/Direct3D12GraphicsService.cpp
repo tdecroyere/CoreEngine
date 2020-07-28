@@ -67,7 +67,7 @@ GraphicsAllocationInfos Direct3D12GraphicsService::GetTextureAllocationInfos(enu
 	return result;
 }
 
-int Direct3D12GraphicsService::CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes, char* label)
+int Direct3D12GraphicsService::CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes)
 {
 	// Create cpu heap
 	D3D12_HEAP_DESC heapDescriptor = {};
@@ -97,7 +97,6 @@ int Direct3D12GraphicsService::CreateGraphicsHeap(unsigned int graphicsHeapId, e
 
 	ComPtr<ID3D12Heap> graphicsHeap;
 	AssertIfFailed(this->graphicsDevice->CreateHeap(&heapDescriptor, IID_PPV_ARGS(graphicsHeap.ReleaseAndGetAddressOf())));
-	graphicsHeap->SetName(wstring(label, label + strlen(label)).c_str());
 
 	this->graphicsHeaps[graphicsHeapId] = graphicsHeap;
 	this->graphicsHeapTypes[graphicsHeapId] = type;
@@ -105,12 +104,22 @@ int Direct3D12GraphicsService::CreateGraphicsHeap(unsigned int graphicsHeapId, e
 	return 1;
 }
 
+void Direct3D12GraphicsService::SetGraphicsHeapLabel(unsigned int graphicsHeapId, char* label)
+{
+	if (!this->graphicsHeaps.count(graphicsHeapId))
+	{
+		return;
+	}
+
+	this->graphicsHeaps[graphicsHeapId]->SetName(wstring(label, label + strlen(label)).c_str());
+}
+
 void Direct3D12GraphicsService::DeleteGraphicsHeap(unsigned int graphicsHeapId)
 {
 	this->graphicsHeaps.erase(graphicsHeapId);
 }
 
-int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes, char* label)
+int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes)
 { 
 	if (!this->graphicsHeaps.count(graphicsHeapId))
 	{
@@ -138,12 +147,30 @@ int Direct3D12GraphicsService::CreateGraphicsBuffer(unsigned int graphicsBufferI
 
 	ComPtr<ID3D12Resource> graphicsBuffer;
 	AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->graphicsHeaps[graphicsHeapId].Get(), heapOffset, &resourceDesc, resourceState, nullptr, IID_PPV_ARGS(graphicsBuffer.ReleaseAndGetAddressOf())));
-	graphicsBuffer->SetName(wstring(label, label + strlen(label)).c_str());
-
+	
 	this->graphicsBuffers[graphicsBufferId] = graphicsBuffer;
+
+	// TODO: Resource state tracking should be moved to the engine
 	this->bufferResourceStates[graphicsBufferId] = resourceState;
 	
     return 1;
+}
+
+void Direct3D12GraphicsService::SetGraphicsBufferLabel(unsigned int graphicsBufferId, char* label)
+{
+	if (!this->graphicsBuffers.count(graphicsBufferId))
+	{
+		return;
+	}
+
+	this->graphicsBuffers[graphicsBufferId]->SetName(wstring(label, label + strlen(label)).c_str());
+}
+
+void Direct3D12GraphicsService::DeleteGraphicsBuffer(unsigned int graphicsBufferId)
+{
+	// TODO: Wait for next frame for releasing resources
+
+	//this->gpuBuffers.erase(graphicsBufferId);
 }
 
 void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId)
@@ -169,13 +196,7 @@ void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(unsigned int graphi
 	return pointer;
 }
 
-void Direct3D12GraphicsService::DeleteGraphicsBuffer(unsigned int graphicsBufferId)
-{
-	// TODO: Wait for next frame for releasing resources
-
-	//this->gpuBuffers.erase(graphicsBufferId);
-}
-
+// TODO: Te remove
 int Direct3D12GraphicsService::CreateGraphicsBufferOld(unsigned int graphicsBufferId, int sizeInBytes, int isWriteOnly, char* label)
 { 
 	// For the moment, all data is aligned in a 64 KB alignement
@@ -292,17 +313,14 @@ int Direct3D12GraphicsService::CreateGraphicsBufferOld(unsigned int graphicsBuff
     return 1;
 }
 
-int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, char* label)
+int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
 	if (!this->graphicsHeaps.count(graphicsHeapId))
 	{
 		return false;
 	}
 
-	auto textureName = wstring(label, label + strlen(label));
-
 	// TODO: Support mip levels
-	// TODO: Switch to placed resources
 	auto textureDesc = CreateTextureResourceDescription(textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
 
 	D3D12_CLEAR_VALUE* clearValue = nullptr;
@@ -319,62 +337,20 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, unsigned in
 		}
 	}
 
-	// if (isRenderTarget) 
-	// {
-	// 	if (textureFormat == GraphicsTextureFormat::Depth32Float)
-	// 	{
-	// 		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	// 	}
+	ComPtr<ID3D12Resource> gpuTexture;
+	AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->graphicsHeaps[graphicsHeapId].Get(), heapOffset, &textureDesc, initialState, clearValue, IID_PPV_ARGS(gpuTexture.ReleaseAndGetAddressOf())));
+	this->gpuTextures[textureId] = gpuTexture;
+	this->textureResourceStates[textureId] = initialState;
 
-	// 	else
-	// 	{
-	// 		// TODO: Change this, mixing UAV and RenderTarget is not recommanded
-	// 		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	UINT64 uploadBufferSize;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footPrint;
 
-	// 		// TODO: To remove?
-	// 		D3D12_CLEAR_VALUE rawClearValue = {};
-	// 		rawClearValue.Format = ConvertTextureFormat(textureFormat);
-	// 		clearValue = &rawClearValue;
-	// 		initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
-	// 	}
-	// } 
-	
-	// else 
-	// {
-	// 	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-	// }
+	this->graphicsDevice->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footPrint, nullptr, nullptr, &uploadBufferSize);
+	this->textureFootPrints[textureId] = footPrint;
 
-	// D3D12_HEAP_PROPERTIES defaultHeapProperties = {};
-	// defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-	// defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	// defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	// defaultHeapProperties.CreationNodeMask = 1;
-	// defaultHeapProperties.VisibleNodeMask = 1;
-
-	// if (!isRenderTarget)
-	// {
-		ComPtr<ID3D12Resource> gpuTexture;
-		AssertIfFailed(this->graphicsDevice->CreatePlacedResource(this->graphicsHeaps[graphicsHeapId].Get(), heapOffset, &textureDesc, initialState, clearValue, IID_PPV_ARGS(gpuTexture.ReleaseAndGetAddressOf())));
-		gpuTexture->SetName(textureName.c_str());
-		this->gpuTextures[textureId] = gpuTexture;
-		this->textureResourceStates[textureId] = initialState;
-
-		UINT64 uploadBufferSize;
-		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footPrint;
-
-		this->graphicsDevice->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footPrint, nullptr, nullptr, &uploadBufferSize);
-		this->textureFootPrints[textureId] = footPrint;
-	// }
-
+	// TODO: Move descriptors creation from here
 	if (textureFormat != GraphicsTextureFormat::Depth32Float)
 	{
-		D3D12_HEAP_PROPERTIES defaultHeapProperties = {};
-		defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-		defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		defaultHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		defaultHeapProperties.CreationNodeMask = 1;
-		defaultHeapProperties.VisibleNodeMask = 1;
-
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = ConvertTextureFormat(textureFormat);
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -421,6 +397,17 @@ int Direct3D12GraphicsService::CreateTexture(unsigned int textureId, unsigned in
 
 	return 1;
 }
+
+void Direct3D12GraphicsService::SetTextureLabel(unsigned int textureId, char* label)
+{
+	if (!this->gpuTextures.count(textureId))
+	{
+		return;
+	}
+
+	this->gpuTextures[textureId]->SetName(wstring(label, label + strlen(label)).c_str());
+}
+
 /*
 int Direct3D12GraphicsService::CreateTextureOld(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label)
 { 
@@ -564,7 +551,7 @@ struct IndirectCommand
 	D3D12_DRAW_ARGUMENTS drawArguments;
 };
 
-int Direct3D12GraphicsService::CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount, char* label)
+int Direct3D12GraphicsService::CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount)
 { 
 	// TODO: Remove that hack, we need to pass the shader definition to the create method
 	auto indirectCommandShader = this->currentShaderIndirectCommand;
@@ -585,10 +572,25 @@ int Direct3D12GraphicsService::CreateIndirectCommandBuffer(unsigned int indirect
 	// AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(&commandSignature)));
 	this->indirectCommandBufferSignatures[indirectCommandBufferId] = commandSignature;
 
-	return CreateGraphicsBufferOld(indirectCommandBufferId, maxCommandCount * sizeof(IndirectCommand), false, label);
+	return CreateGraphicsBufferOld(indirectCommandBufferId, maxCommandCount * sizeof(IndirectCommand), false, "");
 }
 
-int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label)
+void Direct3D12GraphicsService::SetIndirectCommandBufferLabel(unsigned int indirectCommandBufferId, char* label)
+{
+	if (!this->graphicsBuffers.count(indirectCommandBufferId))
+	{
+		return;
+	}
+
+	this->graphicsBuffers[indirectCommandBufferId]->SetName(wstring(label, label + strlen(label)).c_str());
+}
+
+void Direct3D12GraphicsService::DeleteIndirectCommandBuffer(unsigned int indirectCommandBufferId)
+{
+
+}
+
+int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength)
 { 
 	auto shader = Shader() = {};
 
@@ -601,8 +603,6 @@ int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* compute
 
 	ComPtr<ID3D12RootSignature> rootSignature;
 	AssertIfFailed(this->graphicsDevice->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(rootSignature.ReleaseAndGetAddressOf())));
-	auto rootSignatureName = (wstring(L"RootSignature") + wstring(label, label + strlen(label)));
-	rootSignature->SetName(rootSignatureName.c_str());
 
 	shader.RootSignature = rootSignature;
 	
@@ -644,14 +644,26 @@ int Direct3D12GraphicsService::CreateShader(unsigned int shaderId, char* compute
 	}
 
 	this->shaders[shaderId] = shader;
-
-	// TODO: Remove that hack
-	if (rootSignatureName.compare(L"RootSignatureRenderMeshInstanceShader") == 0)
-	{
-		this->currentShaderIndirectCommand = shader;
-	}
 	
     return 1;
+}
+
+void Direct3D12GraphicsService::SetShaderLabel(unsigned int shaderId, char* label)
+{
+	if (!this->shaders.count(shaderId))
+	{
+		return;
+	}
+
+	// TODO: Remove that hack
+	auto rootSignatureName = wstring(label, label + strlen(label));
+
+	if (rootSignatureName.compare(L"RenderMeshInstanceShader") == 0)
+	{
+		this->currentShaderIndirectCommand = this->shaders[shaderId];
+	}
+
+	this->shaders[shaderId].RootSignature->SetName(wstring(label, label + strlen(label)).c_str());
 }
 
 void Direct3D12GraphicsService::DeleteShader(unsigned int shaderId)
@@ -659,7 +671,7 @@ void Direct3D12GraphicsService::DeleteShader(unsigned int shaderId)
 
 }
 
-int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* label)
+int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 { 
 	if (shaderId == 0)
 	{
@@ -672,7 +684,6 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 	}
 
 	auto shader = this->shaders[shaderId];
-	auto labelString = string(label);
 
 	ComPtr<ID3D12PipelineState> pipelineState;
 
@@ -680,8 +691,7 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 	{
 		auto primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-		// TODO: Remove that hack
-		if (labelString == "DebugRender")
+		if (renderPassDescriptor.PrimitiveType == GraphicsPrimitiveType::Line)
 		{
 			primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 		}
@@ -736,7 +746,6 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 		}
 
 		AssertIfFailed(this->graphicsDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
-		pipelineState->SetName((wstring(L"PSO_") + wstring(label, label + strlen(label))).c_str());
 	}
 
 	else
@@ -746,12 +755,21 @@ int Direct3D12GraphicsService::CreatePipelineState(unsigned int pipelineStateId,
 		psoDesc.CS = { shader.ComputeShaderMethod->GetBufferPointer(), shader.ComputeShaderMethod->GetBufferSize() };
 
 		AssertIfFailed(this->graphicsDevice->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
-		pipelineState->SetName((wstring(L"PSO_") + wstring(label, label + strlen(label))).c_str());
 	}
 
 	this->pipelineStates[pipelineStateId] = pipelineState;
 
     return 1;
+}
+
+void Direct3D12GraphicsService::SetPipelineStateLabel(unsigned int pipelineStateId, char* label)
+{
+	if (!this->pipelineStates.count(pipelineStateId))
+	{
+		return;
+	}
+
+	this->pipelineStates[pipelineStateId]->SetName(wstring(label, label + strlen(label)).c_str());
 }
 
 void Direct3D12GraphicsService::DeletePipelineState(unsigned int pipelineStateId)
@@ -1224,7 +1242,7 @@ void Direct3D12GraphicsService::CopyTexture(unsigned int commandListId, unsigned
 	auto destinationTexture = this->gpuTextures[destinationTextureId];
 	auto sourceTexture = this->gpuTextures[sourceTextureId];
 
-	//commandList->CopyResource(destinationTexture.Get(), sourceTexture.Get());
+	commandList->CopyResource(destinationTexture.Get(), sourceTexture.Get());
 }
 
 void Direct3D12GraphicsService::ResetIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount){ }

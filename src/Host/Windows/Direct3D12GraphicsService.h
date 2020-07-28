@@ -32,21 +32,29 @@ class Direct3D12GraphicsService
         void GetGraphicsAdapterName(char* output);
         GraphicsAllocationInfos GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
         
-        int CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes, char* label);
+        int CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes);
+        void SetGraphicsHeapLabel(unsigned int graphicsHeapId, char* label);
         void DeleteGraphicsHeap(unsigned int graphicsHeapId);
 
-        int CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes, char* label);
-        void* GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId);
+        int CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes);
+        void SetGraphicsBufferLabel(unsigned int graphicsBufferId, char* label);
         void DeleteGraphicsBuffer(unsigned int graphicsBufferId);
+        void* GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId);
 
-        int CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, char* label);
-        //int CreateTextureOld(unsigned int textureId, enum GraphicsTextureFormat textureFormat, int width, int height, int faceCount, int mipLevels, int multisampleCount, int isRenderTarget, char* label);
+        int CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+        void SetTextureLabel(unsigned int textureId, char* label);
         void DeleteTexture(unsigned int textureId);
 
-        int CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount, char* label);
-        int CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label);
+        int CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount);
+        void SetIndirectCommandBufferLabel(unsigned int indirectCommandBufferId, char* label);
+        void DeleteIndirectCommandBuffer(unsigned int indirectCommandBufferId);
+
+        int CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength);
+        void SetShaderLabel(unsigned int shaderId, char* label);
         void DeleteShader(unsigned int shaderId);
-        int CreatePipelineState(unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* label);
+
+        int CreatePipelineState(unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor);
+        void SetPipelineStateLabel(unsigned int pipelineStateId, char* label);
         void DeletePipelineState(unsigned int pipelineStateId);
 
         int CreateCommandBuffer(unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label);

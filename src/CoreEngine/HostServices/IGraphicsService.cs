@@ -171,6 +171,7 @@ namespace CoreEngine.HostServices
             this.DepthTextureId = renderPassDescriptor.DepthTexture?.GraphicsResourceId;
             this.DepthBufferOperation = (GraphicsDepthBufferOperation)renderPassDescriptor.DepthBufferOperation;
             this.BackfaceCulling = renderPassDescriptor.BackfaceCulling;
+            this.PrimitiveType = (GraphicsPrimitiveType)renderPassDescriptor.PrimitiveType;
         }
 
         public readonly bool IsRenderShader { get; }
@@ -194,6 +195,7 @@ namespace CoreEngine.HostServices
         public readonly uint? DepthTextureId { get; }
         public readonly GraphicsDepthBufferOperation DepthBufferOperation { get; }
         public readonly bool BackfaceCulling { get; }
+        public readonly GraphicsPrimitiveType PrimitiveType { get; }
 
         public override int GetHashCode() 
         {
@@ -207,7 +209,8 @@ namespace CoreEngine.HostServices
                    this.RenderTarget4BlendOperation.GetHashCode() ^ 
                    this.MultiSampleCount.GetHashCode() ^ 
                    this.DepthBufferOperation.GetHashCode() ^ 
-                   this.BackfaceCulling.GetHashCode();
+                   this.BackfaceCulling.GetHashCode() ^
+                   this.PrimitiveType.GetHashCode();
         }
 
         public override bool Equals(Object? obj) 
@@ -257,36 +260,70 @@ namespace CoreEngine.HostServices
         // bool CreateSwapChain(uint swapChainId, int width, int height, GraphicsTextureFormat textureFormat);
         // void DeleteSwapChain(uint swapChainId);
         // void ResizeSwapChain(uint swapChainId, int with, int height);
-        // Vector2 GetSwapChainSize();
+        // Vector2 GetSwapChainRenderSize();
         // uint GetNextSwapChainTexture(uint swapChainId);
+
         Vector2 GetRenderSize();
         GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 
-        bool CreateGraphicsHeap(uint graphicsHeapId, GraphicsServiceHeapType type, ulong length, string label);
+        bool CreateGraphicsHeap(uint graphicsHeapId, GraphicsServiceHeapType type, ulong length);
+        void SetGraphicsHeapLabel(uint graphicsHeapId, string label);
         void DeleteGraphicsHeap(uint graphicsHeapId);
 
         // TODO: Move make aliasable into a separate method
-        bool CreateGraphicsBuffer(uint graphicsBufferId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, int sizeInBytes, string label);
-        IntPtr GetGraphicsBufferCpuPointer(uint graphicsBufferId);
+        bool CreateGraphicsBuffer(uint graphicsBufferId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, int sizeInBytes);
+        void SetGraphicsBufferLabel(uint graphicsBufferId, string label);
         void DeleteGraphicsBuffer(uint graphicsBufferId);
+        IntPtr GetGraphicsBufferCpuPointer(uint graphicsBufferId);
 
         // TODO: Move make aliasable into a separate method
-        bool CreateTexture(uint textureId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, string label);
+        bool CreateTexture(uint textureId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+        void SetTextureLabel(uint textureId, string label);
         void DeleteTexture(uint textureId);
 
         // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
-        bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount, string label);
+        bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount);
+        void SetIndirectCommandBufferLabel(uint indirectCommandBufferId, string label);
+        void DeleteIndirectCommandBuffer(uint indirectCommandBufferId);
 
-        bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label);
+        bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode);
+        void SetShaderLabel(uint shaderId, string label);
         void DeleteShader(uint shaderId);
 
-        bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor, string label);
+        bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor);
+        void SetPipelineStateLabel(uint pipelineStateId, string label);
         void DeletePipelineState(uint pipelineStateId);
 
         // TODO: Implement a barrier ressource
 
         // TODO: Refactor the command buffer/command list to map it better to have fewer Allocators in DirectX12
         // (One Command Allocator per queue type and per frame and per threads)
+
+        /* New Command API
+
+        bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType);
+        void SetQueryBufferLabel(uint queryBufferId, string label);
+        void DeleteQueryBuffer(uint queryBufferId);
+        IntPtr GetQueryBufferCpuPointer(uint queryBufferId);
+
+        bool CreateCommandQueue(uint commandQueueId, GraphicsCommandQueueType commandQueueType);
+        void SetCommandQueueLabel(uint commandQueueId, string label);
+        void DeleteCommandQueue(uint commandQueueId);
+        void ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists);
+
+        bool CreateCommandList(uint commandListId, uint commandQueueId, GraphicsCommandListType commandListType, bool isAwaitable);
+        void SetCommandListLabel(uint commandListId, string label);
+        void DeleteCommandList(uint commandListId);
+        void ResetCommandList(uint commandListId);
+        void CommitCommandList(uint commandListId);
+
+        void QueryTimestamp(uint commandListId, uint queryBufferId, int index);
+        void ResolveQueryData(uint commandListId, uint queryBufferId, Range range);
+
+        void SetupRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
+
+        */
+
         bool CreateCommandBuffer(uint commandBufferId, GraphicsCommandBufferType commandBufferType, string label);
         void DeleteCommandBuffer(uint commandBufferId);
         void ResetCommandBuffer(uint commandBufferId);

@@ -59,10 +59,8 @@ namespace CoreEngine.Graphics
             this.graphicsService = graphicsService;
             this.graphicsMemoryManager = new GraphicsMemoryManager(graphicsService);
 
-            Logger.BeginAction("Get Graphics Adapter Infos");
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
             this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
-            Logger.EndAction();
 
             this.currentGraphicsResourceId = 0;
             
@@ -105,12 +103,14 @@ namespace CoreEngine.Graphics
 
             var allocation = this.graphicsMemoryManager.AllocateBuffer(heapType, sizeInBytes);
             var graphicsBufferId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, allocation.GraphicsHeap.Id, allocation.Offset, allocation.IsAliasable, sizeInBytes, $"{label}{(isStatic ? string.Empty : "0") }");
+            var result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId, allocation.GraphicsHeap.Id, allocation.Offset, allocation.IsAliasable, sizeInBytes);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
             }
+
+            this.graphicsService.SetGraphicsBufferLabel(graphicsBufferId, $"{label}{(isStatic ? string.Empty : "0") }");
 
             uint? graphicsBufferId2 = null;
             GraphicsMemoryAllocation? allocation2 = null;
@@ -119,12 +119,14 @@ namespace CoreEngine.Graphics
             {
                 allocation2 = this.graphicsMemoryManager.AllocateBuffer(heapType, sizeInBytes);
                 graphicsBufferId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, allocation2.Value.IsAliasable, sizeInBytes, $"{label}1");
+                result = this.graphicsService.CreateGraphicsBuffer(graphicsBufferId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, allocation2.Value.IsAliasable, sizeInBytes);
 
                 if (!result)
                 {
                     throw new InvalidOperationException("There was an error while creating the graphics buffer resource.");
                 }
+
+                this.graphicsService.SetGraphicsBufferLabel(graphicsBufferId2.Value, $"{label}1");
             }
 
             return new GraphicsBuffer(this, allocation, allocation2, graphicsBufferId, graphicsBufferId2, sizeInBytes, isStatic, label);
@@ -162,12 +164,14 @@ namespace CoreEngine.Graphics
         {
             var textureId = GetNextGraphicsResourceId();
             var allocation = this.graphicsMemoryManager.AllocateTexture(heapType, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
-            var result = this.graphicsService.CreateTexture(textureId, allocation.GraphicsHeap.Id, allocation.Offset, allocation.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount, $"{label}{(isStatic ? string.Empty : "0") }");
+            var result = this.graphicsService.CreateTexture(textureId, allocation.GraphicsHeap.Id, allocation.Offset, allocation.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the texture resource.");
             }
+
+            this.graphicsService.SetTextureLabel(textureId, $"{label}{(isStatic ? string.Empty : "0") }");
 
             if (allocation.IsAliasable)
             {
@@ -187,12 +191,14 @@ namespace CoreEngine.Graphics
                     aliasableResources.Add(textureId2.Value);
                 }
 
-                result = this.graphicsService.CreateTexture(textureId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, allocation2.Value.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount, $"{label}1");
+                result = this.graphicsService.CreateTexture(textureId2.Value, allocation2.Value.GraphicsHeap.Id, allocation2.Value.Offset, allocation2.Value.IsAliasable, (GraphicsTextureFormat)(int)textureFormat, (GraphicsTextureUsage)usage, width, height, faceCount, mipLevels, multisampleCount);
                 
                 if (!result)
                 {
                     throw new InvalidOperationException("There was an error while creating the texture resource.");
                 }
+
+                this.graphicsService.SetTextureLabel(textureId2.Value, $"{label}1");
             }
 
             return new Texture(this, allocation, allocation2, textureId, textureId2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
@@ -225,24 +231,28 @@ namespace CoreEngine.Graphics
         public IndirectCommandBuffer CreateIndirectCommandBuffer(int maxCommandCount, bool isStatic, string label)
         {
             var graphicsResourceId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId, maxCommandCount, label);
+            var result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId, maxCommandCount);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the indirect command buffer resource.");
             }
 
+            this.graphicsService.SetIndirectCommandBufferLabel(graphicsResourceId, $"{label}{(isStatic ? string.Empty : "0") }");
+
             uint? graphicsResourceId2 = null;
 
             if (!isStatic)
             {
                 graphicsResourceId2 = GetNextGraphicsResourceId();
-                result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId2.Value, maxCommandCount, label);
+                result = this.graphicsService.CreateIndirectCommandBuffer(graphicsResourceId2.Value, maxCommandCount);
 
                 if (!result)
                 {
                     throw new InvalidOperationException("There was an error while creating the indirect command buffer resource.");
                 }
+
+                this.graphicsService.SetIndirectCommandBufferLabel(graphicsResourceId2.Value, $"{label}1");
             }
 
             return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, maxCommandCount, isStatic, label);
@@ -251,12 +261,14 @@ namespace CoreEngine.Graphics
         internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label)
         {
             var shaderId = GetNextGraphicsResourceId();
-            var result = this.graphicsService.CreateShader(shaderId, computeShaderFunction, shaderByteCode, label);
+            var result = this.graphicsService.CreateShader(shaderId, computeShaderFunction, shaderByteCode);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the shader resource.");
             }
+
+            this.graphicsService.SetShaderLabel(shaderId, label);
 
             return new Shader(label, shaderId);
         }
@@ -507,13 +519,14 @@ namespace CoreEngine.Graphics
                 Logger.WriteMessage($"Create Pipeline State for shader {shader.ShaderId}...");
 
                 var pipelineStateId = GetNextGraphicsResourceId();
-                var result = this.graphicsService.CreatePipelineState(pipelineStateId, shader.ShaderId, renderPassDescriptor, shader.Label);
+                var result = this.graphicsService.CreatePipelineState(pipelineStateId, shader.ShaderId, renderPassDescriptor);
 
                 if (!result)
                 {
                     throw new InvalidOperationException("There was an error while creating the pipelinestate object.");
                 }
 
+                this.graphicsService.SetPipelineStateLabel(pipelineStateId, $"{shader.Label}PSO");
                 shader.PipelineStates.Add(renderPassDescriptor, new PipelineState(pipelineStateId));
             }
 

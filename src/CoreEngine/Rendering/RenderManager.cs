@@ -88,7 +88,7 @@ namespace CoreEngine.Rendering
             // TODO: Use a compute shader
             this.graphicsManager.ResetCommandBuffer(presentCommandBuffer);
 
-            var renderPassDescriptor = new RenderPassDescriptor(null, null, DepthBufferOperation.None, true);
+            var renderPassDescriptor = new RenderPassDescriptor(null, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(presentCommandBuffer, renderPassDescriptor, "PresentRenderCommandList");
 
             this.graphicsManager.WaitForCommandList(renderCommandList, previousCommandList);

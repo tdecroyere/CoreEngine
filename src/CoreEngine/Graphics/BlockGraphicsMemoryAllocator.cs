@@ -15,11 +15,12 @@ namespace CoreEngine.Graphics
 
             this.CurrentOffset = 0;
             
-            if(!this.graphicsService.CreateGraphicsHeap(graphicsResourceId, (GraphicsServiceHeapType)heapType, sizeInBytes, label))
+            if (!this.graphicsService.CreateGraphicsHeap(graphicsResourceId, (GraphicsServiceHeapType)heapType, sizeInBytes))
             {
                 throw new InvalidOperationException($"Cannot create {label}.");
             }
 
+            this.graphicsService.SetGraphicsHeapLabel(graphicsResourceId, label);
             this.GraphicsHeap = new GraphicsHeap(graphicsResourceId, heapType, sizeInBytes, label);
         }
 

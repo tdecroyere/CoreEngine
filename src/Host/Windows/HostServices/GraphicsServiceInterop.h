@@ -19,10 +19,16 @@ struct GraphicsAllocationInfos GetTextureAllocationInfosInterop(void* context, e
     return contextObject->GetTextureAllocationInfos(textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
 }
 
-int CreateGraphicsHeapInterop(void* context, unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long length, char* label)
+int CreateGraphicsHeapInterop(void* context, unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long length)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateGraphicsHeap(graphicsHeapId, type, length, label);
+    return contextObject->CreateGraphicsHeap(graphicsHeapId, type, length);
+}
+
+void SetGraphicsHeapLabelInterop(void* context, unsigned int graphicsHeapId, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetGraphicsHeapLabel(graphicsHeapId, label);
 }
 
 void DeleteGraphicsHeapInterop(void* context, unsigned int graphicsHeapId)
@@ -31,16 +37,16 @@ void DeleteGraphicsHeapInterop(void* context, unsigned int graphicsHeapId)
     contextObject->DeleteGraphicsHeap(graphicsHeapId);
 }
 
-int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes, char* label)
+int CreateGraphicsBufferInterop(void* context, unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateGraphicsBuffer(graphicsBufferId, graphicsHeapId, heapOffset, isAliasable, sizeInBytes, label);
+    return contextObject->CreateGraphicsBuffer(graphicsBufferId, graphicsHeapId, heapOffset, isAliasable, sizeInBytes);
 }
 
-void* GetGraphicsBufferCpuPointerInterop(void* context, unsigned int graphicsBufferId)
+void SetGraphicsBufferLabelInterop(void* context, unsigned int graphicsBufferId, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->GetGraphicsBufferCpuPointer(graphicsBufferId);
+    contextObject->SetGraphicsBufferLabel(graphicsBufferId, label);
 }
 
 void DeleteGraphicsBufferInterop(void* context, unsigned int graphicsBufferId)
@@ -49,10 +55,22 @@ void DeleteGraphicsBufferInterop(void* context, unsigned int graphicsBufferId)
     contextObject->DeleteGraphicsBuffer(graphicsBufferId);
 }
 
-int CreateTextureInterop(void* context, unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, char* label)
+void* GetGraphicsBufferCpuPointerInterop(void* context, unsigned int graphicsBufferId)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateTexture(textureId, graphicsHeapId, heapOffset, isAliasable, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, label);
+    return contextObject->GetGraphicsBufferCpuPointer(graphicsBufferId);
+}
+
+int CreateTextureInterop(void* context, unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->CreateTexture(textureId, graphicsHeapId, heapOffset, isAliasable, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
+}
+
+void SetTextureLabelInterop(void* context, unsigned int textureId, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetTextureLabel(textureId, label);
 }
 
 void DeleteTextureInterop(void* context, unsigned int textureId)
@@ -61,16 +79,34 @@ void DeleteTextureInterop(void* context, unsigned int textureId)
     contextObject->DeleteTexture(textureId);
 }
 
-int CreateIndirectCommandBufferInterop(void* context, unsigned int indirectCommandBufferId, int maxCommandCount, char* label)
+int CreateIndirectCommandBufferInterop(void* context, unsigned int indirectCommandBufferId, int maxCommandCount)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateIndirectCommandBuffer(indirectCommandBufferId, maxCommandCount, label);
+    return contextObject->CreateIndirectCommandBuffer(indirectCommandBufferId, maxCommandCount);
 }
 
-int CreateShaderInterop(void* context, unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength, char* label)
+void SetIndirectCommandBufferLabelInterop(void* context, unsigned int indirectCommandBufferId, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateShader(shaderId, computeShaderFunction, shaderByteCode, shaderByteCodeLength, label);
+    contextObject->SetIndirectCommandBufferLabel(indirectCommandBufferId, label);
+}
+
+void DeleteIndirectCommandBufferInterop(void* context, unsigned int indirectCommandBufferId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteIndirectCommandBuffer(indirectCommandBufferId);
+}
+
+int CreateShaderInterop(void* context, unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->CreateShader(shaderId, computeShaderFunction, shaderByteCode, shaderByteCodeLength);
+}
+
+void SetShaderLabelInterop(void* context, unsigned int shaderId, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetShaderLabel(shaderId, label);
 }
 
 void DeleteShaderInterop(void* context, unsigned int shaderId)
@@ -79,10 +115,16 @@ void DeleteShaderInterop(void* context, unsigned int shaderId)
     contextObject->DeleteShader(shaderId);
 }
 
-int CreatePipelineStateInterop(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor, char* label)
+int CreatePipelineStateInterop(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreatePipelineState(pipelineStateId, shaderId, renderPassDescriptor, label);
+    return contextObject->CreatePipelineState(pipelineStateId, shaderId, renderPassDescriptor);
+}
+
+void SetPipelineStateLabelInterop(void* context, unsigned int pipelineStateId, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetPipelineStateLabel(pipelineStateId, label);
 }
 
 void DeletePipelineStateInterop(void* context, unsigned int pipelineStateId)
@@ -290,16 +332,23 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_GetRenderSize = GetRenderSizeInterop;
     service->GraphicsService_GetTextureAllocationInfos = GetTextureAllocationInfosInterop;
     service->GraphicsService_CreateGraphicsHeap = CreateGraphicsHeapInterop;
+    service->GraphicsService_SetGraphicsHeapLabel = SetGraphicsHeapLabelInterop;
     service->GraphicsService_DeleteGraphicsHeap = DeleteGraphicsHeapInterop;
     service->GraphicsService_CreateGraphicsBuffer = CreateGraphicsBufferInterop;
-    service->GraphicsService_GetGraphicsBufferCpuPointer = GetGraphicsBufferCpuPointerInterop;
+    service->GraphicsService_SetGraphicsBufferLabel = SetGraphicsBufferLabelInterop;
     service->GraphicsService_DeleteGraphicsBuffer = DeleteGraphicsBufferInterop;
+    service->GraphicsService_GetGraphicsBufferCpuPointer = GetGraphicsBufferCpuPointerInterop;
     service->GraphicsService_CreateTexture = CreateTextureInterop;
+    service->GraphicsService_SetTextureLabel = SetTextureLabelInterop;
     service->GraphicsService_DeleteTexture = DeleteTextureInterop;
     service->GraphicsService_CreateIndirectCommandBuffer = CreateIndirectCommandBufferInterop;
+    service->GraphicsService_SetIndirectCommandBufferLabel = SetIndirectCommandBufferLabelInterop;
+    service->GraphicsService_DeleteIndirectCommandBuffer = DeleteIndirectCommandBufferInterop;
     service->GraphicsService_CreateShader = CreateShaderInterop;
+    service->GraphicsService_SetShaderLabel = SetShaderLabelInterop;
     service->GraphicsService_DeleteShader = DeleteShaderInterop;
     service->GraphicsService_CreatePipelineState = CreatePipelineStateInterop;
+    service->GraphicsService_SetPipelineStateLabel = SetPipelineStateLabelInterop;
     service->GraphicsService_DeletePipelineState = DeletePipelineStateInterop;
     service->GraphicsService_CreateCommandBuffer = CreateCommandBufferInterop;
     service->GraphicsService_DeleteCommandBuffer = DeleteCommandBufferInterop;

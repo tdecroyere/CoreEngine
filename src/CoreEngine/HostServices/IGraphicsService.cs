@@ -265,10 +265,12 @@ namespace CoreEngine.HostServices
         bool CreateGraphicsHeap(uint graphicsHeapId, GraphicsServiceHeapType type, ulong length, string label);
         void DeleteGraphicsHeap(uint graphicsHeapId);
 
+        // TODO: Move make aliasable into a separate method
         bool CreateGraphicsBuffer(uint graphicsBufferId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, int sizeInBytes, string label);
         IntPtr GetGraphicsBufferCpuPointer(uint graphicsBufferId);
         void DeleteGraphicsBuffer(uint graphicsBufferId);
 
+        // TODO: Move make aliasable into a separate method
         bool CreateTexture(uint textureId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount, string label);
         void DeleteTexture(uint textureId);
 

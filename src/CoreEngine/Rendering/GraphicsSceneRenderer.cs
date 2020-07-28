@@ -969,6 +969,7 @@ namespace CoreEngine.Rendering
         private Shader drawMeshInstancesComputeShader;
         private Shader computeLightCamerasShader;
         private Shader convertToMomentShadowMapShader;
+        private Shader computeDirectTransferShader;
 
         private GraphicsBuffer cpuRenderPassParametersGraphicsBuffer;
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
@@ -1003,7 +1004,7 @@ namespace CoreEngine.Rendering
         private CommandBuffer[] generateDepthBufferCommandBuffers;
         private CommandBuffer[] convertToMomentShadowMapCommandBuffers;
         private CommandBuffer computeLightsCamerasCommandBuffer;
-        private CommandBuffer copyRTCommandBuffer;
+        private CommandBuffer transferCommandBuffer;
 
         private GraphicsPipeline depthGraphicsPipeline;
         private GraphicsPipeline graphicsPipeline;
@@ -1028,6 +1029,7 @@ namespace CoreEngine.Rendering
             this.drawMeshInstancesComputeShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeGenerateIndirectCommands.shader", "GenerateIndirectCommands");
             this.computeLightCamerasShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeLightCameras.shader", "ComputeLightCameras");
             this.convertToMomentShadowMapShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ConvertToMomentShadowMap.shader");
+            this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
 
             this.minMaxDepthComputeBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector2>(GraphicsHeapType.Gpu, 10000, isStatic: true, label: "ComputeMinMaxDepthWorkingBuffer");
 
@@ -1071,7 +1073,7 @@ namespace CoreEngine.Rendering
             }
 
             this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "ComputeLightsCameras");
-            this.copyRTCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "CopyRT");
+            this.transferCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "TransferTexture");
 
             // TEST Pipeline definition
 
@@ -1812,13 +1814,7 @@ namespace CoreEngine.Rendering
 
             var toneMapRenderTarget = this.graphicsPipeline.ResolveResource("ToneMapRenderTarget") as Texture;
 
-            this.graphicsManager.ResetCommandBuffer(this.copyRTCommandBuffer);
-            var copyRTCommandList = this.graphicsManager.CreateCopyCommandList(this.copyRTCommandBuffer, "CopyRT");
-            this.graphicsManager.WaitForCommandList(copyRTCommandList, commandList);
-            this.graphicsManager.CopyTexture(copyRTCommandList, mainRenderTargetTexture, toneMapRenderTarget);
-            this.graphicsManager.CommitCopyCommandList(copyRTCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(this.copyRTCommandBuffer);
-            commandList = copyRTCommandList;
+            commandList = TransferTextureToRenderTarget(toneMapRenderTarget, mainRenderTargetTexture, commandList);
 
             commandList = this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, mainRenderTargetTexture, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture, commandList);
 
@@ -1831,6 +1827,27 @@ namespace CoreEngine.Rendering
             //this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(0, 0), new Vector2(this.graphicsManager.GetRenderSize().X, this.graphicsManager.GetRenderSize().Y), this.occlusionDepthTexture, true);
 
             return commandList;
+        }
+
+        private CommandList TransferTextureToRenderTarget(Texture sourceTexture, Texture destinationTexture, CommandList previousCommandList)
+        {
+            // TODO: Use a compute shader
+            this.graphicsManager.ResetCommandBuffer(this.transferCommandBuffer);
+
+            var renderTarget = new RenderTargetDescriptor(destinationTexture, null, BlendOperation.None);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true);
+            var renderCommandList = this.graphicsManager.CreateRenderCommandList(this.transferCommandBuffer, renderPassDescriptor, "TransferTextureCommandList");
+
+            this.graphicsManager.WaitForCommandList(renderCommandList, previousCommandList);
+
+            this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
+            this.graphicsManager.SetShaderTexture(renderCommandList, sourceTexture, 0);
+            this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
+
+            this.graphicsManager.CommitRenderCommandList(renderCommandList);
+            this.graphicsManager.ExecuteCommandBuffer(this.transferCommandBuffer);
+
+            return renderCommandList;
         }
 
         private void SetupCamera(Camera camera)

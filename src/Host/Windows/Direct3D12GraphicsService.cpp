@@ -778,6 +778,44 @@ void Direct3D12GraphicsService::DeletePipelineState(unsigned int pipelineStateId
 	this->pipelineStates.erase(pipelineStateId);
 }
 
+int Direct3D12GraphicsService::CreateQueryBuffer(unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length)
+{
+	D3D12_QUERY_HEAP_DESC heapDesc = {};
+	heapDesc.Count = QueryHeapMaxSize;
+	heapDesc.NodeMask = 0;
+	heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+
+	ComPtr<ID3D12QueryHeap> queryBuffer;
+	AssertIfFailed(this->graphicsDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(queryBuffer.ReleaseAndGetAddressOf())));
+	this->queryBuffers[queryBufferId] = queryBuffer;
+
+	// TODO: Create another query heap for copy
+
+	// heapDesc = {};
+	// heapDesc.Count = QueryHeapMaxSize;
+	// heapDesc.NodeMask = 0;
+	// heapDesc.Type = D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP;
+
+	// AssertIfFailed(this->graphicsDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(this->copyQueryHeap.ReleaseAndGetAddressOf())));
+
+	return 1;
+}
+
+void Direct3D12GraphicsService::SetQueryBufferLabel(unsigned int queryBufferId, char* label)
+{
+	if (!this->queryBuffers.count(queryBufferId))
+	{
+		return;
+	}
+
+	this->queryBuffers[queryBufferId]->SetName(wstring(label, label + strlen(label)).c_str());
+}
+        
+void Direct3D12GraphicsService::DeleteQueryBuffer(unsigned int queryBufferId)
+{
+	this->queryBuffers.erase(queryBufferId);
+}
+
 int Direct3D12GraphicsService::CreateCommandBuffer(unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label)
 { 
 	auto listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -1528,6 +1566,27 @@ void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId
 	this->isPresentBarrier = true;
 }
 
+void Direct3D12GraphicsService::QueryTimestamp(unsigned int commandListId, unsigned int queryBufferId, int index)
+{
+	// TODO: Check if we are in a copy list and use the appropriate query buffer
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto queryBuffer = this->queryBuffers[queryBufferId];
+
+	commandList->EndQuery(queryBuffer.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
+}
+
+void Direct3D12GraphicsService::ResolveQueryData(unsigned int commandListId, unsigned int queryBufferId, unsigned int destinationBufferId, int startIndex, int endIndex)
+{
+	// TODO: Check if we are in a copy list and use the appropriate query buffer
+
+	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto queryBuffer = this->queryBuffers[queryBufferId];
+	auto destinationBuffer = this->graphicsBuffers[destinationBufferId];
+
+	commandList->ResolveQueryData(queryBuffer.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer.Get(), 0);
+}
+
 void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
 { 
 	this->directCommandQueue->GetTimestampFrequency(&this->directQueueFrequency);
@@ -1910,7 +1969,7 @@ bool Direct3D12GraphicsService::CreateHeaps()
 
 	// Create global Descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-	descriptorHeapDesc.NumDescriptors = 10000; //TODO: Change that
+	descriptorHeapDesc.NumDescriptors = 100000; //TODO: Change that
 	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1920,7 +1979,7 @@ bool Direct3D12GraphicsService::CreateHeaps()
 
 	// Create global RTV Descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc = {};
-	rtvDescriptorHeapDesc.NumDescriptors = 1000; //TODO: Change that
+	rtvDescriptorHeapDesc.NumDescriptors = 100000; //TODO: Change that
 	rtvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 

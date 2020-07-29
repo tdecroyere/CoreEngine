@@ -302,12 +302,12 @@ namespace CoreEngine.HostServices
         bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType, int length);
         void SetQueryBufferLabel(uint queryBufferId, string label);
         void DeleteQueryBuffer(uint queryBufferId);
-        IntPtr GetQueryBufferCpuPointer(uint queryBufferId);
 
         /* New Command API
         bool CreateCommandQueue(uint commandQueueId, GraphicsCommandQueueType commandQueueType);
         void SetCommandQueueLabel(uint commandQueueId, string label);
         void DeleteCommandQueue(uint commandQueueId);
+        ulong GetCommandQueueFrequency(uint commandQueueId);
         void ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists);
 
         bool CreateCommandList(uint commandListId, uint commandQueueId, GraphicsCommandListType commandListType, bool isAwaitable);
@@ -372,7 +372,7 @@ namespace CoreEngine.HostServices
         void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
 
         void QueryTimestamp(uint commandListId, uint queryBufferId, int index);
-        void ResolveQueryData(uint commandListId, uint queryBufferId, int startIndex, int endIndex);
+        void ResolveQueryData(uint commandListId, uint queryBufferId, uint destinationBufferId, int startIndex, int endIndex);
         
         void WaitForCommandList(uint commandListId, uint commandListToWaitId);
 

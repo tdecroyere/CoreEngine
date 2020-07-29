@@ -126,11 +126,6 @@ func GraphicsService_deleteQueryBufferInterop(context: UnsafeMutableRawPointer?,
     contextObject.deleteQueryBuffer(UInt(queryBufferId))
 }
 
-func GraphicsService_getQueryBufferCpuPointerInterop(context: UnsafeMutableRawPointer?, _ queryBufferId: UInt32) -> UnsafeMutableRawPointer? {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.getQueryBufferCpuPointer(UInt(queryBufferId))
-}
-
 func GraphicsService_createCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UInt32, _ commandBufferType: GraphicsCommandBufferType, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return Int32(contextObject.createCommandBuffer(UInt(commandBufferId), commandBufferType, String(cString: label!)) ? 1 : 0)
@@ -281,9 +276,9 @@ func GraphicsService_queryTimestampInterop(context: UnsafeMutableRawPointer?, _ 
     contextObject.queryTimestamp(UInt(commandListId), UInt(queryBufferId), Int(index))
 }
 
-func GraphicsService_resolveQueryDataInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ queryBufferId: UInt32, _ startIndex: Int32, _ endIndex: Int32) {
+func GraphicsService_resolveQueryDataInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ queryBufferId: UInt32, _ destinationBufferId: UInt32, _ startIndex: Int32, _ endIndex: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.resolveQueryData(UInt(commandListId), UInt(queryBufferId), Int(startIndex), Int(endIndex))
+    contextObject.resolveQueryData(UInt(commandListId), UInt(queryBufferId), UInt(destinationBufferId), Int(startIndex), Int(endIndex))
 }
 
 func GraphicsService_waitForCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ commandListToWaitId: UInt32) {
@@ -328,7 +323,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreateQueryBuffer = GraphicsService_createQueryBufferInterop
     service.GraphicsService_SetQueryBufferLabel = GraphicsService_setQueryBufferLabelInterop
     service.GraphicsService_DeleteQueryBuffer = GraphicsService_deleteQueryBufferInterop
-    service.GraphicsService_GetQueryBufferCpuPointer = GraphicsService_getQueryBufferCpuPointerInterop
     service.GraphicsService_CreateCommandBuffer = GraphicsService_createCommandBufferInterop
     service.GraphicsService_DeleteCommandBuffer = GraphicsService_deleteCommandBufferInterop
     service.GraphicsService_ResetCommandBuffer = GraphicsService_resetCommandBufferInterop

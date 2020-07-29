@@ -57,6 +57,10 @@ class Direct3D12GraphicsService
         void SetPipelineStateLabel(unsigned int pipelineStateId, char* label);
         void DeletePipelineState(unsigned int pipelineStateId);
 
+        int CreateQueryBuffer(unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length);
+        void SetQueryBufferLabel(unsigned int queryBufferId, char* label);
+        void DeleteQueryBuffer(unsigned int queryBufferId);
+
         int CreateCommandBuffer(unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label);
         void DeleteCommandBuffer(unsigned int commandBufferId);
         void ResetCommandBuffer(unsigned int commandBufferId);
@@ -91,6 +95,9 @@ class Direct3D12GraphicsService
         void SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId);
         void DrawIndexedPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
         void DrawPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+
+        void QueryTimestamp(unsigned int commandListId, unsigned int queryBufferId, int index);
+        void ResolveQueryData(unsigned int commandListId, unsigned int queryBufferId, unsigned int destinationBufferId, int startIndex, int endIndex);
 
         void WaitForCommandList(unsigned int commandListId, unsigned int commandListToWaitId);
         void PresentScreenBuffer(unsigned int commandBufferId);
@@ -182,6 +189,8 @@ class Direct3D12GraphicsService
         // Buffers
         map<uint32_t, ComPtr<ID3D12Resource>> graphicsBuffers;
         map<uint32_t, void*> graphicsBufferPointers;
+
+        map<uint32_t, ComPtr<ID3D12QueryHeap>> queryBuffers;
 
         map<uint32_t, ComPtr<ID3D12Resource>> cpuBuffers;
         map<uint32_t, ComPtr<ID3D12Resource>> readBackBuffers;

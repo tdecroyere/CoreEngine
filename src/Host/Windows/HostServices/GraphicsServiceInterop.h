@@ -151,12 +151,6 @@ void DeleteQueryBufferInterop(void* context, unsigned int queryBufferId)
     contextObject->DeleteQueryBuffer(queryBufferId);
 }
 
-void* GetQueryBufferCpuPointerInterop(void* context, unsigned int queryBufferId)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->GetQueryBufferCpuPointer(queryBufferId);
-}
-
 int CreateCommandBufferInterop(void* context, unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -337,10 +331,10 @@ void QueryTimestampInterop(void* context, unsigned int commandListId, unsigned i
     contextObject->QueryTimestamp(commandListId, queryBufferId, index);
 }
 
-void ResolveQueryDataInterop(void* context, unsigned int commandListId, unsigned int queryBufferId, int startIndex, int endIndex)
+void ResolveQueryDataInterop(void* context, unsigned int commandListId, unsigned int queryBufferId, unsigned int destinationBufferId, int startIndex, int endIndex)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->ResolveQueryData(commandListId, queryBufferId, startIndex, endIndex);
+    contextObject->ResolveQueryData(commandListId, queryBufferId, destinationBufferId, startIndex, endIndex);
 }
 
 void WaitForCommandListInterop(void* context, unsigned int commandListId, unsigned int commandListToWaitId)
@@ -389,7 +383,6 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_CreateQueryBuffer = CreateQueryBufferInterop;
     service->GraphicsService_SetQueryBufferLabel = SetQueryBufferLabelInterop;
     service->GraphicsService_DeleteQueryBuffer = DeleteQueryBufferInterop;
-    service->GraphicsService_GetQueryBufferCpuPointer = GetQueryBufferCpuPointerInterop;
     service->GraphicsService_CreateCommandBuffer = CreateCommandBufferInterop;
     service->GraphicsService_DeleteCommandBuffer = DeleteCommandBufferInterop;
     service->GraphicsService_ResetCommandBuffer = ResetCommandBufferInterop;

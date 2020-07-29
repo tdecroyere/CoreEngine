@@ -10,20 +10,6 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
-    public readonly struct GpuTiming
-    {
-        public GpuTiming(string name, double startTiming, double endTiming)
-        {
-            this.Name = name;
-            this.StartTiming = startTiming;
-            this.EndTiming = endTiming;
-        }
-
-        public string Name { get; }
-        public double StartTiming { get; }
-        public double EndTiming { get; }
-    }
-
     public class GraphicsManager : SystemManager
     {
         // TODO: Remove internal
@@ -40,8 +26,6 @@ namespace CoreEngine.Graphics
         internal int cpuDispatchCount;
 
         private Dictionary<uint, GraphicsRenderPassDescriptor> renderPassDescriptors;
-        internal List<GpuTiming> gpuTimings = new List<GpuTiming>();
-
         private List<uint> aliasableResources = new List<uint>();
 
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
@@ -293,14 +277,6 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public unsafe Span<T> GetCpuQueryBufferPointer<T>(QueryBuffer queryBuffer) where T : struct
-        {
-            // TODO: Compute the size of an element base of the query type
-            
-            var cpuPointer = this.graphicsService.GetQueryBufferCpuPointer(queryBuffer.GraphicsResourceId);
-            return new Span<T>(cpuPointer.ToPointer(), queryBuffer.Length * Marshal.SizeOf<ulong>() / Marshal.SizeOf(typeof(T)));
-        }
-
         internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label)
         {
             var shaderId = GetNextGraphicsResourceId();
@@ -367,24 +343,6 @@ namespace CoreEngine.Graphics
         // TODO: Make it private and automatically call it when changing frames
         public void ResetCommandBuffer(CommandBuffer commandBuffer)
         {
-            var commandBufferStatus = this.graphicsService.GetCommandBufferStatus(commandBuffer.GraphicsResourceId);
-
-            if (commandBufferStatus == null || (commandBufferStatus != null && commandBufferStatus.Value.State != GraphicsCommandBufferState.Created))
-            {
-                if (commandBufferStatus != null)
-                {
-                    if (commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-                    {
-                        this.gpuTimings.Add(new GpuTiming(commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-                    }
-
-                    else
-                    {
-                        Logger.WriteMessage($"CommandBuffer '{commandBuffer.Label}' has not completed.");
-                    }
-                }
-            }
-            
             this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
         }
 
@@ -705,10 +663,10 @@ namespace CoreEngine.Graphics
             this.graphicsService.QueryTimestamp(commandList.Id, queryBuffer.GraphicsResourceId, index);
         }
 
-        public void ResolveQueryData(CommandList commandList, QueryBuffer queryBuffer, Range range)
+        public void ResolveQueryData(CommandList commandList, QueryBuffer queryBuffer, GraphicsBuffer destinationBuffer, Range range)
         {
             var offsetAndLength = range.GetOffsetAndLength(queryBuffer.Length);
-            this.graphicsService.ResolveQueryData(commandList.Id, queryBuffer.GraphicsResourceId, offsetAndLength.Offset, offsetAndLength.Length);
+            this.graphicsService.ResolveQueryData(commandList.Id, queryBuffer.GraphicsResourceId, destinationBuffer.GraphicsResourceId, offsetAndLength.Offset, offsetAndLength.Length);
         }
 
         public void WaitForCommandList(CommandList commandList, CommandList commandListToWait)
@@ -743,8 +701,6 @@ namespace CoreEngine.Graphics
             }
 
             this.aliasableResources.Clear();
-
-            this.gpuTimings.Clear();
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

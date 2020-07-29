@@ -5,6 +5,7 @@ namespace CoreEngine.Graphics
         Buffer,
         Texture,
         CommandBuffer,
-        IndirectCommandBuffer
+        IndirectCommandBuffer,
+        QueryBuffer
     }
 }

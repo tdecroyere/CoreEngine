@@ -81,6 +81,11 @@ namespace CoreEngine.HostServices
         Error
     }
 
+    public enum GraphicsQueryBufferType
+    {
+        Timestamp
+    }
+
     public readonly struct GraphicsAllocationInfos
     {
         public int SizeInBytes { get; }
@@ -294,18 +299,12 @@ namespace CoreEngine.HostServices
         void SetPipelineStateLabel(uint pipelineStateId, string label);
         void DeletePipelineState(uint pipelineStateId);
 
-        // TODO: Implement a barrier ressource
-
-        // TODO: Refactor the command buffer/command list to map it better to have fewer Allocators in DirectX12
-        // (One Command Allocator per queue type and per frame and per threads)
-
-        /* New Command API
-
-        bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType);
+        bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType, int length);
         void SetQueryBufferLabel(uint queryBufferId, string label);
         void DeleteQueryBuffer(uint queryBufferId);
         IntPtr GetQueryBufferCpuPointer(uint queryBufferId);
 
+        /* New Command API
         bool CreateCommandQueue(uint commandQueueId, GraphicsCommandQueueType commandQueueType);
         void SetCommandQueueLabel(uint commandQueueId, string label);
         void DeleteCommandQueue(uint commandQueueId);
@@ -316,9 +315,6 @@ namespace CoreEngine.HostServices
         void DeleteCommandList(uint commandListId);
         void ResetCommandList(uint commandListId);
         void CommitCommandList(uint commandListId);
-
-        void QueryTimestamp(uint commandListId, uint queryBufferId, int index);
-        void ResolveQueryData(uint commandListId, uint queryBufferId, Range range);
 
         void SetupRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
 
@@ -374,6 +370,9 @@ namespace CoreEngine.HostServices
 
         // TODO: Change that to take instances params
         void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+
+        void QueryTimestamp(uint commandListId, uint queryBufferId, int index);
+        void ResolveQueryData(uint commandListId, uint queryBufferId, int startIndex, int endIndex);
         
         void WaitForCommandList(uint commandListId, uint commandListToWaitId);
 

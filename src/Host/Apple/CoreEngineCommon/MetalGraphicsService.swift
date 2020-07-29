@@ -20,7 +20,7 @@ class Shader {
     let vertexShaderFunction: MTLFunction?
     let pixelShaderFunction: MTLFunction?
     let computeShaderFunction: MTLFunction?
-    let argumentEncoder: MTLArgumentEncoder?
+    var argumentEncoder: MTLArgumentEncoder?
     var argumentBuffers: [MTLBuffer]
     let argumentBuffersMaxCount = 1000
     var argumentBufferCurrentIndex = 0
@@ -31,16 +31,17 @@ class Shader {
         self.vertexShaderFunction = vertexShaderFunction
         self.pixelShaderFunction = pixelShaderFunction
         self.computeShaderFunction = computeShaderFunction
-        self.argumentEncoder = argumentEncoder
-
+        self.argumentEncoder = nil
         self.argumentBuffers = []
         self.currentArgumentBuffer = nil
+    }
 
+    func setArgumentEncoder(_ device: MTLDevice, _ argumentEncoder: MTLArgumentEncoder?) {
         if (argumentEncoder != nil) {
+            self.argumentEncoder = argumentEncoder
             // TODO: Use another allocation strategie
-            for i in 0..<argumentBuffersMaxCount {
+            for _ in 0..<argumentBuffersMaxCount {
                 let argumentBuffer = device.makeBuffer(length: argumentEncoder!.encodedLength)!
-                argumentBuffer.label = (debugName != nil) ? "\(debugName!)Buffer\(i)" : "ShaderBuffer\(i)"
                 self.argumentBuffers.append(argumentBuffer)
             }
 
@@ -103,6 +104,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var graphicsBuffers: [UInt: MTLBuffer]
     var textures: [UInt: MTLTexture]
     var indirectCommandBuffers: [UInt: MTLIndirectCommandBuffer]
+    var queryBuffers: [UInt: MTLCounterSampleBuffer]
+    var queryBuffersData: [UInt: UnsafeMutablePointer<UInt8>]
 
     let commandBufferStatusConcurrentQueue: DispatchQueue
 
@@ -145,6 +148,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.graphicsBuffers = [:]
         self.textures = [:]
         self.indirectCommandBuffers = [:]
+        self.queryBuffers = [:]
+        self.queryBuffersData = [:]
         self.commandBuffersStatus = [:]
         self.renderCommandRTs = [:]
 
@@ -207,7 +212,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.metalLayer.drawableSize = CGSize(width: renderWidth, height: renderHeight)
     }
 
-    public func createGraphicsHeap(_ graphicsHeapId: UInt, _ type: GraphicsServiceHeapType, _ length: UInt, _ label: String) -> Bool {
+    public func createGraphicsHeap(_ graphicsHeapId: UInt, _ type: GraphicsServiceHeapType, _ length: UInt) -> Bool {
         let heapDescriptor = MTLHeapDescriptor()
         heapDescriptor.storageMode = .private
         heapDescriptor.type = .placement
@@ -231,19 +236,26 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return false
         }
 
-        graphicsHeap.label = label
-
         let metalHeap = MetalHeap(type, length, graphicsHeap)
         self.graphicsHeaps[graphicsHeapId] = metalHeap
 
         return true
     }
 
+    public func setGraphicsHeapLabel(_ graphicsHeapId: UInt, _ label: String) {
+        guard let graphicsHeap = self.graphicsHeaps[graphicsHeapId] else {
+            print("setGraphicsHeapLabel: Graphics heap was not found")
+            return
+        }
+
+        graphicsHeap.heapObject.label = label
+    }
+
     public func deleteGraphicsHeap(_ graphicsHeapId: UInt) {
         self.graphicsHeaps[graphicsHeapId] = nil
     }
 
-    public func createGraphicsBuffer(_ graphicsBufferId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ sizeInBytes: Int, _ label: String) -> Bool {
+    public func createGraphicsBuffer(_ graphicsBufferId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ sizeInBytes: Int) -> Bool {
         let graphicsHeap = self.graphicsHeaps[graphicsHeapId]
 
         var options: MTLResourceOptions = [.storageModePrivate, .hazardTrackingModeUntracked]
@@ -265,7 +277,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 return false
             }
 
-            gpuBuffer.label = label
             self.graphicsBuffers[graphicsBufferId] = gpuBuffer
         }
         else {
@@ -274,7 +285,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                 return false
             }
 
-            gpuBuffer.label = label
             self.graphicsBuffers[graphicsBufferId] = gpuBuffer
 
             if (isAliasable)
@@ -286,6 +296,19 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
+    public func setGraphicsBufferLabel(_ graphicsBufferId: UInt, _ label: String) {
+        guard let graphicsBuffer = self.graphicsBuffers[graphicsBufferId] else {
+            print("setGraphicsBufferLabel: Graphics buffer was not found")
+            return
+        }
+
+        graphicsBuffer.label = label
+    }
+
+    public func deleteGraphicsBuffer(_ graphicsBufferId: UInt) {
+        self.graphicsBuffers[graphicsBufferId] = nil
+    }
+
     public func getGraphicsBufferCpuPointer(_ graphicsBufferId: UInt) -> UnsafeMutableRawPointer? {
         guard let graphicsBuffer = self.graphicsBuffers[graphicsBufferId] else {
             print("ERROR: Graphics buffer was not found")
@@ -293,10 +316,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         return graphicsBuffer.contents()
-    }
-
-    public func deleteGraphicsBuffer(_ graphicsBufferId: UInt) {
-        self.graphicsBuffers[graphicsBufferId] = nil
     }
 
     private func convertTextureFormat(_ textureFormat: GraphicsTextureFormat) -> MTLPixelFormat {
@@ -364,7 +383,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return descriptor
     }
 
-    public func createTexture(_ textureId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int, _ label: String) -> Bool {
+    public func createTexture(_ textureId: UInt, _ graphicsHeapId: UInt, _ heapOffset: UInt, _ isAliasable: Bool, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> Bool {
         guard let graphicsHeap = self.graphicsHeaps[graphicsHeapId] else {
             print("createGraphicsBuffer: Graphics heap was not found")
             return false
@@ -377,7 +396,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return false
         }
 
-        gpuTexture.label = label
         self.textures[textureId] = gpuTexture
 
         if (isAliasable)
@@ -388,11 +406,20 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return true
     }
 
+    public func setTextureLabel(_ textureId: UInt, _ label: String) {
+        guard let texture = self.textures[textureId] else {
+            print("setTextureLabel: Texture was not found")
+            return
+        }
+
+        texture.label = label
+    }
+
     public func deleteTexture(_ textureId: UInt) {
         self.textures[textureId] = nil
     }
 
-    public func createIndirectCommandBuffer(_ indirectCommandBufferId: UInt, _ maxCommandCount: Int, _ label: String) -> Bool {
+    public func createIndirectCommandBuffer(_ indirectCommandBufferId: UInt, _ maxCommandCount: Int) -> Bool {
         let indirectCommandBufferDescriptor = MTLIndirectCommandBufferDescriptor()
         
         indirectCommandBufferDescriptor.commandTypes = [.drawIndexed]
@@ -405,14 +432,25 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
                                                                           maxCommandCount: maxCommandCount,
                                                                           options: .storageModePrivate)!
 
-        indirectCommandBuffer.label = label
-
         self.indirectCommandBuffers[indirectCommandBufferId] = indirectCommandBuffer
 
         return true
     }
 
-    public func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int, _ label: String) -> Bool {
+    public func setIndirectCommandBufferLabel(_ indirectCommandBufferId: UInt, _ label: String) {
+        guard let indirectCommandBuffer = self.indirectCommandBuffers[indirectCommandBufferId] else {
+            print("setIndirectCommandBuffer: Indirect Command Buffer was not found")
+            return
+        }
+
+        indirectCommandBuffer.label = label
+    }
+
+    public func deleteIndirectCommandBuffer(_ indirectCommandBufferId: UInt) {
+        self.indirectCommandBuffers[indirectCommandBufferId] = nil
+    }
+
+    public func createShader(_ shaderId: UInt, _ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> Bool {
         let dispatchData = DispatchData(bytes: UnsafeRawBufferPointer(start: shaderByteCode, count: shaderByteCodeLength))
         let defaultLibrary = try! self.device.makeLibrary(data: dispatchData as __DispatchData)
 
@@ -420,21 +458,27 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             let vertexFunction = defaultLibrary.makeFunction(name: "VertexMain")!
             let fragmentFunction = defaultLibrary.makeFunction(name: "PixelMain")
 
-            // TODO: Remove that hack
-            if (label != "RenderMeshInstanceDepthShader" && label != "RenderMeshInstanceDepthMomentShader" && label != "RenderMeshInstanceShader" && label != "RenderMeshInstanceTransparentShader" && label != "RenderMeshInstanceTransparentDepthShader") {
-                let argumentEncoder = vertexFunction.makeArgumentEncoder(bufferIndex: 0)
-                self.shaders[shaderId] = Shader(shaderId, self.device, vertexFunction, fragmentFunction, nil, argumentEncoder, label)
-            } else {
-                self.shaders[shaderId] = Shader(shaderId, self.device, vertexFunction, fragmentFunction, nil, nil, label)
-            }
+            self.shaders[shaderId] = Shader(shaderId, self.device, vertexFunction, fragmentFunction, nil, nil, "Shader")
 
             return true
         } else {
             let computeFunction = defaultLibrary.makeFunction(name: computeShaderFunction!)!
 
             let argumentEncoder = computeFunction.makeArgumentEncoder(bufferIndex: 0)
-            self.shaders[shaderId] = Shader(shaderId, self.device, nil, nil, computeFunction, argumentEncoder, label)
+            self.shaders[shaderId] = Shader(shaderId, self.device, nil, nil, computeFunction, argumentEncoder, "Shader")
             return true
+        }
+    }
+
+    public func setShaderLabel(_ shaderId: UInt, _ label: String) {
+        if (self.shaders[shaderId]!.computeShaderFunction != nil) {
+            let argumentEncoder = self.shaders[shaderId]!.computeShaderFunction!.makeArgumentEncoder(bufferIndex: 0)
+            self.shaders[shaderId]!.setArgumentEncoder(self.device, argumentEncoder)
+        } else if (label != "RenderMeshInstanceDepthShader" && label != "RenderMeshInstanceDepthMomentShader" && label != "RenderMeshInstanceShader" && label != "RenderMeshInstanceTransparentShader" && label != "RenderMeshInstanceTransparentDepthShader") {
+            if (self.shaders[shaderId]!.vertexShaderFunction != nil) {
+                let argumentEncoder = self.shaders[shaderId]!.vertexShaderFunction!.makeArgumentEncoder(bufferIndex: 0)
+                self.shaders[shaderId]!.setArgumentEncoder(self.device, argumentEncoder)
+            } 
         }
     }
 
@@ -471,14 +515,13 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
     }
 
-    public func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor, _ label: String) -> Bool {
+    public func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> Bool {
         guard let shader = self.shaders[shaderId] else {
             return false
         }
 
         if (renderPassDescriptor.IsRenderShader == 1) {
             let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
-            pipelineStateDescriptor.label = label
 
             pipelineStateDescriptor.vertexFunction = shader.vertexShaderFunction!
 
@@ -550,9 +593,88 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         return false
     }
 
+    public func setPipelineStateLabel(_ pipelineStateId: UInt, _ label: String) {
+    }
+
     public func deletePipelineState(_ pipelineStateId: UInt) {
         self.renderPipelineStates[pipelineStateId] = nil
         self.computePipelineStates[pipelineStateId] = nil
+    }
+
+    public func createQueryBuffer(_ queryBufferId: UInt, _ queryBufferType: GraphicsQueryBufferType, _ length: Int) -> Bool {
+        guard let counterSets = self.device.counterSets else {
+            print("createQueryBuffer: Counter sets are not available.")
+            return false
+        }
+
+        var foundCounterSet: MTLCounterSet? = nil
+        var elementSize = MemoryLayout<UInt64>.size
+        
+        for systemCounterSet in counterSets {
+            if (systemCounterSet.name == "timestamp" as String && queryBufferType == Timestamp) {
+                foundCounterSet = systemCounterSet
+                break
+            }
+        }
+
+        guard let counterSet = foundCounterSet else {
+            print("createQueryBuffer: Counter was not found.")
+            return false
+        }
+
+        let descriptor = MTLCounterSampleBufferDescriptor()
+        descriptor.counterSet = counterSet
+        descriptor.sampleCount = length
+        descriptor.storageMode = .shared
+
+        do {
+            let queryBuffer = try self.device.makeCounterSampleBuffer(descriptor: descriptor)
+            self.queryBuffers[queryBufferId] = queryBuffer
+
+            let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: length * elementSize)
+            self.queryBuffersData[queryBufferId] = pointer
+        } catch {
+            print("Failed to create query buffer, \(error)")
+            return false
+        }
+
+        return true
+    }
+
+    public func setQueryBufferLabel(_ queryBufferId: UInt, _ label: String) {
+        
+    }
+
+    public func deleteQueryBuffer(_ queryBufferId: UInt) {
+        self.queryBuffers[queryBufferId] = nil
+
+        guard let queryBufferData = self.queryBuffersData[queryBufferId] else {
+            return
+        }
+
+        queryBufferData.deallocate()
+        self.queryBuffersData[queryBufferId] = nil
+    }
+
+    public func getQueryBufferCpuPointer(_ queryBufferId: UInt) -> UnsafeMutableRawPointer? {
+        guard let queryBuffer = self.queryBuffers[queryBufferId] else {
+            print("getQueryBufferCpuPointer: Query buffer is nil.")
+            return nil
+        }
+
+        guard let queryBufferData = self.queryBuffersData[queryBufferId] else {
+            return nil
+        }
+
+        do {
+            let data = try queryBuffer.resolveCounterRange(0..<queryBuffer.sampleCount)!
+            data.copyBytes(to: queryBufferData, from: 0..<data.count)
+
+            return UnsafeMutableRawPointer(queryBufferData)
+        } catch {
+            print("getQueryBufferCpuPointer: Unable to resolve query buffer, \(error)")
+            return nil
+        }
     }
 
     public func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool {
@@ -1315,6 +1437,39 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
     }
 
+    public func queryTimestamp(_ commandListId: UInt, _ queryBufferId: UInt, _ index: Int) {
+        guard let queryBuffer = self.queryBuffers[queryBufferId] else {
+            print("queryTimestamp: Query buffer was not found")
+            return
+        }
+
+        if (self.renderCommandEncoders[commandListId] != nil) {
+            guard let renderCommandEncoder = self.renderCommandEncoders[commandListId] else {
+                print("queryTimestamp: Render command encoder is nil.")
+                return
+            }
+            
+            renderCommandEncoder.sampleCounters(sampleBuffer: queryBuffer, sampleIndex: index, barrier: false)
+        } else if (self.computeCommandEncoders[commandListId] != nil) {
+            guard let computeCommandEncoder = self.computeCommandEncoders[commandListId] else {
+                print("queryTimestamp: Compute command encoder is nil.")
+                return
+            }
+
+            computeCommandEncoder.sampleCounters(sampleBuffer: queryBuffer, sampleIndex: index, barrier: false)
+        } else if (self.copyCommandEncoders[commandListId] != nil) {
+            guard let copyCommandEncoder = self.copyCommandEncoders[commandListId] else {
+                print("queryTimestamp: Compute command encoder is nil.")
+                return
+            }
+            copyCommandEncoder.sampleCounters(sampleBuffer: queryBuffer, sampleIndex: index, barrier: false)
+        }
+    }
+
+    public func resolveQueryData(_ commandListId: UInt, _ queryBufferId: UInt, _ startIndex: Int, _ endIndex: Int) {
+        
+    }
+
     public func waitForCommandList(_ commandListId: UInt, _ commandListToWaitId: UInt) {
         guard let fence = self.commandListFences[commandListToWaitId] else {
             print("waitForCommandList: Fence was not found")
@@ -1394,8 +1549,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             }
 
             commandBufferStatus.State = Completed
-            commandBufferStatus.ExecutionStartTime = commandBuffer.gpuStartTime * 1000.0
-            commandBufferStatus.ExecutionEndTime = commandBuffer.gpuEndTime * 1000.0
+            // commandBufferStatus.ExecutionStartTime = commandBuffer.gpuStartTime * 1000.0
+            // commandBufferStatus.ExecutionEndTime = commandBuffer.gpuEndTime * 1000.0
 
             self.commandBuffersStatus[commandBufferId] = commandBufferStatus
         }

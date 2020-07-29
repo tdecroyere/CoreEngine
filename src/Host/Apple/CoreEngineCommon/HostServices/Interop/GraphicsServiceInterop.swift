@@ -111,6 +111,26 @@ func GraphicsService_deletePipelineStateInterop(context: UnsafeMutableRawPointer
     contextObject.deletePipelineState(UInt(pipelineStateId))
 }
 
+func GraphicsService_createQueryBufferInterop(context: UnsafeMutableRawPointer?, _ queryBufferId: UInt32, _ queryBufferType: GraphicsQueryBufferType, _ length: Int32) -> Int32 {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.createQueryBuffer(UInt(queryBufferId), queryBufferType, Int(length)) ? 1 : 0)
+}
+
+func GraphicsService_setQueryBufferLabelInterop(context: UnsafeMutableRawPointer?, _ queryBufferId: UInt32, _ label: UnsafeMutablePointer<Int8>?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setQueryBufferLabel(UInt(queryBufferId), String(cString: label!))
+}
+
+func GraphicsService_deleteQueryBufferInterop(context: UnsafeMutableRawPointer?, _ queryBufferId: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteQueryBuffer(UInt(queryBufferId))
+}
+
+func GraphicsService_getQueryBufferCpuPointerInterop(context: UnsafeMutableRawPointer?, _ queryBufferId: UInt32) -> UnsafeMutableRawPointer? {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.getQueryBufferCpuPointer(UInt(queryBufferId))
+}
+
 func GraphicsService_createCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UInt32, _ commandBufferType: GraphicsCommandBufferType, _ label: UnsafeMutablePointer<Int8>?) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return Int32(contextObject.createCommandBuffer(UInt(commandBufferId), commandBufferType, String(cString: label!)) ? 1 : 0)
@@ -256,6 +276,16 @@ func GraphicsService_drawPrimitivesInterop(context: UnsafeMutableRawPointer?, _ 
     contextObject.drawPrimitives(UInt(commandListId), primitiveType, Int(startVertex), Int(vertexCount))
 }
 
+func GraphicsService_queryTimestampInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ queryBufferId: UInt32, _ index: Int32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.queryTimestamp(UInt(commandListId), UInt(queryBufferId), Int(index))
+}
+
+func GraphicsService_resolveQueryDataInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ queryBufferId: UInt32, _ startIndex: Int32, _ endIndex: Int32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.resolveQueryData(UInt(commandListId), UInt(queryBufferId), Int(startIndex), Int(endIndex))
+}
+
 func GraphicsService_waitForCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ commandListToWaitId: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.waitForCommandList(UInt(commandListId), UInt(commandListToWaitId))
@@ -295,6 +325,10 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreatePipelineState = GraphicsService_createPipelineStateInterop
     service.GraphicsService_SetPipelineStateLabel = GraphicsService_setPipelineStateLabelInterop
     service.GraphicsService_DeletePipelineState = GraphicsService_deletePipelineStateInterop
+    service.GraphicsService_CreateQueryBuffer = GraphicsService_createQueryBufferInterop
+    service.GraphicsService_SetQueryBufferLabel = GraphicsService_setQueryBufferLabelInterop
+    service.GraphicsService_DeleteQueryBuffer = GraphicsService_deleteQueryBufferInterop
+    service.GraphicsService_GetQueryBufferCpuPointer = GraphicsService_getQueryBufferCpuPointerInterop
     service.GraphicsService_CreateCommandBuffer = GraphicsService_createCommandBufferInterop
     service.GraphicsService_DeleteCommandBuffer = GraphicsService_deleteCommandBufferInterop
     service.GraphicsService_ResetCommandBuffer = GraphicsService_resetCommandBufferInterop
@@ -324,6 +358,8 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetIndexBuffer = GraphicsService_setIndexBufferInterop
     service.GraphicsService_DrawIndexedPrimitives = GraphicsService_drawIndexedPrimitivesInterop
     service.GraphicsService_DrawPrimitives = GraphicsService_drawPrimitivesInterop
+    service.GraphicsService_QueryTimestamp = GraphicsService_queryTimestampInterop
+    service.GraphicsService_ResolveQueryData = GraphicsService_resolveQueryDataInterop
     service.GraphicsService_WaitForCommandList = GraphicsService_waitForCommandListInterop
     service.GraphicsService_PresentScreenBuffer = GraphicsService_presentScreenBufferInterop
     service.GraphicsService_WaitForAvailableScreenBuffer = GraphicsService_waitForAvailableScreenBufferInterop

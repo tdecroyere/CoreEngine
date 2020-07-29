@@ -43,7 +43,7 @@ namespace CoreEngine.Graphics
         internal List<GpuTiming> gpuTimings = new List<GpuTiming>();
 
         private List<uint> aliasableResources = new List<uint>();
-        
+
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
             if (graphicsService == null)
@@ -256,6 +256,49 @@ namespace CoreEngine.Graphics
             }
 
             return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, maxCommandCount, isStatic, label);
+        }
+
+        public QueryBuffer CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length, string label)
+        {
+            var queryBufferId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateQueryBuffer(queryBufferId, (GraphicsQueryBufferType)queryBufferType, length);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the query buffer resource.");
+            }
+
+            this.graphicsService.SetQueryBufferLabel(queryBufferId, label);
+
+            uint queryBufferId2 = GetNextGraphicsResourceId();
+            result = this.graphicsService.CreateQueryBuffer(queryBufferId2, (GraphicsQueryBufferType)queryBufferType, length);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the query buffer resource.");
+            }
+
+            this.graphicsService.SetQueryBufferLabel(queryBufferId2, label);
+
+            return new QueryBuffer(this, queryBufferId, queryBufferId2, length, label);
+        }
+
+        public void DeleteQueryBuffer(QueryBuffer queryBuffer)
+        {
+            this.graphicsService.DeleteQueryBuffer(queryBuffer.GraphicsResourceSystemId);
+
+            if (queryBuffer.GraphicsResourceSystemId2 != null)
+            {
+                this.graphicsService.DeleteQueryBuffer(queryBuffer.GraphicsResourceSystemId2.Value);
+            }
+        }
+
+        public unsafe Span<T> GetCpuQueryBufferPointer<T>(QueryBuffer queryBuffer) where T : struct
+        {
+            // TODO: Compute the size of an element base of the query type
+            
+            var cpuPointer = this.graphicsService.GetQueryBufferCpuPointer(queryBuffer.GraphicsResourceId);
+            return new Span<T>(cpuPointer.ToPointer(), queryBuffer.Length * Marshal.SizeOf<ulong>() / Marshal.SizeOf(typeof(T)));
         }
 
         internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label)
@@ -655,6 +698,17 @@ namespace CoreEngine.Graphics
                                                 vertexCount);
 
             this.cpuDrawCount++;
+        }
+
+        public void QueryTimestamp(CommandList commandList, QueryBuffer queryBuffer, int index)
+        {
+            this.graphicsService.QueryTimestamp(commandList.Id, queryBuffer.GraphicsResourceId, index);
+        }
+
+        public void ResolveQueryData(CommandList commandList, QueryBuffer queryBuffer, Range range)
+        {
+            var offsetAndLength = range.GetOffsetAndLength(queryBuffer.Length);
+            this.graphicsService.ResolveQueryData(commandList.Id, queryBuffer.GraphicsResourceId, offsetAndLength.Offset, offsetAndLength.Length);
         }
 
         public void WaitForCommandList(CommandList commandList, CommandList commandListToWait)

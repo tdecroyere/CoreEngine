@@ -23,6 +23,10 @@ public protocol GraphicsServiceProtocol {
     func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> Bool
     func setPipelineStateLabel(_ pipelineStateId: UInt, _ label: String)
     func deletePipelineState(_ pipelineStateId: UInt)
+    func createQueryBuffer(_ queryBufferId: UInt, _ queryBufferType: GraphicsQueryBufferType, _ length: Int) -> Bool
+    func setQueryBufferLabel(_ queryBufferId: UInt, _ label: String)
+    func deleteQueryBuffer(_ queryBufferId: UInt)
+    func getQueryBufferCpuPointer(_ queryBufferId: UInt) -> UnsafeMutableRawPointer?
     func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool
     func deleteCommandBuffer(_ commandBufferId: UInt)
     func resetCommandBuffer(_ commandBufferId: UInt)
@@ -52,6 +56,8 @@ public protocol GraphicsServiceProtocol {
     func setIndexBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt)
     func drawIndexedPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ instanceCount: Int, _ baseInstanceId: Int)
     func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startVertex: Int, _ vertexCount: Int)
+    func queryTimestamp(_ commandListId: UInt, _ queryBufferId: UInt, _ index: Int)
+    func resolveQueryData(_ commandListId: UInt, _ queryBufferId: UInt, _ startIndex: Int, _ endIndex: Int)
     func waitForCommandList(_ commandListId: UInt, _ commandListToWaitId: UInt)
     func presentScreenBuffer(_ commandBufferId: UInt)
     func waitForAvailableScreenBuffer()

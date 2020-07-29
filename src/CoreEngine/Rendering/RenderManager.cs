@@ -25,6 +25,9 @@ namespace CoreEngine.Rendering
         private CommandBuffer presentCommandBuffer;
         private Shader computeDirectTransferShader;
 
+        private QueryBuffer globalQueryBuffer;
+        private int currentQueryIndex;
+
         public RenderManager(GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
         {
             if (graphicsManager == null)
@@ -54,6 +57,8 @@ namespace CoreEngine.Rendering
             
             this.presentCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "PresentScreenBuffer");
 
+            // TODO: TESTS: TO REMOVE
+            this.globalQueryBuffer = this.graphicsManager.CreateQueryBuffer(GraphicsQueryBufferType.Timestamp, 1000, "RendererQueryBuffer");
         }
 
         public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
@@ -93,16 +98,27 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager.WaitForCommandList(renderCommandList, previousCommandList);
 
+            this.graphicsManager.QueryTimestamp(renderCommandList, this.globalQueryBuffer, this.currentQueryIndex++);
+
             this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
             this.graphicsManager.SetShaderTexture(renderCommandList, mainRenderTargetTexture, 0);
             this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
+            this.graphicsManager.QueryTimestamp(renderCommandList, this.globalQueryBuffer, this.currentQueryIndex++);
             this.graphicsManager.CommitRenderCommandList(renderCommandList);
 
             this.graphicsManager.graphicsService.PresentScreenBuffer(presentCommandBuffer.GraphicsResourceId);
             this.graphicsManager.ExecuteCommandBuffer(presentCommandBuffer);
 
             this.graphicsManager.WaitForAvailableScreenBuffer();
+            this.currentQueryIndex = 0;
+            
+            var queryData = this.graphicsManager.GetCpuQueryBufferPointer<ulong>(this.globalQueryBuffer);
+
+            // TODO: Add a query GPU frequency method, it works for now because AMG Radeon 580 Pro is using nano seconds timestamps
+            var startNano = queryData[0];
+            var endNano = queryData[1];
+            Logger.WriteMessage($"{queryData.Length} - {(double)(endNano - startNano) / 1000000.0}");
         }
 
         private void DrawDebugMessages()

@@ -133,6 +133,30 @@ void DeletePipelineStateInterop(void* context, unsigned int pipelineStateId)
     contextObject->DeletePipelineState(pipelineStateId);
 }
 
+int CreateQueryBufferInterop(void* context, unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->CreateQueryBuffer(queryBufferId, queryBufferType, length);
+}
+
+void SetQueryBufferLabelInterop(void* context, unsigned int queryBufferId, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetQueryBufferLabel(queryBufferId, label);
+}
+
+void DeleteQueryBufferInterop(void* context, unsigned int queryBufferId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteQueryBuffer(queryBufferId);
+}
+
+void* GetQueryBufferCpuPointerInterop(void* context, unsigned int queryBufferId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->GetQueryBufferCpuPointer(queryBufferId);
+}
+
 int CreateCommandBufferInterop(void* context, unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -307,6 +331,18 @@ void DrawPrimitivesInterop(void* context, unsigned int commandListId, enum Graph
     contextObject->DrawPrimitives(commandListId, primitiveType, startVertex, vertexCount);
 }
 
+void QueryTimestampInterop(void* context, unsigned int commandListId, unsigned int queryBufferId, int index)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->QueryTimestamp(commandListId, queryBufferId, index);
+}
+
+void ResolveQueryDataInterop(void* context, unsigned int commandListId, unsigned int queryBufferId, int startIndex, int endIndex)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->ResolveQueryData(commandListId, queryBufferId, startIndex, endIndex);
+}
+
 void WaitForCommandListInterop(void* context, unsigned int commandListId, unsigned int commandListToWaitId)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -350,6 +386,10 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_CreatePipelineState = CreatePipelineStateInterop;
     service->GraphicsService_SetPipelineStateLabel = SetPipelineStateLabelInterop;
     service->GraphicsService_DeletePipelineState = DeletePipelineStateInterop;
+    service->GraphicsService_CreateQueryBuffer = CreateQueryBufferInterop;
+    service->GraphicsService_SetQueryBufferLabel = SetQueryBufferLabelInterop;
+    service->GraphicsService_DeleteQueryBuffer = DeleteQueryBufferInterop;
+    service->GraphicsService_GetQueryBufferCpuPointer = GetQueryBufferCpuPointerInterop;
     service->GraphicsService_CreateCommandBuffer = CreateCommandBufferInterop;
     service->GraphicsService_DeleteCommandBuffer = DeleteCommandBufferInterop;
     service->GraphicsService_ResetCommandBuffer = ResetCommandBufferInterop;
@@ -379,6 +419,8 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_SetIndexBuffer = SetIndexBufferInterop;
     service->GraphicsService_DrawIndexedPrimitives = DrawIndexedPrimitivesInterop;
     service->GraphicsService_DrawPrimitives = DrawPrimitivesInterop;
+    service->GraphicsService_QueryTimestamp = QueryTimestampInterop;
+    service->GraphicsService_ResolveQueryData = ResolveQueryDataInterop;
     service->GraphicsService_WaitForCommandList = WaitForCommandListInterop;
     service->GraphicsService_PresentScreenBuffer = PresentScreenBufferInterop;
     service->GraphicsService_WaitForAvailableScreenBuffer = WaitForAvailableScreenBufferInterop;

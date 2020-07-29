@@ -73,6 +73,11 @@ enum GraphicsCommandBufferState : int
     Error
 };
 
+enum GraphicsQueryBufferType : int
+{
+    Timestamp
+};
+
 struct GraphicsAllocationInfos
 {
     int SizeInBytes;
@@ -156,6 +161,10 @@ typedef void (*GraphicsService_DeleteShaderPtr)(void* context, unsigned int shad
 typedef int (*GraphicsService_CreatePipelineStatePtr)(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_SetPipelineStateLabelPtr)(void* context, unsigned int pipelineStateId, char* label);
 typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, unsigned int pipelineStateId);
+typedef int (*GraphicsService_CreateQueryBufferPtr)(void* context, unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length);
+typedef void (*GraphicsService_SetQueryBufferLabelPtr)(void* context, unsigned int queryBufferId, char* label);
+typedef void (*GraphicsService_DeleteQueryBufferPtr)(void* context, unsigned int queryBufferId);
+typedef void* (*GraphicsService_GetQueryBufferCpuPointerPtr)(void* context, unsigned int queryBufferId);
 typedef int (*GraphicsService_CreateCommandBufferPtr)(void* context, unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label);
 typedef void (*GraphicsService_DeleteCommandBufferPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_ResetCommandBufferPtr)(void* context, unsigned int commandBufferId);
@@ -185,6 +194,8 @@ typedef void (*GraphicsService_ExecuteIndirectCommandBufferPtr)(void* context, u
 typedef void (*GraphicsService_SetIndexBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId);
 typedef void (*GraphicsService_DrawIndexedPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
 typedef void (*GraphicsService_DrawPrimitivesPtr)(void* context, unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+typedef void (*GraphicsService_QueryTimestampPtr)(void* context, unsigned int commandListId, unsigned int queryBufferId, int index);
+typedef void (*GraphicsService_ResolveQueryDataPtr)(void* context, unsigned int commandListId, unsigned int queryBufferId, int startIndex, int endIndex);
 typedef void (*GraphicsService_WaitForCommandListPtr)(void* context, unsigned int commandListId, unsigned int commandListToWaitId);
 typedef void (*GraphicsService_PresentScreenBufferPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_WaitForAvailableScreenBufferPtr)(void* context);
@@ -214,6 +225,10 @@ struct GraphicsService
     GraphicsService_CreatePipelineStatePtr GraphicsService_CreatePipelineState;
     GraphicsService_SetPipelineStateLabelPtr GraphicsService_SetPipelineStateLabel;
     GraphicsService_DeletePipelineStatePtr GraphicsService_DeletePipelineState;
+    GraphicsService_CreateQueryBufferPtr GraphicsService_CreateQueryBuffer;
+    GraphicsService_SetQueryBufferLabelPtr GraphicsService_SetQueryBufferLabel;
+    GraphicsService_DeleteQueryBufferPtr GraphicsService_DeleteQueryBuffer;
+    GraphicsService_GetQueryBufferCpuPointerPtr GraphicsService_GetQueryBufferCpuPointer;
     GraphicsService_CreateCommandBufferPtr GraphicsService_CreateCommandBuffer;
     GraphicsService_DeleteCommandBufferPtr GraphicsService_DeleteCommandBuffer;
     GraphicsService_ResetCommandBufferPtr GraphicsService_ResetCommandBuffer;
@@ -243,6 +258,8 @@ struct GraphicsService
     GraphicsService_SetIndexBufferPtr GraphicsService_SetIndexBuffer;
     GraphicsService_DrawIndexedPrimitivesPtr GraphicsService_DrawIndexedPrimitives;
     GraphicsService_DrawPrimitivesPtr GraphicsService_DrawPrimitives;
+    GraphicsService_QueryTimestampPtr GraphicsService_QueryTimestamp;
+    GraphicsService_ResolveQueryDataPtr GraphicsService_ResolveQueryData;
     GraphicsService_WaitForCommandListPtr GraphicsService_WaitForCommandList;
     GraphicsService_PresentScreenBufferPtr GraphicsService_PresentScreenBuffer;
     GraphicsService_WaitForAvailableScreenBufferPtr GraphicsService_WaitForAvailableScreenBuffer;

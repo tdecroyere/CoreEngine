@@ -168,7 +168,6 @@ typedef int (*GraphicsService_CreateCommandBufferPtr)(void* context, unsigned in
 typedef void (*GraphicsService_DeleteCommandBufferPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_ResetCommandBufferPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_ExecuteCommandBufferPtr)(void* context, unsigned int commandBufferId);
-typedef struct NullableGraphicsCommandBufferStatus (*GraphicsService_GetCommandBufferStatusPtr)(void* context, unsigned int commandBufferId);
 typedef void (*GraphicsService_SetShaderBufferPtr)(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index);
 typedef void (*GraphicsService_SetShaderBuffersPtr)(void* context, unsigned int commandListId, unsigned int* graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index);
 typedef void (*GraphicsService_SetShaderTexturePtr)(void* context, unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index);
@@ -231,7 +230,6 @@ struct GraphicsService
     GraphicsService_DeleteCommandBufferPtr GraphicsService_DeleteCommandBuffer;
     GraphicsService_ResetCommandBufferPtr GraphicsService_ResetCommandBuffer;
     GraphicsService_ExecuteCommandBufferPtr GraphicsService_ExecuteCommandBuffer;
-    GraphicsService_GetCommandBufferStatusPtr GraphicsService_GetCommandBufferStatus;
     GraphicsService_SetShaderBufferPtr GraphicsService_SetShaderBuffer;
     GraphicsService_SetShaderBuffersPtr GraphicsService_SetShaderBuffers;
     GraphicsService_SetShaderTexturePtr GraphicsService_SetShaderTexture;

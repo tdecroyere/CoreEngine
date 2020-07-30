@@ -92,9 +92,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var computePipelineStates: [UInt: MTLComputePipelineState]
 
     var commandListFences: [UInt: MTLFence]
-
     var commandBuffers: [UInt: MTLCommandBuffer]
-    var commandBuffersStatus: [UInt: GraphicsCommandBufferStatus]
 
     var copyCommandEncoders: [UInt: MTLBlitCommandEncoder]
     var computeCommandEncoders: [UInt: MTLComputeCommandEncoder]
@@ -105,9 +103,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var textures: [UInt: MTLTexture]
     var indirectCommandBuffers: [UInt: MTLIndirectCommandBuffer]
     var queryBuffers: [UInt: MTLCounterSampleBuffer]
-    var queryBuffersData: [UInt: UnsafeMutablePointer<UInt8>]
-
-    let commandBufferStatusConcurrentQueue: DispatchQueue
 
     public init(view: MetalView, renderWidth: Int, renderHeight: Int) {
         let defaultDevice = MTLCreateSystemDefaultDevice()!
@@ -149,8 +144,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.textures = [:]
         self.indirectCommandBuffers = [:]
         self.queryBuffers = [:]
-        self.queryBuffersData = [:]
-        self.commandBuffersStatus = [:]
         self.renderCommandRTs = [:]
 
         self.frameSemaphore = DispatchSemaphore.init(value: 1);
@@ -176,8 +169,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.depthNoneOperationState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)!
 
         self.commandQueue = self.device.makeCommandQueue(maxCommandBufferCount: 1000)
-
-        self.commandBufferStatusConcurrentQueue = DispatchQueue(label: "MetalGraphicsService.resetCommandBuffer", qos: .userInteractive)
     }
 
     public func getRenderSize() -> Vector2 {
@@ -608,7 +599,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
 
         var foundCounterSet: MTLCounterSet? = nil
-        var elementSize = MemoryLayout<UInt64>.size
         
         for systemCounterSet in counterSets {
             if (systemCounterSet.name == "timestamp" as String && queryBufferType == Timestamp) {
@@ -630,9 +620,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         do {
             let queryBuffer = try self.device.makeCounterSampleBuffer(descriptor: descriptor)
             self.queryBuffers[queryBufferId] = queryBuffer
-
-            let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: length * elementSize)
-            self.queryBuffersData[queryBufferId] = pointer
         } catch {
             print("Failed to create query buffer, \(error)")
             return false
@@ -647,34 +634,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func deleteQueryBuffer(_ queryBufferId: UInt) {
         self.queryBuffers[queryBufferId] = nil
-
-        guard let queryBufferData = self.queryBuffersData[queryBufferId] else {
-            return
-        }
-
-        queryBufferData.deallocate()
-        self.queryBuffersData[queryBufferId] = nil
-    }
-
-    public func getQueryBufferCpuPointer(_ queryBufferId: UInt) -> UnsafeMutableRawPointer? {
-        guard let queryBuffer = self.queryBuffers[queryBufferId] else {
-            print("getQueryBufferCpuPointer: Query buffer is nil.")
-            return nil
-        }
-
-        guard let queryBufferData = self.queryBuffersData[queryBufferId] else {
-            return nil
-        }
-
-        do {
-            let data = try queryBuffer.resolveCounterRange(0..<queryBuffer.sampleCount)!
-            data.copyBytes(to: queryBufferData, from: 0..<data.count)
-
-            return UnsafeMutableRawPointer(queryBufferData)
-        } catch {
-            print("getQueryBufferCpuPointer: Unable to resolve query buffer, \(error)")
-            return nil
-        }
     }
 
     public func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool {
@@ -682,20 +641,12 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func deleteCommandBuffer(_ commandBufferId: UInt) {
-        self.commandBuffersStatus[commandBufferId] = nil
     }
 
     public func resetCommandBuffer(_ commandBufferId: UInt) {
         guard let commandBuffer = self.commandQueue.makeCommandBuffer() else {
             print("ERROR creating command buffer.")
             return
-        }
-
-        commandBufferStatusConcurrentQueue.sync() {
-            var status = GraphicsCommandBufferStatus()
-            status.State = Created
-
-            self.commandBuffersStatus[commandBufferId] = status
         }
 
         commandBuffer.label = "CommandBuffer\(self.currentFrameNumber)_"
@@ -715,24 +666,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
             self.commandBuffers[commandBufferId] = nil
         }
-
-        guard var commandBufferStatus = self.commandBuffersStatus[commandBufferId] else {
-            return
-        }
-
-        commandBufferStatus.State = Committed
-        
-        commandBufferStatusConcurrentQueue.sync() {
-            self.commandBuffersStatus[commandBufferId] = commandBufferStatus
-        }
-    }
-
-    public func getCommandBufferStatus(_ commandBufferId: UInt) -> NullableGraphicsCommandBufferStatus {
-        guard let status = self.commandBuffersStatus[commandBufferId] else {
-            return NullableGraphicsCommandBufferStatus(HasValue: 0, Value: GraphicsCommandBufferStatus())
-        }
-
-        return NullableGraphicsCommandBufferStatus(HasValue: 1, Value: status)
     }
 
     public func createCopyCommandList(_ commandListId: UInt, _ commandBufferId: UInt, _ label: String) -> Bool {
@@ -1466,8 +1399,24 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         }
     }
 
-    public func resolveQueryData(_ commandListId: UInt, _ queryBufferId: UInt, _ startIndex: Int, _ endIndex: Int) {
-        
+    public func resolveQueryData(_ commandListId: UInt, _ queryBufferId: UInt, _ destinationBufferId: UInt, _ startIndex: Int, _ endIndex: Int) {
+        guard let queryBuffer = self.queryBuffers[queryBufferId] else {
+            print("resolveQueryData: Query buffer is nil.")
+            return
+        }
+
+        guard let destinationBuffer = self.graphicsBuffers[destinationBufferId] else {
+            print("resolveQueryData: Query buffer is nil.")
+            return
+        }
+
+        do {
+            let data = try queryBuffer.resolveCounterRange(0..<queryBuffer.sampleCount)!
+            data.copyBytes(to: destinationBuffer.contents().assumingMemoryBound(to: UInt8.self), from: 0..<data.count)
+        } catch {
+            print("resolveQueryData: Unable to resolve query buffer, \(error)")
+            return
+        }
     }
 
     public func waitForCommandList(_ commandListId: UInt, _ commandListToWaitId: UInt) {
@@ -1541,18 +1490,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         if (commandBuffer.error != nil) {
             //self.gpuError = true
             print("GPU ERROR: \(commandBuffer.error!)")
-        }
-
-        commandBufferStatusConcurrentQueue.sync() {
-            guard var commandBufferStatus = self.commandBuffersStatus[commandBufferId] else {
-                return
-            }
-
-            commandBufferStatus.State = Completed
-            // commandBufferStatus.ExecutionStartTime = commandBuffer.gpuStartTime * 1000.0
-            // commandBufferStatus.ExecutionEndTime = commandBuffer.gpuEndTime * 1000.0
-
-            self.commandBuffersStatus[commandBufferId] = commandBufferStatus
         }
     }
 }

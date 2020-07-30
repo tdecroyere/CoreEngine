@@ -173,8 +173,10 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
 
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList(this.copyCommandBuffer, "DebugCopyCommandList");
+                var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
                 this.graphicsManager.CopyDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.cpuVertexBuffer, this.currentDebugLineIndex * 4);
                 this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.cpuIndexBuffer, this.currentDebugLineIndex * 2);
+                var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
                 this.graphicsManager.CommitCopyCommandList(copyCommandList);
                 this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
@@ -186,6 +188,7 @@ namespace CoreEngine.Rendering
 
                 this.graphicsManager.WaitForCommandList(commandList, copyCommandList);
                 this.graphicsManager.WaitForCommandList(commandList, previousCommandList);
+                var startQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
 
                 this.graphicsManager.SetShader(commandList, this.shader);
                 this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
@@ -193,8 +196,13 @@ namespace CoreEngine.Rendering
 
                 this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
                 this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+
+                var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
                 this.graphicsManager.CommitRenderCommandList(commandList);
                 this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+
+                this.renderManager.AddGpuTiming("DebugRendererCopy", startCopyQueryIndex, endCopyQueryIndex);
+                this.renderManager.AddGpuTiming("DebugRenderer", startQueryIndex, endQueryIndex);
 
                 return commandList;
             }

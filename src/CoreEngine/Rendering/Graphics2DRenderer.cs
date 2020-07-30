@@ -60,6 +60,7 @@ namespace CoreEngine.Rendering
 
     public class Graphics2DRenderer : SystemManager
     {
+        private readonly RenderManager renderManager;
         private readonly GraphicsManager graphicsManager;
         
         private int currentSurfaceCount;
@@ -97,6 +98,7 @@ namespace CoreEngine.Rendering
                 throw new ArgumentNullException(nameof(resourcesManager));
             }
 
+            this.renderManager = renderManager;
             this.graphicsManager = graphicsManager;
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/Graphics2DRender.shader");
@@ -237,8 +239,10 @@ namespace CoreEngine.Rendering
                 this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
 
                 var copyCommandList = this.graphicsManager.CreateCopyCommandList(copyCommandBuffer, "Graphics2DCopyCommandList");
+                var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
                 this.graphicsManager.CopyDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, this.cpuRenderPassParametersGraphicsBuffer, 1);
                 this.graphicsManager.CopyDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.cpuRectangleSurfacesGraphicsBuffer, this.currentSurfaceCount);
+                var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
                 this.graphicsManager.CommitCopyCommandList(copyCommandList);
                 this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
 
@@ -249,6 +253,7 @@ namespace CoreEngine.Rendering
 
                 this.graphicsManager.WaitForCommandList(commandList, copyCommandList);
                 this.graphicsManager.WaitForCommandList(commandList, previousCommandList);
+                var startQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
 
                 this.graphicsManager.SetShader(commandList, this.shader);
                 this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
@@ -261,9 +266,12 @@ namespace CoreEngine.Rendering
                 // Don't use a vertex buffer and an index, use instances instead
                 this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
+                var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
                 this.graphicsManager.CommitRenderCommandList(commandList);
-
                 this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+
+                this.renderManager.AddGpuTiming("Graphics2DRendererCopy", startCopyQueryIndex, endCopyQueryIndex);
+                this.renderManager.AddGpuTiming("Graphics2DRenderer", startQueryIndex, endQueryIndex);
 
                 return commandList;
             }

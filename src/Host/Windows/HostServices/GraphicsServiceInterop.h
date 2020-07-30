@@ -175,12 +175,6 @@ void ExecuteCommandBufferInterop(void* context, unsigned int commandBufferId)
     contextObject->ExecuteCommandBuffer(commandBufferId);
 }
 
-NullableGraphicsCommandBufferStatus GetCommandBufferStatusInterop(void* context, unsigned int commandBufferId)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->GetCommandBufferStatus(commandBufferId);
-}
-
 void SetShaderBufferInterop(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -387,7 +381,6 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_DeleteCommandBuffer = DeleteCommandBufferInterop;
     service->GraphicsService_ResetCommandBuffer = ResetCommandBufferInterop;
     service->GraphicsService_ExecuteCommandBuffer = ExecuteCommandBufferInterop;
-    service->GraphicsService_GetCommandBufferStatus = GetCommandBufferStatusInterop;
     service->GraphicsService_SetShaderBuffer = SetShaderBufferInterop;
     service->GraphicsService_SetShaderBuffers = SetShaderBuffersInterop;
     service->GraphicsService_SetShaderTexture = SetShaderTextureInterop;

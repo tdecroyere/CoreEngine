@@ -10,18 +10,26 @@ using CoreEngine.HostServices; // TODO: Remove that using
 
 namespace CoreEngine.Rendering
 {
-    public readonly struct GpuTiming
+    public class GpuTiming
     {
-        public GpuTiming(string name, double startTiming, double endTiming)
+        public GpuTiming(string name, int startIndex, int endIndex)
         {
             this.Name = name;
-            this.StartTiming = startTiming;
-            this.EndTiming = endTiming;
+            this.StartIndex = startIndex;
+            this.EndIndex = endIndex;
+            this.StartTiming = 0.0;
+            this.EndTiming = 0.0;
+            this.StartTimestamp = 0;
+            this.EndTimestamp = 0;
         }
 
         public string Name { get; }
-        public double StartTiming { get; }
-        public double EndTiming { get; }
+        public int StartIndex { get; }
+        public int EndIndex { get; }
+        public ulong StartTimestamp { get; set; }
+        public ulong EndTimestamp { get; set; }
+        public double StartTiming { get; set; }
+        public double EndTiming { get; set; }
     }
 
     public class RenderManager : SystemManager
@@ -84,7 +92,7 @@ namespace CoreEngine.Rendering
             this.gpuTimingsList[1] = new List<GpuTiming>();
 
             this.gpuTimings = this.gpuTimingsList[0];
-            this.currentGpuTimings = this.gpuTimings;
+            this.currentGpuTimings = new List<GpuTiming>(this.gpuTimings);
         }
 
         public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
@@ -95,6 +103,19 @@ namespace CoreEngine.Rendering
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
         internal int LightsCount { get; set; }
+
+        public int InsertQueryTimestamp(CommandList commandList)
+        {
+            var queryIndex = this.currentQueryIndex;
+            this.graphicsManager.QueryTimestamp(commandList, this.globalQueryBuffer, this.currentQueryIndex++);
+
+            return queryIndex;
+        }
+
+        public void AddGpuTiming(string name, int startQueryIndex, int endQueryIndex)
+        {
+            this.gpuTimings.Add(new GpuTiming(name, startQueryIndex, endQueryIndex));
+        }
 
         List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
 
@@ -123,37 +144,54 @@ namespace CoreEngine.Rendering
             var renderCommandList = this.graphicsManager.CreateRenderCommandList(presentCommandBuffer, renderPassDescriptor, "PresentRenderCommandList");
 
             this.graphicsManager.WaitForCommandList(renderCommandList, previousCommandList);
-
-            this.graphicsManager.QueryTimestamp(renderCommandList, this.globalQueryBuffer, this.currentQueryIndex++);
+            var startQueryIndex = InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
             this.graphicsManager.SetShaderTexture(renderCommandList, mainRenderTargetTexture, 0);
             this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
-            this.graphicsManager.QueryTimestamp(renderCommandList, this.globalQueryBuffer, this.currentQueryIndex++);
             this.graphicsManager.ResolveQueryData(renderCommandList, this.globalQueryBuffer, this.globalCpuQueryBuffer, 0..this.globalQueryBuffer.Length);
+
+            var endQueryIndex = InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.CommitRenderCommandList(renderCommandList);
 
             this.graphicsManager.graphicsService.PresentScreenBuffer(presentCommandBuffer.GraphicsResourceId);
             this.graphicsManager.ExecuteCommandBuffer(presentCommandBuffer);
 
-            this.graphicsManager.WaitForAvailableScreenBuffer();
-            this.currentQueryIndex = 0;
+            AddGpuTiming("PresentScreenBuffer", startQueryIndex, endQueryIndex);
 
+            this.graphicsManager.WaitForAvailableScreenBuffer();
+            ResetGpuTimers();
+        }
+
+        private void ResetGpuTimers()
+        {
+            this.currentQueryIndex = 0;
             this.gpuTimings = this.gpuTimingsList[(int)this.graphicsManager.CurrentFrameNumber % 2];
             
             this.currentGpuTimings.Clear();
             this.currentGpuTimings.AddRange(this.gpuTimings);
             this.gpuTimings.Clear();
 
-            // TODO: Resolve timers
+            var queryData = this.graphicsManager.GetCpuGraphicsBufferPointer<ulong>(this.globalCpuQueryBuffer);
 
+            for (var i = 0; i < this.currentGpuTimings.Count; i++)
+            {
+                var gpuTiming = this.currentGpuTimings[i];
+
+                // TODO: Add a query GPU frequency method, it works for now because AMG Radeon 580 Pro is using nano seconds timestamps
+                var frequency = 25000000.0;
+
+                gpuTiming.StartTimestamp = queryData[gpuTiming.StartIndex];
+                gpuTiming.EndTimestamp = queryData[gpuTiming.EndIndex];
+                gpuTiming.StartTiming = gpuTiming.StartTimestamp / frequency * 1000.0;
+                gpuTiming.EndTiming = gpuTiming.EndTimestamp / frequency * 1000.0;
+            }
         }
 
         private void DrawDebugMessages()
         {
             // TODO: Seperate timing calculations from debug display
-
             var frameDuration = (float)this.stopwatch.ElapsedTicks / Stopwatch.Frequency * 1000;
 
             if (this.globalStopwatch.ElapsedMilliseconds > 1000)
@@ -168,34 +206,6 @@ namespace CoreEngine.Rendering
 
             var renderSize = this.graphicsManager.GetRenderSize();
 
-            // var commandBufferStatus = this.graphicsManager.graphicsService.GetCommandBufferStatus(this.Graphics2DRenderer.commandBuffer.GraphicsResourceId);
-
-            // if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-            // {
-            //     this.graphicsManager.gpuTimings.Add(new GpuTiming(this.Graphics2DRenderer.commandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-            // }
-
-            // commandBufferStatus = this.graphicsManager.graphicsService.GetCommandBufferStatus(this.Graphics2DRenderer.copyCommandBuffer.GraphicsResourceId);
-
-            // if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-            // {
-            //     this.graphicsManager.gpuTimings.Add(new GpuTiming(this.Graphics2DRenderer.copyCommandBuffer.Label, commandBufferStatus.Value.ExecutionStartTime, commandBufferStatus.Value.ExecutionEndTime));
-            // }
-
-            var commandBufferStatus = this.graphicsManager.graphicsService.GetCommandBufferStatus(this.presentCommandBuffer.GraphicsResourceId);
-
-            if (commandBufferStatus != null && commandBufferStatus.Value.State == GraphicsCommandBufferState.Completed)
-            {
-                var queryData = this.graphicsManager.GetCpuGraphicsBufferPointer<ulong>(this.globalCpuQueryBuffer);
-                // TODO: Add a query GPU frequency method, it works for now because AMG Radeon 580 Pro is using nano seconds timestamps
-                var frequency = 25000000.0;
-
-                var startTime = queryData[0] / frequency * 1000.0;
-                var endTime = queryData[1] / frequency * 1000.0;
-
-                this.currentGpuTimings.Add(new GpuTiming(this.presentCommandBuffer.Label, startTime, endTime));
-            }
-
             this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {renderSize.X}x{renderSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory + this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB (Static: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}, Transient: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)})", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {Utils.BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
@@ -208,7 +218,8 @@ namespace CoreEngine.Rendering
 
             this.currentGpuTimings.Sort((a, b) => 
             {
-                var result = Math.Round(a.StartTiming, 2).CompareTo(Math.Round(b.StartTiming, 2));
+                // var result = Math.Round(a.StartTiming, 2).CompareTo(Math.Round(b.StartTiming, 2));
+                var result = a.StartTiming.CompareTo(b.StartTiming);
 
                 if (result == 0)
                 {
@@ -224,7 +235,9 @@ namespace CoreEngine.Rendering
 
                 foreach (var timing in this.previousGpuTiming)
                 {
-                    if (this.currentGpuTimings.Find(x => x.Name == timing.Name).StartTiming == 0.0)
+                    var foundTiming = this.currentGpuTimings.Find(x => x.Name == timing.Name);
+
+                    if (foundTiming != null && foundTiming.StartTiming == 0.0)
                     {
                         Logger.WriteMessage($"Gpu timing: {timing.Name}");
                     }

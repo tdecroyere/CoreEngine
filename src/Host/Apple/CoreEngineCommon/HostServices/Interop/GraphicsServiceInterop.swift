@@ -146,11 +146,6 @@ func GraphicsService_executeCommandBufferInterop(context: UnsafeMutableRawPointe
     contextObject.executeCommandBuffer(UInt(commandBufferId))
 }
 
-func GraphicsService_getCommandBufferStatusInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UInt32) -> NullableGraphicsCommandBufferStatus {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.getCommandBufferStatus(UInt(commandBufferId))
-}
-
 func GraphicsService_setShaderBufferInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ graphicsBufferId: UInt32, _ slot: Int32, _ isReadOnly: Int32, _ index: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.setShaderBuffer(UInt(commandListId), UInt(graphicsBufferId), Int(slot), Bool(isReadOnly == 1), Int(index))
@@ -327,7 +322,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_DeleteCommandBuffer = GraphicsService_deleteCommandBufferInterop
     service.GraphicsService_ResetCommandBuffer = GraphicsService_resetCommandBufferInterop
     service.GraphicsService_ExecuteCommandBuffer = GraphicsService_executeCommandBufferInterop
-    service.GraphicsService_GetCommandBufferStatus = GraphicsService_getCommandBufferStatusInterop
     service.GraphicsService_SetShaderBuffer = GraphicsService_setShaderBufferInterop
     service.GraphicsService_SetShaderBuffers = GraphicsService_setShaderBuffersInterop
     service.GraphicsService_SetShaderTexture = GraphicsService_setShaderTextureInterop

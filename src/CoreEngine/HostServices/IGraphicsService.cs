@@ -325,11 +325,6 @@ namespace CoreEngine.HostServices
         void ResetCommandBuffer(uint commandBufferId);
         void ExecuteCommandBuffer(uint commandBufferId);
 
-        // TODO: Add a general SetDebugLabel method and remove the label parameter from the create methods
-
-        // TODO: Replace that with an api that insert gpu timing events into the command lists
-        GraphicsCommandBufferStatus? GetCommandBufferStatus(uint commandBufferId);
-
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
         void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index);

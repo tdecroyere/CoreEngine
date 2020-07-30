@@ -30,7 +30,6 @@ public protocol GraphicsServiceProtocol {
     func deleteCommandBuffer(_ commandBufferId: UInt)
     func resetCommandBuffer(_ commandBufferId: UInt)
     func executeCommandBuffer(_ commandBufferId: UInt)
-    func getCommandBufferStatus(_ commandBufferId: UInt) -> NullableGraphicsCommandBufferStatus
     func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
     func setShaderBuffers(_ commandListId: UInt, _ graphicsBufferIdList: [UInt32], _ slot: Int, _ index: Int)
     func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int)

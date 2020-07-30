@@ -23,6 +23,16 @@ public protocol GraphicsServiceProtocol {
     func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> Bool
     func setPipelineStateLabel(_ pipelineStateId: UInt, _ label: String)
     func deletePipelineState(_ pipelineStateId: UInt)
+    func createCommandQueue(_ commandQueueId: UInt, _ commandQueueType: GraphicsCommandType) -> Bool
+    func setCommandQueueLabel(_ commandQueueId: UInt, _ label: String)
+    func deleteCommandQueue(_ commandQueueId: UInt)
+    func getCommandQueueTimestampFrequency(_ commandQueueId: UInt) -> UInt
+    func executeCommandLists(_ commandQueueId: UInt, _ commandLists: [UInt32], _ isAwaitable: Bool) -> UInt
+    func createCommandList(_ commandListId: UInt, _ commandQueueId: UInt, _ commandListType: GraphicsCommandType) -> Bool
+    func setCommandListLabel(_ commandListId: UInt, _ label: String)
+    func deleteCommandList(_ commandListId: UInt)
+    func resetCommandList(_ commandListId: UInt)
+    func commitCommandList(_ commandListId: UInt)
     func createQueryBuffer(_ queryBufferId: UInt, _ queryBufferType: GraphicsQueryBufferType, _ length: Int) -> Bool
     func setQueryBufferLabel(_ queryBufferId: UInt, _ label: String)
     func deleteQueryBuffer(_ queryBufferId: UInt)

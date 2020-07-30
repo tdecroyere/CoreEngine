@@ -1,6 +1,13 @@
 #pragma once
 #include "CoreEngine.h"
 
+enum GraphicsCommandBufferType : int
+{
+    RenderOld, 
+    CopyOld, 
+    ComputeOld
+};
+
 enum GraphicsServiceHeapType : int
 {
     Gpu, 
@@ -8,7 +15,7 @@ enum GraphicsServiceHeapType : int
     ReadBack
 };
 
-enum GraphicsCommandBufferType : int
+enum GraphicsCommandType : int
 {
     Render, 
     Copy, 
@@ -161,6 +168,16 @@ typedef void (*GraphicsService_DeleteShaderPtr)(void* context, unsigned int shad
 typedef int (*GraphicsService_CreatePipelineStatePtr)(void* context, unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_SetPipelineStateLabelPtr)(void* context, unsigned int pipelineStateId, char* label);
 typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, unsigned int pipelineStateId);
+typedef int (*GraphicsService_CreateCommandQueuePtr)(void* context, unsigned int commandQueueId, enum GraphicsCommandType commandQueueType);
+typedef void (*GraphicsService_SetCommandQueueLabelPtr)(void* context, unsigned int commandQueueId, char* label);
+typedef void (*GraphicsService_DeleteCommandQueuePtr)(void* context, unsigned int commandQueueId);
+typedef unsigned long (*GraphicsService_GetCommandQueueTimestampFrequencyPtr)(void* context, unsigned int commandQueueId);
+typedef unsigned long (*GraphicsService_ExecuteCommandListsPtr)(void* context, unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable);
+typedef int (*GraphicsService_CreateCommandListPtr)(void* context, unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType);
+typedef void (*GraphicsService_SetCommandListLabelPtr)(void* context, unsigned int commandListId, char* label);
+typedef void (*GraphicsService_DeleteCommandListPtr)(void* context, unsigned int commandListId);
+typedef void (*GraphicsService_ResetCommandListPtr)(void* context, unsigned int commandListId);
+typedef void (*GraphicsService_CommitCommandListPtr)(void* context, unsigned int commandListId);
 typedef int (*GraphicsService_CreateQueryBufferPtr)(void* context, unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length);
 typedef void (*GraphicsService_SetQueryBufferLabelPtr)(void* context, unsigned int queryBufferId, char* label);
 typedef void (*GraphicsService_DeleteQueryBufferPtr)(void* context, unsigned int queryBufferId);
@@ -223,6 +240,16 @@ struct GraphicsService
     GraphicsService_CreatePipelineStatePtr GraphicsService_CreatePipelineState;
     GraphicsService_SetPipelineStateLabelPtr GraphicsService_SetPipelineStateLabel;
     GraphicsService_DeletePipelineStatePtr GraphicsService_DeletePipelineState;
+    GraphicsService_CreateCommandQueuePtr GraphicsService_CreateCommandQueue;
+    GraphicsService_SetCommandQueueLabelPtr GraphicsService_SetCommandQueueLabel;
+    GraphicsService_DeleteCommandQueuePtr GraphicsService_DeleteCommandQueue;
+    GraphicsService_GetCommandQueueTimestampFrequencyPtr GraphicsService_GetCommandQueueTimestampFrequency;
+    GraphicsService_ExecuteCommandListsPtr GraphicsService_ExecuteCommandLists;
+    GraphicsService_CreateCommandListPtr GraphicsService_CreateCommandList;
+    GraphicsService_SetCommandListLabelPtr GraphicsService_SetCommandListLabel;
+    GraphicsService_DeleteCommandListPtr GraphicsService_DeleteCommandList;
+    GraphicsService_ResetCommandListPtr GraphicsService_ResetCommandList;
+    GraphicsService_CommitCommandListPtr GraphicsService_CommitCommandList;
     GraphicsService_CreateQueryBufferPtr GraphicsService_CreateQueryBuffer;
     GraphicsService_SetQueryBufferLabelPtr GraphicsService_SetQueryBufferLabel;
     GraphicsService_DeleteQueryBufferPtr GraphicsService_DeleteQueryBuffer;

@@ -778,6 +778,169 @@ void Direct3D12GraphicsService::DeletePipelineState(unsigned int pipelineStateId
 	this->pipelineStates.erase(pipelineStateId);
 }
 
+int Direct3D12GraphicsService::CreateCommandQueue(unsigned int commandQueueId, enum GraphicsCommandType commandQueueType)
+{
+	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
+	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+	if (commandQueueType == GraphicsCommandType::Compute)
+	{
+		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	}
+
+	else if (commandQueueType == GraphicsCommandType::Copy)
+	{
+		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+	}
+
+	ComPtr<ID3D12CommandQueue> commandQueue;
+	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(commandQueue.ReleaseAndGetAddressOf())));
+	this->commandQueues[commandQueueId] = commandQueue;
+
+	ComPtr<ID3D12Fence1> commandQueueFence;
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(commandQueueFence.ReleaseAndGetAddressOf())));
+	this->commandQueueFences[commandQueueId] = commandQueueFence;
+
+	auto commandAllocators = new ComPtr<ID3D12CommandAllocator>[CommandAllocatorsCount];
+
+	// Init command allocators for each frame in flight
+	// TODO: For multi threading support we need to allocate on allocator per frame per thread
+	for (int i = 0; i < CommandAllocatorsCount; i++)
+	{
+		ComPtr<ID3D12CommandAllocator> commandAllocator;
+		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(commandQueueDesc.Type, IID_PPV_ARGS(commandAllocator.ReleaseAndGetAddressOf())));
+		commandAllocators[i] = commandAllocator;
+	}
+
+	this->commandQueueAllocators[commandQueueId] = commandAllocators;
+
+	return 1;
+}
+
+void Direct3D12GraphicsService::SetCommandQueueLabel(unsigned int commandQueueId, char* label)
+{
+	if (!this->commandQueues.count(commandQueueId))
+	{
+		return;
+	}
+
+	this->commandQueues[commandQueueId]->SetName(wstring(label, label + strlen(label)).c_str());
+	this->commandQueueFences[commandQueueId]->SetName((wstring(label, label + strlen(label)) + L"Fence").c_str());
+
+	for (int i = 0; i < CommandAllocatorsCount; i++)
+	{
+		wchar_t buffer[64] = {};
+  		swprintf(buffer, (wstring(label, label + strlen(label)) + L"Allocator%d").c_str(), i);
+		this->commandQueueAllocators[commandQueueId][i]->SetName(buffer);
+	}
+}
+
+void Direct3D12GraphicsService::DeleteCommandQueue(unsigned int commandQueueId)
+{
+	this->commandQueues.erase(commandQueueId);
+	this->commandQueueFences.erase(commandQueueId);
+	this->commandQueueAllocators.erase(commandQueueId);
+}
+
+unsigned long Direct3D12GraphicsService::GetCommandQueueTimestampFrequency(unsigned int commandQueueId)
+{
+	if (!this->commandQueues.count(commandQueueId))
+	{
+		return 0;
+	}
+
+	uint64_t timestampFrequency;
+	AssertIfFailed(this->commandQueues[commandQueueId]->GetTimestampFrequency(&timestampFrequency));
+
+	return timestampFrequency;
+}
+
+unsigned long Direct3D12GraphicsService::ExecuteCommandLists(unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable)
+{
+	// TODO
+	return 0;
+}
+
+int Direct3D12GraphicsService::CreateCommandList(unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType)
+{
+	if (!this->commandQueues.count(commandQueueId))
+	{
+		return 0;
+	}
+
+	auto commandAllocator = this->commandQueueAllocators[commandQueueId][this->currentAllocatorIndex];
+	auto listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+	if (commandListType == D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		listType = D3D12_COMMAND_LIST_TYPE_COPY;
+	}
+
+	else if (listType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		listType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	}
+
+	ComPtr<ID3D12GraphicsCommandList> commandList;
+	AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
+
+	this->commandLists[commandListId] = commandList;
+	this->commandListQueueIds[commandListId] = commandQueueId;
+	this->commandListTypes[commandListId] = listType;
+
+	return 1;
+}
+
+void Direct3D12GraphicsService::SetCommandListLabel(unsigned int commandListId, char* label)
+{
+	if (!this->commandLists.count(commandListId))
+	{
+		return;
+	}
+
+	this->commandLists[commandListId]->SetName(wstring(label, label + strlen(label)).c_str());
+}
+
+void Direct3D12GraphicsService::DeleteCommandList(unsigned int commandListId)
+{
+	this->commandLists.erase(commandListId);
+	this->commandListQueueIds.erase(commandListId);
+	this->commandListTypes.erase(commandListId);
+}
+
+void Direct3D12GraphicsService::ResetCommandList(unsigned int commandListId)
+{
+	if (!this->commandLists.count(commandListId))
+	{
+		return;
+	}
+
+	auto commandList = this->commandLists[commandListId];
+	auto commandListType = this->commandListTypes[commandListId];
+	auto commandQueueId = this->commandListQueueIds[commandListId];
+	auto commandAllocator = this->commandQueueAllocators[commandQueueId][this->currentAllocatorIndex];
+
+	commandList->Reset(commandAllocator.Get(), nullptr);
+
+	if (commandListType != D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		ID3D12DescriptorHeap* descriptorHeaps[] = { this->globalDescriptorHeap.Get() };
+		commandList->SetDescriptorHeaps(1, descriptorHeaps);
+	}
+}
+
+void Direct3D12GraphicsService::CommitCommandList(unsigned int commandListId)
+{
+	if (!this->commandLists.count(commandListId))
+	{
+		return;
+	}
+
+	auto commandList = this->commandLists[commandListId];
+	commandList->Close();
+}
+
 int Direct3D12GraphicsService::CreateQueryBuffer(unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length)
 {
 	D3D12_QUERY_HEAP_DESC heapDesc = {};
@@ -820,12 +983,12 @@ int Direct3D12GraphicsService::CreateCommandBuffer(unsigned int commandBufferId,
 { 
 	auto listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	if (commandBufferType == GraphicsCommandBufferType::Copy)
+	if (commandBufferType == GraphicsCommandBufferType::CopyOld)
 	{
 		listType = D3D12_COMMAND_LIST_TYPE_COPY;
 	}
 
-	else if (commandBufferType == GraphicsCommandBufferType::Compute)
+	else if (commandBufferType == GraphicsCommandBufferType::ComputeOld)
 	{
 		listType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 	}
@@ -1568,6 +1731,13 @@ void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId
 
 void Direct3D12GraphicsService::QueryTimestamp(unsigned int commandListId, unsigned int queryBufferId, int index)
 {
+	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
+
+	if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		return;
+	}
+
 	// TODO: Check if we are in a copy list and use the appropriate query buffer
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
@@ -1578,6 +1748,13 @@ void Direct3D12GraphicsService::QueryTimestamp(unsigned int commandListId, unsig
 
 void Direct3D12GraphicsService::ResolveQueryData(unsigned int commandListId, unsigned int queryBufferId, unsigned int destinationBufferId, int startIndex, int endIndex)
 {
+	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
+
+	if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		return;
+	}
+
 	// TODO: Check if we are in a copy list and use the appropriate query buffer
 
 	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];

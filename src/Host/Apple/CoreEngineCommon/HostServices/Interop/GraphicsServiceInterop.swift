@@ -111,6 +111,56 @@ func GraphicsService_deletePipelineStateInterop(context: UnsafeMutableRawPointer
     contextObject.deletePipelineState(UInt(pipelineStateId))
 }
 
+func GraphicsService_createCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32, _ commandQueueType: GraphicsCommandType) -> Int32 {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.createCommandQueue(UInt(commandQueueId), commandQueueType) ? 1 : 0)
+}
+
+func GraphicsService_setCommandQueueLabelInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32, _ label: UnsafeMutablePointer<Int8>?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setCommandQueueLabel(UInt(commandQueueId), String(cString: label!))
+}
+
+func GraphicsService_deleteCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteCommandQueue(UInt(commandQueueId))
+}
+
+func GraphicsService_getCommandQueueTimestampFrequencyInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32) -> UInt {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.getCommandQueueTimestampFrequency(UInt(commandQueueId))
+}
+
+func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32, _ commandLists: UnsafeMutablePointer<UInt32>?, _ commandListsLength: Int32, _ isAwaitable: Int32) -> UInt {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.executeCommandLists(UInt(commandQueueId), Array(UnsafeBufferPointer(start: commandLists, count: Int(commandListsLength))), Bool(isAwaitable == 1))
+}
+
+func GraphicsService_createCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ commandQueueId: UInt32, _ commandListType: GraphicsCommandType) -> Int32 {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return Int32(contextObject.createCommandList(UInt(commandListId), UInt(commandQueueId), commandListType) ? 1 : 0)
+}
+
+func GraphicsService_setCommandListLabelInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ label: UnsafeMutablePointer<Int8>?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setCommandListLabel(UInt(commandListId), String(cString: label!))
+}
+
+func GraphicsService_deleteCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteCommandList(UInt(commandListId))
+}
+
+func GraphicsService_resetCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.resetCommandList(UInt(commandListId))
+}
+
+func GraphicsService_commitCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.commitCommandList(UInt(commandListId))
+}
+
 func GraphicsService_createQueryBufferInterop(context: UnsafeMutableRawPointer?, _ queryBufferId: UInt32, _ queryBufferType: GraphicsQueryBufferType, _ length: Int32) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return Int32(contextObject.createQueryBuffer(UInt(queryBufferId), queryBufferType, Int(length)) ? 1 : 0)
@@ -315,6 +365,16 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreatePipelineState = GraphicsService_createPipelineStateInterop
     service.GraphicsService_SetPipelineStateLabel = GraphicsService_setPipelineStateLabelInterop
     service.GraphicsService_DeletePipelineState = GraphicsService_deletePipelineStateInterop
+    service.GraphicsService_CreateCommandQueue = GraphicsService_createCommandQueueInterop
+    service.GraphicsService_SetCommandQueueLabel = GraphicsService_setCommandQueueLabelInterop
+    service.GraphicsService_DeleteCommandQueue = GraphicsService_deleteCommandQueueInterop
+    service.GraphicsService_GetCommandQueueTimestampFrequency = GraphicsService_getCommandQueueTimestampFrequencyInterop
+    service.GraphicsService_ExecuteCommandLists = GraphicsService_executeCommandListsInterop
+    service.GraphicsService_CreateCommandList = GraphicsService_createCommandListInterop
+    service.GraphicsService_SetCommandListLabel = GraphicsService_setCommandListLabelInterop
+    service.GraphicsService_DeleteCommandList = GraphicsService_deleteCommandListInterop
+    service.GraphicsService_ResetCommandList = GraphicsService_resetCommandListInterop
+    service.GraphicsService_CommitCommandList = GraphicsService_commitCommandListInterop
     service.GraphicsService_CreateQueryBuffer = GraphicsService_createQueryBufferInterop
     service.GraphicsService_SetQueryBufferLabel = GraphicsService_setQueryBufferLabelInterop
     service.GraphicsService_DeleteQueryBuffer = GraphicsService_deleteQueryBufferInterop

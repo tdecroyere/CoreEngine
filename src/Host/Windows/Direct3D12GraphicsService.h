@@ -57,6 +57,18 @@ class Direct3D12GraphicsService
         void SetPipelineStateLabel(unsigned int pipelineStateId, char* label);
         void DeletePipelineState(unsigned int pipelineStateId);
 
+        int CreateCommandQueue(unsigned int commandQueueId, enum GraphicsCommandType commandQueueType);
+        void SetCommandQueueLabel(unsigned int commandQueueId, char* label);
+        void DeleteCommandQueue(unsigned int commandQueueId);
+        unsigned long GetCommandQueueTimestampFrequency(unsigned int commandQueueId);
+        unsigned long ExecuteCommandLists(unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable);
+
+        int CreateCommandList(unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType);
+        void SetCommandListLabel(unsigned int commandListId, char* label);
+        void DeleteCommandList(unsigned int commandListId);
+        void ResetCommandList(unsigned int commandListId);
+        void CommitCommandList(unsigned int commandListId);
+
         int CreateQueryBuffer(unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length);
         void SetQueryBufferLabel(unsigned int queryBufferId, char* label);
         void DeleteQueryBuffer(unsigned int queryBufferId);
@@ -107,19 +119,12 @@ class Direct3D12GraphicsService
         void WaitForGlobalFence(bool waitForAllPendingWork);
 
     private:
-        GameState* gameState;
 
-        // Device objects
-        wstring adapterName;
-        HWND window;
-        ComPtr<IDXGIFactory4> dxgiFactory; 
-        ComPtr<ID3D12Device3> graphicsDevice;
+        // TODO: To Delete
+        GameState* gameState;
         ComPtr<ID3D12CommandQueue> directCommandQueue;
         ComPtr<ID3D12CommandQueue> copyCommandQueue;
         ComPtr<ID3D12CommandQueue> computeCommandQueue;
-        bool isPresentBarrier = false;
-
-        // Timing objects
         ComPtr<ID3D12QueryHeap> queryHeap;
         ComPtr<ID3D12QueryHeap> copyQueryHeap;
         uint32_t startQueryIndex = 0;
@@ -131,6 +136,51 @@ class Direct3D12GraphicsService
         uint64_t directQueueFrequency = 0;
         uint64_t computeQueueFrequency = 0;
         uint64_t copyQueueFrequency = 0;
+        ComPtr<ID3D12Fence1> directFence;
+        ComPtr<ID3D12Fence1> copyFence;
+        ComPtr<ID3D12Fence1> computeFence;
+        uint64_t directFenceValue = 0;
+        uint64_t copyFenceValue = 0;
+        uint64_t computeFenceValue = 0;
+        ComPtr<ID3D12CommandAllocator> directCommandAllocators[CommandAllocatorsCount] = {};
+        ComPtr<ID3D12CommandAllocator> copyCommandAllocators[CommandAllocatorsCount] = {};
+        ComPtr<ID3D12CommandAllocator> computeCommandAllocators[CommandAllocatorsCount] = {};
+        ComPtr<ID3D12Heap> uploadHeap;
+        uint64_t currentUploadHeapOffset = 0;
+        ComPtr<ID3D12Heap> readBackHeap;
+        uint64_t currentReadBackHeapOffset = 0;
+        ComPtr<ID3D12Heap> globalHeap;
+        uint64_t currentGlobalHeapOffset;
+        map<uint32_t, ComPtr<ID3D12Resource>> cpuBuffers;
+        map<uint32_t, ComPtr<ID3D12Resource>> readBackBuffers;
+        map<uint32_t, ComPtr<ID3D12Resource>> cpuTextures;
+        map<uint32_t, ComPtr<ID3D12GraphicsCommandList>> commandBuffers;
+        map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandBufferTypes;
+        map<uint32_t, wstring> commandBufferLabels;
+        map<uint32_t, uint32_t> commandListBuffers;
+        map<uint32_t, uint64_t> commandBufferFenceValues;
+        map<uint32_t, uint32_t> commandBufferStartQueryIndex;
+        map<uint32_t, uint32_t> commandBufferEndQueryIndex;
+
+        // Device objects
+        wstring adapterName;
+        HWND window;
+        ComPtr<IDXGIFactory4> dxgiFactory; 
+        ComPtr<ID3D12Device3> graphicsDevice;
+        
+        bool isPresentBarrier = false;
+
+        // Command Objects
+        map<uint32_t, ComPtr<ID3D12CommandQueue>> commandQueues;
+        map<uint32_t, ComPtr<ID3D12Fence1>> commandQueueFences;
+        map<uint32_t, ComPtr<ID3D12CommandAllocator>*> commandQueueAllocators;
+        int32_t currentAllocatorIndex = 0;
+        // TODO: Merge that into one structure
+        map<uint32_t, ComPtr<ID3D12GraphicsCommandList>> commandLists;
+        map<uint32_t, uint32_t> commandListQueueIds;
+        map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandListTypes;
+        map<uint32_t, GraphicsRenderPassDescriptor> commandListRenderPassDescriptors;
+        map<uint32_t, uint64_t> commandListFenceValues;
 
         // Swap chain objects
         ComPtr<IDXGISwapChain3> swapChain;
@@ -141,42 +191,13 @@ class Direct3D12GraphicsService
         Vector2 currentRenderSize;
 
         // Synchronization objects
-        ComPtr<ID3D12Fence1> directFence;
-        ComPtr<ID3D12Fence1> copyFence;
-        ComPtr<ID3D12Fence1> computeFence;
-        uint64_t directFenceValue = 0;
-        uint64_t copyFenceValue = 0;
-        uint64_t computeFenceValue = 0;
         HANDLE globalFenceEvent;
         bool isWaitingForGlobalFence;
         uint64_t presentFences[RenderBuffersCount];
 
-        // Command buffer objects
-        ComPtr<ID3D12CommandAllocator> directCommandAllocators[CommandAllocatorsCount] = {};
-        ComPtr<ID3D12CommandAllocator> copyCommandAllocators[CommandAllocatorsCount] = {};
-        ComPtr<ID3D12CommandAllocator> computeCommandAllocators[CommandAllocatorsCount] = {};
-        int32_t currentAllocatorIndex = 0;
-
-        // TODO: Merge that into one structure
-        map<uint32_t, ComPtr<ID3D12GraphicsCommandList>> commandBuffers;
-        map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandBufferTypes;
-        map<uint32_t, wstring> commandBufferLabels;
-        map<uint32_t, uint32_t> commandListBuffers;
-        map<uint32_t, GraphicsRenderPassDescriptor> commandListRenderPassDescriptors;
-        map<uint32_t, uint64_t> commandBufferFenceValues;
-        map<uint32_t, uint32_t> commandBufferStartQueryIndex;
-        map<uint32_t, uint32_t> commandBufferEndQueryIndex;
-
         // Heap objects
         map<uint32_t, ComPtr<ID3D12Heap>> graphicsHeaps;
         map<uint32_t, GraphicsServiceHeapType> graphicsHeapTypes;
-
-        ComPtr<ID3D12Heap> uploadHeap;
-        uint64_t currentUploadHeapOffset = 0;
-        ComPtr<ID3D12Heap> readBackHeap;
-        uint64_t currentReadBackHeapOffset = 0;
-        ComPtr<ID3D12Heap> globalHeap;
-        uint64_t currentGlobalHeapOffset;
 
         ComPtr<ID3D12DescriptorHeap> globalDescriptorHeap;
         uint32_t globalDescriptorHandleSize;
@@ -189,18 +210,14 @@ class Direct3D12GraphicsService
         // Buffers
         map<uint32_t, ComPtr<ID3D12Resource>> graphicsBuffers;
         map<uint32_t, void*> graphicsBufferPointers;
-
         map<uint32_t, ComPtr<ID3D12QueryHeap>> queryBuffers;
-
-        map<uint32_t, ComPtr<ID3D12Resource>> cpuBuffers;
-        map<uint32_t, ComPtr<ID3D12Resource>> readBackBuffers;
+        
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
         map<uint32_t, uint32_t> uavBufferDescriptorOffets;
         map<uint32_t, D3D12_RESOURCE_STATES> bufferResourceStates;
         map<uint32_t, ComPtr<ID3D12CommandSignature>> indirectCommandBufferSignatures;
 
         // Textures
-        map<uint32_t, ComPtr<ID3D12Resource>> cpuTextures;
         map<uint32_t, ComPtr<ID3D12Resource>> gpuTextures;
         map<uint32_t, D3D12_PLACED_SUBRESOURCE_FOOTPRINT> textureFootPrints;
         map<uint32_t, uint32_t> textureDescriptorOffets;

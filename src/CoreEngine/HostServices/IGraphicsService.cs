@@ -6,6 +6,14 @@ using CoreEngine.Graphics;
 
 namespace CoreEngine.HostServices
 {
+    // TODO: To Remove
+    public enum GraphicsCommandBufferType
+    {
+        RenderOld,
+        CopyOld,
+        ComputeOld
+    }
+
     // TODO: Avoid the duplication of structs and enums
 
     public enum GraphicsServiceHeapType
@@ -15,7 +23,7 @@ namespace CoreEngine.HostServices
         ReadBack
     }
 
-    public enum GraphicsCommandBufferType
+    public enum GraphicsCommandType
     {
         Render,
         Copy,
@@ -299,26 +307,28 @@ namespace CoreEngine.HostServices
         void SetPipelineStateLabel(uint pipelineStateId, string label);
         void DeletePipelineState(uint pipelineStateId);
 
-        bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType, int length);
-        void SetQueryBufferLabel(uint queryBufferId, string label);
-        void DeleteQueryBuffer(uint queryBufferId);
-
-        /* New Command API
-        bool CreateCommandQueue(uint commandQueueId, GraphicsCommandQueueType commandQueueType);
+        bool CreateCommandQueue(uint commandQueueId, GraphicsCommandType commandQueueType);
         void SetCommandQueueLabel(uint commandQueueId, string label);
         void DeleteCommandQueue(uint commandQueueId);
-        ulong GetCommandQueueFrequency(uint commandQueueId);
-        void ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists);
+        ulong GetCommandQueueTimestampFrequency(uint commandQueueId);
+        ulong ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists, bool isAwaitable);
 
-        bool CreateCommandList(uint commandListId, uint commandQueueId, GraphicsCommandListType commandListType, bool isAwaitable);
+        bool CreateCommandList(uint commandListId, uint commandQueueId, GraphicsCommandType commandListType);
         void SetCommandListLabel(uint commandListId, string label);
         void DeleteCommandList(uint commandListId);
         void ResetCommandList(uint commandListId);
         void CommitCommandList(uint commandListId);
 
-        void SetupRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
+        /* New Command API
+
+        void BeginRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
+        void EndRenderPass(uint commandListId);
 
         */
+
+        bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType, int length);
+        void SetQueryBufferLabel(uint queryBufferId, string label);
+        void DeleteQueryBuffer(uint queryBufferId);
 
         bool CreateCommandBuffer(uint commandBufferId, GraphicsCommandBufferType commandBufferType, string label);
         void DeleteCommandBuffer(uint commandBufferId);

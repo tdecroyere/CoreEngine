@@ -133,6 +133,66 @@ void DeletePipelineStateInterop(void* context, unsigned int pipelineStateId)
     contextObject->DeletePipelineState(pipelineStateId);
 }
 
+int CreateCommandQueueInterop(void* context, unsigned int commandQueueId, enum GraphicsCommandType commandQueueType)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->CreateCommandQueue(commandQueueId, commandQueueType);
+}
+
+void SetCommandQueueLabelInterop(void* context, unsigned int commandQueueId, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetCommandQueueLabel(commandQueueId, label);
+}
+
+void DeleteCommandQueueInterop(void* context, unsigned int commandQueueId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteCommandQueue(commandQueueId);
+}
+
+unsigned long GetCommandQueueTimestampFrequencyInterop(void* context, unsigned int commandQueueId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->GetCommandQueueTimestampFrequency(commandQueueId);
+}
+
+unsigned long ExecuteCommandListsInterop(void* context, unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->ExecuteCommandLists(commandQueueId, commandLists, commandListsLength, isAwaitable);
+}
+
+int CreateCommandListInterop(void* context, unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->CreateCommandList(commandListId, commandQueueId, commandListType);
+}
+
+void SetCommandListLabelInterop(void* context, unsigned int commandListId, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetCommandListLabel(commandListId, label);
+}
+
+void DeleteCommandListInterop(void* context, unsigned int commandListId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteCommandList(commandListId);
+}
+
+void ResetCommandListInterop(void* context, unsigned int commandListId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->ResetCommandList(commandListId);
+}
+
+void CommitCommandListInterop(void* context, unsigned int commandListId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->CommitCommandList(commandListId);
+}
+
 int CreateQueryBufferInterop(void* context, unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -374,6 +434,16 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_CreatePipelineState = CreatePipelineStateInterop;
     service->GraphicsService_SetPipelineStateLabel = SetPipelineStateLabelInterop;
     service->GraphicsService_DeletePipelineState = DeletePipelineStateInterop;
+    service->GraphicsService_CreateCommandQueue = CreateCommandQueueInterop;
+    service->GraphicsService_SetCommandQueueLabel = SetCommandQueueLabelInterop;
+    service->GraphicsService_DeleteCommandQueue = DeleteCommandQueueInterop;
+    service->GraphicsService_GetCommandQueueTimestampFrequency = GetCommandQueueTimestampFrequencyInterop;
+    service->GraphicsService_ExecuteCommandLists = ExecuteCommandListsInterop;
+    service->GraphicsService_CreateCommandList = CreateCommandListInterop;
+    service->GraphicsService_SetCommandListLabel = SetCommandListLabelInterop;
+    service->GraphicsService_DeleteCommandList = DeleteCommandListInterop;
+    service->GraphicsService_ResetCommandList = ResetCommandListInterop;
+    service->GraphicsService_CommitCommandList = CommitCommandListInterop;
     service->GraphicsService_CreateQueryBuffer = CreateQueryBufferInterop;
     service->GraphicsService_SetQueryBufferLabel = SetQueryBufferLabelInterop;
     service->GraphicsService_DeleteQueryBuffer = DeleteQueryBufferInterop;

@@ -1033,6 +1033,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             renderCommandEncoder.setViewport(MTLViewport(originX: 0.0, originY: 0.0, width: Double(renderPassDescriptor.depthAttachment.texture!.width), height: Double(renderPassDescriptor.depthAttachment.texture!.height), znear: 0.0, zfar: 1.0))
         }
 
+        // TODO: Add scissor tests
+
         createFence(commandListId, commandBufferId, label)
         self.renderCommandRTs[commandListId] = renderTargetList
 

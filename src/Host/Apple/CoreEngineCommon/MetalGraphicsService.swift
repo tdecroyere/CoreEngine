@@ -636,6 +636,46 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.queryBuffers[queryBufferId] = nil
     }
 
+    public func createCommandQueue(_ commandQueueId: UInt, _ commandQueueType: GraphicsCommandType) -> Bool {
+        return true
+    }
+
+    public func setCommandQueueLabel(_ commandQueueId: UInt, _ label: String) {
+
+    }
+
+    public func deleteCommandQueue(_ commandQueueId: UInt) {
+
+    }
+
+    public func getCommandQueueTimestampFrequency(_ commandQueueId: UInt) -> UInt {
+        return 0
+    }
+
+    public func executeCommandLists(_ commandQueueId: UInt, _ commandLists: [UInt32], _ isAwaitable: Bool) -> UInt {
+        return 0
+    }
+
+    public func createCommandList(_ commandListId: UInt, _ commandQueueId: UInt, _ commandListType: GraphicsCommandType) -> Bool {
+        return true
+    }
+
+    public func setCommandListLabel(_ commandListId: UInt, _ label: String) {
+
+    }
+
+    public func deleteCommandList(_ commandListId: UInt) {
+
+    }
+
+    public func resetCommandList(_ commandListId: UInt) {
+
+    }
+
+    public func commitCommandList(_ commandListId: UInt) {
+
+    }
+
     public func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool {
         return true
     }

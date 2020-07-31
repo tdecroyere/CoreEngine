@@ -312,13 +312,8 @@ namespace CoreEngine.HostServices
         void DeleteCommandQueue(uint commandQueueId);
         ulong GetCommandQueueTimestampFrequency(uint commandQueueId);
         ulong ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists, bool isAwaitable);
-        
-        /*
-        
-        void ExecuteCommandList(uint commandQueueId, uint commandListId, bool isAwaitable);
-        void WaitForCommandList(uint commandQueueId, uint commandListId);
-
-        */
+        void WaitForCommandQueue(uint commandQueueId, uint commandQueueToWaitId, ulong fenceValue);
+ 
         bool CreateCommandList(uint commandListId, uint commandQueueId, GraphicsCommandType commandListType);
         void SetCommandListLabel(uint commandListId, string label);
         void DeleteCommandList(uint commandListId);

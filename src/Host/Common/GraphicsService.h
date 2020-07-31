@@ -173,6 +173,7 @@ typedef void (*GraphicsService_SetCommandQueueLabelPtr)(void* context, unsigned 
 typedef void (*GraphicsService_DeleteCommandQueuePtr)(void* context, unsigned int commandQueueId);
 typedef unsigned long (*GraphicsService_GetCommandQueueTimestampFrequencyPtr)(void* context, unsigned int commandQueueId);
 typedef unsigned long (*GraphicsService_ExecuteCommandListsPtr)(void* context, unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable);
+typedef void (*GraphicsService_WaitForCommandQueuePtr)(void* context, unsigned int commandQueueId, unsigned int commandQueueToWaitId, unsigned long fenceValue);
 typedef int (*GraphicsService_CreateCommandListPtr)(void* context, unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType);
 typedef void (*GraphicsService_SetCommandListLabelPtr)(void* context, unsigned int commandListId, char* label);
 typedef void (*GraphicsService_DeleteCommandListPtr)(void* context, unsigned int commandListId);
@@ -245,6 +246,7 @@ struct GraphicsService
     GraphicsService_DeleteCommandQueuePtr GraphicsService_DeleteCommandQueue;
     GraphicsService_GetCommandQueueTimestampFrequencyPtr GraphicsService_GetCommandQueueTimestampFrequency;
     GraphicsService_ExecuteCommandListsPtr GraphicsService_ExecuteCommandLists;
+    GraphicsService_WaitForCommandQueuePtr GraphicsService_WaitForCommandQueue;
     GraphicsService_CreateCommandListPtr GraphicsService_CreateCommandList;
     GraphicsService_SetCommandListLabelPtr GraphicsService_SetCommandListLabel;
     GraphicsService_DeleteCommandListPtr GraphicsService_DeleteCommandList;

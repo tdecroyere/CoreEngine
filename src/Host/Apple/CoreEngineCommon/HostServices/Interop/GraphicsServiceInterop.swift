@@ -136,6 +136,11 @@ func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer
     return contextObject.executeCommandLists(UInt(commandQueueId), Array(UnsafeBufferPointer(start: commandLists, count: Int(commandListsLength))), Bool(isAwaitable == 1))
 }
 
+func GraphicsService_waitForCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32, _ commandQueueToWaitId: UInt32, _ fenceValue: UInt) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.waitForCommandQueue(UInt(commandQueueId), UInt(commandQueueToWaitId), fenceValue)
+}
+
 func GraphicsService_createCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ commandQueueId: UInt32, _ commandListType: GraphicsCommandType) -> Int32 {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return Int32(contextObject.createCommandList(UInt(commandListId), UInt(commandQueueId), commandListType) ? 1 : 0)
@@ -370,6 +375,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_DeleteCommandQueue = GraphicsService_deleteCommandQueueInterop
     service.GraphicsService_GetCommandQueueTimestampFrequency = GraphicsService_getCommandQueueTimestampFrequencyInterop
     service.GraphicsService_ExecuteCommandLists = GraphicsService_executeCommandListsInterop
+    service.GraphicsService_WaitForCommandQueue = GraphicsService_waitForCommandQueueInterop
     service.GraphicsService_CreateCommandList = GraphicsService_createCommandListInterop
     service.GraphicsService_SetCommandListLabel = GraphicsService_setCommandListLabelInterop
     service.GraphicsService_DeleteCommandList = GraphicsService_deleteCommandListInterop

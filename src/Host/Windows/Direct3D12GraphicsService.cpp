@@ -801,6 +801,7 @@ int Direct3D12GraphicsService::CreateCommandQueue(unsigned int commandQueueId, e
 	ComPtr<ID3D12Fence1> commandQueueFence;
 	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(commandQueueFence.ReleaseAndGetAddressOf())));
 	this->commandQueueFences[commandQueueId] = commandQueueFence;
+	this->commandQueueFenceValues[commandQueueId] = 0;
 
 	auto commandAllocators = new ComPtr<ID3D12CommandAllocator>[CommandAllocatorsCount];
 
@@ -858,8 +859,44 @@ unsigned long Direct3D12GraphicsService::GetCommandQueueTimestampFrequency(unsig
 
 unsigned long Direct3D12GraphicsService::ExecuteCommandLists(unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable)
 {
-	// TODO
+	if (!this->commandQueues.count(commandQueueId))
+	{
+		return 0;
+	}
+
+	// TODO: We need to free that memory somehow
+	ID3D12CommandList** commandListsToExecute = new ID3D12CommandList*[commandListsLength];
+
+	for (int i = 0; i < commandListsLength; i++)
+	{
+		commandListsToExecute[i] = this->commandLists[commandLists[i]].Get();
+	}
+
+	auto commandQueue = this->commandQueues[commandQueueId];
+	
+	commandQueue->ExecuteCommandLists(commandListsLength, commandListsToExecute);
+	
+	if (isAwaitable)
+	{
+		// TODO: Switch to an atomic increment here for multi threading
+		auto fenceValue = this->commandQueueFenceValues[commandQueueId];
+		commandQueue->Signal(this->commandQueueFences[commandQueueId].Get(), fenceValue);
+		this->commandQueueFenceValues[commandQueueId] = fenceValue + 1;
+
+		return fenceValue;
+	}
+
 	return 0;
+}
+
+void Direct3D12GraphicsService::WaitForCommandQueue(unsigned int commandQueueId, unsigned int commandQueueToWaitId, unsigned long fenceValue)
+{
+	if (!this->commandQueues.count(commandQueueId) || !this->commandQueues.count(commandQueueToWaitId))
+	{
+		return;
+	}
+
+	AssertIfFailed(this->commandQueues[commandQueueId]->Wait(this->commandQueueFences[commandQueueToWaitId].Get(), fenceValue));
 }
 
 int Direct3D12GraphicsService::CreateCommandList(unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType)

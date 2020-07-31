@@ -28,6 +28,7 @@ public protocol GraphicsServiceProtocol {
     func deleteCommandQueue(_ commandQueueId: UInt)
     func getCommandQueueTimestampFrequency(_ commandQueueId: UInt) -> UInt
     func executeCommandLists(_ commandQueueId: UInt, _ commandLists: [UInt32], _ isAwaitable: Bool) -> UInt
+    func waitForCommandQueue(_ commandQueueId: UInt, _ commandQueueToWaitId: UInt, _ fenceValue: UInt)
     func createCommandList(_ commandListId: UInt, _ commandQueueId: UInt, _ commandListType: GraphicsCommandType) -> Bool
     func setCommandListLabel(_ commandListId: UInt, _ label: String)
     func deleteCommandList(_ commandListId: UInt)

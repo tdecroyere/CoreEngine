@@ -163,6 +163,12 @@ unsigned long ExecuteCommandListsInterop(void* context, unsigned int commandQueu
     return contextObject->ExecuteCommandLists(commandQueueId, commandLists, commandListsLength, isAwaitable);
 }
 
+void WaitForCommandQueueInterop(void* context, unsigned int commandQueueId, unsigned int commandQueueToWaitId, unsigned long fenceValue)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->WaitForCommandQueue(commandQueueId, commandQueueToWaitId, fenceValue);
+}
+
 int CreateCommandListInterop(void* context, unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -439,6 +445,7 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_DeleteCommandQueue = DeleteCommandQueueInterop;
     service->GraphicsService_GetCommandQueueTimestampFrequency = GetCommandQueueTimestampFrequencyInterop;
     service->GraphicsService_ExecuteCommandLists = ExecuteCommandListsInterop;
+    service->GraphicsService_WaitForCommandQueue = WaitForCommandQueueInterop;
     service->GraphicsService_CreateCommandList = CreateCommandListInterop;
     service->GraphicsService_SetCommandListLabel = SetCommandListLabelInterop;
     service->GraphicsService_DeleteCommandList = DeleteCommandListInterop;

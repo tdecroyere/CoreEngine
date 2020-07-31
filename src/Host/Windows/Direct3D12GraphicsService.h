@@ -62,6 +62,7 @@ class Direct3D12GraphicsService
         void DeleteCommandQueue(unsigned int commandQueueId);
         unsigned long GetCommandQueueTimestampFrequency(unsigned int commandQueueId);
         unsigned long ExecuteCommandLists(unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable);
+        void WaitForCommandQueue(unsigned int commandQueueId, unsigned int commandQueueToWaitId, unsigned long fenceValue);
 
         int CreateCommandList(unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType);
         void SetCommandListLabel(unsigned int commandListId, char* label);
@@ -180,7 +181,7 @@ class Direct3D12GraphicsService
         map<uint32_t, uint32_t> commandListQueueIds;
         map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandListTypes;
         map<uint32_t, GraphicsRenderPassDescriptor> commandListRenderPassDescriptors;
-        map<uint32_t, uint64_t> commandListFenceValues;
+        map<uint32_t, uint64_t> commandQueueFenceValues;
 
         // Swap chain objects
         ComPtr<IDXGISwapChain3> swapChain;

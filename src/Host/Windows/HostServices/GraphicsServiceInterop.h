@@ -157,10 +157,10 @@ unsigned long GetCommandQueueTimestampFrequencyInterop(void* context, unsigned i
     return contextObject->GetCommandQueueTimestampFrequency(commandQueueId);
 }
 
-unsigned long ExecuteCommandListsInterop(void* context, unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable)
+unsigned long ExecuteCommandListsInterop(void* context, unsigned int commandQueueId, int signalFence)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->ExecuteCommandLists(commandQueueId, commandLists, commandListsLength, isAwaitable);
+    return contextObject->ExecuteCommandLists(commandQueueId, signalFence);
 }
 
 void WaitForCommandQueueInterop(void* context, unsigned int commandQueueId, unsigned int commandQueueToWaitId, unsigned long fenceValue)
@@ -239,6 +239,18 @@ void ExecuteCommandBufferInterop(void* context, unsigned int commandBufferId)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     contextObject->ExecuteCommandBuffer(commandBufferId);
+}
+
+void BeginRenderPassInterop(void* context, unsigned int commandListId, struct GraphicsRenderPassDescriptor renderPassDescriptor)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->BeginRenderPass(commandListId, renderPassDescriptor);
+}
+
+void EndRenderPassInterop(void* context, unsigned int commandListId)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->EndRenderPass(commandListId);
 }
 
 void SetShaderBufferInterop(void* context, unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index)
@@ -458,6 +470,8 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_DeleteCommandBuffer = DeleteCommandBufferInterop;
     service->GraphicsService_ResetCommandBuffer = ResetCommandBufferInterop;
     service->GraphicsService_ExecuteCommandBuffer = ExecuteCommandBufferInterop;
+    service->GraphicsService_BeginRenderPass = BeginRenderPassInterop;
+    service->GraphicsService_EndRenderPass = EndRenderPassInterop;
     service->GraphicsService_SetShaderBuffer = SetShaderBufferInterop;
     service->GraphicsService_SetShaderBuffers = SetShaderBuffersInterop;
     service->GraphicsService_SetShaderTexture = SetShaderTextureInterop;

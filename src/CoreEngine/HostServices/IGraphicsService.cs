@@ -311,7 +311,7 @@ namespace CoreEngine.HostServices
         void SetCommandQueueLabel(uint commandQueueId, string label);
         void DeleteCommandQueue(uint commandQueueId);
         ulong GetCommandQueueTimestampFrequency(uint commandQueueId);
-        ulong ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists, bool isAwaitable);
+        ulong ExecuteCommandLists(uint commandQueueId, bool signalFence);
         void WaitForCommandQueue(uint commandQueueId, uint commandQueueToWaitId, ulong fenceValue);
  
         bool CreateCommandList(uint commandListId, uint commandQueueId, GraphicsCommandType commandListType);
@@ -319,13 +319,6 @@ namespace CoreEngine.HostServices
         void DeleteCommandList(uint commandListId);
         void ResetCommandList(uint commandListId);
         void CommitCommandList(uint commandListId);
-
-        /* New Command API
-
-        void BeginRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
-        void EndRenderPass(uint commandListId);
-
-        */
 
         bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType, int length);
         void SetQueryBufferLabel(uint queryBufferId, string label);
@@ -335,6 +328,15 @@ namespace CoreEngine.HostServices
         void DeleteCommandBuffer(uint commandBufferId);
         void ResetCommandBuffer(uint commandBufferId);
         void ExecuteCommandBuffer(uint commandBufferId);
+
+        void BeginRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
+        void EndRenderPass(uint commandListId);
+
+        /*
+
+        void MemoryBarrier(uint commandListId, ReadOnlySpan<MemoryBarrier> memoryBarriers);
+
+        */
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
@@ -386,7 +388,7 @@ namespace CoreEngine.HostServices
         // TODO: Rename that to PresentSwapChain and add swap chain id parameter
         void PresentScreenBuffer(uint commandBufferId);
 
-        // TODO: Rename that to WaitForVSync()
+        // TODO: Rename that to GetNextSwapChainTexture()
         void WaitForAvailableScreenBuffer();
     }
 }

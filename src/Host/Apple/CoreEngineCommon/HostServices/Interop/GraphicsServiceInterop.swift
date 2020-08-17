@@ -131,9 +131,9 @@ func GraphicsService_getCommandQueueTimestampFrequencyInterop(context: UnsafeMut
     return contextObject.getCommandQueueTimestampFrequency(UInt(commandQueueId))
 }
 
-func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32, _ commandLists: UnsafeMutablePointer<UInt32>?, _ commandListsLength: Int32, _ isAwaitable: Int32) -> UInt {
+func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32, _ signalFence: Int32) -> UInt {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.executeCommandLists(UInt(commandQueueId), Array(UnsafeBufferPointer(start: commandLists, count: Int(commandListsLength))), Bool(isAwaitable == 1))
+    return contextObject.executeCommandLists(UInt(commandQueueId), Bool(signalFence == 1))
 }
 
 func GraphicsService_waitForCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueueId: UInt32, _ commandQueueToWaitId: UInt32, _ fenceValue: UInt) {
@@ -199,6 +199,16 @@ func GraphicsService_resetCommandBufferInterop(context: UnsafeMutableRawPointer?
 func GraphicsService_executeCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.executeCommandBuffer(UInt(commandBufferId))
+}
+
+func GraphicsService_beginRenderPassInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ renderPassDescriptor: GraphicsRenderPassDescriptor) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.beginRenderPass(UInt(commandListId), renderPassDescriptor)
+}
+
+func GraphicsService_endRenderPassInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.endRenderPass(UInt(commandListId))
 }
 
 func GraphicsService_setShaderBufferInterop(context: UnsafeMutableRawPointer?, _ commandListId: UInt32, _ graphicsBufferId: UInt32, _ slot: Int32, _ isReadOnly: Int32, _ index: Int32) {
@@ -388,6 +398,8 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_DeleteCommandBuffer = GraphicsService_deleteCommandBufferInterop
     service.GraphicsService_ResetCommandBuffer = GraphicsService_resetCommandBufferInterop
     service.GraphicsService_ExecuteCommandBuffer = GraphicsService_executeCommandBufferInterop
+    service.GraphicsService_BeginRenderPass = GraphicsService_beginRenderPassInterop
+    service.GraphicsService_EndRenderPass = GraphicsService_endRenderPassInterop
     service.GraphicsService_SetShaderBuffer = GraphicsService_setShaderBufferInterop
     service.GraphicsService_SetShaderBuffers = GraphicsService_setShaderBuffersInterop
     service.GraphicsService_SetShaderTexture = GraphicsService_setShaderTextureInterop

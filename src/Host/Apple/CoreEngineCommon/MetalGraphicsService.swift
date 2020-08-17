@@ -94,6 +94,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     var commandListFences: [UInt: MTLFence]
     var commandBuffers: [UInt: MTLCommandBuffer]
 
+    var commandQueues: [UInt: MetalCommandQueue]
+
     var copyCommandEncoders: [UInt: MTLBlitCommandEncoder]
     var computeCommandEncoders: [UInt: MTLComputeCommandEncoder]
     var renderCommandEncoders: [UInt: MTLRenderCommandEncoder]
@@ -137,6 +139,8 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         self.computePipelineStates = [:]
         self.commandListFences = [:]
         self.commandBuffers = [:]
+
+        self.commandQueues = [:]
         self.copyCommandEncoders = [:]
         self.computeCommandEncoders = [:]
         self.renderCommandEncoders = [:]
@@ -637,24 +641,62 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func createCommandQueue(_ commandQueueId: UInt, _ commandQueueType: GraphicsCommandType) -> Bool {
+        guard let commandQueue = self.device.makeCommandQueue(maxCommandBufferCount: 100) else {
+            return false
+        }
+
+        self.commandQueues[commandQueueId] = MetalCommandQueue(commandQueue, commandQueueType)
         return true
     }
 
     public func setCommandQueueLabel(_ commandQueueId: UInt, _ label: String) {
+        guard let commandQueue = self.commandQueues[commandQueueId] else {
+            return
+        }
 
+        commandQueue.setLabel(label)
     }
 
     public func deleteCommandQueue(_ commandQueueId: UInt) {
-
+        self.commandQueues[commandQueueId] = nil
     }
 
     public func getCommandQueueTimestampFrequency(_ commandQueueId: UInt) -> UInt {
+        // let timestamps = self.device.sampleTimestamps()
+
+        // if(timestamps.cpu > m_cpu_timestamp && gpu_timestamp > m_gpu_timestamp)
+        // {
+        //     const double cpu_delta = cpu_timestamp - m_cpu_timestamp;
+        //     const double gpu_delta = gpu_timestamp - m_gpu_timestamp;
+                
+        //     m_gpu_cpu_timestamp_factor = cpu_delta / gpu_delta;
+        // }
+
+        // m_gpu_timestamp = gpu_timestamp;
+        // m_cpu_timestamp = cpu_timestamp;
         return 0
     }
 
-    public func executeCommandLists(_ commandQueueId: UInt, _ commandLists: [UInt32], _ isAwaitable: Bool) -> UInt {
+    public func waitForCommandQueue(_ commandQueueId: UInt, _ commandQueueToWaitId: UInt, _ fenceValue: UInt) {
+
+    }
+
+    public func executeCommandLists(_ commandQueueId: UInt, _ signalFence: Bool) -> UInt {
+        guard let commandQueue = self.commandQueues[commandQueueId] else {
+            assert(false)
+        }
+
+        if (signalFence) {
+            // TODO: create an encoder with the correct type
+            // TODO: Update fence
+        }
+
+        commandQueue.commandBuffer.commit()
+        commandQueue.createCommandBuffer()
+
         return 0
     }
+
 
     public func createCommandList(_ commandListId: UInt, _ commandQueueId: UInt, _ commandListType: GraphicsCommandType) -> Bool {
         return true
@@ -706,6 +748,14 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
             self.commandBuffers[commandBufferId] = nil
         }
+    }
+
+    public func beginRenderPass(_ commandListId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor) {
+
+    }
+
+    public func endRenderPass(_ commandListId: UInt) {
+
     }
 
     public func createCopyCommandList(_ commandListId: UInt, _ commandBufferId: UInt, _ label: String) -> Bool {

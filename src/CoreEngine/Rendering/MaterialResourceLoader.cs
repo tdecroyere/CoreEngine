@@ -9,10 +9,12 @@ namespace CoreEngine.Rendering
     public class MaterialResourceLoader : ResourceLoader
     {
         private readonly GraphicsManager graphicsManager;
+        private readonly RenderManager renderManager;
 
-        public MaterialResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
+        public MaterialResourceLoader(ResourcesManager resourcesManager, RenderManager renderManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
             this.graphicsManager = graphicsManager;
+            this.renderManager = renderManager;
         }
 
         public override string Name => "Material Loader";
@@ -70,14 +72,12 @@ namespace CoreEngine.Rendering
             material.MaterialData = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, materialData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
 
             // TODO: Refactor that
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "MaterialLoader");
-            this.graphicsManager.ResetCommandBuffer(commandBuffer);
-
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "MaterialLoaderCommandList");
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "MaterialLoader");
+            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData.Value, cpuBuffer, materialDataLength);
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.DeleteCommandList(copyCommandList);
             this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
 
             return resource;

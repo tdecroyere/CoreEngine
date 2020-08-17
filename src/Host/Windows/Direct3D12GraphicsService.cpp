@@ -26,7 +26,7 @@ Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int
 
 	auto graphicsAdapter = FindGraphicsAdapter(dxgiFactory);
 	AssertIfFailed(CreateDevice(dxgiFactory, graphicsAdapter));
-	AssertIfFailed(CreateOrResizeSwapChain(width, height));
+	//AssertIfFailed(CreateOrResizeSwapChain(width, height));
 	AssertIfFailed(CreateHeaps());
 	InitGpuProfiling();
 }
@@ -778,25 +778,34 @@ void Direct3D12GraphicsService::DeletePipelineState(unsigned int pipelineStateId
 	this->pipelineStates.erase(pipelineStateId);
 }
 
-int Direct3D12GraphicsService::CreateCommandQueue(unsigned int commandQueueId, enum GraphicsCommandType commandQueueType)
+int Direct3D12GraphicsService::CreateCommandQueue(unsigned int commandQueueId, enum GraphicsServiceCommandType commandQueueType)
 {
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
 	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	if (commandQueueType == GraphicsCommandType::Compute)
+	if (commandQueueType == GraphicsServiceCommandType::Compute)
 	{
 		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 	}
 
-	else if (commandQueueType == GraphicsCommandType::Copy)
+	else if (commandQueueType == GraphicsServiceCommandType::Copy)
 	{
 		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
 	}
 
+
 	ComPtr<ID3D12CommandQueue> commandQueue;
 	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(commandQueue.ReleaseAndGetAddressOf())));
 	this->commandQueues[commandQueueId] = commandQueue;
+	this->commandQueueTypes[commandQueueId] = commandQueueDesc.Type;
+
+	// TODO: Remove that hack
+	if (commandQueueType == GraphicsServiceCommandType::Render)
+	{
+		this->directCommandQueue = commandQueue;
+		AssertIfFailed(CreateOrResizeSwapChain(1280, 720));
+	}
 
 	ComPtr<ID3D12Fence1> commandQueueFence;
 	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(commandQueueFence.ReleaseAndGetAddressOf())));
@@ -899,7 +908,23 @@ void Direct3D12GraphicsService::WaitForCommandQueue(unsigned int commandQueueId,
 	AssertIfFailed(this->commandQueues[commandQueueId]->Wait(this->commandQueueFences[commandQueueToWaitId].Get(), fenceValue));
 }
 
-int Direct3D12GraphicsService::CreateCommandList(unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType)
+void Direct3D12GraphicsService::WaitForCommandQueueOnCpu(unsigned int commandQueueToWaitId, unsigned long fenceValue)
+{
+	if (!this->commandQueues.count(commandQueueToWaitId))
+	{
+		return;
+	}
+
+	auto commandQueueFence = this->commandQueueFences[commandQueueToWaitId];
+
+	if (commandQueueFence->GetCompletedValue() < fenceValue)
+	{
+		commandQueueFence->SetEventOnCompletion(fenceValue, this->globalFenceEvent);
+		WaitForSingleObject(this->globalFenceEvent, INFINITE);
+	}
+}
+
+int Direct3D12GraphicsService::CreateCommandList(unsigned int commandListId, unsigned int commandQueueId)
 {
 	if (!this->commandQueues.count(commandQueueId))
 	{
@@ -907,21 +932,14 @@ int Direct3D12GraphicsService::CreateCommandList(unsigned int commandListId, uns
 	}
 
 	auto commandAllocator = this->commandQueueAllocators[commandQueueId][this->currentAllocatorIndex];
-	auto listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	if (commandListType == D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		listType = D3D12_COMMAND_LIST_TYPE_COPY;
-	}
-
-	else if (listType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-	{
-		listType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-	}
+	auto listType = this->commandQueueTypes[commandQueueId];
 
 	ComPtr<ID3D12GraphicsCommandList> commandList;
 	AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
-
+	
+	// TODO: Remove that
+	commandList->Close();
+	
 	this->commandLists[commandListId] = commandList;
 	this->commandListQueueIds[commandListId] = commandQueueId;
 	this->commandListTypes[commandListId] = listType;
@@ -1234,7 +1252,7 @@ void Direct3D12GraphicsService::SetShaderBuffer(unsigned int commandListId, unsi
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
 	auto gpuBuffer = this->graphicsBuffers[graphicsBufferId];
 
@@ -1267,7 +1285,7 @@ void Direct3D12GraphicsService::SetShaderTexture(unsigned int commandListId, uns
 		return;
 	}
 	
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto gpuTexture = this->gpuTextures[textureId];
 
 	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
@@ -1327,7 +1345,7 @@ void Direct3D12GraphicsService::SetShaderTextures(unsigned int commandListId, un
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 
 	ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
 
@@ -1389,7 +1407,7 @@ void Direct3D12GraphicsService::SetShaderIndirectCommandLists(unsigned int comma
 
 	auto bufferId = indirectCommandListIdList[3];
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto gpuBuffer = this->graphicsBuffers[bufferId];
 
 	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
@@ -1422,7 +1440,7 @@ void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(unsigned int commandLis
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto destinationGraphicsBuffer = this->graphicsBuffers[destinationGraphicsBufferId];
 	auto sourceGraphicsBuffer = this->graphicsBuffers[sourceGraphicsBufferId];
 
@@ -1451,7 +1469,7 @@ void Direct3D12GraphicsService::CopyDataToTexture(unsigned int commandListId, un
 
 	TransitionTextureToState(commandListId, destinationTextureId, D3D12_RESOURCE_STATE_COPY_DEST);
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto destinationTexture = this->gpuTextures[destinationTextureId];
 	auto sourceGraphicsBuffer = this->graphicsBuffers[sourceGraphicsBufferId];
 	auto footPrint = this->textureFootPrints[destinationTextureId];
@@ -1476,7 +1494,7 @@ void Direct3D12GraphicsService::CopyTexture(unsigned int commandListId, unsigned
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto destinationTexture = this->gpuTextures[destinationTextureId];
 	auto sourceTexture = this->gpuTextures[sourceTextureId];
 
@@ -1503,12 +1521,84 @@ struct Vector3 Direct3D12GraphicsService::DispatchThreads(unsigned int commandLi
 		return Vector3 { 32, 32, 1 };
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 
 	// TODO: Change that
 	commandList->Dispatch(ceil(threadCountX / 32.0f), ceil(threadCountY / 32.0f), 1);
 
     return Vector3 { 32, 32, 1 };
+}
+
+void Direct3D12GraphicsService::BeginRenderPass(unsigned int commandListId, struct GraphicsRenderPassDescriptor renderPassDescriptor)
+{
+	// TODO: Switch to DX12 render passes
+
+	auto renderDescriptor = renderPassDescriptor;
+
+	auto commandList = this->commandLists[commandListId];
+	this->commandListRenderPassDescriptors[commandListId] = renderDescriptor;
+
+	if (renderDescriptor.RenderTarget1TextureId.HasValue)
+	{
+		auto gpuTexture = this->gpuTextures[renderDescriptor.RenderTarget1TextureId.Value];
+		auto descriptorHeapdOffset = this->textureDescriptorOffets[renderDescriptor.RenderTarget1TextureId.Value];
+
+		D3D12_CPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
+		descriptorHeapHandle.ptr = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + descriptorHeapdOffset;
+
+		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		commandList->OMSetRenderTargets(1, &descriptorHeapHandle, false, nullptr);
+
+		if (renderDescriptor.RenderTarget1ClearColor.HasValue)
+		{
+			// float clearColor[4] = { renderDescriptor.RenderTarget1ClearColor.Value.X, renderDescriptor.RenderTarget1ClearColor.Value.Y, renderDescriptor.RenderTarget1ClearColor.Value.Z, renderDescriptor.RenderTarget1ClearColor.Value.W };
+			float clearColor[4] = {};
+			commandList->ClearRenderTargetView(descriptorHeapHandle, clearColor, 0, nullptr);
+		}
+
+		D3D12_VIEWPORT viewport = {};
+		viewport.Width = (float)gpuTexture->GetDesc().Width;
+		viewport.Height = (float)gpuTexture->GetDesc().Height;
+		viewport.MaxDepth = 1.0f;
+		commandList->RSSetViewports(1, &viewport);
+
+		D3D12_RECT scissorRect = {};
+		scissorRect.right = (long)gpuTexture->GetDesc().Width;
+		scissorRect.bottom = (long)gpuTexture->GetDesc().Height;
+		commandList->RSSetScissorRects(1, &scissorRect);
+	}
+
+	else if (!renderDescriptor.RenderTarget1TextureId.HasValue && !renderDescriptor.DepthTextureId.HasValue)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
+
+		commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		commandList->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
+
+		D3D12_VIEWPORT viewport = {};
+		viewport.Width = (float)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Width;
+		viewport.Height = (float)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Height;
+		viewport.MaxDepth = 1.0f;
+		commandList->RSSetViewports(1, &viewport);
+
+		D3D12_RECT scissorRect = {};
+		scissorRect.right = (long)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Width;
+		scissorRect.bottom = (long)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Height;
+		commandList->RSSetScissorRects(1, &scissorRect);
+	}
+}
+
+void Direct3D12GraphicsService::EndRenderPass(unsigned int commandListId)
+{
+	auto renderDescriptor = this->commandListRenderPassDescriptors[commandListId];
+
+	if (renderDescriptor.RenderTarget1TextureId.HasValue)
+	{
+		auto gpuTexture = this->gpuTextures[renderDescriptor.RenderTarget1TextureId.Value];
+		TransitionTextureToState(commandListId, renderDescriptor.RenderTarget1TextureId.Value, D3D12_RESOURCE_STATE_GENERIC_READ);
+	}
+
+	this->commandListRenderPassDescriptors.erase(commandListId);
 }
 
 int Direct3D12GraphicsService::CreateRenderCommandList(unsigned int commandListId, unsigned int commandBufferId, struct GraphicsRenderPassDescriptor renderDescriptor, char* label)
@@ -1594,7 +1684,7 @@ void Direct3D12GraphicsService::SetPipelineState(unsigned int commandListId, uns
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto pipelineState = this->pipelineStates[pipelineStateId];
 
 	if (!pipelineState)
@@ -1613,7 +1703,7 @@ void Direct3D12GraphicsService::SetShader(unsigned int commandListId, unsigned i
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto shader = this->shaders[shaderId];
 	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
 
@@ -1642,7 +1732,7 @@ void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int comman
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto indirectCommandBuffer = this->graphicsBuffers[indirectCommandBufferId];
 	TransitionBufferToState(commandListId, indirectCommandBufferId, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
@@ -1656,7 +1746,7 @@ void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(unsigned int comman
 
 void Direct3D12GraphicsService::SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId)
 { 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto indexBuffer = this->graphicsBuffers[graphicsBufferId];
 
 	D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
@@ -1674,7 +1764,7 @@ void Direct3D12GraphicsService::DrawIndexedPrimitives(unsigned int commandListId
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 
 	if (primitiveType == GraphicsPrimitiveType::TriangleStrip)
 	{
@@ -1701,7 +1791,7 @@ void Direct3D12GraphicsService::DrawPrimitives(unsigned int commandListId, enum 
 		return;
 	}
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 
 	if (primitiveType == GraphicsPrimitiveType::TriangleStrip)
 	{
@@ -1753,14 +1843,14 @@ void Direct3D12GraphicsService::WaitForCommandList(unsigned int commandListId, u
 	commandQueue->Wait(fence.Get(), fenceValue);
 }
 
-void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId)
+void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandListId)
 { 
-	if (!this->commandBuffers.count(commandBufferId))
+	if (!this->commandLists.count(commandListId))
 	{
 		return;
 	}
 	
-	auto commandList = this->commandBuffers[commandBufferId];
+	auto commandList = this->commandLists[commandListId];
 	commandList->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));	
 	
 	this->isPresentBarrier = true;
@@ -1768,16 +1858,16 @@ void Direct3D12GraphicsService::PresentScreenBuffer(unsigned int commandBufferId
 
 void Direct3D12GraphicsService::QueryTimestamp(unsigned int commandListId, unsigned int queryBufferId, int index)
 {
-	auto commandBufferType = this->commandBufferTypes[this->commandListBuffers[commandListId]];
+	auto commandListType = this->commandListTypes[commandListId];
 
-	if (commandBufferType == D3D12_COMMAND_LIST_TYPE_COPY)
+	if (commandListType == D3D12_COMMAND_LIST_TYPE_COPY)
 	{
 		return;
 	}
 
 	// TODO: Check if we are in a copy list and use the appropriate query buffer
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto queryBuffer = this->queryBuffers[queryBufferId];
 
 	commandList->EndQuery(queryBuffer.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
@@ -1794,9 +1884,16 @@ void Direct3D12GraphicsService::ResolveQueryData(unsigned int commandListId, uns
 
 	// TODO: Check if we are in a copy list and use the appropriate query buffer
 
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto queryBuffer = this->queryBuffers[queryBufferId];
 	auto destinationBuffer = this->graphicsBuffers[destinationBufferId];
+
+	if (this->graphicsBufferPointers.count(destinationBufferId))
+	{
+		D3D12_RANGE range = { 0, 0 };
+		destinationBuffer->Unmap(0, &range);
+		this->graphicsBufferPointers.erase(destinationBufferId);
+	}
 
 	commandList->ResolveQueryData(queryBuffer.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer.Get(), 0);
 }
@@ -2215,7 +2312,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE Direct3D12GraphicsService::GetCurrentRenderTargetVie
 // TODO: Make it generic to all resource types
 void Direct3D12GraphicsService::TransitionTextureToState(unsigned int commandListId, unsigned int textureId, D3D12_RESOURCE_STATES destinationState)
 {
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto gpuTexture = this->gpuTextures[textureId];
 	auto actualState = this->textureResourceStates[textureId];
 
@@ -2229,7 +2326,7 @@ void Direct3D12GraphicsService::TransitionTextureToState(unsigned int commandLis
 // TODO: Make it generic to all resource types
 void Direct3D12GraphicsService::TransitionBufferToState(unsigned int commandListId, unsigned int bufferId, D3D12_RESOURCE_STATES destinationState)
 {
-	auto commandList = this->commandBuffers[this->commandListBuffers[commandListId]];
+	auto commandList = this->commandLists[commandListId];
 	auto gpuBuffer = this->graphicsBuffers[bufferId];
 	auto actualState = this->bufferResourceStates[bufferId];
 

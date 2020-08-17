@@ -23,7 +23,7 @@ namespace CoreEngine.HostServices
         ReadBack
     }
 
-    public enum GraphicsCommandType
+    public enum GraphicsServiceCommandType
     {
         Render,
         Copy,
@@ -307,14 +307,15 @@ namespace CoreEngine.HostServices
         void SetPipelineStateLabel(uint pipelineStateId, string label);
         void DeletePipelineState(uint pipelineStateId);
 
-        bool CreateCommandQueue(uint commandQueueId, GraphicsCommandType commandQueueType);
+        bool CreateCommandQueue(uint commandQueueId, GraphicsServiceCommandType commandQueueType);
         void SetCommandQueueLabel(uint commandQueueId, string label);
         void DeleteCommandQueue(uint commandQueueId);
         ulong GetCommandQueueTimestampFrequency(uint commandQueueId);
-        ulong ExecuteCommandLists(uint commandQueueId, bool signalFence);
+        ulong ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists, bool signalFence);
         void WaitForCommandQueue(uint commandQueueId, uint commandQueueToWaitId, ulong fenceValue);
+        void WaitForCommandQueueOnCpu(uint commandQueueToWaitId, ulong fenceValue);
  
-        bool CreateCommandList(uint commandListId, uint commandQueueId, GraphicsCommandType commandListType);
+        bool CreateCommandList(uint commandListId, uint commandQueueId);
         void SetCommandListLabel(uint commandListId, string label);
         void DeleteCommandList(uint commandListId);
         void ResetCommandList(uint commandListId);
@@ -323,20 +324,6 @@ namespace CoreEngine.HostServices
         bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType, int length);
         void SetQueryBufferLabel(uint queryBufferId, string label);
         void DeleteQueryBuffer(uint queryBufferId);
-
-        bool CreateCommandBuffer(uint commandBufferId, GraphicsCommandBufferType commandBufferType, string label);
-        void DeleteCommandBuffer(uint commandBufferId);
-        void ResetCommandBuffer(uint commandBufferId);
-        void ExecuteCommandBuffer(uint commandBufferId);
-
-        void BeginRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
-        void EndRenderPass(uint commandListId);
-
-        /*
-
-        void MemoryBarrier(uint commandListId, ReadOnlySpan<MemoryBarrier> memoryBarriers);
-
-        */
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
@@ -347,8 +334,6 @@ namespace CoreEngine.HostServices
         void SetShaderIndirectCommandList(uint commandListId, uint indirectCommandListId, int slot, int index);
         void SetShaderIndirectCommandLists(uint commandListId, ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index);
 
-        bool CreateCopyCommandList(uint commandListId, uint commandBufferId, string label);
-        void CommitCopyCommandList(uint commandListId);
         void CopyDataToGraphicsBuffer(uint commandListId, uint destinationGraphicsBufferId, uint sourceGraphicsBufferId, int length);
         void CopyDataToTexture(uint commandListId, uint destinationTextureId, uint sourceGraphicsBufferId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(uint commandListId, uint destinationTextureId, uint sourceTextureId);
@@ -357,12 +342,10 @@ namespace CoreEngine.HostServices
         void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
         void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
 
-        bool CreateComputeCommandList(uint commandListId, uint commandBufferId, string label);
-        void CommitComputeCommandList(uint commandListId);
         Vector3 DispatchThreads(uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ);
-        
-        bool CreateRenderCommandList(uint commandListId, uint commandBufferId, GraphicsRenderPassDescriptor renderDescriptor, string label);
-        void CommitRenderCommandList(uint commandListId);
+
+        void BeginRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
+        void EndRenderPass(uint commandListId);
 
         void SetPipelineState(uint commandListId, uint pipelineStateId);
 
@@ -382,8 +365,6 @@ namespace CoreEngine.HostServices
         void QueryTimestamp(uint commandListId, uint queryBufferId, int index);
         void ResolveQueryData(uint commandListId, uint queryBufferId, uint destinationBufferId, int startIndex, int endIndex);
         
-        void WaitForCommandList(uint commandListId, uint commandListToWaitId);
-
         // TODO: Add a parameter to specify which drawable we should update. Usefull for editor or multiple windows management
         // TODO: Rename that to PresentSwapChain and add swap chain id parameter
         void PresentScreenBuffer(uint commandBufferId);

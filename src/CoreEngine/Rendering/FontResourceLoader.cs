@@ -10,10 +10,12 @@ namespace CoreEngine.Rendering
     public class FontResourceLoader : ResourceLoader
     {
         private readonly GraphicsManager graphicsManager;
+        private readonly RenderManager renderManager;
 
-        public FontResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
+        public FontResourceLoader(ResourcesManager resourcesManager, RenderManager renderManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
             this.graphicsManager = graphicsManager;
+            this.renderManager = renderManager;
         }
 
         public override string Name => "Font Loader";
@@ -86,13 +88,12 @@ namespace CoreEngine.Rendering
             font.Texture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, TextureUsage.ShaderRead, width, height, 1, 1, 1, isStatic: true, label: "FontTexture");
 
             // TODO: Make only one frame copy command list for all resource loaders
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "FontLoader");
-            this.graphicsManager.ResetCommandBuffer(commandBuffer);
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "FontLoaderCommandList");
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "FontLoader");
+            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, font.Texture, cpuBuffer, font.Texture.Width, font.Texture.Height, 0, 0);
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.DeleteCommandList(copyCommandList);
 
             this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
             return font;

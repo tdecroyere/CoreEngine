@@ -16,8 +16,8 @@ namespace CoreEngine.Rendering
         private GraphicsBuffer cpuIndexBuffer;
         private GraphicsBuffer indexBuffer;
 
-        public CommandBuffer copyCommandBuffer { get; }
-        public CommandBuffer commandBuffer { get; }
+        public CommandList copyCommandList { get; }
+        public CommandList renderCommandList { get; }
 
         private int currentDebugLineIndex;
 
@@ -50,8 +50,8 @@ namespace CoreEngine.Rendering
             this.cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer");
 
-            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "DebugRendererCopy");
-            this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "DebugRenderer");
+            this.copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "DebugRendererCopy");
+            this.renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "DebugRenderer");
             this.currentDebugLineIndex = 0;
         }
 
@@ -166,48 +166,45 @@ namespace CoreEngine.Rendering
             }
         }
 
-        public CommandList Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture renderTargetTexture, Texture? depthTexture, CommandList previousCommandList)
+        public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture renderTargetTexture, Texture? depthTexture)
         {
             if (this.currentDebugLineIndex > 0)
             {
-                this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
+                this.graphicsManager.ResetCommandList(this.copyCommandList);
 
-                var copyCommandList = this.graphicsManager.CreateCopyCommandList(this.copyCommandBuffer, "DebugCopyCommandList");
                 var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
                 this.graphicsManager.CopyDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.cpuVertexBuffer, this.currentDebugLineIndex * 4);
                 this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.cpuIndexBuffer, this.currentDebugLineIndex * 2);
                 var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-                this.graphicsManager.CommitCopyCommandList(copyCommandList);
-                this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
+                this.graphicsManager.CommitCommandList(copyCommandList);
+                var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
 
-                this.graphicsManager.ResetCommandBuffer(commandBuffer);
+                this.graphicsManager.ResetCommandList(renderCommandList);
 
                 var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, true, PrimitiveType.Line);
-                var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
 
-                this.graphicsManager.WaitForCommandList(commandList, copyCommandList);
-                this.graphicsManager.WaitForCommandList(commandList, previousCommandList);
-                var startQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
+                this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
-                this.graphicsManager.SetShader(commandList, this.shader);
-                this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
-                this.graphicsManager.SetShaderBuffer(commandList, renderPassParametersGraphicsBuffer, 1);
+                this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, this.renderManager.CopyCommandQueue, copyFence);
+                var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
-                this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
-                this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+                this.graphicsManager.SetShader(renderCommandList, this.shader);
+                this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
+                this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
 
-                var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
-                this.graphicsManager.CommitRenderCommandList(commandList);
-                this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+                this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
+                this.graphicsManager.DrawIndexedPrimitives(renderCommandList, PrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+
+                this.graphicsManager.EndRenderPass(this.renderCommandList);
+
+                var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+                this.graphicsManager.CommitCommandList(renderCommandList);
+                this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, isAwaitable: false);
 
                 this.renderManager.AddGpuTiming("DebugRendererCopy", startCopyQueryIndex, endCopyQueryIndex);
                 this.renderManager.AddGpuTiming("DebugRenderer", startQueryIndex, endQueryIndex);
-
-                return commandList;
             }
-
-            return previousCommandList;
         }
     }
 }

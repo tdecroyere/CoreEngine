@@ -78,8 +78,8 @@ namespace CoreEngine.Rendering
         private GraphicsBuffer rectangleSurfacesGraphicsBuffer;
 
         private List<Texture> textures;
-        public CommandBuffer copyCommandBuffer { get; }
-        public CommandBuffer commandBuffer { get; }
+        public CommandList copyCommandList { get; }
+        public CommandList renderCommandList { get; }
 
         public Graphics2DRenderer(RenderManager renderManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
@@ -130,14 +130,13 @@ namespace CoreEngine.Rendering
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(GraphicsHeapType.Gpu, vertexData.Length, isStatic: true, label: "Graphics2DVertexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, indexData.Length, isStatic: true, label: "Graphics2DIndexBuffer");
 
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "Graphics2DRenderer");
-            this.graphicsManager.ResetCommandBuffer(commandBuffer);
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "Graphics2DRendererCommandList");
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "Graphics2DRenderer");
+            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToGraphicsBuffer<Graphics2DVertex>(copyCommandList, this.vertexBuffer, cpuVertexBuffer, vertexData.Length);
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, cpuIndexBuffer, indexData.Length);
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.DeleteCommandList(copyCommandList);
 
             this.graphicsManager.DeleteGraphicsBuffer(cpuVertexBuffer);
             this.graphicsManager.DeleteGraphicsBuffer(cpuIndexBuffer);
@@ -147,8 +146,8 @@ namespace CoreEngine.Rendering
             this.cpuRectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Upload, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer");
             this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Gpu, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer");
 
-            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "Graphics2DRendererCopy");
-            this.commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "Graphics2DRenderer");
+            this.copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "Graphics2DRendererCopy");
+            this.renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "Graphics2DRenderer");
         }
 
         public override void PreUpdate()
@@ -232,51 +231,49 @@ namespace CoreEngine.Rendering
             this.currentSurfaceCount++;
         }
 
-        public CommandList Render(Texture renderTargetTexture, CommandList previousCommandList)
+        public void Render(Texture renderTargetTexture)
         {
             if (this.currentSurfaceCount > 0)
             {
-                this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
+                this.graphicsManager.ResetCommandList(this.copyCommandList);
 
-                var copyCommandList = this.graphicsManager.CreateCopyCommandList(copyCommandBuffer, "Graphics2DCopyCommandList");
                 var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
                 this.graphicsManager.CopyDataToGraphicsBuffer<RenderPassConstants2D>(copyCommandList, this.renderPassParametersGraphicsBuffer, this.cpuRenderPassParametersGraphicsBuffer, 1);
                 this.graphicsManager.CopyDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.cpuRectangleSurfacesGraphicsBuffer, this.currentSurfaceCount);
                 var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-                this.graphicsManager.CommitCopyCommandList(copyCommandList);
-                this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
+                this.graphicsManager.CommitCommandList(copyCommandList);
+                var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
 
-                this.graphicsManager.ResetCommandBuffer(commandBuffer);
-                var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
+                this.graphicsManager.ResetCommandList(renderCommandList);
+                // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
+                var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
                 var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.Triangle);
-                var commandList = this.graphicsManager.CreateRenderCommandList(commandBuffer, renderPassDescriptor, "Graphics2DRenderCommandList");
 
-                this.graphicsManager.WaitForCommandList(commandList, copyCommandList);
-                this.graphicsManager.WaitForCommandList(commandList, previousCommandList);
-                var startQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
+                this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, this.renderManager.CopyCommandQueue, copyFence);
+                
+                var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+                this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
-                this.graphicsManager.SetShader(commandList, this.shader);
-                this.graphicsManager.SetShaderBuffer(commandList, this.vertexBuffer, 0);
-                this.graphicsManager.SetShaderBuffer(commandList, this.renderPassParametersGraphicsBuffer, 1);
-                this.graphicsManager.SetShaderBuffer(commandList, this.rectangleSurfacesGraphicsBuffer, 2);
-                this.graphicsManager.SetShaderTextures(commandList, this.textures.ToArray(), 3);
+                this.graphicsManager.SetShader(renderCommandList, this.shader);
+                this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
+                this.graphicsManager.SetShaderBuffer(renderCommandList, this.renderPassParametersGraphicsBuffer, 1);
+                this.graphicsManager.SetShaderBuffer(renderCommandList, this.rectangleSurfacesGraphicsBuffer, 2);
+                this.graphicsManager.SetShaderTextures(renderCommandList, this.textures.ToArray(), 3);
 
-                this.graphicsManager.SetIndexBuffer(commandList, this.indexBuffer);
+                this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
 
                 // Don't use a vertex buffer and an index, use instances instead
-                this.graphicsManager.DrawIndexedPrimitives(commandList, PrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
+                Logger.WriteMessage("Draw2D");
+                this.graphicsManager.DrawIndexedPrimitives(renderCommandList, PrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
-                var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
-                this.graphicsManager.CommitRenderCommandList(commandList);
-                this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
+                this.graphicsManager.EndRenderPass(this.renderCommandList);
+                var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+                this.graphicsManager.CommitCommandList(this.renderCommandList);
+                this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, isAwaitable: false);
 
                 this.renderManager.AddGpuTiming("Graphics2DRendererCopy", startCopyQueryIndex, endCopyQueryIndex);
                 this.renderManager.AddGpuTiming("Graphics2DRenderer", startQueryIndex, endQueryIndex);
-
-                return commandList;
             }
-
-            return previousCommandList;
         }
     }
 }

@@ -11,10 +11,12 @@ namespace CoreEngine.Rendering
     public class MeshResourceLoader : ResourceLoader
     {
         private readonly GraphicsManager graphicsManager;
+        private readonly RenderManager renderManager;
 
-        public MeshResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
+        public MeshResourceLoader(ResourcesManager resourcesManager, RenderManager renderManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
             this.graphicsManager = graphicsManager;
+            this.renderManager = renderManager;
         }
 
         public override string Name => "Mesh Loader";
@@ -68,14 +70,13 @@ namespace CoreEngine.Rendering
             var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, vertexBufferData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
             var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, indexBufferData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
 
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "MeshLoader");
-            this.graphicsManager.ResetCommandBuffer(commandBuffer);
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "MeshLoaderCommandList");
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "MeshLoader");
+            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, cpuVertexBuffer, vertexBufferSize);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, cpuIndexBuffer, indexBufferSize);
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.DeleteCommandList(copyCommandList);
             
             var geometryPacket = new GeometryPacket(vertexBuffer, indexBuffer);
 

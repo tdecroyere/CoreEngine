@@ -1,20 +1,19 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using CoreEngine.Diagnostics;
-using CoreEngine.HostServices;
+using CoreEngine.Graphics;
 using CoreEngine.Resources;
 
-namespace CoreEngine.Graphics
+namespace CoreEngine.Rendering
 {
     public class TextureResourceLoader : ResourceLoader
     {
         private readonly GraphicsManager graphicsManager;
+        private readonly RenderManager renderManager;
+
         private Texture emptyTexture;
 
-        public TextureResourceLoader(ResourcesManager resourcesManager, GraphicsManager graphicsManager) : base(resourcesManager)
+        public TextureResourceLoader(ResourcesManager resourcesManager, RenderManager renderManager, GraphicsManager graphicsManager) : base(resourcesManager)
         {
             if (graphicsManager == null)
             {
@@ -22,6 +21,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsManager = graphicsManager;
+            this.renderManager = renderManager;
 
             // TODO: Remove the responsability of the loader to create empty resources
             Logger.BeginAction("Create Empty Texture");
@@ -33,13 +33,12 @@ namespace CoreEngine.Graphics
             var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             textureData.Fill(255);
 
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "TextureLoader");
-            this.graphicsManager.ResetCommandBuffer(commandBuffer);
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "TextureLoaderCommandList");
+            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, this.emptyTexture, cpuBuffer, 256, 256, 0, 0);
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.DeleteCommandList(copyCommandList);
             Logger.EndAction();
 
             this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
@@ -92,9 +91,8 @@ namespace CoreEngine.Graphics
             texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
             texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
 
-            var commandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "TextureLoader");
-            this.graphicsManager.ResetCommandBuffer(commandBuffer);
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "TextureLoaderCommandList");
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "TextureLoader");
+            this.graphicsManager.ResetCommandList(copyCommandList);
 
             for (var i = 0; i < texture.FaceCount; i++)
             {
@@ -122,9 +120,9 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-            this.graphicsManager.DeleteCommandBuffer(commandBuffer);
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.DeleteCommandList(copyCommandList);
 
             return texture;
         }

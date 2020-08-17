@@ -242,6 +242,53 @@ namespace CoreEngine.Graphics
             return new IndirectCommandBuffer(this, graphicsResourceId, graphicsResourceId2, maxCommandCount, isStatic, label);
         }
 
+        public CommandQueue CreateCommandQueue(CommandType queueType, string label)
+        {
+            var commandQueueId = GetNextGraphicsResourceId();
+            var result = this.graphicsService.CreateCommandQueue(commandQueueId, (GraphicsServiceCommandType)queueType);
+            this.graphicsService.SetCommandQueueLabel(commandQueueId, label);
+
+            if (!result)
+            {
+                throw new InvalidOperationException("There was an error while creating the render queue.");
+            }
+
+            return new CommandQueue(commandQueueId, queueType, label);
+        }
+
+        public void DeleteCommandQueue(CommandQueue graphicsQueue)
+        {
+            this.graphicsService.DeleteCommandQueue(graphicsQueue.Id);
+        }
+
+        public ulong GetCommandQueueTimestampFrequency(CommandQueue commandQueue)
+        {
+            return this.graphicsService.GetCommandQueueTimestampFrequency(commandQueue.Id);
+        }
+
+        public ulong ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, bool isAwaitable)
+        {
+            // TODO: Do a stack alloc here
+            var commandListsIds = new uint[commandLists.Length];
+
+            for (var i = 0; i < commandLists.Length; i++)
+            {
+                commandListsIds[i] = commandLists[i].GraphicsResourceId;
+            }
+
+            return this.graphicsService.ExecuteCommandLists(commandQueue.Id, commandListsIds, isAwaitable);
+        }
+
+        public void WaitForCommandQueue(CommandQueue commandQueue, CommandQueue commandQueueToWait, ulong fenceValue)
+        {
+            this.graphicsService.WaitForCommandQueue(commandQueue.Id, commandQueueToWait.Id, fenceValue);
+        }
+
+        public void WaitForCommandQueueOnCpu(CommandQueue commandQueueToWait, ulong fenceValue)
+        {
+            this.graphicsService.WaitForCommandQueueOnCpu(commandQueueToWait.Id, fenceValue);
+        }
+
         public QueryBuffer CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length, string label)
         {
             var queryBufferId = GetNextGraphicsResourceId();
@@ -303,70 +350,51 @@ namespace CoreEngine.Graphics
             this.graphicsService.DeleteShader(shader.ShaderId);
         }
 
-        public CommandBuffer CreateCommandBuffer(CommandListType commandBufferType, string label)
+        public CommandList CreateCommandList(CommandQueue commandQueue, string label)
         {
+            // TODO: Check to see if the command lists are compatible with the command queue
+
             var graphicsResourceId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateCommandBuffer(graphicsResourceId, (GraphicsCommandBufferType)(int)commandBufferType, label);
+            var result = graphicsService.CreateCommandList(graphicsResourceId, commandQueue.Id);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the command buffer resource.");
             }
 
+            graphicsService.SetCommandListLabel(graphicsResourceId, $"{label}0");
 
             var graphicsResourceId2 = GetNextGraphicsResourceId();
-            result = this.graphicsService.CreateCommandBuffer(graphicsResourceId2, (GraphicsCommandBufferType)(int)commandBufferType, label);
+            result = this.graphicsService.CreateCommandList(graphicsResourceId2, commandQueue.Id);
 
             if (!result)
             {
                 throw new InvalidOperationException("There was an error while creating the command buffer resource.");
             }
 
-            return new CommandBuffer(this, graphicsResourceId, graphicsResourceId2, commandBufferType, label);
+            this.graphicsService.SetCommandListLabel(graphicsResourceId2, $"{label}1");
+
+            return new CommandList(this, graphicsResourceId, graphicsResourceId2, commandQueue.Type, label);
         }
 
-        public void DeleteCommandBuffer(CommandBuffer commandBuffer)
+        public void DeleteCommandList(CommandList commandList)
         {
-            this.graphicsService.DeleteCommandBuffer(commandBuffer.GraphicsResourceSystemId);
+            this.graphicsService.DeleteCommandList(commandList.GraphicsResourceSystemId);
 
-            if (commandBuffer.GraphicsResourceSystemId2 != null)
+            if (commandList.GraphicsResourceSystemId2 != null)
             {
-                this.graphicsService.DeleteCommandBuffer(commandBuffer.GraphicsResourceSystemId2.Value);
+                this.graphicsService.DeleteCommandList(commandList.GraphicsResourceSystemId2.Value);
             }
         }
 
-        public void ExecuteCommandBuffer(CommandBuffer commandBuffer)
+        public void ResetCommandList(CommandList commandList)
         {
-            graphicsService.ExecuteCommandBuffer(commandBuffer.GraphicsResourceId);
+            this.graphicsService.ResetCommandList(commandList.GraphicsResourceId);
         }
 
-        // TODO: Make it private and automatically call it when changing frames
-        public void ResetCommandBuffer(CommandBuffer commandBuffer)
+        public void CommitCommandList(CommandList commandList)
         {
-            this.graphicsService.ResetCommandBuffer(commandBuffer.GraphicsResourceId);
-        }
-
-        public CommandList CreateCopyCommandList(CommandBuffer commandBuffer, string label)
-        {
-            var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateCopyCommandList(commandListId, commandBuffer.GraphicsResourceId, label);
-
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the copy command list resource.");
-            }
-
-            return new CommandList(commandListId, CommandListType.Copy);
-        }
-
-        public void CommitCopyCommandList(CommandList commandList)
-        {
-            if (commandList.Type != CommandListType.Copy)
-            {
-                throw new InvalidOperationException("The specified command list is not a copy command list.");
-            }
-
-            this.graphicsService.CommitCopyCommandList(commandList.Id);
+            this.graphicsService.CommitCommandList(commandList.GraphicsResourceId);
         }
 
         public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, int length) where T : struct
@@ -375,7 +403,7 @@ namespace CoreEngine.Graphics
 
             var sizeInBytes = length * Marshal.SizeOf(typeof(T));
 
-            this.graphicsService.CopyDataToGraphicsBuffer(commandList.Id, destination.GraphicsResourceId, source.GraphicsResourceId, sizeInBytes);
+            this.graphicsService.CopyDataToGraphicsBuffer(commandList.GraphicsResourceId, destination.GraphicsResourceId, source.GraphicsResourceId, sizeInBytes);
             this.gpuMemoryUploaded += sizeInBytes;
         }
 
@@ -387,7 +415,7 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(destination));
             }
 
-            this.graphicsService.CopyDataToTexture(commandList.Id, destination.GraphicsResourceId, source.GraphicsResourceId, (GraphicsTextureFormat)destination.TextureFormat, width, height, slice, mipLevel);
+            this.graphicsService.CopyDataToTexture(commandList.GraphicsResourceId, destination.GraphicsResourceId, source.GraphicsResourceId, (GraphicsTextureFormat)destination.TextureFormat, width, height, slice, mipLevel);
             this.gpuMemoryUploaded += source.Length;
         }
 
@@ -403,46 +431,22 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(source));
             }
 
-            this.graphicsService.CopyTexture(commandList.Id, destination.GraphicsResourceId, source.GraphicsResourceId);
+            this.graphicsService.CopyTexture(commandList.GraphicsResourceId, destination.GraphicsResourceId, source.GraphicsResourceId);
         }
 
         public void ResetIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
         {
-            this.graphicsService.ResetIndirectCommandList(commandList.Id, indirectCommandList.GraphicsResourceId, maxCommandCount);
+            this.graphicsService.ResetIndirectCommandList(commandList.GraphicsResourceId, indirectCommandList.GraphicsResourceId, maxCommandCount);
         }
 
         public void OptimizeIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
         {
-            this.graphicsService.OptimizeIndirectCommandList(commandList.Id, indirectCommandList.GraphicsResourceId, maxCommandCount);
-        }
-
-        public CommandList CreateComputeCommandList(CommandBuffer commandBuffer, string label)
-        {
-            var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateComputeCommandList(commandListId, commandBuffer.GraphicsResourceId, label);
-
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the compute command list resource.");
-            }
-
-            var commandList = new CommandList(commandListId, CommandListType.Compute);
-            return commandList;
-        }
-
-        public void CommitComputeCommandList(CommandList commandList)
-        {
-            if (commandList.Type != CommandListType.Compute)
-            {
-                throw new InvalidOperationException("The specified command list is not a compute command list.");
-            }
-
-            this.graphicsService.CommitComputeCommandList(commandList.Id);
+            this.graphicsService.OptimizeIndirectCommandList(commandList.GraphicsResourceId, indirectCommandList.GraphicsResourceId, maxCommandCount);
         }
 
         public Vector3 DispatchThreads(CommandList commandList, uint threadCountX, uint threadCountY, uint threadCountZ)
         {
-            if (commandList.Type != CommandListType.Compute)
+            if (commandList.Type != CommandType.Compute)
             {
                 throw new InvalidOperationException("The specified command list is not a compute command list.");
             }
@@ -463,35 +467,27 @@ namespace CoreEngine.Graphics
             }
 
             this.cpuDispatchCount++;
-            return this.graphicsService.DispatchThreads(commandList.Id, threadCountX, threadCountY, threadCountZ);
+            return this.graphicsService.DispatchThreads(commandList.GraphicsResourceId, threadCountX, threadCountY, threadCountZ);
         }
 
-        public CommandList CreateRenderCommandList(CommandBuffer commandBuffer, RenderPassDescriptor renderPassDescriptor, string label)
+        // TODO: Add checks to all render functins to see if a render pass has been started
+        public void BeginRenderPass(CommandList commandList, RenderPassDescriptor renderPassDescriptor)
         {
             var graphicsRenderPassDescriptor = new GraphicsRenderPassDescriptor(renderPassDescriptor);
-            var commandListId = GetNextGraphicsResourceId();
-            var result = graphicsService.CreateRenderCommandList(commandListId, commandBuffer.GraphicsResourceId, graphicsRenderPassDescriptor, label);
+            graphicsService.BeginRenderPass(commandList.GraphicsResourceId, graphicsRenderPassDescriptor);
 
-            if (!result)
-            {
-                throw new InvalidOperationException("There was an error while creating the render command list resource.");
-            }
-
-            this.renderPassDescriptors.Add(commandListId, graphicsRenderPassDescriptor);
-
-            var commandList = new CommandList(commandListId, CommandListType.Render);
-            return commandList;
+            this.renderPassDescriptors.Add(commandList.GraphicsResourceId, graphicsRenderPassDescriptor);
         }
 
-        public void CommitRenderCommandList(CommandList commandList)
+        public void EndRenderPass(CommandList commandList)
         {
-            if (commandList.Type != CommandListType.Render)
+            if (commandList.Type != CommandType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            this.graphicsService.CommitRenderCommandList(commandList.Id);
-            this.renderPassDescriptors.Remove(commandList.Id);
+            this.graphicsService.EndRenderPass(commandList.GraphicsResourceId);
+            this.renderPassDescriptors.Remove(commandList.GraphicsResourceId);
         }
 
         public void SetShader(CommandList commandList, Shader shader)
@@ -506,13 +502,13 @@ namespace CoreEngine.Graphics
                 return;
             }
 
-            this.graphicsService.SetShader(commandList.Id, shader.ShaderId);
+            this.graphicsService.SetShader(commandList.GraphicsResourceId, shader.ShaderId);
 
             var renderPassDescriptor = new GraphicsRenderPassDescriptor();
 
-            if (this.renderPassDescriptors.ContainsKey(commandList.Id))
+            if (this.renderPassDescriptors.ContainsKey(commandList.GraphicsResourceId))
             {
-                renderPassDescriptor = this.renderPassDescriptors[commandList.Id];
+                renderPassDescriptor = this.renderPassDescriptors[commandList.GraphicsResourceId];
             }
 
             if (!shader.PipelineStates.ContainsKey(renderPassDescriptor))
@@ -531,12 +527,12 @@ namespace CoreEngine.Graphics
                 shader.PipelineStates.Add(renderPassDescriptor, new PipelineState(pipelineStateId));
             }
 
-            this.graphicsService.SetPipelineState(commandList.Id, shader.PipelineStates[renderPassDescriptor].PipelineStateId);
+            this.graphicsService.SetPipelineState(commandList.GraphicsResourceId, shader.PipelineStates[renderPassDescriptor].PipelineStateId);
         }
 
         public void SetShaderBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, int slot, bool isReadOnly = true, int index = 0)
         {
-            this.graphicsService.SetShaderBuffer(commandList.Id, graphicsBuffer.GraphicsResourceId, slot, isReadOnly, index);
+            this.graphicsService.SetShaderBuffer(commandList.GraphicsResourceId, graphicsBuffer.GraphicsResourceId, slot, isReadOnly, index);
         }
 
         public void SetShaderBuffers(CommandList commandList, ReadOnlySpan<GraphicsBuffer> graphicsBuffers, int slot, int index = 0)
@@ -553,7 +549,7 @@ namespace CoreEngine.Graphics
                 graphicsBufferIdsList[i] = graphicsBuffers[i].GraphicsResourceId;
             }
 
-            this.graphicsService.SetShaderBuffers(commandList.Id, graphicsBufferIdsList.AsSpan(), slot, index);
+            this.graphicsService.SetShaderBuffers(commandList.GraphicsResourceId, graphicsBufferIdsList.AsSpan(), slot, index);
         }
 
         public void SetShaderTexture(CommandList commandList, Texture texture, int slot, bool isReadOnly = true, int index = 0)
@@ -568,7 +564,7 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("A Render Target cannot be set as a write shader resource.");
             }
 
-            this.graphicsService.SetShaderTexture(commandList.Id, texture.GraphicsResourceId, slot, isReadOnly, index);
+            this.graphicsService.SetShaderTexture(commandList.GraphicsResourceId, texture.GraphicsResourceId, slot, isReadOnly, index);
         }
 
         public void SetShaderTextures(CommandList commandList, ReadOnlySpan<Texture> textures, int slot, int index = 0)
@@ -586,12 +582,12 @@ namespace CoreEngine.Graphics
                 textureIdsList[i] = texture.GraphicsResourceId;
             }
 
-            this.graphicsService.SetShaderTextures(commandList.Id, textureIdsList.AsSpan(), slot, index);
+            this.graphicsService.SetShaderTextures(commandList.GraphicsResourceId, textureIdsList.AsSpan(), slot, index);
         }
 
         public void SetShaderIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandBuffer, int slot, int index = 0)
         {
-            this.graphicsService.SetShaderIndirectCommandList(commandList.Id, indirectCommandBuffer.GraphicsResourceId, slot, index);
+            this.graphicsService.SetShaderIndirectCommandList(commandList.GraphicsResourceId, indirectCommandBuffer.GraphicsResourceId, slot, index);
         }
 
         public void SetShaderIndirectCommandBuffers(CommandList commandList, ReadOnlySpan<IndirectCommandBuffer> indirectCommandBuffers, int slot, int index = 0)
@@ -608,32 +604,32 @@ namespace CoreEngine.Graphics
                 list[i] = indirectCommandBuffers[i].GraphicsResourceId;
             }
 
-            this.graphicsService.SetShaderIndirectCommandLists(commandList.Id, list.AsSpan(), slot, index);
+            this.graphicsService.SetShaderIndirectCommandLists(commandList.GraphicsResourceId, list.AsSpan(), slot, index);
         }
 
         public void ExecuteIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandBuffer, int maxCommandCount)
         {
-            if (commandList.Type != CommandListType.Render)
+            if (commandList.Type != CommandType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            this.graphicsService.ExecuteIndirectCommandBuffer(commandList.Id, indirectCommandBuffer.GraphicsResourceId, maxCommandCount);
+            this.graphicsService.ExecuteIndirectCommandBuffer(commandList.GraphicsResourceId, indirectCommandBuffer.GraphicsResourceId, maxCommandCount);
         }
 
         public void SetIndexBuffer(CommandList commandList, GraphicsBuffer indexBuffer)
         {
-            this.graphicsService.SetIndexBuffer(commandList.Id, indexBuffer.GraphicsResourceId);
+            this.graphicsService.SetIndexBuffer(commandList.GraphicsResourceId, indexBuffer.GraphicsResourceId);
         }
 
         public void DrawIndexedPrimitives(CommandList commandList, PrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
         {
-            if (commandList.Type != CommandListType.Render)
+            if (commandList.Type != CommandType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            this.graphicsService.DrawIndexedPrimitives(commandList.Id, 
+            this.graphicsService.DrawIndexedPrimitives(commandList.GraphicsResourceId, 
                                                 (GraphicsPrimitiveType)(int)primitiveType, 
                                                 startIndex, 
                                                 indexCount,
@@ -645,12 +641,12 @@ namespace CoreEngine.Graphics
 
         public void DrawPrimitives(CommandList commandList, PrimitiveType primitiveType, int startVertex, int vertexCount)
         {
-            if (commandList.Type != CommandListType.Render)
+            if (commandList.Type != CommandType.Render)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
-            this.graphicsService.DrawPrimitives(commandList.Id, 
+            this.graphicsService.DrawPrimitives(commandList.GraphicsResourceId, 
                                                 (GraphicsPrimitiveType)(int)primitiveType, 
                                                 startVertex, 
                                                 vertexCount);
@@ -660,26 +656,13 @@ namespace CoreEngine.Graphics
 
         public void QueryTimestamp(CommandList commandList, QueryBuffer queryBuffer, int index)
         {
-            this.graphicsService.QueryTimestamp(commandList.Id, queryBuffer.GraphicsResourceId, index);
+            this.graphicsService.QueryTimestamp(commandList.GraphicsResourceId, queryBuffer.GraphicsResourceId, index);
         }
 
         public void ResolveQueryData(CommandList commandList, QueryBuffer queryBuffer, GraphicsBuffer destinationBuffer, Range range)
         {
             var offsetAndLength = range.GetOffsetAndLength(queryBuffer.Length);
-            this.graphicsService.ResolveQueryData(commandList.Id, queryBuffer.GraphicsResourceId, destinationBuffer.GraphicsResourceId, offsetAndLength.Offset, offsetAndLength.Length);
-        }
-
-        public void WaitForCommandList(CommandList commandList, CommandList commandListToWait)
-        {
-            this.graphicsService.WaitForCommandList(commandList.Id, commandListToWait.Id);
-        }
-
-        public void WaitForCommandLists(CommandList commandList, ReadOnlySpan<CommandList> commandListsToWait)
-        {
-            for (var i = 0; i < commandListsToWait.Length; i++)
-            {
-                this.graphicsService.WaitForCommandList(commandList.Id, commandListsToWait[i].Id);
-            }
+            this.graphicsService.ResolveQueryData(commandList.GraphicsResourceId, queryBuffer.GraphicsResourceId, destinationBuffer.GraphicsResourceId, offsetAndLength.Offset, offsetAndLength.Length);
         }
 
         public void WaitForAvailableScreenBuffer()
@@ -706,7 +689,6 @@ namespace CoreEngine.Graphics
         private void InitResourceLoaders(ResourcesManager resourcesManager)
         {
             Logger.BeginAction("Init Resource Loaders");
-            resourcesManager.AddResourceLoader(new TextureResourceLoader(resourcesManager, this));
             resourcesManager.AddResourceLoader(new ShaderResourceLoader(resourcesManager, this));
             Logger.EndAction();
         }

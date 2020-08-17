@@ -23,13 +23,14 @@ public protocol GraphicsServiceProtocol {
     func createPipelineState(_ pipelineStateId: UInt, _ shaderId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> Bool
     func setPipelineStateLabel(_ pipelineStateId: UInt, _ label: String)
     func deletePipelineState(_ pipelineStateId: UInt)
-    func createCommandQueue(_ commandQueueId: UInt, _ commandQueueType: GraphicsCommandType) -> Bool
+    func createCommandQueue(_ commandQueueId: UInt, _ commandQueueType: GraphicsServiceCommandType) -> Bool
     func setCommandQueueLabel(_ commandQueueId: UInt, _ label: String)
     func deleteCommandQueue(_ commandQueueId: UInt)
     func getCommandQueueTimestampFrequency(_ commandQueueId: UInt) -> UInt
     func executeCommandLists(_ commandQueueId: UInt, _ commandLists: [UInt32], _ isAwaitable: Bool) -> UInt
     func waitForCommandQueue(_ commandQueueId: UInt, _ commandQueueToWaitId: UInt, _ fenceValue: UInt)
-    func createCommandList(_ commandListId: UInt, _ commandQueueId: UInt, _ commandListType: GraphicsCommandType) -> Bool
+    func waitForCommandQueueOnCpu(_ commandQueueToWaitId: UInt, _ fenceValue: UInt)
+    func createCommandList(_ commandListId: UInt, _ commandQueueId: UInt) -> Bool
     func setCommandListLabel(_ commandListId: UInt, _ label: String)
     func deleteCommandList(_ commandListId: UInt)
     func resetCommandList(_ commandListId: UInt)
@@ -37,28 +38,20 @@ public protocol GraphicsServiceProtocol {
     func createQueryBuffer(_ queryBufferId: UInt, _ queryBufferType: GraphicsQueryBufferType, _ length: Int) -> Bool
     func setQueryBufferLabel(_ queryBufferId: UInt, _ label: String)
     func deleteQueryBuffer(_ queryBufferId: UInt)
-    func createCommandBuffer(_ commandBufferId: UInt, _ commandBufferType: GraphicsCommandBufferType, _ label: String) -> Bool
-    func deleteCommandBuffer(_ commandBufferId: UInt)
-    func resetCommandBuffer(_ commandBufferId: UInt)
-    func executeCommandBuffer(_ commandBufferId: UInt)
     func setShaderBuffer(_ commandListId: UInt, _ graphicsBufferId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
     func setShaderBuffers(_ commandListId: UInt, _ graphicsBufferIdList: [UInt32], _ slot: Int, _ index: Int)
     func setShaderTexture(_ commandListId: UInt, _ textureId: UInt, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
     func setShaderTextures(_ commandListId: UInt, _ textureIdList: [UInt32], _ slot: Int, _ index: Int)
     func setShaderIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ slot: Int, _ index: Int)
     func setShaderIndirectCommandLists(_ commandListId: UInt, _ indirectCommandListIdList: [UInt32], _ slot: Int, _ index: Int)
-    func createCopyCommandList(_ commandListId: UInt, _ commandBufferId: UInt, _ label: String) -> Bool
-    func commitCopyCommandList(_ commandListId: UInt)
     func copyDataToGraphicsBuffer(_ commandListId: UInt, _ destinationGraphicsBufferId: UInt, _ sourceGraphicsBufferId: UInt, _ length: Int)
     func copyDataToTexture(_ commandListId: UInt, _ destinationTextureId: UInt, _ sourceGraphicsBufferId: UInt, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int)
     func copyTexture(_ commandListId: UInt, _ destinationTextureId: UInt, _ sourceTextureId: UInt)
     func resetIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int)
     func optimizeIndirectCommandList(_ commandListId: UInt, _ indirectCommandListId: UInt, _ maxCommandCount: Int)
-    func createComputeCommandList(_ commandListId: UInt, _ commandBufferId: UInt, _ label: String) -> Bool
-    func commitComputeCommandList(_ commandListId: UInt)
     func dispatchThreads(_ commandListId: UInt, _ threadCountX: UInt, _ threadCountY: UInt, _ threadCountZ: UInt) -> Vector3
-    func createRenderCommandList(_ commandListId: UInt, _ commandBufferId: UInt, _ renderDescriptor: GraphicsRenderPassDescriptor, _ label: String) -> Bool
-    func commitRenderCommandList(_ commandListId: UInt)
+    func beginRenderPass(_ commandListId: UInt, _ renderPassDescriptor: GraphicsRenderPassDescriptor)
+    func endRenderPass(_ commandListId: UInt)
     func setPipelineState(_ commandListId: UInt, _ pipelineStateId: UInt)
     func setShader(_ commandListId: UInt, _ shaderId: UInt)
     func executeIndirectCommandBuffer(_ commandListId: UInt, _ indirectCommandBufferId: UInt, _ maxCommandCount: Int)
@@ -67,7 +60,6 @@ public protocol GraphicsServiceProtocol {
     func drawPrimitives(_ commandListId: UInt, _ primitiveType: GraphicsPrimitiveType, _ startVertex: Int, _ vertexCount: Int)
     func queryTimestamp(_ commandListId: UInt, _ queryBufferId: UInt, _ index: Int)
     func resolveQueryData(_ commandListId: UInt, _ queryBufferId: UInt, _ destinationBufferId: UInt, _ startIndex: Int, _ endIndex: Int)
-    func waitForCommandList(_ commandListId: UInt, _ commandListToWaitId: UInt)
     func presentScreenBuffer(_ commandBufferId: UInt)
     func waitForAvailableScreenBuffer()
 }

@@ -57,14 +57,15 @@ class Direct3D12GraphicsService
         void SetPipelineStateLabel(unsigned int pipelineStateId, char* label);
         void DeletePipelineState(unsigned int pipelineStateId);
 
-        int CreateCommandQueue(unsigned int commandQueueId, enum GraphicsCommandType commandQueueType);
+        int CreateCommandQueue(unsigned int commandQueueId, enum GraphicsServiceCommandType commandQueueType);
         void SetCommandQueueLabel(unsigned int commandQueueId, char* label);
         void DeleteCommandQueue(unsigned int commandQueueId);
         unsigned long GetCommandQueueTimestampFrequency(unsigned int commandQueueId);
         unsigned long ExecuteCommandLists(unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable);
         void WaitForCommandQueue(unsigned int commandQueueId, unsigned int commandQueueToWaitId, unsigned long fenceValue);
+        void WaitForCommandQueueOnCpu(unsigned int commandQueueToWaitId, unsigned long fenceValue);
 
-        int CreateCommandList(unsigned int commandListId, unsigned int commandQueueId, enum GraphicsCommandType commandListType);
+        int CreateCommandList(unsigned int commandListId, unsigned int commandQueueId);
         void SetCommandListLabel(unsigned int commandListId, char* label);
         void DeleteCommandList(unsigned int commandListId);
         void ResetCommandList(unsigned int commandListId);
@@ -98,6 +99,9 @@ class Direct3D12GraphicsService
         int CreateComputeCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label);
         void CommitComputeCommandList(unsigned int commandListId);
         struct Vector3 DispatchThreads(unsigned int commandListId, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ);
+
+        void BeginRenderPass(unsigned int commandListId, struct GraphicsRenderPassDescriptor renderPassDescriptor);
+        void EndRenderPass(unsigned int commandListId);
 
         int CreateRenderCommandList(unsigned int commandListId, unsigned int commandBufferId, struct GraphicsRenderPassDescriptor renderDescriptor, char* label);
         void CommitRenderCommandList(unsigned int commandListId);
@@ -173,6 +177,7 @@ class Direct3D12GraphicsService
 
         // Command Objects
         map<uint32_t, ComPtr<ID3D12CommandQueue>> commandQueues;
+        map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandQueueTypes;
         map<uint32_t, ComPtr<ID3D12Fence1>> commandQueueFences;
         map<uint32_t, ComPtr<ID3D12CommandAllocator>*> commandQueueAllocators;
         int32_t currentAllocatorIndex = 0;

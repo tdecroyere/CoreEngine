@@ -1,3 +1,4 @@
+/*
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -395,7 +396,7 @@ namespace CoreEngine.Rendering
         public ReadOnlyMemory<GraphicsPipelineResourceBinding>? Inputs { get; }
         public ReadOnlyMemory<GraphicsPipelineResourceBinding>? Outputs { get; }
         internal Shader? Shader { get; set; }
-        internal CommandBuffer? CommandBuffer { get; set; }
+        internal CommandList? CommandBuffer { get; set; }
 
         // TODO: Avoid virtual call by implementing an interface?
         public abstract CommandList Process(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager, CommandList[] commandListsToWait);
@@ -1021,14 +1022,14 @@ namespace CoreEngine.Rendering
 
         private GraphicsBuffer minMaxDepthComputeBuffer;
 
-        private CommandBuffer copyCommandBuffer;
-        private CommandBuffer resetIcbCommandBuffer;
-        private CommandBuffer generateIndirectCommandsCommandBuffer;
-        private CommandBuffer generateIndirectCommandsCommandBuffer2;
-        private CommandBuffer[] generateDepthBufferCommandBuffers;
-        private CommandBuffer[] convertToMomentShadowMapCommandBuffers;
-        private CommandBuffer computeLightsCamerasCommandBuffer;
-        private CommandBuffer transferCommandBuffer;
+        private CommandList copyCommandBuffer;
+        private CommandList resetIcbCommandBuffer;
+        private CommandList generateIndirectCommandsCommandBuffer;
+        private CommandList generateIndirectCommandsCommandBuffer2;
+        private CommandList[] generateDepthBufferCommandBuffers;
+        private CommandList[] convertToMomentShadowMapCommandBuffers;
+        private CommandList computeLightsCamerasCommandBuffer;
+        private CommandList transferCommandBuffer;
 
         private GraphicsPipeline depthGraphicsPipeline;
         private GraphicsPipeline graphicsPipeline;
@@ -1087,8 +1088,8 @@ namespace CoreEngine.Rendering
             this.generateIndirectCommandsCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
             this.generateIndirectCommandsCommandBuffer2 = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
 
-            this.generateDepthBufferCommandBuffers = new CommandBuffer[5];
-            this.convertToMomentShadowMapCommandBuffers = new CommandBuffer[5];
+            this.generateDepthBufferCommandBuffers = new CommandList[5];
+            this.convertToMomentShadowMapCommandBuffers = new CommandList[5];
 
             for (var i = 0; i < 5; i++)
             {
@@ -1900,4 +1901,4 @@ namespace CoreEngine.Rendering
             renderPassConstants[0] = value;
         }
     }
-}
+}*/

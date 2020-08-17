@@ -1,6 +1,6 @@
 namespace CoreEngine.Graphics
 {
-    public enum CommandListType
+    public enum CommandType
     {
         Render,
         Copy,

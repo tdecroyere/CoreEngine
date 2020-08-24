@@ -50,7 +50,7 @@ namespace CoreEngine.Graphics
             var shaderByteCodeLength = reader.ReadInt32();
             var shaderByteCode = reader.ReadBytes(shaderByteCodeLength);
 
-            if (shader.ShaderId != 0)
+            if (shader.NativePointer != IntPtr.Zero)
             {
                 this.graphicsManager.DeleteShader(shader);
             }
@@ -58,7 +58,7 @@ namespace CoreEngine.Graphics
             var computeFunction = (!resource.Parameters.IsEmpty) ? resource.Parameters.Span[0] : null;
 
             var createdShader = this.graphicsManager.CreateShader(computeFunction, shaderByteCode, $"{Path.GetFileNameWithoutExtension(shader.Path)}Shader");
-            shader.ShaderId = createdShader.ShaderId;
+            shader.NativePointer = createdShader.NativePointer;
 
             return shader;
         }

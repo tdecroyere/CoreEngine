@@ -9,22 +9,23 @@ namespace CoreEngine.Graphics
     {
         private readonly IGraphicsService graphicsService;
 
-        public TransientGraphicsMemoryAllocator(IGraphicsService graphicsService, uint graphicsResourceId, GraphicsHeapType heapType, ulong sizeInBytes, string label)
+        public TransientGraphicsMemoryAllocator(IGraphicsService graphicsService, GraphicsHeapType heapType, ulong sizeInBytes, string label)
         {
             this.graphicsService = graphicsService;
-
             this.CurrentOffset = 0;
+
+            var nativePointer = this.graphicsService.CreateGraphicsHeap((GraphicsServiceHeapType)heapType, sizeInBytes);
             
-            if(!this.graphicsService.CreateGraphicsHeap(graphicsResourceId, (GraphicsServiceHeapType)heapType, sizeInBytes))
+            if(nativePointer == IntPtr.Zero)
             {
                 throw new InvalidOperationException($"Cannot create {label}.");
             }
 
-            this.graphicsService.SetGraphicsHeapLabel(graphicsResourceId, label);
+            this.graphicsService.SetGraphicsHeapLabel(nativePointer, label);
 
             // TODO: Do something better here
-            this.GraphicsHeap0 = new GraphicsHeap(graphicsResourceId, heapType, sizeInBytes, $"{label}0");
-            // this.GraphicsHeap1 = new GraphicsHeap(graphicsResourceId, heapType, sizeInBytes, $"{label}1");
+            this.GraphicsHeap0 = new GraphicsHeap(nativePointer, heapType, sizeInBytes, $"{label}0");
+            // this.GraphicsHeap1 = new GraphicsHeap(nativePointer, heapType, sizeInBytes, $"{label}1");
 
             this.GraphicsHeap = this.GraphicsHeap0;
         }

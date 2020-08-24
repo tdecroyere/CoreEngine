@@ -12,11 +12,12 @@ namespace CoreEngine.Rendering
 {
     public class GpuTiming
     {
-        public GpuTiming(string name, int startIndex, int endIndex)
+        public GpuTiming(string name, QueryBufferType type, int startIndex, int endIndex)
         {
             this.Name = name;
             this.StartIndex = startIndex;
             this.EndIndex = endIndex;
+            this.Type = type;
             this.StartTiming = 0.0;
             this.EndTiming = 0.0;
             this.StartTimestamp = 0;
@@ -26,6 +27,7 @@ namespace CoreEngine.Rendering
         public string Name { get; }
         public int StartIndex { get; }
         public int EndIndex { get; }
+        public QueryBufferType Type { get; }
         public ulong StartTimestamp { get; set; }
         public ulong EndTimestamp { get; set; }
         public double StartTiming { get; set; }
@@ -44,12 +46,15 @@ namespace CoreEngine.Rendering
         private int framePerSeconds;
         private int gpuMemoryUploadedPerSeconds;
 
-        private CommandList presentCommandList;
         private Shader computeDirectTransferShader;
 
         private QueryBuffer globalQueryBuffer;
         private GraphicsBuffer globalCpuQueryBuffer;
         private int currentQueryIndex;
+
+        private QueryBuffer globalCopyQueryBuffer;
+        private GraphicsBuffer globalCpuCopyQueryBuffer;
+        private int currentCopyQueryIndex;
 
         private List<GpuTiming> gpuTimings;
         private List<GpuTiming>[] gpuTimingsList = new List<GpuTiming>[2];
@@ -83,14 +88,15 @@ namespace CoreEngine.Rendering
             this.currentFrameSize = this.graphicsManager.graphicsService.GetRenderSize();
             this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
 
-            //this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, this.graphicsManager, graphicsSceneQueue, resourcesManager);
+            this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, this.graphicsManager, graphicsSceneQueue, resourcesManager);
             this.Graphics2DRenderer = new Graphics2DRenderer(this, this.graphicsManager, resourcesManager);
             
-            this.presentCommandList = this.graphicsManager.CreateCommandList(this.RenderCommandQueue, "PresentScreenBuffer");
-
             // TODO: TESTS: TO REMOVE
             this.globalQueryBuffer = this.graphicsManager.CreateQueryBuffer(GraphicsQueryBufferType.Timestamp, 1000, "RendererQueryBuffer");
             this.globalCpuQueryBuffer = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, 1000, isStatic: false, "RendererCpuQueryBuffer");
+
+            this.globalCopyQueryBuffer = this.graphicsManager.CreateQueryBuffer(GraphicsQueryBufferType.CopyTimestamp, 1000, "RendererCopyQueryBuffer");
+            this.globalCpuCopyQueryBuffer = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, 1000, isStatic: false, "RendererCpuCopyQueryBuffer");
 
             this.gpuTimingsList[0] = new List<GpuTiming>();
             this.gpuTimingsList[1] = new List<GpuTiming>();
@@ -103,7 +109,7 @@ namespace CoreEngine.Rendering
         public CommandQueue ComputeCommandQueue { get; }
         public CommandQueue RenderCommandQueue { get; }
 
-        //public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
+        public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
         public Graphics2DRenderer Graphics2DRenderer { get; }
         internal int GeometryInstancesCount { get; set; }
         internal int CulledGeometryInstancesCount { get; set; }
@@ -114,15 +120,26 @@ namespace CoreEngine.Rendering
 
         public int InsertQueryTimestamp(CommandList commandList)
         {
-            var queryIndex = this.currentQueryIndex;
-            this.graphicsManager.QueryTimestamp(commandList, this.globalQueryBuffer, this.currentQueryIndex++);
+            if (commandList.Type == CommandType.Copy)
+            {
+                var queryIndex = this.currentCopyQueryIndex;
+                this.graphicsManager.QueryTimestamp(commandList, this.globalCopyQueryBuffer, this.currentCopyQueryIndex++);
 
-            return queryIndex;
+                return queryIndex;
+            }
+
+            else
+            {
+                var queryIndex = this.currentQueryIndex;
+                this.graphicsManager.QueryTimestamp(commandList, this.globalQueryBuffer, this.currentQueryIndex++);
+
+                return queryIndex;
+            }
         }
 
-        public void AddGpuTiming(string name, int startQueryIndex, int endQueryIndex)
+        public void AddGpuTiming(string name, QueryBufferType type, int startQueryIndex, int endQueryIndex)
         {
-            this.gpuTimings.Add(new GpuTiming(name, startQueryIndex, endQueryIndex));
+            this.gpuTimings.Add(new GpuTiming(name, type, startQueryIndex, endQueryIndex));
         }
 
         List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
@@ -132,7 +149,9 @@ namespace CoreEngine.Rendering
             this.currentFrameSize = this.graphicsManager.graphicsService.GetRenderSize();
             var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
-            //var renderCommandList = this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
+            Logger.BeginAction("SceneRenderer");
+            this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
+            Logger.EndAction();
 
             DrawDebugMessages();
             this.Graphics2DRenderer.Render(mainRenderTargetTexture);
@@ -145,31 +164,41 @@ namespace CoreEngine.Rendering
 
         private void PresentScreenBuffer(Texture mainRenderTargetTexture)
         {
-            this.graphicsManager.ResetCommandList(presentCommandList);
+            var resolveCopyCountersCommandList = this.graphicsManager.CreateCommandList(this.CopyCommandQueue, "ResolveCopyCounters");
+            this.graphicsManager.ResolveQueryData(resolveCopyCountersCommandList, this.globalCopyQueryBuffer, this.globalCpuCopyQueryBuffer, 0..this.globalCopyQueryBuffer.Length);
+            this.graphicsManager.CommitCommandList(resolveCopyCountersCommandList);
+            this.graphicsManager.ExecuteCommandLists(this.CopyCommandQueue, new CommandList[] { resolveCopyCountersCommandList }, isAwaitable: false);
+
+            var presentCommandList = this.graphicsManager.CreateCommandList(this.RenderCommandQueue, "PresentScreenBuffer");
 
             var renderPassDescriptor = new RenderPassDescriptor(null, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
-            this.graphicsManager.BeginRenderPass(this.presentCommandList, renderPassDescriptor);
+            this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor);
 
-            var startQueryIndex = InsertQueryTimestamp(this.presentCommandList);
+            var startQueryIndex = InsertQueryTimestamp(presentCommandList);
 
-            this.graphicsManager.SetShader(this.presentCommandList, this.computeDirectTransferShader);
-            this.graphicsManager.SetShaderTexture(this.presentCommandList, mainRenderTargetTexture, 0);
+            this.graphicsManager.SetShader(presentCommandList, this.computeDirectTransferShader);
+            this.graphicsManager.SetShaderTexture(presentCommandList, mainRenderTargetTexture, 0);
 
-            Logger.WriteMessage("Present");
-            this.graphicsManager.DrawPrimitives(this.presentCommandList, PrimitiveType.TriangleStrip, 0, 4);
+            this.graphicsManager.DrawPrimitives(presentCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
-            this.graphicsManager.EndRenderPass(this.presentCommandList);
-            var endQueryIndex = InsertQueryTimestamp(this.presentCommandList);
+            this.graphicsManager.EndRenderPass(presentCommandList);
+            var endQueryIndex = InsertQueryTimestamp(presentCommandList);
 
-            this.graphicsManager.ResolveQueryData(this.presentCommandList, this.globalQueryBuffer, this.globalCpuQueryBuffer, 0..this.globalQueryBuffer.Length);
-            this.graphicsManager.graphicsService.PresentScreenBuffer(presentCommandList.GraphicsResourceId);
-            this.graphicsManager.CommitCommandList(this.presentCommandList);
+            this.graphicsManager.ResolveQueryData(presentCommandList, this.globalQueryBuffer, this.globalCpuQueryBuffer, 0..this.globalQueryBuffer.Length);
+
+            // TODO: PresentScreenBuffer is just transitioning the back buffer from RT to PRESENT in DX and need a command list
+            // TODO: In metal, it is calling CommandBuffer.Present so we only need the queue
+            this.graphicsManager.graphicsService.PresentScreenBuffer(presentCommandList.NativePointer);
+
+            this.graphicsManager.CommitCommandList(presentCommandList);
 
             var presentFence = this.graphicsManager.ExecuteCommandLists(this.RenderCommandQueue, new CommandList[] { presentCommandList }, isAwaitable: true);
 
-            AddGpuTiming("PresentScreenBuffer", startQueryIndex, endQueryIndex);
+            AddGpuTiming("PresentScreenBuffer", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
             // this.graphicsManager.WaitForCommandQueueOnCpu(this.RenderCommandQueue, presentFence);
+
+            // TODO: In DX, this method do also a swap chain present (the swap chain is associated to the queue at creation)
             this.graphicsManager.WaitForAvailableScreenBuffer();
             ResetGpuTimers();
         }
@@ -177,25 +206,41 @@ namespace CoreEngine.Rendering
         private void ResetGpuTimers()
         {
             this.currentQueryIndex = 0;
+            this.currentCopyQueryIndex = 0;
             this.gpuTimings = this.gpuTimingsList[(int)this.graphicsManager.CurrentFrameNumber % 2];
             
             this.currentGpuTimings.Clear();
             this.currentGpuTimings.AddRange(this.gpuTimings);
             this.gpuTimings.Clear();
 
+            var copyQueueFrequency = this.graphicsManager.GetCommandQueueTimestampFrequency(this.CopyCommandQueue);
+            var renderQueueFrequency = this.graphicsManager.GetCommandQueueTimestampFrequency(this.RenderCommandQueue);
+
             var queryData = this.graphicsManager.GetCpuGraphicsBufferPointer<ulong>(this.globalCpuQueryBuffer);
+            var queryCopyData = this.graphicsManager.GetCpuGraphicsBufferPointer<ulong>(this.globalCpuCopyQueryBuffer);
 
             for (var i = 0; i < this.currentGpuTimings.Count; i++)
             {
                 var gpuTiming = this.currentGpuTimings[i];
 
-                // TODO: Add a query GPU frequency method, it works for now because AMG Radeon 580 Pro is using nano seconds timestamps
-                var frequency = 25000000.0;
+                var frequency = renderQueueFrequency;
 
-                gpuTiming.StartTimestamp = queryData[gpuTiming.StartIndex];
-                gpuTiming.EndTimestamp = queryData[gpuTiming.EndIndex];
-                gpuTiming.StartTiming = gpuTiming.StartTimestamp / frequency * 1000.0;
-                gpuTiming.EndTiming = gpuTiming.EndTimestamp / frequency * 1000.0;
+                if (gpuTiming.Type == QueryBufferType.CopyTimestamp)
+                {
+                    gpuTiming.StartTimestamp = queryCopyData[gpuTiming.StartIndex];
+                    gpuTiming.EndTimestamp = queryCopyData[gpuTiming.EndIndex];
+
+                    frequency = copyQueueFrequency;
+                }
+
+                else
+                {
+                    gpuTiming.StartTimestamp = queryData[gpuTiming.StartIndex];
+                    gpuTiming.EndTimestamp = queryData[gpuTiming.EndIndex];
+                }
+
+                gpuTiming.StartTiming = gpuTiming.StartTimestamp / (double)frequency * 1000.0;
+                gpuTiming.EndTiming = gpuTiming.EndTimestamp / (double)frequency * 1000.0;
             }
         }
 
@@ -226,18 +271,18 @@ namespace CoreEngine.Rendering
             this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 330));
             this.Graphics2DRenderer.DrawText($"Gpu Pipeline: (Depth: {this.MainCameraDepth})", new Vector2(10, 370));
 
-            this.currentGpuTimings.Sort((a, b) => 
-            {
-                // var result = Math.Round(a.StartTiming, 2).CompareTo(Math.Round(b.StartTiming, 2));
-                var result = a.StartTiming.CompareTo(b.StartTiming);
+            // this.currentGpuTimings.Sort((a, b) => 
+            // {
+            //     // var result = Math.Round(a.StartTiming, 2).CompareTo(Math.Round(b.StartTiming, 2));
+            //     var result = a.StartTiming.CompareTo(b.StartTiming);
 
-                if (result == 0)
-                {
-                    return a.Name.CompareTo(b.Name);
-                }
+            //     if (result == 0)
+            //     {
+            //         return a.Name.CompareTo(b.Name);
+            //     }
 
-                return result;
-            });
+            //     return result;
+            // });
 
             if (this.currentGpuTimings.Count < this.previousGpuTiming.Count)
             {
@@ -275,10 +320,10 @@ namespace CoreEngine.Rendering
 
                 var interval = gpuTiming.StartTiming - previousEndGpuTiming;
 
-                if (interval < 0.0)
-                {
-                    gpuExecutionTime += interval;
-                }
+                // if (interval < 0.0)
+                // {
+                //     gpuExecutionTime += interval;
+                // }
 
                 previousEndGpuTiming = gpuTiming.EndTiming;
             }

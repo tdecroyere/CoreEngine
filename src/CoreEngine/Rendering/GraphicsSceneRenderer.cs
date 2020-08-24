@@ -1,4 +1,3 @@
-/*
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -296,7 +295,7 @@ namespace CoreEngine.Rendering
 
         public IGraphicsResource? PipelineResource { get; }
         public string? ResourceName { get; }
-        public string? Property { get; }
+        public string? Property { get; }
 
         // TODO: Replace pipeline by pipeline context so we can run multiple pipelines concurrently
         public T Evaluate(GraphicsPipeline pipeline)
@@ -396,10 +395,9 @@ namespace CoreEngine.Rendering
         public ReadOnlyMemory<GraphicsPipelineResourceBinding>? Inputs { get; }
         public ReadOnlyMemory<GraphicsPipelineResourceBinding>? Outputs { get; }
         internal Shader? Shader { get; set; }
-        internal CommandList? CommandBuffer { get; set; }
 
         // TODO: Avoid virtual call by implementing an interface?
-        public abstract CommandList Process(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager, CommandList[] commandListsToWait);
+        public abstract ReadOnlySpan<CommandList> BuildCommandLists(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager);
     }
 
     public class ExecutePipelineStep : GraphicsPipelineStep
@@ -413,7 +411,7 @@ namespace CoreEngine.Rendering
             this.parameters = parameters;
         }
 
-        public override CommandList Process(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
+        public override ReadOnlySpan<CommandList> BuildCommandLists(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager)
         {
             var resolvedParameters = new GraphicsPipelineParameter[this.parameters.Length];
 
@@ -434,7 +432,7 @@ namespace CoreEngine.Rendering
             }
 
             // TODO: Refactor the parameter system globally
-            return this.pipelineToExecute.Process(commandListsToWait, resolvedParameters);
+            return this.pipelineToExecute.BuildCommandLists(resolvedParameters);
         }
     }
 
@@ -454,25 +452,19 @@ namespace CoreEngine.Rendering
             this.computeMinMaxDepthStepShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeMinMaxDepth.shader", "ComputeMinMaxDepthStep");
         }
 
-        public override CommandList Process(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
+        public override ReadOnlySpan<CommandList> BuildCommandLists(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager)
         {
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
             }
 
-            if (this.CommandBuffer == null)
-            {
-                throw new InvalidOperationException($"Command buffer for step '{this.Name}' doesn't exist.");
-            }
+            var result = new List<CommandList>();
 
             // TODO: Aquire 3 resources: Depth Buffer, CamerasBuffer, Local Compute buffer
 
-            graphicsManager.ResetCommandBuffer(this.CommandBuffer.Value);
+            var computeCommandList = graphicsManager.CreateCommandList(renderManager.ComputeCommandQueue, "ComputeMinMaxDepthInitial");
 
-            var computeCommandList = graphicsManager.CreateComputeCommandList(this.CommandBuffer.Value, "ComputeMinMaxDepthInitial");
-
-            graphicsManager.WaitForCommandLists(computeCommandList, commandListsToWait);
             var startQueryIndex = renderManager.InsertQueryTimestamp(computeCommandList);
 
             graphicsManager.SetShader(computeCommandList, this.computeMinMaxDepthInitialShader);
@@ -542,7 +534,8 @@ namespace CoreEngine.Rendering
           
             var threadGroupSize = graphicsManager.DispatchThreads(computeCommandList, (uint)depthBuffer.Width, (uint)depthBuffer.Height, 1);
 
-            graphicsManager.CommitComputeCommandList(computeCommandList);
+            graphicsManager.CommitCommandList(computeCommandList);
+            result.Add(computeCommandList);
 
             // Logger.WriteMessage("==============================");
             var itemCountToProcessWidth = (uint)depthBuffer.Width;
@@ -556,9 +549,10 @@ namespace CoreEngine.Rendering
                 itemCountToProcessWidth = itemCountToProcess;
                 itemCountToProcessHeight = 1;
 
-                var computeCommandStepList = graphicsManager.CreateComputeCommandList(this.CommandBuffer.Value, "ComputeMinMaxDepthStep");
+                var computeCommandStepList = graphicsManager.CreateCommandList(renderManager.ComputeCommandQueue, "ComputeMinMaxDepthStep");
 
-                graphicsManager.WaitForCommandList(computeCommandStepList, previousCommandList);
+                // TODO: Insert a MemoryBarrier/ResourceBarrier here
+                // graphicsManager.WaitForCommandList(computeCommandStepList, previousCommandList);
 
                 // Logger.WriteMessage($"Items to process: {itemCountToProcess} {itemCountToProcessWidth} {itemCountToProcessHeight}");
 
@@ -607,26 +601,31 @@ namespace CoreEngine.Rendering
 
                 threadGroupSize = graphicsManager.DispatchThreads(computeCommandStepList, itemCountToProcess, 1, 1);
 
-                graphicsManager.CommitComputeCommandList(computeCommandStepList);
-
                 previousCommandList = computeCommandStepList;
 
                 itemCountToProcess = (uint)(MathF.Ceiling((float)itemCountToProcessWidth / threadGroupSize.X) * MathF.Ceiling((float)itemCountToProcessHeight / threadGroupSize.Y));
                 // Logger.WriteMessage($"Items to process: {itemCountToProcess}");
+
+                if (itemCountToProcess < 1)
+                {
+                    var endQueryIndex = renderManager.InsertQueryTimestamp(computeCommandStepList);
+                    renderManager.AddGpuTiming(this.Name, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+                }
+
+                graphicsManager.CommitCommandList(computeCommandStepList);
+                result.Add(computeCommandStepList);
             }
 
-            var copyCommandList = graphicsManager.CreateCopyCommandList(this.CommandBuffer.Value, "CopyCamera");
+            // var copyCommandList = graphicsManager.CreateCommandList(renderManager.CopyCommandQueue, "CopyCamera");
 
-            graphicsManager.WaitForCommandList(copyCommandList, previousCommandList);
+            // //graphicsManager.CopyGraphicsBufferDataToCpu(copyCommandList, camerasBuffer!.Value, Marshal.SizeOf<ShaderCamera>());
+            
+            // graphicsManager.CommitCommandList(copyCommandList);
 
-            //graphicsManager.CopyGraphicsBufferDataToCpu(copyCommandList, camerasBuffer!.Value, Marshal.SizeOf<ShaderCamera>());
-            var endQueryIndex = renderManager.InsertQueryTimestamp(copyCommandList);
-            graphicsManager.CommitCopyCommandList(copyCommandList);
+            // result.Add(copyCommandList);
 
-            graphicsManager.ExecuteCommandBuffer(this.CommandBuffer.Value);
-            renderManager.AddGpuTiming(this.CommandBuffer.Value.Label, startQueryIndex, endQueryIndex);
-
-            return previousCommandList;
+            // TODO: Avoid the array copy
+            return result.ToArray();
         }
     }
 
@@ -639,16 +638,11 @@ namespace CoreEngine.Rendering
             this.backfaceCulling = backfaceCulling;
         }
 
-        public override CommandList Process(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
+        public override ReadOnlySpan<CommandList> BuildCommandLists(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager)
         {
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
-            }
-
-            if (this.CommandBuffer == null)
-            {
-                throw new InvalidOperationException($"Command buffer for step '{this.Name}' doesn't exist.");
             }
 
             // TODO: Throw an error if more that one depth buffer was bound to inputs
@@ -725,27 +719,25 @@ namespace CoreEngine.Rendering
                 throw new InvalidOperationException("Indirect Command Buffer");
             }
 
-            graphicsManager.ResetCommandBuffer(this.CommandBuffer.Value);
+            var renderCommandList = graphicsManager.CreateCommandList(renderManager.RenderCommandQueue, this.Name);
 
             // TODO: Add Backface Culling parameter
             // TODO: Add BlendOperation parameter
 
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget0, renderTarget1, depthBufferTexture, depthBufferOperation, this.backfaceCulling, PrimitiveType.Triangle);
-            var renderCommandList = graphicsManager.CreateRenderCommandList(this.CommandBuffer.Value, renderPassDescriptor, this.Name);
-
-            graphicsManager.WaitForCommandLists(renderCommandList, commandListsToWait);
             var startQueryIndex = renderManager.InsertQueryTimestamp(renderCommandList);
+            graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
             graphicsManager.SetShader(renderCommandList, this.Shader);
             graphicsManager.ExecuteIndirectCommandBuffer(renderCommandList, indirectCommandBuffer.Value, maxCommandCount);
 
+            graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = renderManager.InsertQueryTimestamp(renderCommandList);
-            graphicsManager.CommitRenderCommandList(renderCommandList);
-            graphicsManager.ExecuteCommandBuffer(this.CommandBuffer.Value);
+            graphicsManager.CommitCommandList(renderCommandList);
 
-            renderManager.AddGpuTiming(this.CommandBuffer.Value.Label, startQueryIndex, endQueryIndex);
+            renderManager.AddGpuTiming(this.Name, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
-            return renderCommandList;
+            return new CommandList[] { renderCommandList };
         }
     }
 
@@ -758,7 +750,7 @@ namespace CoreEngine.Rendering
 
         private GraphicsPipelineParameterBinding<int>[] Threads { get; }
 
-        public override CommandList Process(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager, CommandList[] commandListsToWait)
+        public override ReadOnlySpan<CommandList> BuildCommandLists(GraphicsPipeline pipeline, RenderManager renderManager, GraphicsManager graphicsManager)
         {
             if (renderManager == null)
             {
@@ -770,16 +762,8 @@ namespace CoreEngine.Rendering
                 throw new ArgumentNullException(nameof(graphicsManager));
             }
 
-            if (this.CommandBuffer == null)
-            {
-                throw new InvalidOperationException($"Command buffer for step '{this.Name}' doesn't exist.");
-            }
+            var computeCommandList = graphicsManager.CreateCommandList(renderManager.ComputeCommandQueue, this.Name);
 
-            graphicsManager.ResetCommandBuffer(this.CommandBuffer.Value);
-
-            var computeCommandList = graphicsManager.CreateComputeCommandList(this.CommandBuffer.Value, this.Name);
-
-            graphicsManager.WaitForCommandLists(computeCommandList, commandListsToWait);
             var startQueryIndex = renderManager.InsertQueryTimestamp(computeCommandList);
             graphicsManager.SetShader(computeCommandList, this.Shader);
 
@@ -822,12 +806,10 @@ namespace CoreEngine.Rendering
 
             graphicsManager.DispatchThreads(computeCommandList, threads[0], threads[1], 1);
             var endQueryIndex = renderManager.InsertQueryTimestamp(computeCommandList);
-            graphicsManager.CommitComputeCommandList(computeCommandList);
-            graphicsManager.ExecuteCommandBuffer(this.CommandBuffer.Value);
+            graphicsManager.CommitCommandList(computeCommandList);
+            renderManager.AddGpuTiming(this.Name, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
-            renderManager.AddGpuTiming(this.CommandBuffer.Value.Label, startQueryIndex, endQueryIndex);
-
-            return computeCommandList;
+            return new CommandList[] { computeCommandList };
         }
     }
 
@@ -876,16 +858,6 @@ namespace CoreEngine.Rendering
                     var shaderParts = step.ShaderPath.Split('@');
                     step.Shader = resourcesManager.LoadResourceAsync<Shader>(shaderParts[0], shaderParts.Length > 1 ? shaderParts[1] : null);
                 }
-                
-                if (step.GetType() == typeof(RenderIndirectCommandBufferPipelineStep))
-                {
-                    step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, step.Name);
-                }
-
-                else
-                {
-                    step.CommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, step.Name);
-                }
             }
 
             this.resources = new Dictionary<string, IGraphicsResource>();
@@ -897,7 +869,42 @@ namespace CoreEngine.Rendering
         public ReadOnlyMemory<GraphicsPipelineResourceDeclaration> ResourceDeclarations { get; }
         public ReadOnlyMemory<GraphicsPipelineStep> Steps { get; }
 
-        public CommandList Process(CommandList[] commandListsToWait, ReadOnlyMemory<GraphicsPipelineParameter> parameters)
+        public Fence Process(ReadOnlyMemory<GraphicsPipelineParameter> parameters, Fence fenceToWait)
+        {
+            var commandLists = BuildCommandLists(parameters);
+
+            // Process commandLists
+            CommandList? commandListToExecute = null;
+
+            for (var i = 0; i < commandLists.Length; i++)
+            {
+                var commandList = commandLists[i];
+
+                if (i == 0)
+                {
+                    this.graphicsManager.WaitForCommandQueue(commandList.CommandQueue, fenceToWait);
+                }
+
+                if (commandListToExecute != null)
+                {
+                    // TODO: Put an UAV Barrier here if both compute command list access the same resources
+
+                    var isAwaitable = (commandListToExecute.Value.CommandQueue.NativePointer != commandList.CommandQueue.NativePointer);
+                    var fence = this.graphicsManager.ExecuteCommandLists(commandListToExecute.Value.CommandQueue, new CommandList[] { commandListToExecute.Value }, isAwaitable);
+
+                    if (isAwaitable)
+                    {
+                        this.graphicsManager.WaitForCommandQueue(commandList.CommandQueue, fence);
+                    }
+                }
+
+                commandListToExecute = commandList;
+            }
+
+            return this.graphicsManager.ExecuteCommandLists(commandListToExecute!.Value.CommandQueue, new CommandList[] { commandListToExecute!.Value }, isAwaitable: true);
+        }
+
+        internal ReadOnlySpan<CommandList> BuildCommandLists(ReadOnlyMemory<GraphicsPipelineParameter> parameters)
         {
             this.resources.Clear();
             this.localVector4List.Clear();
@@ -935,15 +942,19 @@ namespace CoreEngine.Rendering
                 }
             }
 
-            CommandList? commandList = null;
+            // Build the commands lists
+            var commandLists = new List<CommandList>();
 
             for (var i = 0; i < this.Steps.Span.Length; i++)
             {
                 var step = this.Steps.Span[i];
-                commandList = step.Process(this, this.renderManager, this.graphicsManager, commandList == null ? commandListsToWait : new CommandList[] { commandList.Value });
+
+                // TODO: Avoid copy here
+                commandLists.AddRange(step.BuildCommandLists(this, this.renderManager, this.graphicsManager).ToArray());
             }
 
-            return commandList!.Value;
+            // TODO: Remove the ToArray here
+            return new ReadOnlySpan<CommandList>(commandLists.ToArray());
         }
 
         // TODO: Abstract the resolve parameter to take resources or constants
@@ -1022,15 +1033,6 @@ namespace CoreEngine.Rendering
 
         private GraphicsBuffer minMaxDepthComputeBuffer;
 
-        private CommandList copyCommandBuffer;
-        private CommandList resetIcbCommandBuffer;
-        private CommandList generateIndirectCommandsCommandBuffer;
-        private CommandList generateIndirectCommandsCommandBuffer2;
-        private CommandList[] generateDepthBufferCommandBuffers;
-        private CommandList[] convertToMomentShadowMapCommandBuffers;
-        private CommandList computeLightsCamerasCommandBuffer;
-        private CommandList transferCommandBuffer;
-
         private GraphicsPipeline depthGraphicsPipeline;
         private GraphicsPipeline graphicsPipeline;
 
@@ -1081,24 +1083,6 @@ namespace CoreEngine.Rendering
             this.cpuIndirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 100, isStatic: false, label: "UploadICBCounters");
             this.readBackIndirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.ReadBack, 100, isStatic: false, label: "ReadBackICBCounters");
             this.indirectCommandBufferCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, 100, isStatic: false, label: "GpuICBCounters");
-
-            // Command Buffers
-            this.copyCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "CopySceneDataToGpu");
-            this.resetIcbCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Copy, "ResetIndirectCommandBuffers");
-            this.generateIndirectCommandsCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
-            this.generateIndirectCommandsCommandBuffer2 = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "GenerateIndirectCommands");
-
-            this.generateDepthBufferCommandBuffers = new CommandList[5];
-            this.convertToMomentShadowMapCommandBuffers = new CommandList[5];
-
-            for (var i = 0; i < 5; i++)
-            {
-                this.generateDepthBufferCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "GenerateDepthBuffer");
-                this.convertToMomentShadowMapCommandBuffers[i] = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "ConvertToMomentShadowMap");
-            }
-
-            this.computeLightsCamerasCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Compute, "ComputeLightsCameras");
-            this.transferCommandBuffer = this.graphicsManager.CreateCommandBuffer(CommandListType.Render, "TransferTexture");
 
             // TEST Pipeline definition
 
@@ -1230,7 +1214,7 @@ namespace CoreEngine.Rendering
             this.graphicsPipeline = new GraphicsPipeline(this.renderManager, this.graphicsManager, resourcesManager, graphicsPipelineResourceDeclarations, graphicsPipelineSteps);
         }
 
-        public CommandList Render(Texture mainRenderTargetTexture)
+        public void Render(Texture mainRenderTargetTexture)
         {
             var scene = this.sceneQueue.WaitForNextScene();
             var camera = scene.DebugCamera;
@@ -1248,9 +1232,13 @@ namespace CoreEngine.Rendering
             // TODO: Move that to render pipeline
             this.debugRenderer.ClearDebugLines();
 
+            Logger.BeginAction("InitGpuData");
             InitializeGpuData(scene);
+            Logger.EndAction();
 
-            return RunRenderPipeline(mainRenderTargetTexture);
+            Logger.BeginAction("RunPipeline");
+            RunRenderPipeline(mainRenderTargetTexture);
+            Logger.EndAction();
         }
 
         GraphicsBuffer[] graphicsBufferList = new GraphicsBuffer[10000];
@@ -1279,7 +1267,7 @@ namespace CoreEngine.Rendering
 
         private int AddIndirectCommandBuffer(string label)
         {
-            if (this.indirectCommandBufferList[this.currentIndirectCommandBufferIndex].GraphicsResourceId == 0)
+            if (this.indirectCommandBufferList[this.currentIndirectCommandBufferIndex].NativePointer == IntPtr.Zero)
             {
                 this.indirectCommandBufferList[this.currentIndirectCommandBufferIndex] = this.graphicsManager.CreateIndirectCommandBuffer(1000, isStatic: false, label: label);
                 Logger.WriteMessage("Create Indirect Buffer");
@@ -1462,7 +1450,7 @@ namespace CoreEngine.Rendering
 
             var currentMeshMaterialIndex = -1;
             var currentGeometryInstanceMaterialIndex = -1;
-            var currentVertexBufferId = (uint)0;
+            var currentVertexBufferId = IntPtr.Zero;
 
             var scenePropertyObject = new ShaderSceneProperties();
 
@@ -1543,10 +1531,10 @@ namespace CoreEngine.Rendering
                 var meshInstance = scene.MeshInstances[i];
                 var mesh = meshInstance.Mesh;
 
-                // for (var j = 0; j < meshInstance.WorldBoundingBoxList.Count; j++)
-                // {
-                //     this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBoxList[j], new Vector3(0, 1, 0));
-                // }
+                for (var j = 0; j < meshInstance.WorldBoundingBoxList.Count; j++)
+                {
+                    this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBoxList[j], new Vector3(0, 1, 0));
+                }
 
                 if (meshInstance.Material != null)
                 {
@@ -1568,9 +1556,9 @@ namespace CoreEngine.Rendering
                         currentGeometryInstanceMaterialIndex = AddMaterial(geometryInstance.Material);
                     }
 
-                    if (currentVertexBufferId != geometryPacket.VertexBuffer.GraphicsResourceId)
+                    if (currentVertexBufferId != geometryPacket.VertexBuffer.NativePointer)
                     {
-                        currentVertexBufferId = geometryPacket.VertexBuffer.GraphicsResourceId;
+                        currentVertexBufferId = geometryPacket.VertexBuffer.NativePointer;
                         AddGeometryPacket(geometryPacket);
                     }
 
@@ -1604,9 +1592,9 @@ namespace CoreEngine.Rendering
             sceneProperties[0] = scenePropertyObject;
         }
 
-        private Queue<uint> previousCopyGpuDataIds = new Queue<uint>();
+        private Queue<IntPtr> previousCopyGpuDataIds = new Queue<IntPtr>();
 
-        private CommandList CopyGpuData()
+        private CommandList CreateCopyCommandList()
         {
             // Copy buffers
             var counters = this.graphicsManager.GetCpuGraphicsBufferPointer<uint>(this.readBackIndirectCommandBufferCounters);
@@ -1620,10 +1608,10 @@ namespace CoreEngine.Rendering
 
             this.renderManager.MainCameraDepth = new Vector2(this.mainCamera.MinDepth, this.mainCamera.MaxDepth);
 
-            this.graphicsManager.ResetCommandBuffer(copyCommandBuffer);
+            var commandListName = "CopySceneDataToGpu";
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);
 
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(copyCommandBuffer, "SceneComputeCopyCommandList");
-            this.previousCopyGpuDataIds.Enqueue(copyCommandBuffer.GraphicsResourceId);
+            this.previousCopyGpuDataIds.Enqueue(copyCommandList.NativePointer);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
 
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(copyCommandList, this.camerasBuffer, this.cpuCamerasBuffer, this.currentCameraIndex);
@@ -1636,10 +1624,9 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<RenderPassConstants>(copyCommandList, this.renderPassParametersGraphicsBuffer, this.cpuRenderPassParametersGraphicsBuffer, 1);
 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(copyCommandBuffer);
+            this.graphicsManager.CommitCommandList(copyCommandList);
 
-            this.renderManager.AddGpuTiming("CopySceneDataToGpu", startQueryIndex, endQueryIndex);
+            this.renderManager.AddGpuTiming(commandListName, QueryBufferType.CopyTimestamp, startQueryIndex, endQueryIndex);
 
             this.renderManager.GeometryInstancesCount = this.currentGeometryInstanceIndex;
             this.renderManager.MaterialsCount = this.currentMaterialIndex;
@@ -1649,13 +1636,11 @@ namespace CoreEngine.Rendering
             return copyCommandList;
         }
         
-        private CommandList ResetIndirectCommandBuffers(CommandList commandListToWait)
+        private CommandList CreateResetIcbCommandList()
         {
-            this.graphicsManager.ResetCommandBuffer(resetIcbCommandBuffer);
+            var commandListName = "ResetIndirectCommands";
+            var resetIcbCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);
 
-            var resetIcbCommandList = this.graphicsManager.CreateCopyCommandList(resetIcbCommandBuffer, "ResetIndirectCommandBuffers");
-
-            this.graphicsManager.WaitForCommandList(resetIcbCommandList, commandListToWait);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(resetIcbCommandList);
 
             for (var i = 0; i < this.currentIndirectCommandBufferIndex; i++)
@@ -1664,28 +1649,17 @@ namespace CoreEngine.Rendering
             }
 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(resetIcbCommandList);
-            this.graphicsManager.CommitCopyCommandList(resetIcbCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(resetIcbCommandBuffer);
-
-            this.renderManager.AddGpuTiming("ResetIndirectCommands", startQueryIndex, endQueryIndex);
+            this.graphicsManager.CommitCommandList(resetIcbCommandList);
+            this.renderManager.AddGpuTiming(commandListName, QueryBufferType.CopyTimestamp, startQueryIndex, endQueryIndex);
 
             return resetIcbCommandList;
         }
 
-        private CommandList GenerateIndirectCommands(uint cameraCount, CommandList commandListToWait)
+        private CommandList CreateGenerateIcbCommandList(uint cameraCount)
         {
-            if (this.currentGeometryInstanceIndex == 0)
-            {
-                return commandListToWait;
-            }
+            var commandListName = "GenerateIndirectCommands";
+            var computeCommandList = this.graphicsManager.CreateCommandList(this.renderManager.ComputeCommandQueue, commandListName);
 
-            var commandBuffer = (cameraCount == 1) ? this.generateIndirectCommandsCommandBuffer : this.generateIndirectCommandsCommandBuffer2;
-            this.graphicsManager.ResetCommandBuffer(commandBuffer);
-
-            // Encore indirect command lists
-            var computeCommandList = this.graphicsManager.CreateComputeCommandList(commandBuffer, "GenerateIndirectCommands");
-
-            this.graphicsManager.WaitForCommandList(computeCommandList, commandListToWait);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(computeCommandList);
 
             this.graphicsManager.SetShader(computeCommandList, this.drawMeshInstancesComputeShader);
@@ -1704,14 +1678,17 @@ namespace CoreEngine.Rendering
             this.graphicsManager.DispatchThreads(computeCommandList, (uint)this.currentGeometryInstanceIndex, cameraCount, 1);
             
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeCommandList);
-            this.graphicsManager.CommitComputeCommandList(computeCommandList);
-            this.renderManager.AddGpuTiming("GenerateIndirectCommands", startQueryIndex, endQueryIndex);
+            this.graphicsManager.CommitCommandList(computeCommandList);
+            this.renderManager.AddGpuTiming("GenerateIndirectCommands", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+            
+            return computeCommandList;
+        }
 
-            // Optimize indirect command lists pass
-            var copyCommandList = this.graphicsManager.CreateCopyCommandList(commandBuffer, "ComputeOptimizeRenderCommandList");
-
-            this.graphicsManager.WaitForCommandList(copyCommandList, computeCommandList);
-            startQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
+        private CommandList CreateOptimizeIcbCommandList(uint cameraCount)
+        {
+            var commandListName = "OptimizeIndirectCommands";
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
 
             if (cameraCount == 1)
             {
@@ -1728,11 +1705,10 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.readBackIndirectCommandBufferCounters, this.indirectCommandBufferCounters, 4);
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(copyCommandList, this.readBackCamerasBuffer, this.camerasBuffer, 1);
-            
-            endQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-            this.graphicsManager.CommitCopyCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(commandBuffer);
-            this.renderManager.AddGpuTiming("OptimizeIndirectCommands", startQueryIndex, endQueryIndex);
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
+
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.renderManager.AddGpuTiming(commandListName, QueryBufferType.CopyTimestamp, startQueryIndex, endQueryIndex);
 
             return copyCommandList;
         }
@@ -1767,60 +1743,73 @@ namespace CoreEngine.Rendering
 
         int currentMomentCommandBuffer;
 
-        private CommandList ConvertToMomentShadowMap(ShaderCamera camera, CommandList commandListToWait)
+        // private CommandList ConvertToMomentShadowMap(ShaderCamera camera, CommandList commandListToWait)
+        // {
+        //     this.graphicsManager.ResetCommandBuffer(convertToMomentShadowMapCommandLists[currentMomentCommandBuffer]);
+
+        //     var renderTarget = new RenderTargetDescriptor(this.textureList[camera.MomentShadowMapIndex], null, BlendOperation.None);
+        //     var hdrTransferRenderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
+        //     var commandList = this.graphicsManager.CreateRenderCommandList(convertToMomentShadowMapCommandLists[currentMomentCommandBuffer], hdrTransferRenderPassDescriptor, "ConvertToMomentShadowMap");
+
+        //     this.graphicsManager.WaitForCommandList(commandList, commandListToWait);
+
+        //     this.graphicsManager.SetShader(commandList, this.convertToMomentShadowMapShader);
+        //     this.graphicsManager.SetShaderTexture(commandList, this.textureList[camera.DepthBufferTextureIndex], 0);
+
+        //     this.graphicsManager.DrawPrimitives(commandList, PrimitiveType.TriangleStrip, 0, 4);
+
+        //     this.graphicsManager.CommitRenderCommandList(commandList);
+        //     this.graphicsManager.ExecuteCommandBuffer(convertToMomentShadowMapCommandLists[currentMomentCommandBuffer]);
+
+        //     currentMomentCommandBuffer++;
+
+        //     return commandList;
+        // }
+
+        // private CommandList ComputeLightCameras(CommandList commandListToWait)
+        // {
+        //     this.graphicsManager.ResetCommandBuffer(computeLightsCamerasCommandList);
+
+        //     var computeCommandList = this.graphicsManager.CreateComputeCommandList(computeLightsCamerasCommandList, "ComputeLightCameras");
+
+        //     this.graphicsManager.WaitForCommandList(computeCommandList, commandListToWait);
+
+        //     this.graphicsManager.SetShader(computeCommandList, this.computeLightCamerasShader);
+        //     this.graphicsManager.SetShaderBuffer(computeCommandList, this.lightsBuffer, 0);
+        //     this.graphicsManager.SetShaderBuffer(computeCommandList, this.camerasBuffer, 1);
+
+        //     this.graphicsManager.DispatchThreads(computeCommandList, 1, 4, 1);
+        //     this.graphicsManager.CommitComputeCommandList(computeCommandList);
+
+        //     this.graphicsManager.ExecuteCommandBuffer(computeLightsCamerasCommandList);
+
+        //     return computeCommandList;
+        // }
+
+        private void RunRenderPipeline(Texture mainRenderTargetTexture)
         {
-            this.graphicsManager.ResetCommandBuffer(convertToMomentShadowMapCommandBuffers[currentMomentCommandBuffer]);
-
-            var renderTarget = new RenderTargetDescriptor(this.textureList[camera.MomentShadowMapIndex], null, BlendOperation.None);
-            var hdrTransferRenderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
-            var commandList = this.graphicsManager.CreateRenderCommandList(convertToMomentShadowMapCommandBuffers[currentMomentCommandBuffer], hdrTransferRenderPassDescriptor, "ConvertToMomentShadowMap");
-
-            this.graphicsManager.WaitForCommandList(commandList, commandListToWait);
-
-            this.graphicsManager.SetShader(commandList, this.convertToMomentShadowMapShader);
-            this.graphicsManager.SetShaderTexture(commandList, this.textureList[camera.DepthBufferTextureIndex], 0);
-
-            this.graphicsManager.DrawPrimitives(commandList, PrimitiveType.TriangleStrip, 0, 4);
-
-            this.graphicsManager.CommitRenderCommandList(commandList);
-            this.graphicsManager.ExecuteCommandBuffer(convertToMomentShadowMapCommandBuffers[currentMomentCommandBuffer]);
-
-            currentMomentCommandBuffer++;
-
-            return commandList;
-        }
-
-        private CommandList ComputeLightCameras(CommandList commandListToWait)
-        {
-            this.graphicsManager.ResetCommandBuffer(computeLightsCamerasCommandBuffer);
-
-            var computeCommandList = this.graphicsManager.CreateComputeCommandList(computeLightsCamerasCommandBuffer, "ComputeLightCameras");
-
-            this.graphicsManager.WaitForCommandList(computeCommandList, commandListToWait);
-
-            this.graphicsManager.SetShader(computeCommandList, this.computeLightCamerasShader);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.lightsBuffer, 0);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.camerasBuffer, 1);
-
-            this.graphicsManager.DispatchThreads(computeCommandList, 1, 4, 1);
-            this.graphicsManager.CommitComputeCommandList(computeCommandList);
-
-            this.graphicsManager.ExecuteCommandBuffer(computeLightsCamerasCommandBuffer);
-
-            return computeCommandList;
-        }
-
-        private CommandList RunRenderPipeline(Texture mainRenderTargetTexture)
-        {
+            if (this.currentGeometryInstanceIndex == 0)
+            {
+                return;
+            }
+            
             // this.currentDepthCommandBuffer = 0;
             this.currentMomentCommandBuffer = 0;
 
-            var commandList = CopyGpuData();
-            commandList = ResetIndirectCommandBuffers(commandList);
+            var copyCommandList = CreateCopyCommandList();
+            var resetIcbCommandList = CreateResetIcbCommandList();
+            var generateIcbCommandList = CreateGenerateIcbCommandList(1);
+            var optimizeIcbCommandList = CreateOptimizeIcbCommandList(1);
+
+            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList, resetIcbCommandList }, isAwaitable: true);
+
+            this.graphicsManager.WaitForCommandQueue(this.renderManager.ComputeCommandQueue, copyFence);
+            var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { generateIcbCommandList }, true);
+            
+            this.graphicsManager.WaitForCommandQueue(this.renderManager.CopyCommandQueue, computeFence);
+            var optimizeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { optimizeIcbCommandList }, true);
 
             // Generate Main Camera Depth Buffer
-            commandList = GenerateIndirectCommands(1, commandList);
-
             //commandList = GenerateDepthBuffer(mainCamera, commandList);
 
             // Generate Lights Depth Buffers
@@ -1837,6 +1826,7 @@ namespace CoreEngine.Rendering
             //     depthCommandLists[i - 1] = ConvertToMomentShadowMap(camera, depthCommandLists[i - 1]);
             // }
 
+    
             var graphicsPipelineParameters = new GraphicsPipelineParameter[]
             {
                 new ResourceGraphicsPipelineParameter("MainRenderTarget", mainRenderTargetTexture),
@@ -1850,43 +1840,47 @@ namespace CoreEngine.Rendering
                 new ResourceGraphicsPipelineParameter("CamerasBuffer", this.camerasBuffer)
             };
 
-            commandList = this.graphicsPipeline.Process(new CommandList[] { commandList }, graphicsPipelineParameters);
-
+            var pipelineFence = this.graphicsPipeline.Process(graphicsPipelineParameters, optimizeFence);
             var toneMapRenderTarget = this.graphicsPipeline.ResolveResource("ToneMapRenderTarget") as Texture;
 
-            commandList = TransferTextureToRenderTarget(toneMapRenderTarget, mainRenderTargetTexture, commandList);
+            var transferCommandList = TransferTextureToRenderTarget(toneMapRenderTarget, mainRenderTargetTexture);
 
-            commandList = this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, mainRenderTargetTexture, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture, commandList);
+            // TODO: Skip the wait if the last step of the pipeline was on the render queue
+            this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, pipelineFence);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { transferCommandList }, isAwaitable: false);
 
-            var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;
+            this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, mainRenderTargetTexture, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture);
+
+            // var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;
 
             // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 0), new Vector2(debugXOffset + 256, 256), this.shadowMaps[1], true);
             // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 256), new Vector2(debugXOffset + 256, 512), this.shadowMaps[3], true);
             // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 512), new Vector2(debugXOffset + 256, 768), this.shadowMaps[5], true);
             // this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(debugXOffset, 768), new Vector2(debugXOffset + 256, 1024), this.shadowMaps[7], true);
             //this.graphicsManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(0, 0), new Vector2(this.graphicsManager.GetRenderSize().X, this.graphicsManager.GetRenderSize().Y), this.occlusionDepthTexture, true);
-
-            return commandList;
         }
 
-        private CommandList TransferTextureToRenderTarget(Texture sourceTexture, Texture destinationTexture, CommandList previousCommandList)
+        private CommandList TransferTextureToRenderTarget(Texture sourceTexture, Texture destinationTexture)
         {
-            // TODO: Use a compute shader
-            this.graphicsManager.ResetCommandBuffer(this.transferCommandBuffer);
+            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "TransferTextureCommandList");
 
             var renderTarget = new RenderTargetDescriptor(destinationTexture, null, BlendOperation.None);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.TriangleStrip);
-            var renderCommandList = this.graphicsManager.CreateRenderCommandList(this.transferCommandBuffer, renderPassDescriptor, "TransferTextureCommandList");
 
-            this.graphicsManager.WaitForCommandList(renderCommandList, previousCommandList);
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
             this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
             this.graphicsManager.SetShaderTexture(renderCommandList, sourceTexture, 0);
             this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
-            this.graphicsManager.CommitRenderCommandList(renderCommandList);
-            this.graphicsManager.ExecuteCommandBuffer(this.transferCommandBuffer);
+            this.graphicsManager.EndRenderPass(renderCommandList);
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
+            this.graphicsManager.CommitCommandList(renderCommandList);
+
+            this.renderManager.AddGpuTiming("TransferTextureToMainRT", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
             return renderCommandList;
         }
 
@@ -1901,4 +1895,4 @@ namespace CoreEngine.Rendering
             renderPassConstants[0] = value;
         }
     }
-}*/
+}

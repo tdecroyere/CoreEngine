@@ -23,6 +23,12 @@ struct Matrix4x4
     float M41, M42, M43, M44;
 };
 
+struct NullableIntPtr
+{
+    int HasValue;
+    void* Value;
+};
+
 struct Nullableint
 {
     int HasValue;

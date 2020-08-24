@@ -7,13 +7,13 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal Texture(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, uint systemId, uint? systemId2, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
+        internal Texture(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, IntPtr nativePointer1, IntPtr? nativePointer2, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
         {
             this.graphicsManager = graphicsManager;
             this.GraphicsMemoryAllocation = graphicsMemoryAllocation;
             this.GraphicsMemoryAllocation2 = graphicsMemoryAllocation2;
-            this.GraphicsResourceSystemId = systemId;
-            this.GraphicsResourceSystemId2 = systemId2;
+            this.NativePointer1 = nativePointer1;
+            this.NativePointer2 = nativePointer2;
             this.TextureFormat = textureFormat;
             this.Usage = usage;
             this.Width = width;
@@ -39,28 +39,28 @@ namespace CoreEngine.Graphics
             this.Label = label;
         }
 
-        public uint GraphicsResourceId 
+        public IntPtr NativePointer 
         { 
             get
             {
-                var result = this.GraphicsResourceSystemId;
+                var result = this.NativePointer1;
 
-                if (!IsStatic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                if (!IsStatic && this.NativePointer2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
                 {
-                    result = this.GraphicsResourceSystemId2.Value;
+                    result = this.NativePointer2.Value;
                 }
 
                 return result;
             }
         }
 
-        public uint GraphicsResourceSystemId
+        public IntPtr NativePointer1
         {
             get;
             set;
         }
 
-        public uint? GraphicsResourceSystemId2
+        public IntPtr? NativePointer2
         {
             get;
             set;

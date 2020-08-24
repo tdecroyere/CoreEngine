@@ -9,8 +9,6 @@ namespace CoreEngine.Graphics
     {
         private readonly IGraphicsService graphicsService;
 
-        private uint currentGraphicsResourceId;
-
         private IGraphicsMemoryAllocator globalGpuMemoryAllocator;
         private IGraphicsMemoryAllocator globalTransientGpuMemoryAllocator;
         private IGraphicsMemoryAllocator globalUploadMemoryAllocator;
@@ -19,12 +17,11 @@ namespace CoreEngine.Graphics
         public GraphicsMemoryManager(IGraphicsService graphicsService)
         {
             this.graphicsService = graphicsService;
-            this.currentGraphicsResourceId = 0;
 
-            this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, currentGraphicsResourceId++, GraphicsHeapType.Gpu, Utils.GigaBytesToBytes(1), "GlobalGpuHeap");
-            this.globalTransientGpuMemoryAllocator = new TransientGraphicsMemoryAllocator(graphicsService, currentGraphicsResourceId++, GraphicsHeapType.Gpu, Utils.GigaBytesToBytes(1), "GlobalTransientGpuHeap");
-            this.globalUploadMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, currentGraphicsResourceId++, GraphicsHeapType.Upload, Utils.GigaBytesToBytes(1), "GlobalUploadHeap");
-            this.globalReadBackMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, currentGraphicsResourceId++, GraphicsHeapType.ReadBack, Utils.MegaBytesToBytes(32), "GlobalReadBackHeap");
+            this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Gpu, Utils.GigaBytesToBytes(1), "GlobalGpuHeap");
+            this.globalTransientGpuMemoryAllocator = new TransientGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Gpu, Utils.GigaBytesToBytes(1), "GlobalTransientGpuHeap");
+            this.globalUploadMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Upload, Utils.GigaBytesToBytes(1), "GlobalUploadHeap");
+            this.globalReadBackMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.ReadBack, Utils.MegaBytesToBytes(32), "GlobalReadBackHeap");
         }
 
         public ulong AllocatedGpuMemory => this.globalGpuMemoryAllocator.AllocatedMemory;

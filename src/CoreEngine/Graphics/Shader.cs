@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
 
@@ -8,9 +7,9 @@ namespace CoreEngine.Graphics
 {
     public class Shader : Resource
     {
-        internal Shader(string label, uint shaderId) : base(shaderId, string.Empty)
+        internal Shader(IntPtr nativePointer, string label) : base(0, string.Empty)
         {
-            this.ShaderId = shaderId;
+            this.NativePointer = nativePointer;
             this.Label = label;
             this.PipelineStates = new Dictionary<GraphicsRenderPassDescriptor, PipelineState>();
         }
@@ -21,7 +20,7 @@ namespace CoreEngine.Graphics
             this.Label = System.IO.Path.GetFileNameWithoutExtension(path);
         }
 
-        public uint ShaderId { get; internal set; }
+        public IntPtr NativePointer { get; internal set; }
         public string Label { get; internal set; }
         public IDictionary<GraphicsRenderPassDescriptor, PipelineState> PipelineStates { get; }
     }

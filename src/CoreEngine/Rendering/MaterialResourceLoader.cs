@@ -73,11 +73,9 @@ namespace CoreEngine.Rendering
 
             // TODO: Refactor that
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "MaterialLoader");
-            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData.Value, cpuBuffer, materialDataLength);
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
-            this.graphicsManager.DeleteCommandList(copyCommandList);
             this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
 
             return resource;

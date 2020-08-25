@@ -3,185 +3,7 @@
 #include "Direct3D12GraphicsService.h"
 #include "WindowsInputsService.h"
 #include "CoreEngineHost.h"
-
-// SetProcessDPIAwareness function pointer definition
-typedef HRESULT WINAPI Set_Process_DPI_Awareness(PROCESS_DPI_AWARENESS value);
-
-bool isAppActive = true;
-bool doChangeSize = false;
-WINDOWPLACEMENT previousWindowPlacement;
-
-bool firstRun = true;
-
-CoreEngineHost* globalCoreEngineHost = nullptr;
-
-void Win32SwitchScreenMode(HWND window)
-{
-	DWORD windowStyle = GetWindowLongA(window, GWL_STYLE);
-
-	if (windowStyle & WS_OVERLAPPEDWINDOW) 
-	{
-		MONITORINFO monitorInfos = { sizeof(monitorInfos) };
-
-		if (GetWindowPlacement(window, &previousWindowPlacement) &&
-			GetMonitorInfoA(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &monitorInfos))
-		{ 
-			SetWindowLongA(window, GWL_STYLE, windowStyle & ~WS_OVERLAPPEDWINDOW);
-			SetWindowPos(window, HWND_TOP,
-				monitorInfos.rcMonitor.left, monitorInfos.rcMonitor.top,
-				monitorInfos.rcMonitor.right - monitorInfos.rcMonitor.left,
-				monitorInfos.rcMonitor.bottom - monitorInfos.rcMonitor.top,
-				SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-
-			ShowWindow(window, SW_MAXIMIZE);
-		}
-	}
-
-	else
-	{
-		SetWindowLongA(window, GWL_STYLE, windowStyle | WS_OVERLAPPEDWINDOW);
-		SetWindowPlacement(window, &previousWindowPlacement);
-		SetWindowPos(window, NULL, 0, 0, 0, 0,
-					 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-	}
-}
-
-LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	// TODO: Reset input devices status on re-activation
-	// TODO: For input devices, try to find a way to avoid global variables? 
-	// It is complicated because we cannot modify the signature of the WNDPROC function
-
-	switch (message)
-	{
-	// case WM_PAINT:
-	// 	if (globalCoreEngineHost != nullptr)
-	// 	{
-	// 		//globalCoreEngineHost->UpdateEngine(1.0f / 60.0f);
-	// 		firstRun = false;
-	// 	}
-	// 	break;
-	case WM_ACTIVATE:
-	{
-		isAppActive = !(wParam == WA_INACTIVE);
-		break;
-	}
-	case WM_KEYDOWN:
-	{
-		bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
-	
-		switch (wParam)
-		{
-		case VK_ESCAPE:
-			::PostQuitMessage(0);
-			break;
-		case VK_RETURN:
-			if (alt)
-			{
-				Win32SwitchScreenMode(window);
-			}
-			break;
-		}
-	break;
-	}
-	case WM_SIZE:
-	{
-		doChangeSize = true;
-		// TODO: Handle minimized state
-		break;
-	}
-    case WM_DPICHANGED:
-    {
-        RECT* const prcNewWindow = (RECT*)lParam;
-        SetWindowPos(window,
-            NULL,
-            prcNewWindow ->left,
-            prcNewWindow ->top,
-            prcNewWindow->right - prcNewWindow->left,
-            prcNewWindow->bottom - prcNewWindow->top,
-            SWP_NOZORDER | SWP_NOACTIVATE);
-
-        break;
-    }
-	case WM_CLOSE:
-	case WM_DESTROY:
-	{
-		PostQuitMessage(0);
-		break;
-	}
-	default:
-		return DefWindowProcA(window, message, wParam, lParam);
-	}
-
-	return 0;
-}
-
-HWND Win32InitWindow(HINSTANCE applicationInstance, LPSTR windowName, int width, int height)
-{
-	// Declare window class
-	WNDCLASSA windowClass {};
-	windowClass.style = CS_HREDRAW | CS_VREDRAW;
-	windowClass.lpfnWndProc = Win32WindowCallBack;
-	windowClass.hInstance = applicationInstance;
-	windowClass.lpszClassName = "CoreEngineWindowClass";
-	windowClass.hCursor = LoadCursorA(NULL, IDC_ARROW);
-
-	if (RegisterClassA(&windowClass))
-	{
-		// Setup the application to ajust its resolution based on windows scaling settings
-		// if it is available
-		HMODULE shcoreLibrary = LoadLibraryA("shcore.dll");
-
-		// TODO: Account for larger DPI screens and do something better for them. Better
-		// Asset resolution?
-
-		SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-        
-		// Ajust the client area based on the style of the window
-        UINT dpi = GetDpiForWindow(GetDesktopWindow());
-
-        float scaling_factor = static_cast<float>(dpi) / 96;
-
-        RECT clientRectangle;
-        clientRectangle.left = 0;
-        clientRectangle.top = 0;
-        clientRectangle.right = static_cast<LONG>(width * scaling_factor);
-        clientRectangle.bottom = static_cast<LONG>(height * scaling_factor);
-
-        AdjustWindowRectExForDpi(&clientRectangle, WS_OVERLAPPEDWINDOW, false, 0, dpi);
-
-		// RECT clientRectangle = { 0, 0, width, height };
-		// AdjustWindowRect(&clientRectangle, WS_OVERLAPPEDWINDOW, false);
-		width = clientRectangle.right - clientRectangle.left;
-		height = clientRectangle.bottom - clientRectangle.top;
-
-		// Compute the position of the window to center it 
-		RECT desktopRectangle;
-		GetClientRect(GetDesktopWindow(), &desktopRectangle);
-		int x = (desktopRectangle.right / 2) - (width / 2);
-		int y = (desktopRectangle.bottom / 2) - (height / 2);
-
-        printf("Width: %d, Height: %d (DPI: %d)\n", width, height, dpi);
-
-		// Create the window
-		HWND window = CreateWindowExA(0,
-			"CoreEngineWindowClass",
-			windowName,
-			WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-			x,
-			y,
-			width,
-			height,
-			0,
-			0,
-			applicationInstance,
-			0);
-
-		return window;
-	}
-
-	return 0;
-}
+#include "WindowsNativeUIServiceUtils.h"
 
 bool Win32ProcessMessage(const MSG& message)
 {
@@ -217,54 +39,43 @@ bool Win32ProcessPendingMessages()
 }
 
 
-// int CALLBACK WinMain(HINSTANCE applicationInstance, HINSTANCE, LPSTR, int)
-int main(int argc, char const *argv[])
+int CALLBACK WinMain(HINSTANCE applicationInstance, HINSTANCE, LPSTR, int)
 {
+	AttachConsole(ATTACH_PARENT_PROCESS);
+
 	GameState gameState = {};
 	gameState.GameRunning = true;
 
-	// HWND window = Win32InitWindow(applicationInstance, "Core Engine", 1280, 720);
-	HWND window = Win32InitWindow(GetModuleHandle(NULL), "Core Engine", 1280, 720);
+    auto nativeUIService = WindowsNativeUIService(applicationInstance);
+    auto graphicsService = Direct3D12GraphicsService();
+    auto inputsService = WindowsInputsService();
 
-	RECT windowRectangle;
-	GetClientRect(window, &windowRectangle);
-
-    auto graphicsService = Direct3D12GraphicsService(window, windowRectangle.right - windowRectangle.left, windowRectangle.bottom - windowRectangle.top, &gameState);
-    auto inputsService = WindowsInputsService(window);
-
-    auto coreEngineHost = CoreEngineHost(graphicsService, inputsService);
-	globalCoreEngineHost = &coreEngineHost;
+    auto coreEngineHost = CoreEngineHost(nativeUIService, graphicsService, inputsService);
     coreEngineHost.StartEngine("EcsTest");
-
 	
-	if (window)
+	while (gameState.GameRunning)
 	{
-        while (gameState.GameRunning)
-        {
-            gameState.GameRunning = Win32ProcessPendingMessages();
+		gameState.GameRunning = Win32ProcessPendingMessages();
 
-            if (gameState.GameRunning)
-            {
-                if (isAppActive)
-                {
-					if (doChangeSize && !firstRun)
-					{
-						RECT clientRect = {};
-						GetClientRect(window, &clientRect);
+		if (gameState.GameRunning)
+		{
+			if (isAppActive)
+			{
+				// if (doChangeSize && !firstRun)
+				// {
+				// 	RECT clientRect = {};
+				// 	GetClientRect(window, &clientRect);
 
-						auto windowWidth = clientRect.right - clientRect.left;
-						auto windowHeight = clientRect.bottom - clientRect.top;
+				// 	auto windowWidth = clientRect.right - clientRect.left;
+				// 	auto windowHeight = clientRect.bottom - clientRect.top;
 
-						graphicsService.CreateOrResizeSwapChain(windowWidth, windowHeight);
-						doChangeSize = false;
-					}
+				// 	graphicsService.CreateOrResizeSwapChain(windowWidth, windowHeight);
+				// 	doChangeSize = false;
+				// }
 
-					coreEngineHost.UpdateEngine(1.0f / 60.0f);
-					firstRun = false;
-                }
-            }
-        }
-
-		graphicsService.WaitForGlobalFence(true);
+				coreEngineHost.UpdateEngine(1.0f / 60.0f);
+				firstRun = false;
+			}
+		}
 	}
 }

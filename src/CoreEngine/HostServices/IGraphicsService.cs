@@ -239,18 +239,23 @@ namespace CoreEngine.HostServices
 
         // GraphicsAdapterInfos GetGraphicsAdapterInfos();
         string GetGraphicsAdapterName();
-
-        // TODO: This function should be merged into a GetSystemState function
-
-        // bool CreateSwapChain(uint swapChainId, int width, int height, GraphicsTextureFormat textureFormat);
-        // void DeleteSwapChain(uint swapChainId);
-        // void ResizeSwapChain(uint swapChainId, int with, int height);
-        // Vector2 GetSwapChainRenderSize();
-        // uint GetNextSwapChainTexture(uint swapChainId);
-
-        Vector2 GetRenderSize();
         GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 
+        IntPtr CreateCommandQueue(GraphicsServiceCommandType commandQueueType);
+        void SetCommandQueueLabel(IntPtr commandQueuePointer, string label);
+        void DeleteCommandQueue(IntPtr commandQueuePointer);
+        void ResetCommandQueue(IntPtr commandQueuePointer);
+        ulong GetCommandQueueTimestampFrequency(IntPtr commandQueuePointer);
+        ulong ExecuteCommandLists(IntPtr commandQueuePointer, ReadOnlySpan<IntPtr> commandLists, bool isAwaitable);
+        void WaitForCommandQueue(IntPtr commandQueuePointer, IntPtr commandQueueToWaitPointer, ulong fenceValue);
+        void WaitForCommandQueueOnCpu(IntPtr commandQueueToWaitPointer, ulong fenceValue);
+ 
+        IntPtr CreateCommandList(IntPtr commandQueuePointer);
+        void SetCommandListLabel(IntPtr commandListPointer, string label);
+        void DeleteCommandList(IntPtr commandListId);
+        void ResetCommandList(IntPtr commandListId);
+        void CommitCommandList(IntPtr commandListId);
+        
         IntPtr CreateGraphicsHeap(GraphicsServiceHeapType type, ulong length);
         void SetGraphicsHeapLabel(IntPtr graphicsHeapPointer, string label);
         void DeleteGraphicsHeap(IntPtr graphicsHeapPointer);
@@ -265,6 +270,12 @@ namespace CoreEngine.HostServices
         IntPtr CreateTexture(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
         void SetTextureLabel(IntPtr texturePointer, string label);
         void DeleteTexture(IntPtr texturePointer);
+
+        IntPtr CreateSwapChain(IntPtr windowPointer, IntPtr commandQueuePointer, int width, int height, GraphicsTextureFormat textureFormat);
+        // void DeleteSwapChain(uint swapChainId);
+        // void ResizeSwapChain(uint swapChainId, int width, int height);
+        IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer);
+        ulong PresentSwapChain(IntPtr swapChainPointer);
 
         // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
         // TODO: Rework indirect commands creation (Two steps, Command signature that returns the size and buffer creation)
@@ -284,20 +295,6 @@ namespace CoreEngine.HostServices
         IntPtr CreatePipelineState(IntPtr shaderPointer, GraphicsRenderPassDescriptor renderPassDescriptor);
         void SetPipelineStateLabel(IntPtr pipelineStatePointer, string label);
         void DeletePipelineState(IntPtr pipelineStatePointer);
-
-        IntPtr CreateCommandQueue(GraphicsServiceCommandType commandQueueType);
-        void SetCommandQueueLabel(IntPtr commandQueuePointer, string label);
-        void DeleteCommandQueue(IntPtr commandQueuePointer);
-        ulong GetCommandQueueTimestampFrequency(IntPtr commandQueuePointer);
-        ulong ExecuteCommandLists(IntPtr commandQueuePointer, ReadOnlySpan<IntPtr> commandLists, bool isAwaitable);
-        void WaitForCommandQueue(IntPtr commandQueuePointer, IntPtr commandQueueToWaitPointer, ulong fenceValue);
-        void WaitForCommandQueueOnCpu(IntPtr commandQueueToWaitPointer, ulong fenceValue);
- 
-        IntPtr CreateCommandList(IntPtr commandQueuePointer);
-        void SetCommandListLabel(IntPtr commandListPointer, string label);
-        void DeleteCommandList(IntPtr commandListId);
-        void ResetCommandList(IntPtr commandListId);
-        void CommitCommandList(IntPtr commandListId);
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
@@ -336,15 +333,6 @@ namespace CoreEngine.HostServices
         void DrawPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
 
         void QueryTimestamp(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);
-
-        // TODO: Split query buffer into 2 types: QueryBuffer and CopyQueryBuffer
         void ResolveQueryData(IntPtr commandListPointer, IntPtr queryBufferPointer, IntPtr destinationBufferPointer, int startIndex, int endIndex);
-        
-        // TODO: Add a parameter to specify which drawable we should update. Usefull for editor or multiple windows management
-        // TODO: Rename that to PresentSwapChain and add swap chain id parameter
-        void PresentScreenBuffer(IntPtr commandBufferId);
-
-        // TODO: Rename that to WaitForVSync()
-        void WaitForAvailableScreenBuffer();
     }
 }

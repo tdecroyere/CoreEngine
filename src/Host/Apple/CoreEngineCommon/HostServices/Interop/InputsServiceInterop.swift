@@ -1,6 +1,11 @@
 import Foundation
 import CoreEngineCommonInterop
 
+func InputsService_associateWindowInterop(context: UnsafeMutableRawPointer?, _ windowPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<InputsManager>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.associateWindow(windowPointer)
+}
+
 func InputsService_getInputsStateInterop(context: UnsafeMutableRawPointer?) -> InputsState {
     let contextObject = Unmanaged<InputsManager>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.getInputsState()
@@ -13,6 +18,7 @@ func InputsService_sendVibrationCommandInterop(context: UnsafeMutableRawPointer?
 
 func initInputsService(_ context: InputsManager, _ service: inout InputsService) {
     service.Context = Unmanaged.passUnretained(context).toOpaque()
+    service.InputsService_AssociateWindow = InputsService_associateWindowInterop
     service.InputsService_GetInputsState = InputsService_getInputsStateInterop
     service.InputsService_SendVibrationCommand = InputsService_sendVibrationCommandInterop
 }

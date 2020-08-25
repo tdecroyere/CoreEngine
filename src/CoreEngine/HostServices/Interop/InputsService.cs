@@ -8,6 +8,15 @@ namespace CoreEngine.HostServices.Interop
     {
         private IntPtr context { get; }
 
+        private delegate* cdecl<IntPtr, IntPtr, void> inputsService_AssociateWindowDelegate { get; }
+        public unsafe void AssociateWindow(IntPtr windowPointer)
+        {
+            if (this.context != null && this.inputsService_AssociateWindowDelegate != null)
+            {
+                this.inputsService_AssociateWindowDelegate(this.context, windowPointer);
+            }
+        }
+
         private delegate* cdecl<IntPtr, InputsState> inputsService_GetInputsStateDelegate { get; }
         public unsafe InputsState GetInputsState()
         {

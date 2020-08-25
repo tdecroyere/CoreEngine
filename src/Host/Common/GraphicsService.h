@@ -115,8 +115,20 @@ struct NullableGraphicsRenderPassDescriptor
 };
 
 typedef void (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context, char* output);
-typedef struct Vector2 (*GraphicsService_GetRenderSizePtr)(void* context);
 typedef struct GraphicsAllocationInfos (*GraphicsService_GetTextureAllocationInfosPtr)(void* context, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+typedef void* (*GraphicsService_CreateCommandQueuePtr)(void* context, enum GraphicsServiceCommandType commandQueueType);
+typedef void (*GraphicsService_SetCommandQueueLabelPtr)(void* context, void* commandQueuePointer, char* label);
+typedef void (*GraphicsService_DeleteCommandQueuePtr)(void* context, void* commandQueuePointer);
+typedef void (*GraphicsService_ResetCommandQueuePtr)(void* context, void* commandQueuePointer);
+typedef unsigned long (*GraphicsService_GetCommandQueueTimestampFrequencyPtr)(void* context, void* commandQueuePointer);
+typedef unsigned long (*GraphicsService_ExecuteCommandListsPtr)(void* context, void* commandQueuePointer, void** commandLists, int commandListsLength, int isAwaitable);
+typedef void (*GraphicsService_WaitForCommandQueuePtr)(void* context, void* commandQueuePointer, void* commandQueueToWaitPointer, unsigned long fenceValue);
+typedef void (*GraphicsService_WaitForCommandQueueOnCpuPtr)(void* context, void* commandQueueToWaitPointer, unsigned long fenceValue);
+typedef void* (*GraphicsService_CreateCommandListPtr)(void* context, void* commandQueuePointer);
+typedef void (*GraphicsService_SetCommandListLabelPtr)(void* context, void* commandListPointer, char* label);
+typedef void (*GraphicsService_DeleteCommandListPtr)(void* context, void* commandListId);
+typedef void (*GraphicsService_ResetCommandListPtr)(void* context, void* commandListId);
+typedef void (*GraphicsService_CommitCommandListPtr)(void* context, void* commandListId);
 typedef void* (*GraphicsService_CreateGraphicsHeapPtr)(void* context, enum GraphicsServiceHeapType type, unsigned long length);
 typedef void (*GraphicsService_SetGraphicsHeapLabelPtr)(void* context, void* graphicsHeapPointer, char* label);
 typedef void (*GraphicsService_DeleteGraphicsHeapPtr)(void* context, void* graphicsHeapPointer);
@@ -127,6 +139,9 @@ typedef void* (*GraphicsService_GetGraphicsBufferCpuPointerPtr)(void* context, v
 typedef void* (*GraphicsService_CreateTexturePtr)(void* context, void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 typedef void (*GraphicsService_SetTextureLabelPtr)(void* context, void* texturePointer, char* label);
 typedef void (*GraphicsService_DeleteTexturePtr)(void* context, void* texturePointer);
+typedef void* (*GraphicsService_CreateSwapChainPtr)(void* context, void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
+typedef void* (*GraphicsService_GetSwapChainBackBufferTexturePtr)(void* context, void* swapChainPointer);
+typedef unsigned long (*GraphicsService_PresentSwapChainPtr)(void* context, void* swapChainPointer);
 typedef void* (*GraphicsService_CreateIndirectCommandBufferPtr)(void* context, int maxCommandCount);
 typedef void (*GraphicsService_SetIndirectCommandBufferLabelPtr)(void* context, void* indirectCommandBufferPointer, char* label);
 typedef void (*GraphicsService_DeleteIndirectCommandBufferPtr)(void* context, void* indirectCommandBufferPointer);
@@ -139,18 +154,6 @@ typedef void (*GraphicsService_DeleteShaderPtr)(void* context, void* shaderPoint
 typedef void* (*GraphicsService_CreatePipelineStatePtr)(void* context, void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_SetPipelineStateLabelPtr)(void* context, void* pipelineStatePointer, char* label);
 typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, void* pipelineStatePointer);
-typedef void* (*GraphicsService_CreateCommandQueuePtr)(void* context, enum GraphicsServiceCommandType commandQueueType);
-typedef void (*GraphicsService_SetCommandQueueLabelPtr)(void* context, void* commandQueuePointer, char* label);
-typedef void (*GraphicsService_DeleteCommandQueuePtr)(void* context, void* commandQueuePointer);
-typedef unsigned long (*GraphicsService_GetCommandQueueTimestampFrequencyPtr)(void* context, void* commandQueuePointer);
-typedef unsigned long (*GraphicsService_ExecuteCommandListsPtr)(void* context, void* commandQueuePointer, void** commandLists, int commandListsLength, int isAwaitable);
-typedef void (*GraphicsService_WaitForCommandQueuePtr)(void* context, void* commandQueuePointer, void* commandQueueToWaitPointer, unsigned long fenceValue);
-typedef void (*GraphicsService_WaitForCommandQueueOnCpuPtr)(void* context, void* commandQueueToWaitPointer, unsigned long fenceValue);
-typedef void* (*GraphicsService_CreateCommandListPtr)(void* context, void* commandQueuePointer);
-typedef void (*GraphicsService_SetCommandListLabelPtr)(void* context, void* commandListPointer, char* label);
-typedef void (*GraphicsService_DeleteCommandListPtr)(void* context, void* commandListId);
-typedef void (*GraphicsService_ResetCommandListPtr)(void* context, void* commandListId);
-typedef void (*GraphicsService_CommitCommandListPtr)(void* context, void* commandListId);
 typedef void (*GraphicsService_SetShaderBufferPtr)(void* context, void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index);
 typedef void (*GraphicsService_SetShaderBuffersPtr)(void* context, void* commandListPointer, void** graphicsBufferPointerList, int graphicsBufferPointerListLength, int slot, int index);
 typedef void (*GraphicsService_SetShaderTexturePtr)(void* context, void* commandListPointer, void* texturePointer, int slot, int isReadOnly, int index);
@@ -173,15 +176,25 @@ typedef void (*GraphicsService_DrawIndexedPrimitivesPtr)(void* context, void* co
 typedef void (*GraphicsService_DrawPrimitivesPtr)(void* context, void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
 typedef void (*GraphicsService_QueryTimestampPtr)(void* context, void* commandListPointer, void* queryBufferPointer, int index);
 typedef void (*GraphicsService_ResolveQueryDataPtr)(void* context, void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex);
-typedef void (*GraphicsService_PresentScreenBufferPtr)(void* context, void* commandBufferId);
-typedef void (*GraphicsService_WaitForAvailableScreenBufferPtr)(void* context);
 
 struct GraphicsService
 {
     void* Context;
     GraphicsService_GetGraphicsAdapterNamePtr GraphicsService_GetGraphicsAdapterName;
-    GraphicsService_GetRenderSizePtr GraphicsService_GetRenderSize;
     GraphicsService_GetTextureAllocationInfosPtr GraphicsService_GetTextureAllocationInfos;
+    GraphicsService_CreateCommandQueuePtr GraphicsService_CreateCommandQueue;
+    GraphicsService_SetCommandQueueLabelPtr GraphicsService_SetCommandQueueLabel;
+    GraphicsService_DeleteCommandQueuePtr GraphicsService_DeleteCommandQueue;
+    GraphicsService_ResetCommandQueuePtr GraphicsService_ResetCommandQueue;
+    GraphicsService_GetCommandQueueTimestampFrequencyPtr GraphicsService_GetCommandQueueTimestampFrequency;
+    GraphicsService_ExecuteCommandListsPtr GraphicsService_ExecuteCommandLists;
+    GraphicsService_WaitForCommandQueuePtr GraphicsService_WaitForCommandQueue;
+    GraphicsService_WaitForCommandQueueOnCpuPtr GraphicsService_WaitForCommandQueueOnCpu;
+    GraphicsService_CreateCommandListPtr GraphicsService_CreateCommandList;
+    GraphicsService_SetCommandListLabelPtr GraphicsService_SetCommandListLabel;
+    GraphicsService_DeleteCommandListPtr GraphicsService_DeleteCommandList;
+    GraphicsService_ResetCommandListPtr GraphicsService_ResetCommandList;
+    GraphicsService_CommitCommandListPtr GraphicsService_CommitCommandList;
     GraphicsService_CreateGraphicsHeapPtr GraphicsService_CreateGraphicsHeap;
     GraphicsService_SetGraphicsHeapLabelPtr GraphicsService_SetGraphicsHeapLabel;
     GraphicsService_DeleteGraphicsHeapPtr GraphicsService_DeleteGraphicsHeap;
@@ -192,6 +205,9 @@ struct GraphicsService
     GraphicsService_CreateTexturePtr GraphicsService_CreateTexture;
     GraphicsService_SetTextureLabelPtr GraphicsService_SetTextureLabel;
     GraphicsService_DeleteTexturePtr GraphicsService_DeleteTexture;
+    GraphicsService_CreateSwapChainPtr GraphicsService_CreateSwapChain;
+    GraphicsService_GetSwapChainBackBufferTexturePtr GraphicsService_GetSwapChainBackBufferTexture;
+    GraphicsService_PresentSwapChainPtr GraphicsService_PresentSwapChain;
     GraphicsService_CreateIndirectCommandBufferPtr GraphicsService_CreateIndirectCommandBuffer;
     GraphicsService_SetIndirectCommandBufferLabelPtr GraphicsService_SetIndirectCommandBufferLabel;
     GraphicsService_DeleteIndirectCommandBufferPtr GraphicsService_DeleteIndirectCommandBuffer;
@@ -204,18 +220,6 @@ struct GraphicsService
     GraphicsService_CreatePipelineStatePtr GraphicsService_CreatePipelineState;
     GraphicsService_SetPipelineStateLabelPtr GraphicsService_SetPipelineStateLabel;
     GraphicsService_DeletePipelineStatePtr GraphicsService_DeletePipelineState;
-    GraphicsService_CreateCommandQueuePtr GraphicsService_CreateCommandQueue;
-    GraphicsService_SetCommandQueueLabelPtr GraphicsService_SetCommandQueueLabel;
-    GraphicsService_DeleteCommandQueuePtr GraphicsService_DeleteCommandQueue;
-    GraphicsService_GetCommandQueueTimestampFrequencyPtr GraphicsService_GetCommandQueueTimestampFrequency;
-    GraphicsService_ExecuteCommandListsPtr GraphicsService_ExecuteCommandLists;
-    GraphicsService_WaitForCommandQueuePtr GraphicsService_WaitForCommandQueue;
-    GraphicsService_WaitForCommandQueueOnCpuPtr GraphicsService_WaitForCommandQueueOnCpu;
-    GraphicsService_CreateCommandListPtr GraphicsService_CreateCommandList;
-    GraphicsService_SetCommandListLabelPtr GraphicsService_SetCommandListLabel;
-    GraphicsService_DeleteCommandListPtr GraphicsService_DeleteCommandList;
-    GraphicsService_ResetCommandListPtr GraphicsService_ResetCommandList;
-    GraphicsService_CommitCommandListPtr GraphicsService_CommitCommandList;
     GraphicsService_SetShaderBufferPtr GraphicsService_SetShaderBuffer;
     GraphicsService_SetShaderBuffersPtr GraphicsService_SetShaderBuffers;
     GraphicsService_SetShaderTexturePtr GraphicsService_SetShaderTexture;
@@ -238,6 +242,4 @@ struct GraphicsService
     GraphicsService_DrawPrimitivesPtr GraphicsService_DrawPrimitives;
     GraphicsService_QueryTimestampPtr GraphicsService_QueryTimestamp;
     GraphicsService_ResolveQueryDataPtr GraphicsService_ResolveQueryData;
-    GraphicsService_PresentScreenBufferPtr GraphicsService_PresentScreenBuffer;
-    GraphicsService_WaitForAvailableScreenBufferPtr GraphicsService_WaitForAvailableScreenBuffer;
 };

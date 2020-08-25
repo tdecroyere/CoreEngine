@@ -10,9 +10,8 @@ using namespace Microsoft::WRL;
 
 bool enableTiming = true;
 
-Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int height, GameState* gameState)
+Direct3D12GraphicsService::Direct3D12GraphicsService()
 {
-	this->gameState = gameState;
 	this->isWaitingForGlobalFence = false;
     UINT createFactoryFlags = 0;
 
@@ -21,7 +20,7 @@ Direct3D12GraphicsService::Direct3D12GraphicsService(HWND window, int width, int
     createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-	this->window = window;
+	// this->window = window;
 	AssertIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(this->dxgiFactory.ReleaseAndGetAddressOf())));
 
 	auto graphicsAdapter = FindGraphicsAdapter(dxgiFactory);
@@ -34,19 +33,7 @@ Direct3D12GraphicsService::~Direct3D12GraphicsService()
 {
 	// Ensure that the GPU is no longer referencing resources that are about to be
 	// cleaned up by the destructor.
-
-	// TODO: Wait until all command queues are finished on the GPU
-	this->WaitForAvailableScreenBuffer();
-
-	// Fullscreen state should always be false before exiting the app.
-	this->swapChain->SetFullscreenState(false, nullptr);
-
 	CloseHandle(this->globalFenceEvent);
-}
-
-struct Vector2 Direct3D12GraphicsService::GetRenderSize()
-{
-    return this->currentRenderSize;
 }
 
 void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
@@ -64,6 +51,221 @@ GraphicsAllocationInfos Direct3D12GraphicsService::GetTextureAllocationInfos(enu
 	result.Alignment = allocationInfos.Alignment;
 
 	return result;
+}
+
+void* Direct3D12GraphicsService::CreateCommandQueue(enum GraphicsServiceCommandType commandQueueType)
+{
+	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
+	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+	if (commandQueueType == GraphicsServiceCommandType::Compute)
+	{
+		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	}
+
+	else if (commandQueueType == GraphicsServiceCommandType::Copy)
+	{
+		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+	}
+
+	ComPtr<ID3D12CommandQueue> commandQueue;
+	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(commandQueue.ReleaseAndGetAddressOf())));
+
+	ComPtr<ID3D12Fence1> commandQueueFence;
+	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(commandQueueFence.ReleaseAndGetAddressOf())));
+
+	auto commandAllocators = new ComPtr<ID3D12CommandAllocator>[CommandAllocatorsCount];
+
+	// Init command allocators for each frame in flight
+	// TODO: For multi threading support we need to allocate on allocator per frame per thread
+	for (int i = 0; i < CommandAllocatorsCount; i++)
+	{
+		ComPtr<ID3D12CommandAllocator> commandAllocator;
+		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(commandQueueDesc.Type, IID_PPV_ARGS(commandAllocator.ReleaseAndGetAddressOf())));
+		commandAllocators[i] = commandAllocator;
+	}
+
+	Direct3D12CommandQueue* commandQueueStruct = new Direct3D12CommandQueue();
+	commandQueueStruct->CommandQueueObject = commandQueue;
+	commandQueueStruct->CommandAllocators = commandAllocators;
+	commandQueueStruct->Type = commandQueueDesc.Type;
+	commandQueueStruct->Fence = commandQueueFence;
+	commandQueueStruct->FenceValue = 0;
+
+	return commandQueueStruct;
+}
+
+void Direct3D12GraphicsService::SetCommandQueueLabel(void* commandQueuePointer, char* label)
+{
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+
+	commandQueue->CommandQueueObject->SetName(wstring(label, label + strlen(label)).c_str());
+	commandQueue->Fence->SetName((wstring(label, label + strlen(label)) + L"Fence").c_str());
+
+	for (int i = 0; i < CommandAllocatorsCount; i++)
+	{
+		wchar_t buffer[64] = {};
+  		swprintf(buffer, (wstring(label, label + strlen(label)) + L"Allocator%d").c_str(), i);
+		commandQueue->CommandAllocators[i]->SetName(buffer);
+	}
+}
+
+void Direct3D12GraphicsService::DeleteCommandQueue(void* commandQueuePointer)
+{
+	// TODO: Do we need to release manually ComPtr objects?
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+	delete commandQueue;
+}
+
+void Direct3D12GraphicsService::ResetCommandQueue(void* commandQueuePointer)
+{
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+	auto commandAllocator = commandQueue->CommandAllocators[this->currentAllocatorIndex];
+
+	AssertIfFailed(commandAllocator->Reset());
+}
+
+unsigned long Direct3D12GraphicsService::GetCommandQueueTimestampFrequency(void* commandQueuePointer)
+{
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+
+	uint64_t timestampFrequency;
+	AssertIfFailed(commandQueue->CommandQueueObject->GetTimestampFrequency(&timestampFrequency));
+
+	return timestampFrequency;
+}
+
+unsigned long Direct3D12GraphicsService::ExecuteCommandLists(void* commandQueuePointer, void** commandLists, int commandListsLength, int isAwaitable)
+{
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+
+	// TODO: We need to free that memory somehow
+	ID3D12CommandList** commandListsToExecute = new ID3D12CommandList*[commandListsLength];
+
+	for (int i = 0; i < commandListsLength; i++)
+	{
+		commandListsToExecute[i] = ((Direct3D12CommandList*)commandLists[i])->CommandListObject.Get();
+	}
+
+	commandQueue->CommandQueueObject->ExecuteCommandLists(commandListsLength, commandListsToExecute);
+	
+	if (isAwaitable)
+	{
+		// TODO: Switch to an atomic increment here for multi threading
+		auto fenceValue = commandQueue->FenceValue;
+		commandQueue->CommandQueueObject->Signal(commandQueue->Fence.Get(), fenceValue);
+		commandQueue->FenceValue = fenceValue + 1;
+
+		return fenceValue;
+	}
+
+	return 0;
+}
+
+void Direct3D12GraphicsService::WaitForCommandQueue(void* commandQueuePointer, void* commandQueueToWaitPointer, unsigned long fenceValue)
+{
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+	Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)commandQueueToWaitPointer;
+
+	AssertIfFailed(commandQueue->CommandQueueObject->Wait(commandQueueToWait->Fence.Get(), fenceValue));
+}
+
+void Direct3D12GraphicsService::WaitForCommandQueueOnCpu(void* commandQueueToWaitPointer, unsigned long fenceValue)
+{
+	Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)commandQueueToWaitPointer;
+
+	if (commandQueueToWait->Fence->GetCompletedValue() < fenceValue)
+	{
+		commandQueueToWait->Fence->SetEventOnCompletion(fenceValue, this->globalFenceEvent);
+		WaitForSingleObject(this->globalFenceEvent, INFINITE);
+	}
+}
+
+void* Direct3D12GraphicsService::CreateCommandList(void* commandQueuePointer)
+{
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+
+	auto commandAllocator = commandQueue->CommandAllocators[this->currentAllocatorIndex];
+	auto listType = commandQueue->Type;
+
+	ComPtr<ID3D12GraphicsCommandList> commandList;
+	AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
+
+	if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		ID3D12DescriptorHeap* descriptorHeaps[] = { this->globalDescriptorHeap.Get() };
+		commandList->SetDescriptorHeaps(1, descriptorHeaps);
+	}
+
+	Direct3D12CommandList* commandListStruct = new Direct3D12CommandList();
+	commandListStruct->CommandListObject = commandList;
+	commandListStruct->Type = listType;
+	commandListStruct->CommandQueue = commandQueue;
+
+	return commandListStruct;
+}
+
+void Direct3D12GraphicsService::SetCommandListLabel(void* commandListPointer, char* label)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	commandList->CommandListObject->SetName(wstring(label, label + strlen(label)).c_str());
+}
+
+void Direct3D12GraphicsService::DeleteCommandList(void* commandListPointer)
+{
+	// TODO: Do we need to release manually ComPtr objects?
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	delete commandList;
+}
+
+void Direct3D12GraphicsService::ResetCommandList(void* commandListPointer)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	auto commandAllocator = commandList->CommandQueue->CommandAllocators[this->currentAllocatorIndex];
+
+	commandList->CommandListObject->Reset(commandAllocator.Get(), nullptr);
+
+	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		ID3D12DescriptorHeap* descriptorHeaps[] = { this->globalDescriptorHeap.Get() };
+		commandList->CommandListObject->SetDescriptorHeaps(1, descriptorHeaps);
+	}
+}
+
+void Direct3D12GraphicsService::CommitCommandList(void* commandListPointer)
+{
+	this->shaderBound = false;
+
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	commandList->CommandListObject->Close();
+}
+
+void Direct3D12GraphicsService::SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index)
+{ 
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
+
+	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{
+		commandList->CommandListObject->SetGraphicsRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
+	}
+
+	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		// TODO: Remove that hack
+		if (slot == 1)
+		{
+			auto gpuAddress = graphicsBuffer->BufferObject->GetGPUVirtualAddress();
+			commandList->CommandListObject->SetComputeRoot32BitConstants(0, 2, &gpuAddress, 0);
+			commandList->CommandListObject->SetComputeRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
+		}
+	}
 }
 
 void* Direct3D12GraphicsService::CreateGraphicsHeap(enum GraphicsServiceHeapType type, unsigned long sizeInBytes)
@@ -279,6 +481,82 @@ void Direct3D12GraphicsService::DeleteTexture(void* texturePointer)
 { 
 	// TODO: Wait for next frame for releasing resources
 	// this->textureFootPrints.erase(textureId);
+}
+
+void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat)
+{
+	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+	swapChainDesc.BufferCount = RenderBuffersCount;
+	swapChainDesc.Width = width;
+	swapChainDesc.Height = height;
+	swapChainDesc.Format = ConvertTextureFormat(textureFormat, true);
+	swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+	swapChainDesc.SampleDesc = { 1, 0 };
+
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFullScreenDesc = {};
+	swapChainFullScreenDesc.Windowed = true;
+	
+	ComPtr<IDXGISwapChain3> swapChain;
+	AssertIfFailed(dxgiFactory->CreateSwapChainForHwnd(commandQueue->CommandQueueObject.Get(), (HWND)windowPointer, &swapChainDesc, &swapChainFullScreenDesc, nullptr, (IDXGISwapChain1**)swapChain.ReleaseAndGetAddressOf()));
+
+	Direct3D12SwapChain* swapChainStructure = new Direct3D12SwapChain();
+	swapChainStructure->SwapChainObject = swapChain;
+	swapChainStructure->CommandQueue = commandQueue;
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.Format = ConvertTextureFormat(textureFormat);
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+	for (int i = 0; i < RenderBuffersCount; i++)
+	{
+		ComPtr<ID3D12Resource> backBuffer;
+		AssertIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(backBuffer.ReleaseAndGetAddressOf())));
+
+		wchar_t buff[64] = {};
+  		swprintf(buff, L"BackBufferRenderTarget%d", i);
+		backBuffer->SetName(buff);
+
+		Direct3D12Texture* backBufferTexture = new Direct3D12Texture();
+		backBufferTexture->TextureObject = backBuffer;
+		backBufferTexture->ResourceState = D3D12_RESOURCE_STATE_PRESENT;
+		backBufferTexture->IsPresentTexture = true;
+		backBufferTexture->ResourceDesc = CreateTextureResourceDescription(textureFormat, GraphicsTextureUsage::RenderTarget, width, height, 1, 1, 1);
+
+		auto globalRtvDescriptorHeapHandle = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		globalRtvDescriptorHeapHandle.ptr += this->currentGlobalRtvDescriptorOffset;
+
+		this->graphicsDevice->CreateRenderTargetView(backBuffer.Get(), &rtvDesc, globalRtvDescriptorHeapHandle);
+		backBufferTexture->TextureDescriptorOffset = this->currentGlobalRtvDescriptorOffset;
+		this->currentGlobalRtvDescriptorOffset += this->globalRtvDescriptorHandleSize;
+
+		swapChainStructure->BackBufferTextures[i] = backBufferTexture;
+	}
+
+	return swapChainStructure;
+}
+
+void* Direct3D12GraphicsService::GetSwapChainBackBufferTexture(void* swapChainPointer)
+{
+	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
+	return swapChain->BackBufferTextures[swapChain->SwapChainObject->GetCurrentBackBufferIndex()];
+}
+
+unsigned long Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer)
+{
+	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
+	AssertIfFailed(swapChain->SwapChainObject->Present(1, 0));
+
+	// TODO: Switch to an atomic increment here for multi threading
+	auto fenceValue = swapChain->CommandQueue->FenceValue;
+	swapChain->CommandQueue->CommandQueueObject->Signal(swapChain->CommandQueue->Fence.Get(), fenceValue);
+	swapChain->CommandQueue->FenceValue = fenceValue + 1;
+
+	return fenceValue;
 }
 
 // TODO: To remove
@@ -553,220 +831,6 @@ void Direct3D12GraphicsService::DeletePipelineState(void* pipelineStatePointer)
 	delete pipelineState;
 }
 
-void* Direct3D12GraphicsService::CreateCommandQueue(enum GraphicsServiceCommandType commandQueueType)
-{
-	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
-	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	if (commandQueueType == GraphicsServiceCommandType::Compute)
-	{
-		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-	}
-
-	else if (commandQueueType == GraphicsServiceCommandType::Copy)
-	{
-		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-	}
-
-	ComPtr<ID3D12CommandQueue> commandQueue;
-	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(commandQueue.ReleaseAndGetAddressOf())));
-
-	// TODO: Remove that hack
-	if (commandQueueType == GraphicsServiceCommandType::Render)
-	{
-		this->directCommandQueue = commandQueue;
-		AssertIfFailed(CreateOrResizeSwapChain(1280, 720));
-	}
-
-	ComPtr<ID3D12Fence1> commandQueueFence;
-	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(commandQueueFence.ReleaseAndGetAddressOf())));
-
-	auto commandAllocators = new ComPtr<ID3D12CommandAllocator>[CommandAllocatorsCount];
-
-	// Init command allocators for each frame in flight
-	// TODO: For multi threading support we need to allocate on allocator per frame per thread
-	for (int i = 0; i < CommandAllocatorsCount; i++)
-	{
-		ComPtr<ID3D12CommandAllocator> commandAllocator;
-		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(commandQueueDesc.Type, IID_PPV_ARGS(commandAllocator.ReleaseAndGetAddressOf())));
-		commandAllocators[i] = commandAllocator;
-	}
-
-	Direct3D12CommandQueue* commandQueueStruct = new Direct3D12CommandQueue();
-	commandQueueStruct->CommandQueueObject = commandQueue;
-	commandQueueStruct->CommandAllocators = commandAllocators;
-	commandQueueStruct->Type = commandQueueDesc.Type;
-	commandQueueStruct->Fence = commandQueueFence;
-	commandQueueStruct->FenceValue = 0;
-
-	return commandQueueStruct;
-}
-
-void Direct3D12GraphicsService::SetCommandQueueLabel(void* commandQueuePointer, char* label)
-{
-	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
-
-	commandQueue->CommandQueueObject->SetName(wstring(label, label + strlen(label)).c_str());
-	commandQueue->Fence->SetName((wstring(label, label + strlen(label)) + L"Fence").c_str());
-
-	for (int i = 0; i < CommandAllocatorsCount; i++)
-	{
-		wchar_t buffer[64] = {};
-  		swprintf(buffer, (wstring(label, label + strlen(label)) + L"Allocator%d").c_str(), i);
-		commandQueue->CommandAllocators[i]->SetName(buffer);
-	}
-}
-
-void Direct3D12GraphicsService::DeleteCommandQueue(void* commandQueuePointer)
-{
-	// TODO: Do we need to release manually ComPtr objects?
-	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
-	delete commandQueue;
-}
-
-unsigned long Direct3D12GraphicsService::GetCommandQueueTimestampFrequency(void* commandQueuePointer)
-{
-	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
-
-	uint64_t timestampFrequency;
-	AssertIfFailed(commandQueue->CommandQueueObject->GetTimestampFrequency(&timestampFrequency));
-
-	return timestampFrequency;
-}
-
-unsigned long Direct3D12GraphicsService::ExecuteCommandLists(void* commandQueuePointer, void** commandLists, int commandListsLength, int isAwaitable)
-{
-	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
-
-	// TODO: We need to free that memory somehow
-	ID3D12CommandList** commandListsToExecute = new ID3D12CommandList*[commandListsLength];
-
-	for (int i = 0; i < commandListsLength; i++)
-	{
-		commandListsToExecute[i] = ((Direct3D12CommandList*)commandLists[i])->CommandListObject.Get();
-	}
-
-	commandQueue->CommandQueueObject->ExecuteCommandLists(commandListsLength, commandListsToExecute);
-	
-	if (isAwaitable)
-	{
-		// TODO: Switch to an atomic increment here for multi threading
-		auto fenceValue = commandQueue->FenceValue;
-		commandQueue->CommandQueueObject->Signal(commandQueue->Fence.Get(), fenceValue);
-		commandQueue->FenceValue = fenceValue + 1;
-
-		return fenceValue;
-	}
-
-	return 0;
-}
-
-void Direct3D12GraphicsService::WaitForCommandQueue(void* commandQueuePointer, void* commandQueueToWaitPointer, unsigned long fenceValue)
-{
-	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
-	Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)commandQueueToWaitPointer;
-
-	AssertIfFailed(commandQueue->CommandQueueObject->Wait(commandQueueToWait->Fence.Get(), fenceValue));
-}
-
-void Direct3D12GraphicsService::WaitForCommandQueueOnCpu(void* commandQueueToWaitPointer, unsigned long fenceValue)
-{
-	Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)commandQueueToWaitPointer;
-
-	if (commandQueueToWait->Fence->GetCompletedValue() < fenceValue)
-	{
-		commandQueueToWait->Fence->SetEventOnCompletion(fenceValue, this->globalFenceEvent);
-		WaitForSingleObject(this->globalFenceEvent, INFINITE);
-	}
-}
-
-void* Direct3D12GraphicsService::CreateCommandList(void* commandQueuePointer)
-{
-	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
-
-	auto commandAllocator = commandQueue->CommandAllocators[this->currentAllocatorIndex];
-	auto listType = commandQueue->Type;
-
-	ComPtr<ID3D12GraphicsCommandList> commandList;
-	AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
-
-	if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		ID3D12DescriptorHeap* descriptorHeaps[] = { this->globalDescriptorHeap.Get() };
-		commandList->SetDescriptorHeaps(1, descriptorHeaps);
-	}
-
-	Direct3D12CommandList* commandListStruct = new Direct3D12CommandList();
-	commandListStruct->CommandListObject = commandList;
-	commandListStruct->Type = listType;
-	commandListStruct->CommandQueue = commandQueue;
-
-	return commandListStruct;
-}
-
-void Direct3D12GraphicsService::SetCommandListLabel(void* commandListPointer, char* label)
-{
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	commandList->CommandListObject->SetName(wstring(label, label + strlen(label)).c_str());
-}
-
-void Direct3D12GraphicsService::DeleteCommandList(void* commandListPointer)
-{
-	// TODO: Do we need to release manually ComPtr objects?
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	delete commandList;
-}
-
-void Direct3D12GraphicsService::ResetCommandList(void* commandListPointer)
-{
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	auto commandAllocator = commandList->CommandQueue->CommandAllocators[this->currentAllocatorIndex];
-
-	commandList->CommandListObject->Reset(commandAllocator.Get(), nullptr);
-
-	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		ID3D12DescriptorHeap* descriptorHeaps[] = { this->globalDescriptorHeap.Get() };
-		commandList->CommandListObject->SetDescriptorHeaps(1, descriptorHeaps);
-	}
-}
-
-void Direct3D12GraphicsService::CommitCommandList(void* commandListPointer)
-{
-	this->shaderBound = false;
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	commandList->CommandListObject->Close();
-}
-
-void Direct3D12GraphicsService::SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index)
-{ 
-	if (!this->shaderBound)
-	{
-		return;
-	}
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
-
-	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
-	{
-		commandList->CommandListObject->SetGraphicsRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
-	}
-
-	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-	{
-		// TODO: Remove that hack
-		if (slot == 1)
-		{
-			auto gpuAddress = graphicsBuffer->BufferObject->GetGPUVirtualAddress();
-			commandList->CommandListObject->SetComputeRoot32BitConstants(0, 2, &gpuAddress, 0);
-			commandList->CommandListObject->SetComputeRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
-		}
-	}
-}
-
 void Direct3D12GraphicsService::SetShaderBuffers(void* commandListPointer, void** graphicsBufferPointerList, int graphicsBufferPointerListLength, int slot, int index)
 { 
 	
@@ -1023,25 +1087,6 @@ void Direct3D12GraphicsService::BeginRenderPass(void* commandListPointer, struct
 		scissorRect.bottom = (long)texture->ResourceDesc.Height;
 		commandList->CommandListObject->RSSetScissorRects(1, &scissorRect);
 	}
-
-	else if (!renderDescriptor.RenderTarget1TexturePointer.HasValue && !renderDescriptor.DepthTexturePointer.HasValue)
-	{
-		D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = GetCurrentRenderTargetViewHandle();
-
-		commandList->CommandListObject->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		commandList->CommandListObject->OMSetRenderTargets(1, &renderTargetViewHandle, false, nullptr);
-
-		D3D12_VIEWPORT viewport = {};
-		viewport.Width = (float)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Width;
-		viewport.Height = (float)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Height;
-		viewport.MaxDepth = 1.0f;
-		commandList->CommandListObject->RSSetViewports(1, &viewport);
-
-		D3D12_RECT scissorRect = {};
-		scissorRect.right = (long)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Width;
-		scissorRect.bottom = (long)this->backBufferRenderTargets[this->currentBackBufferIndex]->GetDesc().Height;
-		commandList->CommandListObject->RSSetScissorRects(1, &scissorRect);
-	}
 }
 
 void Direct3D12GraphicsService::EndRenderPass(void* commandListPointer)
@@ -1052,7 +1097,16 @@ void Direct3D12GraphicsService::EndRenderPass(void* commandListPointer)
 	if (renderDescriptor.RenderTarget1TexturePointer.HasValue)
 	{
 		Direct3D12Texture* texture = (Direct3D12Texture*)renderDescriptor.RenderTarget1TexturePointer.Value;
-		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+		if (!texture->IsPresentTexture)
+		{
+			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+		}
+
+		else
+		{
+			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PRESENT);
+		}
 	}
 }
 
@@ -1180,14 +1234,6 @@ void Direct3D12GraphicsService::DrawPrimitives(void* commandListPointer, enum Gr
 	commandList->CommandListObject->DrawInstanced(vertexCount, 1, startVertex, 0);
 }
 
-void Direct3D12GraphicsService::PresentScreenBuffer(void* commandListPointer)
-{ 
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	commandList->CommandListObject->ResourceBarrier(1, &CreateTransitionResourceBarrier(this->backBufferRenderTargets[this->currentBackBufferIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));	
-	
-	this->isPresentBarrier = true;
-}
-
 void Direct3D12GraphicsService::QueryTimestamp(void* commandListPointer, void* queryBufferPointer, int index)
 {
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
@@ -1210,72 +1256,6 @@ void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void*
 	}
 
 	commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
-}
-
-void Direct3D12GraphicsService::WaitForAvailableScreenBuffer()
-{ 
-	this->directCommandQueue->GetTimestampFrequency(&this->directQueueFrequency);
-	this->computeCommandQueue->GetTimestampFrequency(&this->computeQueueFrequency);
-	this->copyCommandQueue->GetTimestampFrequency(&this->copyQueueFrequency);
-
-	this->presentFences[this->currentBackBufferIndex] = this->directFenceValue;
-
-	AssertIfFailed(this->swapChain->Present(1, 0));
-	AssertIfFailed(this->directCommandQueue->Signal(this->directFence.Get(), this->directFenceValue++));
-	AssertIfFailed(this->copyCommandQueue->Signal(this->copyFence.Get(), this->copyFenceValue++));
-	AssertIfFailed(this->computeCommandQueue->Signal(this->computeFence.Get(), this->computeFenceValue++));
-
-	this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
-
-	WaitForGlobalFence(false);
-
-	this->currentAllocatorIndex = (this->currentAllocatorIndex + 1) % CommandAllocatorsCount;
-
-	this->directCommandAllocators[this->currentAllocatorIndex]->Reset();
-	this->copyCommandAllocators[this->currentAllocatorIndex]->Reset();
-	this->computeCommandAllocators[this->currentAllocatorIndex]->Reset();
-}
-
-void Direct3D12GraphicsService::WaitForGlobalFence(bool waitForAllPendingWork)
-{
-	if (!this->isWaitingForGlobalFence)
-	{
-		this->isWaitingForGlobalFence = true;
-
-		if (!waitForAllPendingWork)
-		{
-			auto presentFenceValue = this->presentFences[this->currentBackBufferIndex];
-
-			if (this->directFence->GetCompletedValue() < presentFenceValue)
-			{
-				this->directFence->SetEventOnCompletion(presentFenceValue, this->globalFenceEvent);
-				WaitForSingleObject(this->globalFenceEvent, INFINITE);
-			}
-		}
-
-		else
-		{
-			if (this->directFence->GetCompletedValue() < (this->directFenceValue - 1))
-			{
-				this->directFence->SetEventOnCompletion((this->directFenceValue - 1), this->globalFenceEvent);
-				WaitForSingleObject(this->globalFenceEvent, INFINITE);
-			}
-
-			if (this->copyFence->GetCompletedValue() < (this->copyFenceValue - 1))
-			{
-				this->copyFence->SetEventOnCompletion((this->copyFenceValue - 1), this->globalFenceEvent);
-				WaitForSingleObject(this->globalFenceEvent, INFINITE);
-			}
-
-			if (this->computeFence->GetCompletedValue() < (this->computeFenceValue - 1))
-			{
-				this->computeFence->SetEventOnCompletion((this->computeFenceValue - 1), this->globalFenceEvent);
-				WaitForSingleObject(this->globalFenceEvent, INFINITE);
-			}
-		}
-
-		this->isWaitingForGlobalFence = false;
-	}
 }
 
 void Direct3D12GraphicsService::EnableDebugLayer()
@@ -1341,81 +1321,10 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 
 	this->globalFenceEvent = CreateEventA(nullptr, false, false, nullptr);
 
-	// Create the direct command queue
-	D3D12_COMMAND_QUEUE_DESC directCommandQueueDesc = {};
-	directCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	directCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&directCommandQueueDesc, IID_PPV_ARGS(this->directCommandQueue.ReleaseAndGetAddressOf())));
-	this->directCommandQueue->SetName(L"DirectCommandQueue");
-
-	ComPtr<ID3D12Fence1> directFence;
-	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(directFence.ReleaseAndGetAddressOf())));
-	directFence->SetName(L"DirectQueueFence");
-	this->directFence = directFence;
-
-	// Create the copy command queue
-	D3D12_COMMAND_QUEUE_DESC copyCommandQueueDesc = {};
-	copyCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	copyCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-
-	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&copyCommandQueueDesc, IID_PPV_ARGS(this->copyCommandQueue.ReleaseAndGetAddressOf())));
-	this->copyCommandQueue->SetName(L"CopyCommandQueue");
-
-	ComPtr<ID3D12Fence1> copyFence;
-	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(copyFence.ReleaseAndGetAddressOf())));
-	copyFence->SetName(L"CopyQueueFence");
-	this->copyFence = copyFence;
-
-	// Create the compute command queue
-	D3D12_COMMAND_QUEUE_DESC computeCommandQueueDesc = {};
-	computeCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	computeCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-
-	AssertIfFailed(this->graphicsDevice->CreateCommandQueue(&computeCommandQueueDesc, IID_PPV_ARGS(this->computeCommandQueue.ReleaseAndGetAddressOf())));
-	this->computeCommandQueue->SetName(L"ComputeCommandQueue");
-
-	ComPtr<ID3D12Fence1> computeFence;
-	AssertIfFailed(this->graphicsDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(computeFence.ReleaseAndGetAddressOf())));
-	computeFence->SetName(L"ComputeQueueFence");
-	this->computeFence = computeFence;
-
-	// Init command allocators for each frame in flight
-	for (int i = 0; i < CommandAllocatorsCount; i++)
-	{
-		ComPtr<ID3D12CommandAllocator> renderCommandAllocator;
-		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(renderCommandAllocator.ReleaseAndGetAddressOf())));
-
-		wchar_t directBuff[64] = {};
-  		swprintf(directBuff, L"DirectCommandAllocator%d", i);
-		renderCommandAllocator->SetName(directBuff);
-		this->directCommandAllocators[i] = renderCommandAllocator;
-
-		ComPtr<ID3D12CommandAllocator> copyCommandAllocator;
-		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(copyCommandAllocator.ReleaseAndGetAddressOf())));
-
-		wchar_t copyBuff[64] = {};
-  		swprintf(copyBuff, L"CopyCommandAllocator%d", i);
-		copyCommandAllocator->SetName(copyBuff);
-		this->copyCommandAllocators[i] = copyCommandAllocator;
-
-		ComPtr<ID3D12CommandAllocator> computeCommandAllocator;
-		AssertIfFailed(this->graphicsDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(computeCommandAllocator.ReleaseAndGetAddressOf())));
-
-		wchar_t computeBuff[64] = {};
-  		swprintf(computeBuff, L"ComputeCommandAllocator%d", i);
-		computeCommandAllocator->SetName(computeBuff);
-		this->computeCommandAllocators[i] = computeCommandAllocator;
-	}
-
-	for (int i = 0; i < RenderBuffersCount; i++)
-	{
-		this->presentFences[i] = 0;
-	}
-
 	return true;
 }
 
+/*
 bool Direct3D12GraphicsService::CreateOrResizeSwapChain(int width, int height)
 {
 	if (width == 0 || height == 0)
@@ -1524,39 +1433,10 @@ bool Direct3D12GraphicsService::CreateOrResizeSwapChain(int width, int height)
     this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
 
 	return true;
-}
+}*/
 
 bool Direct3D12GraphicsService::CreateHeaps()
 {
-	// Create cpu heap
-	D3D12_HEAP_DESC heapDescriptor = {};
-	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_UPLOAD;
-	heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapDescriptor.SizeInBytes = 1024 * 1024 * 100; // Allocate 100 MB for now
-	heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
-
-	AssertIfFailed(this->graphicsDevice->CreateHeap(&heapDescriptor, IID_PPV_ARGS(this->uploadHeap.ReleaseAndGetAddressOf())));
-
-	// Create readback heap
-	heapDescriptor = {};
-	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_READBACK;
-	heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapDescriptor.SizeInBytes = 1024 * 1024 * 100; // Allocate 100 MB for now
-	heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
-
-	AssertIfFailed(this->graphicsDevice->CreateHeap(&heapDescriptor, IID_PPV_ARGS(this->readBackHeap.ReleaseAndGetAddressOf())));
-
-	// Create global GPU heap
-	heapDescriptor = {};
-	heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
-	heapDescriptor.SizeInBytes = 1024 * 1024 * 1024; // Allocate 1GB for now
-	heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
-
-	AssertIfFailed(this->graphicsDevice->CreateHeap(&heapDescriptor, IID_PPV_ARGS(this->globalHeap.ReleaseAndGetAddressOf())));
-
-	this->currentUploadHeapOffset = 0;
-	this->currentGlobalHeapOffset = 0;
-
 	// Create global Descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
 	descriptorHeapDesc.NumDescriptors = 100000; //TODO: Change that
@@ -1578,14 +1458,6 @@ bool Direct3D12GraphicsService::CreateHeaps()
 	this->currentGlobalRtvDescriptorOffset = 0;
 
 	return true;
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE Direct3D12GraphicsService::GetCurrentRenderTargetViewHandle()
-{
-	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = {};
-	renderTargetViewHandle.ptr = this->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + this->currentBackBufferIndex * this->rtvDescriptorHandleSize;
-
-	return renderTargetViewHandle;
 }
 
 // TODO: Make it generic to all resource types

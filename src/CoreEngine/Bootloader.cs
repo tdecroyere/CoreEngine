@@ -11,6 +11,7 @@ using CoreEngine.HostServices;
 using CoreEngine.Inputs;
 using CoreEngine.Resources;
 using CoreEngine.Rendering;
+using CoreEngine.UI.Native;
 
 [assembly: InternalsVisibleTo("CoreEngine.UnitTests")]
 
@@ -23,6 +24,7 @@ namespace CoreEngine
     public static class Bootloader
     {
         private static CoreEngineApp? coreEngineApp ;
+        private static NativeUIManager? nativeUIManager;
         private static GraphicsManager? graphicsManager;
         private static RenderManager? renderManager;
         private static GraphicsSceneQueue? sceneQueue;
@@ -44,23 +46,21 @@ namespace CoreEngine
                 sceneQueue = new GraphicsSceneQueue();
                 sceneManager = new GraphicsSceneManager(sceneQueue);
 
-                Logger.BeginAction("Init Graphics Manager");
+                var inputsManager = new InputsManager(hostPlatform.InputsService);
+                nativeUIManager = new NativeUIManager(hostPlatform.NativeUIService);
                 graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
-                Logger.EndAction();
-
-                Logger.BeginAction("Init Render Manager");
-                renderManager = new RenderManager(graphicsManager, resourcesManager, sceneQueue);
-                Logger.EndAction();
+                renderManager = new RenderManager(nativeUIManager, graphicsManager, inputsManager, resourcesManager, sceneQueue);
 
                 var systemManagerContainer = new SystemManagerContainer();
 
                 // Register managers
                 systemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
                 systemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
+                systemManagerContainer.RegisterSystemManager<NativeUIManager>(nativeUIManager);
                 systemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
                 systemManagerContainer.RegisterSystemManager<RenderManager>(renderManager);
                 systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(renderManager.Graphics2DRenderer);
-                systemManagerContainer.RegisterSystemManager<InputsManager>(new InputsManager(hostPlatform.InputsService));
+                systemManagerContainer.RegisterSystemManager<InputsManager>(inputsManager);
 
                 Logger.BeginAction($"Loading CoreEngineApp '{appName}'");
                 coreEngineApp = LoadCoreEngineApp(appName, systemManagerContainer).Result;

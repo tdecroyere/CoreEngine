@@ -7,18 +7,15 @@ using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
 using CoreEngine.HostServices;
 using CoreEngine.Resources;
+using CoreEngine.UI.Native;
 
 namespace CoreEngine.Graphics
 {
     public class GraphicsManager : SystemManager
     {
-        // TODO: Remove internal
-        internal readonly IGraphicsService graphicsService;
+        private readonly IGraphicsService graphicsService;
         private readonly GraphicsMemoryManager graphicsMemoryManager;
 
-        private static object syncObject = new object();
-        private uint currentGraphicsResourceId;
-        
         // TODO: Remove internal
         internal string graphicsAdapterName;
         internal int gpuMemoryUploaded;
@@ -55,8 +52,6 @@ namespace CoreEngine.Graphics
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
             this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
 
-            this.currentGraphicsResourceId = 0;
-            
             this.renderPassDescriptors = new Dictionary<IntPtr, GraphicsRenderPassDescriptor>();
 
             InitResourceLoaders(resourcesManager);
@@ -85,9 +80,117 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public Vector2 GetRenderSize()
+        public CommandQueue CreateCommandQueue(CommandType queueType, string label)
         {
-            return this.graphicsService.GetRenderSize();
+            var nativePointer = this.graphicsService.CreateCommandQueue((GraphicsServiceCommandType)queueType);
+
+            if (nativePointer == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("There was an error while creating the render queue.");
+            }
+
+            this.graphicsService.SetCommandQueueLabel(nativePointer, label);
+
+            return new CommandQueue(nativePointer, queueType, label);
+        }
+
+        public void DeleteCommandQueue(CommandQueue commandQueue)
+        {
+            this.graphicsService.DeleteCommandQueue(commandQueue.NativePointer);
+        }
+
+        public void ResetCommandQueue(CommandQueue commandQueue)
+        {
+            this.graphicsService.ResetCommandQueue(commandQueue.NativePointer);
+        }
+
+        public ulong GetCommandQueueTimestampFrequency(CommandQueue commandQueue)
+        {
+            return this.graphicsService.GetCommandQueueTimestampFrequency(commandQueue.NativePointer);
+        }
+
+        public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, bool isAwaitable)
+        {
+            // TODO: This code is not thread safe!
+            // TODO: Put the committed command list to the free queue list
+
+            var freeList = this.renderCommandListFreeList;
+
+            if (commandQueue.Type == CommandType.Copy)
+            {
+                freeList = this.copyCommandListFreeList;
+            }
+
+            else if (commandQueue.Type == CommandType.Compute)
+            {
+                freeList = this.computeCommandListFreeList;
+            }
+
+            // TODO: Do a stack alloc here
+            var commandListsIds = new IntPtr[commandLists.Length];
+
+            for (var i = 0; i < commandLists.Length; i++)
+            {
+                commandListsIds[i] = commandLists[i].NativePointer;
+                freeList.Push(commandListsIds[i]);
+            }
+
+            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsIds, isAwaitable);
+            return new Fence(commandQueue, fenceValue);
+        }
+
+        public void WaitForCommandQueue(CommandQueue commandQueue, Fence fence)
+        {
+            this.graphicsService.WaitForCommandQueue(commandQueue.NativePointer, fence.CommandQueue.NativePointer, fence.Value);
+        }
+
+        public void WaitForCommandQueueOnCpu(Fence fence)
+        {
+            this.graphicsService.WaitForCommandQueueOnCpu(fence.CommandQueue.NativePointer, fence.Value);
+        }
+
+        public CommandList CreateCommandList(CommandQueue commandQueue, string label)
+        {
+            // TODO: This code is not thread safe!
+
+            var freeList = this.renderCommandListFreeList;
+
+            if (commandQueue.Type == CommandType.Copy)
+            {
+                freeList = this.copyCommandListFreeList;
+            }
+
+            else if (commandQueue.Type == CommandType.Compute)
+            {
+                freeList = this.computeCommandListFreeList;
+            }
+
+            if (freeList.Count > 0)
+            {
+                var commandListId = freeList.Pop();
+                this.graphicsService.ResetCommandList(commandListId);
+                this.graphicsService.SetCommandListLabel(commandListId, label);
+
+                return new CommandList(commandListId, commandQueue.Type, commandQueue, label);
+            }
+
+            Logger.WriteMessage("Creating Command List");
+
+            var nativePointer = graphicsService.CreateCommandList(commandQueue.NativePointer);
+
+            if (nativePointer == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("There was an error while creating the command list resource.");
+            }
+
+            graphicsService.SetCommandListLabel(nativePointer, label);
+
+            return new CommandList(nativePointer, commandQueue.Type, commandQueue, label);
+        }
+
+        public void CommitCommandList(CommandList commandList)
+        {
+            this.graphicsService.CommitCommandList(commandList.NativePointer);            
         }
 
         public GraphicsBuffer CreateGraphicsBuffer<T>(GraphicsHeapType heapType, int length, bool isStatic, string label) where T : struct
@@ -234,6 +337,30 @@ namespace CoreEngine.Graphics
             }
         }
 
+        public SwapChain CreateSwapChain(Window window, CommandQueue commandQueue, int width, int height, TextureFormat textureFormat)
+        {
+            var nativePointer = this.graphicsService.CreateSwapChain(window.NativePointer, commandQueue.NativePointer, width, height, (GraphicsTextureFormat)textureFormat);
+
+            if (nativePointer == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("There was an error while creating the swap-chain.");
+            }
+
+            return new SwapChain(nativePointer, commandQueue, width, height, textureFormat);
+        }
+
+        public Texture GetSwapChainBackBufferTexture(SwapChain swapChain)
+        {
+            var textureNativePointer = this.graphicsService.GetSwapChainBackBufferTexture(swapChain.NativePointer);
+            return new Texture(this, new GraphicsMemoryAllocation(), null, textureNativePointer, null, swapChain.TextureFormat, TextureUsage.RenderTarget, swapChain.Width, swapChain.Height, 1, 1, 1, isStatic: true, "BackBuffer");
+        }
+
+        public Fence PresentSwapChain(SwapChain swapChain)
+        {
+            var fenceValue = this.graphicsService.PresentSwapChain(swapChain.NativePointer);
+            return new Fence(swapChain.CommandQueue, fenceValue);
+        }
+
         public IndirectCommandBuffer CreateIndirectCommandBuffer(int maxCommandCount, bool isStatic, string label)
         {
             var nativePointer1 = this.graphicsService.CreateIndirectCommandBuffer(maxCommandCount);
@@ -260,70 +387,6 @@ namespace CoreEngine.Graphics
             }
 
             return new IndirectCommandBuffer(this, nativePointer1, nativePointer2, maxCommandCount, isStatic, label);
-        }
-
-        public CommandQueue CreateCommandQueue(CommandType queueType, string label)
-        {
-            var nativePointer = this.graphicsService.CreateCommandQueue((GraphicsServiceCommandType)queueType);
-
-            if (nativePointer == IntPtr.Zero)
-            {
-                throw new InvalidOperationException("There was an error while creating the render queue.");
-            }
-
-            this.graphicsService.SetCommandQueueLabel(nativePointer, label);
-
-            return new CommandQueue(nativePointer, queueType, label);
-        }
-
-        public void DeleteCommandQueue(CommandQueue graphicsQueue)
-        {
-            this.graphicsService.DeleteCommandQueue(graphicsQueue.NativePointer);
-        }
-
-        public ulong GetCommandQueueTimestampFrequency(CommandQueue commandQueue)
-        {
-            return this.graphicsService.GetCommandQueueTimestampFrequency(commandQueue.NativePointer);
-        }
-
-        public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, bool isAwaitable)
-        {
-            // TODO: This code is not thread safe!
-            // TODO: Put the committed command list to the free queue list
-
-            var freeList = this.renderCommandListFreeList;
-
-            if (commandQueue.Type == CommandType.Copy)
-            {
-                freeList = this.copyCommandListFreeList;
-            }
-
-            else if (commandQueue.Type == CommandType.Compute)
-            {
-                freeList = this.computeCommandListFreeList;
-            }
-
-            // TODO: Do a stack alloc here
-            var commandListsIds = new IntPtr[commandLists.Length];
-
-            for (var i = 0; i < commandLists.Length; i++)
-            {
-                commandListsIds[i] = commandLists[i].NativePointer;
-                freeList.Push(commandListsIds[i]);
-            }
-
-            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsIds, isAwaitable);
-            return new Fence(commandQueue, fenceValue);
-        }
-
-        public void WaitForCommandQueue(CommandQueue commandQueue, Fence fence)
-        {
-            this.graphicsService.WaitForCommandQueue(commandQueue.NativePointer, fence.CommandQueue.NativePointer, fence.Value);
-        }
-
-        public void WaitForCommandQueueOnCpu(CommandQueue commandQueueToWait, ulong fenceValue)
-        {
-            this.graphicsService.WaitForCommandQueueOnCpu(commandQueueToWait.NativePointer, fenceValue);
         }
 
         public QueryBuffer CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length, string label)
@@ -382,50 +445,6 @@ namespace CoreEngine.Graphics
 
             shader.PipelineStates.Clear();
             this.graphicsService.DeleteShader(shader.NativePointer);
-        }
-
-        public CommandList CreateCommandList(CommandQueue commandQueue, string label)
-        {
-            // TODO: This code is not thread safe!
-
-            var freeList = this.renderCommandListFreeList;
-
-            if (commandQueue.Type == CommandType.Copy)
-            {
-                freeList = this.copyCommandListFreeList;
-            }
-
-            else if (commandQueue.Type == CommandType.Compute)
-            {
-                freeList = this.computeCommandListFreeList;
-            }
-
-            if (freeList.Count > 0)
-            {
-                var commandListId = freeList.Pop();
-                this.graphicsService.ResetCommandList(commandListId);
-                this.graphicsService.SetCommandListLabel(commandListId, label);
-
-                return new CommandList(commandListId, commandQueue.Type, commandQueue, label);
-            }
-
-            Logger.WriteMessage("Creating Command List");
-
-            var nativePointer = graphicsService.CreateCommandList(commandQueue.NativePointer);
-
-            if (nativePointer == IntPtr.Zero)
-            {
-                throw new InvalidOperationException("There was an error while creating the command list resource.");
-            }
-
-            graphicsService.SetCommandListLabel(nativePointer, label);
-
-            return new CommandList(nativePointer, commandQueue.Type, commandQueue, label);
-        }
-
-        public void CommitCommandList(CommandList commandList)
-        {
-            this.graphicsService.CommitCommandList(commandList.NativePointer);            
         }
 
         public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, int length) where T : struct
@@ -697,7 +716,7 @@ namespace CoreEngine.Graphics
 
         public void WaitForAvailableScreenBuffer()
         {
-            this.graphicsService.WaitForAvailableScreenBuffer();
+            // this.graphicsService.WaitForAvailableScreenBuffer();
 
             // TODO: A modulo here with Int.MaxValue
             this.CurrentFrameNumber++;
@@ -719,18 +738,6 @@ namespace CoreEngine.Graphics
         private void InitResourceLoaders(ResourcesManager resourcesManager)
         {
             resourcesManager.AddResourceLoader(new ShaderResourceLoader(resourcesManager, this));
-        }
-
-        private uint GetNextGraphicsResourceId()
-        {
-            uint result = 0;
-
-            lock (syncObject)
-            {
-                result = ++this.currentGraphicsResourceId;
-            }
-
-            return result;
         }
     }
 }

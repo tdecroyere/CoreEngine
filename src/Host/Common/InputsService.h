@@ -160,12 +160,14 @@ struct NullableInputsState
     struct InputsState Value;
 };
 
+typedef void (*InputsService_AssociateWindowPtr)(void* context, void* windowPointer);
 typedef struct InputsState (*InputsService_GetInputsStatePtr)(void* context);
 typedef void (*InputsService_SendVibrationCommandPtr)(void* context, unsigned int playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, unsigned int duration10ms);
 
 struct InputsService
 {
     void* Context;
+    InputsService_AssociateWindowPtr InputsService_AssociateWindow;
     InputsService_GetInputsStatePtr InputsService_GetInputsState;
     InputsService_SendVibrationCommandPtr InputsService_SendVibrationCommand;
 };

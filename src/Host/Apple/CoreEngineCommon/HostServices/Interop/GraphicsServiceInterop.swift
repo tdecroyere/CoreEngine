@@ -6,14 +6,74 @@ func GraphicsService_getGraphicsAdapterNameInterop(context: UnsafeMutableRawPoin
     contextObject.getGraphicsAdapterName(output)
 }
 
-func GraphicsService_getRenderSizeInterop(context: UnsafeMutableRawPointer?) -> Vector2 {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.getRenderSize()
-}
-
 func GraphicsService_getTextureAllocationInfosInterop(context: UnsafeMutableRawPointer?, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32) -> GraphicsAllocationInfos {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.getTextureAllocationInfos(textureFormat, usage, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount))
+}
+
+func GraphicsService_createCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueueType: GraphicsServiceCommandType) -> UnsafeMutableRawPointer? {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.createCommandQueue(commandQueueType)
+}
+
+func GraphicsService_setCommandQueueLabelInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setCommandQueueLabel(commandQueuePointer, String(cString: label!))
+}
+
+func GraphicsService_deleteCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteCommandQueue(commandQueuePointer)
+}
+
+func GraphicsService_resetCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.resetCommandQueue(commandQueuePointer)
+}
+
+func GraphicsService_getCommandQueueTimestampFrequencyInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) -> UInt {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.getCommandQueueTimestampFrequency(commandQueuePointer)
+}
+
+func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: UnsafeMutablePointer<UnsafeMutableRawPointer?>?, _ commandListsLength: Int32, _ isAwaitable: Int32) -> UInt {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.executeCommandLists(commandQueuePointer, Array(UnsafeBufferPointer(start: commandLists, count: Int(commandListsLength))), Bool(isAwaitable == 1))
+}
+
+func GraphicsService_waitForCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.waitForCommandQueue(commandQueuePointer, commandQueueToWaitPointer, fenceValue)
+}
+
+func GraphicsService_waitForCommandQueueOnCpuInterop(context: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.waitForCommandQueueOnCpu(commandQueueToWaitPointer, fenceValue)
+}
+
+func GraphicsService_createCommandListInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.createCommandList(commandQueuePointer)
+}
+
+func GraphicsService_setCommandListLabelInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setCommandListLabel(commandListPointer, String(cString: label!))
+}
+
+func GraphicsService_deleteCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteCommandList(commandListId)
+}
+
+func GraphicsService_resetCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.resetCommandList(commandListId)
+}
+
+func GraphicsService_commitCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.commitCommandList(commandListId)
 }
 
 func GraphicsService_createGraphicsHeapInterop(context: UnsafeMutableRawPointer?, _ type: GraphicsServiceHeapType, _ length: UInt) -> UnsafeMutableRawPointer? {
@@ -64,6 +124,21 @@ func GraphicsService_setTextureLabelInterop(context: UnsafeMutableRawPointer?, _
 func GraphicsService_deleteTextureInterop(context: UnsafeMutableRawPointer?, _ texturePointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.deleteTexture(texturePointer)
+}
+
+func GraphicsService_createSwapChainInterop(context: UnsafeMutableRawPointer?, _ windowPointer: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ width: Int32, _ height: Int32, _ textureFormat: GraphicsTextureFormat) -> UnsafeMutableRawPointer? {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.createSwapChain(windowPointer, commandQueuePointer, Int(width), Int(height), textureFormat)
+}
+
+func GraphicsService_getSwapChainBackBufferTextureInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.getSwapChainBackBufferTexture(swapChainPointer)
+}
+
+func GraphicsService_presentSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) -> UInt {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.presentSwapChain(swapChainPointer)
 }
 
 func GraphicsService_createIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ maxCommandCount: Int32) -> UnsafeMutableRawPointer? {
@@ -124,66 +199,6 @@ func GraphicsService_setPipelineStateLabelInterop(context: UnsafeMutableRawPoint
 func GraphicsService_deletePipelineStateInterop(context: UnsafeMutableRawPointer?, _ pipelineStatePointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.deletePipelineState(pipelineStatePointer)
-}
-
-func GraphicsService_createCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueueType: GraphicsServiceCommandType) -> UnsafeMutableRawPointer? {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.createCommandQueue(commandQueueType)
-}
-
-func GraphicsService_setCommandQueueLabelInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.setCommandQueueLabel(commandQueuePointer, String(cString: label!))
-}
-
-func GraphicsService_deleteCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.deleteCommandQueue(commandQueuePointer)
-}
-
-func GraphicsService_getCommandQueueTimestampFrequencyInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) -> UInt {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.getCommandQueueTimestampFrequency(commandQueuePointer)
-}
-
-func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: UnsafeMutablePointer<UnsafeMutableRawPointer?>?, _ commandListsLength: Int32, _ isAwaitable: Int32) -> UInt {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.executeCommandLists(commandQueuePointer, Array(UnsafeBufferPointer(start: commandLists, count: Int(commandListsLength))), Bool(isAwaitable == 1))
-}
-
-func GraphicsService_waitForCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.waitForCommandQueue(commandQueuePointer, commandQueueToWaitPointer, fenceValue)
-}
-
-func GraphicsService_waitForCommandQueueOnCpuInterop(context: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.waitForCommandQueueOnCpu(commandQueueToWaitPointer, fenceValue)
-}
-
-func GraphicsService_createCommandListInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.createCommandList(commandQueuePointer)
-}
-
-func GraphicsService_setCommandListLabelInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.setCommandListLabel(commandListPointer, String(cString: label!))
-}
-
-func GraphicsService_deleteCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.deleteCommandList(commandListId)
-}
-
-func GraphicsService_resetCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.resetCommandList(commandListId)
-}
-
-func GraphicsService_commitCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.commitCommandList(commandListId)
 }
 
 func GraphicsService_setShaderBufferInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?, _ slot: Int32, _ isReadOnly: Int32, _ index: Int32) {
@@ -296,21 +311,23 @@ func GraphicsService_resolveQueryDataInterop(context: UnsafeMutableRawPointer?, 
     contextObject.resolveQueryData(commandListPointer, queryBufferPointer, destinationBufferPointer, Int(startIndex), Int(endIndex))
 }
 
-func GraphicsService_presentScreenBufferInterop(context: UnsafeMutableRawPointer?, _ commandBufferId: UnsafeMutableRawPointer?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.presentScreenBuffer(commandBufferId)
-}
-
-func GraphicsService_waitForAvailableScreenBufferInterop(context: UnsafeMutableRawPointer?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.waitForAvailableScreenBuffer()
-}
-
 func initGraphicsService(_ context: MetalGraphicsService, _ service: inout GraphicsService) {
     service.Context = Unmanaged.passUnretained(context).toOpaque()
     service.GraphicsService_GetGraphicsAdapterName = GraphicsService_getGraphicsAdapterNameInterop
-    service.GraphicsService_GetRenderSize = GraphicsService_getRenderSizeInterop
     service.GraphicsService_GetTextureAllocationInfos = GraphicsService_getTextureAllocationInfosInterop
+    service.GraphicsService_CreateCommandQueue = GraphicsService_createCommandQueueInterop
+    service.GraphicsService_SetCommandQueueLabel = GraphicsService_setCommandQueueLabelInterop
+    service.GraphicsService_DeleteCommandQueue = GraphicsService_deleteCommandQueueInterop
+    service.GraphicsService_ResetCommandQueue = GraphicsService_resetCommandQueueInterop
+    service.GraphicsService_GetCommandQueueTimestampFrequency = GraphicsService_getCommandQueueTimestampFrequencyInterop
+    service.GraphicsService_ExecuteCommandLists = GraphicsService_executeCommandListsInterop
+    service.GraphicsService_WaitForCommandQueue = GraphicsService_waitForCommandQueueInterop
+    service.GraphicsService_WaitForCommandQueueOnCpu = GraphicsService_waitForCommandQueueOnCpuInterop
+    service.GraphicsService_CreateCommandList = GraphicsService_createCommandListInterop
+    service.GraphicsService_SetCommandListLabel = GraphicsService_setCommandListLabelInterop
+    service.GraphicsService_DeleteCommandList = GraphicsService_deleteCommandListInterop
+    service.GraphicsService_ResetCommandList = GraphicsService_resetCommandListInterop
+    service.GraphicsService_CommitCommandList = GraphicsService_commitCommandListInterop
     service.GraphicsService_CreateGraphicsHeap = GraphicsService_createGraphicsHeapInterop
     service.GraphicsService_SetGraphicsHeapLabel = GraphicsService_setGraphicsHeapLabelInterop
     service.GraphicsService_DeleteGraphicsHeap = GraphicsService_deleteGraphicsHeapInterop
@@ -321,6 +338,9 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreateTexture = GraphicsService_createTextureInterop
     service.GraphicsService_SetTextureLabel = GraphicsService_setTextureLabelInterop
     service.GraphicsService_DeleteTexture = GraphicsService_deleteTextureInterop
+    service.GraphicsService_CreateSwapChain = GraphicsService_createSwapChainInterop
+    service.GraphicsService_GetSwapChainBackBufferTexture = GraphicsService_getSwapChainBackBufferTextureInterop
+    service.GraphicsService_PresentSwapChain = GraphicsService_presentSwapChainInterop
     service.GraphicsService_CreateIndirectCommandBuffer = GraphicsService_createIndirectCommandBufferInterop
     service.GraphicsService_SetIndirectCommandBufferLabel = GraphicsService_setIndirectCommandBufferLabelInterop
     service.GraphicsService_DeleteIndirectCommandBuffer = GraphicsService_deleteIndirectCommandBufferInterop
@@ -333,18 +353,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreatePipelineState = GraphicsService_createPipelineStateInterop
     service.GraphicsService_SetPipelineStateLabel = GraphicsService_setPipelineStateLabelInterop
     service.GraphicsService_DeletePipelineState = GraphicsService_deletePipelineStateInterop
-    service.GraphicsService_CreateCommandQueue = GraphicsService_createCommandQueueInterop
-    service.GraphicsService_SetCommandQueueLabel = GraphicsService_setCommandQueueLabelInterop
-    service.GraphicsService_DeleteCommandQueue = GraphicsService_deleteCommandQueueInterop
-    service.GraphicsService_GetCommandQueueTimestampFrequency = GraphicsService_getCommandQueueTimestampFrequencyInterop
-    service.GraphicsService_ExecuteCommandLists = GraphicsService_executeCommandListsInterop
-    service.GraphicsService_WaitForCommandQueue = GraphicsService_waitForCommandQueueInterop
-    service.GraphicsService_WaitForCommandQueueOnCpu = GraphicsService_waitForCommandQueueOnCpuInterop
-    service.GraphicsService_CreateCommandList = GraphicsService_createCommandListInterop
-    service.GraphicsService_SetCommandListLabel = GraphicsService_setCommandListLabelInterop
-    service.GraphicsService_DeleteCommandList = GraphicsService_deleteCommandListInterop
-    service.GraphicsService_ResetCommandList = GraphicsService_resetCommandListInterop
-    service.GraphicsService_CommitCommandList = GraphicsService_commitCommandListInterop
     service.GraphicsService_SetShaderBuffer = GraphicsService_setShaderBufferInterop
     service.GraphicsService_SetShaderBuffers = GraphicsService_setShaderBuffersInterop
     service.GraphicsService_SetShaderTexture = GraphicsService_setShaderTextureInterop
@@ -367,6 +375,4 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_DrawPrimitives = GraphicsService_drawPrimitivesInterop
     service.GraphicsService_QueryTimestamp = GraphicsService_queryTimestampInterop
     service.GraphicsService_ResolveQueryData = GraphicsService_resolveQueryDataInterop
-    service.GraphicsService_PresentScreenBuffer = GraphicsService_presentScreenBufferInterop
-    service.GraphicsService_WaitForAvailableScreenBuffer = GraphicsService_waitForAvailableScreenBufferInterop
 }

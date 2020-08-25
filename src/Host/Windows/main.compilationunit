@@ -1,5 +1,6 @@
 #include "WindowsCommon.h"
 #include "CoreEngineHost.cpp"
+#include "WindowsNativeUIService.cpp"
 #include "Direct3D12GraphicsService.cpp"
 #include "WindowsInputsService.cpp"
 #include "WindowsMain.cpp"

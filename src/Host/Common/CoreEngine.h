@@ -63,12 +63,14 @@ struct NullableGraphicsBlendOperation
     enum GraphicsBlendOperation Value;
 };
 
+#include "NativeUIService.h"
 #include "GraphicsService.h"
 #include "InputsService.h"
 
 
 struct HostPlatform
 {
+    struct NativeUIService NativeUIService;
     struct GraphicsService GraphicsService;
     struct InputsService InputsService;
 };

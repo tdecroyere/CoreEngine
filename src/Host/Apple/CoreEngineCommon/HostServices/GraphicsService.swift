@@ -2,8 +2,20 @@ import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
     func getGraphicsAdapterName(_ output: UnsafeMutablePointer<Int8>?)
-    func getRenderSize() -> Vector2
     func getTextureAllocationInfos(_ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> GraphicsAllocationInfos
+    func createCommandQueue(_ commandQueueType: GraphicsServiceCommandType) -> UnsafeMutableRawPointer?
+    func setCommandQueueLabel(_ commandQueuePointer: UnsafeMutableRawPointer?, _ label: String)
+    func deleteCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?)
+    func resetCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?)
+    func getCommandQueueTimestampFrequency(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UInt
+    func executeCommandLists(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: [UnsafeMutableRawPointer?], _ isAwaitable: Bool) -> UInt
+    func waitForCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt)
+    func waitForCommandQueueOnCpu(_ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt)
+    func createCommandList(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
+    func setCommandListLabel(_ commandListPointer: UnsafeMutableRawPointer?, _ label: String)
+    func deleteCommandList(_ commandListId: UnsafeMutableRawPointer?)
+    func resetCommandList(_ commandListId: UnsafeMutableRawPointer?)
+    func commitCommandList(_ commandListId: UnsafeMutableRawPointer?)
     func createGraphicsHeap(_ type: GraphicsServiceHeapType, _ length: UInt) -> UnsafeMutableRawPointer?
     func setGraphicsHeapLabel(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteGraphicsHeap(_ graphicsHeapPointer: UnsafeMutableRawPointer?)
@@ -14,6 +26,9 @@ public protocol GraphicsServiceProtocol {
     func createTexture(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ isAliasable: Bool, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> UnsafeMutableRawPointer?
     func setTextureLabel(_ texturePointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteTexture(_ texturePointer: UnsafeMutableRawPointer?)
+    func createSwapChain(_ windowPointer: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ width: Int, _ height: Int, _ textureFormat: GraphicsTextureFormat) -> UnsafeMutableRawPointer?
+    func getSwapChainBackBufferTexture(_ swapChainPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
+    func presentSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?) -> UInt
     func createIndirectCommandBuffer(_ maxCommandCount: Int) -> UnsafeMutableRawPointer?
     func setIndirectCommandBufferLabel(_ indirectCommandBufferPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteIndirectCommandBuffer(_ indirectCommandBufferPointer: UnsafeMutableRawPointer?)
@@ -26,18 +41,6 @@ public protocol GraphicsServiceProtocol {
     func createPipelineState(_ shaderPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> UnsafeMutableRawPointer?
     func setPipelineStateLabel(_ pipelineStatePointer: UnsafeMutableRawPointer?, _ label: String)
     func deletePipelineState(_ pipelineStatePointer: UnsafeMutableRawPointer?)
-    func createCommandQueue(_ commandQueueType: GraphicsServiceCommandType) -> UnsafeMutableRawPointer?
-    func setCommandQueueLabel(_ commandQueuePointer: UnsafeMutableRawPointer?, _ label: String)
-    func deleteCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?)
-    func getCommandQueueTimestampFrequency(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UInt
-    func executeCommandLists(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: [UnsafeMutableRawPointer?], _ isAwaitable: Bool) -> UInt
-    func waitForCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt)
-    func waitForCommandQueueOnCpu(_ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt)
-    func createCommandList(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
-    func setCommandListLabel(_ commandListPointer: UnsafeMutableRawPointer?, _ label: String)
-    func deleteCommandList(_ commandListId: UnsafeMutableRawPointer?)
-    func resetCommandList(_ commandListId: UnsafeMutableRawPointer?)
-    func commitCommandList(_ commandListId: UnsafeMutableRawPointer?)
     func setShaderBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
     func setShaderBuffers(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointerList: [UnsafeMutableRawPointer?], _ slot: Int, _ index: Int)
     func setShaderTexture(_ commandListPointer: UnsafeMutableRawPointer?, _ texturePointer: UnsafeMutableRawPointer?, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
@@ -60,6 +63,4 @@ public protocol GraphicsServiceProtocol {
     func drawPrimitives(_ commandListPointer: UnsafeMutableRawPointer?, _ primitiveType: GraphicsPrimitiveType, _ startVertex: Int, _ vertexCount: Int)
     func queryTimestamp(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int)
     func resolveQueryData(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ destinationBufferPointer: UnsafeMutableRawPointer?, _ startIndex: Int, _ endIndex: Int)
-    func presentScreenBuffer(_ commandBufferId: UnsafeMutableRawPointer?)
-    func waitForAvailableScreenBuffer()
 }

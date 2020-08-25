@@ -9,12 +9,12 @@ namespace CoreEngine.Rendering.EntitySystems
 {
     public class UpdateCameraSystem : EntitySystem
     {
-        private readonly GraphicsManager graphicsManager;
+        private readonly RenderManager graphicsManager;
         private readonly GraphicsSceneManager sceneManager;
 
-        public UpdateCameraSystem(GraphicsManager graphicsManager, GraphicsSceneManager sceneManager)
+        public UpdateCameraSystem(RenderManager renderManager, GraphicsSceneManager sceneManager)
         {
-            this.graphicsManager = graphicsManager;
+            this.graphicsManager = renderManager;
             this.sceneManager = sceneManager;
         }
 

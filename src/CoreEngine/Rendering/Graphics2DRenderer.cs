@@ -148,7 +148,7 @@ namespace CoreEngine.Rendering
             this.textures.Clear();
             this.currentSurfaceCount = 0;
             
-            var renderSize = this.graphicsManager.GetRenderSize();
+            var renderSize = this.renderManager.GetRenderSize();
 
             var renderPassConstants = this.graphicsManager.GetCpuGraphicsBufferPointer<RenderPassConstants2D>(this.cpuRenderPassParametersGraphicsBuffer);
             renderPassConstants[0] = new RenderPassConstants2D(MathUtils.CreateOrthographicMatrixOffCenter(0, renderSize.X, 0, renderSize.Y, 0, 1));
@@ -224,7 +224,7 @@ namespace CoreEngine.Rendering
             this.currentSurfaceCount++;
         }
 
-        public void Render(Texture renderTargetTexture)
+        public Fence? Render(Texture renderTargetTexture)
         {
             if (this.currentSurfaceCount > 0)
             {
@@ -233,8 +233,10 @@ namespace CoreEngine.Rendering
 
                 var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
                 this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, copyFence);
-                this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, isAwaitable: false);
+                return this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, isAwaitable: true);
             }
+
+            return null;
         }
 
         private CommandList CreateCopyCommandList()

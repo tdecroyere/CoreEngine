@@ -80,7 +80,7 @@ namespace CoreEngine.Rendering
             var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             reader.Read(textureData);
 
-            if (font.Texture.GraphicsResourceId != 0)
+            if (font.Texture.NativePointer != IntPtr.Zero)
             {
                 this.graphicsManager.DeleteTexture(font.Texture);
             }
@@ -89,11 +89,9 @@ namespace CoreEngine.Rendering
 
             // TODO: Make only one frame copy command list for all resource loaders
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "FontLoader");
-            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, font.Texture, cpuBuffer, font.Texture.Width, font.Texture.Height, 0, 0);
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
-            this.graphicsManager.DeleteCommandList(copyCommandList);
 
             this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
             return font;

@@ -6,14 +6,6 @@ using CoreEngine.Graphics;
 
 namespace CoreEngine.HostServices
 {
-    // TODO: To Remove
-    public enum GraphicsCommandBufferType
-    {
-        RenderOld,
-        CopyOld,
-        ComputeOld
-    }
-
     // TODO: Avoid the duplication of structs and enums
 
     public enum GraphicsServiceHeapType
@@ -71,7 +63,6 @@ namespace CoreEngine.HostServices
         ClearWrite
     }
 
-
     public enum GraphicsBlendOperation
     {
         None,
@@ -80,18 +71,10 @@ namespace CoreEngine.HostServices
         AddOneMinusSourceColor
     }
 
-    public enum GraphicsCommandBufferState
-    {
-        Created,
-        Committed,
-        Scheduled,
-        Completed,
-        Error
-    }
-
     public enum GraphicsQueryBufferType
     {
-        Timestamp
+        Timestamp,
+        CopyTimestamp
     }
 
     public readonly struct GraphicsAllocationInfos
@@ -109,7 +92,7 @@ namespace CoreEngine.HostServices
             if (renderPassDescriptor.RenderTarget1 != null)
             {
                 this.MultiSampleCount = renderPassDescriptor.RenderTarget1.Value.ColorTexture.MultiSampleCount;
-                this.RenderTarget1TextureId = renderPassDescriptor.RenderTarget1.Value.ColorTexture.GraphicsResourceId;
+                this.RenderTarget1TexturePointer = renderPassDescriptor.RenderTarget1.Value.ColorTexture.NativePointer;
                 this.RenderTarget1TextureFormat = (GraphicsTextureFormat?)renderPassDescriptor.RenderTarget1.Value.ColorTexture.TextureFormat;
                 this.RenderTarget1ClearColor = renderPassDescriptor.RenderTarget1.Value.ClearColor;
                 this.RenderTarget1BlendOperation = (GraphicsBlendOperation?)renderPassDescriptor.RenderTarget1.Value.BlendOperation;
@@ -127,7 +110,7 @@ namespace CoreEngine.HostServices
                     this.MultiSampleCount = 1;
                 }
 
-                this.RenderTarget1TextureId = null;
+                this.RenderTarget1TexturePointer = null;
                 this.RenderTarget1TextureFormat = null;
                 this.RenderTarget1ClearColor = null;
                 this.RenderTarget1BlendOperation = null;
@@ -135,7 +118,7 @@ namespace CoreEngine.HostServices
 
             if (renderPassDescriptor.RenderTarget2 != null)
             {
-                this.RenderTarget2TextureId = renderPassDescriptor.RenderTarget2.Value.ColorTexture.GraphicsResourceId;
+                this.RenderTarget2TexturePointer = renderPassDescriptor.RenderTarget2.Value.ColorTexture.NativePointer;
                 this.RenderTarget2TextureFormat = (GraphicsTextureFormat?)renderPassDescriptor.RenderTarget2.Value.ColorTexture.TextureFormat;
                 this.RenderTarget2ClearColor = renderPassDescriptor.RenderTarget2.Value.ClearColor;
                 this.RenderTarget2BlendOperation = (GraphicsBlendOperation?)renderPassDescriptor.RenderTarget2.Value.BlendOperation;
@@ -143,7 +126,7 @@ namespace CoreEngine.HostServices
 
             else
             {
-                this.RenderTarget2TextureId = null;
+                this.RenderTarget2TexturePointer = null;
                 this.RenderTarget2TextureFormat = null;
                 this.RenderTarget2ClearColor = null;
                 this.RenderTarget2BlendOperation = null;
@@ -151,7 +134,7 @@ namespace CoreEngine.HostServices
 
             if (renderPassDescriptor.RenderTarget3 != null)
             {
-                this.RenderTarget3TextureId = renderPassDescriptor.RenderTarget3.Value.ColorTexture.GraphicsResourceId;
+                this.RenderTarget3TexturePointer = renderPassDescriptor.RenderTarget3.Value.ColorTexture.NativePointer;
                 this.RenderTarget3TextureFormat = (GraphicsTextureFormat?)renderPassDescriptor.RenderTarget3.Value.ColorTexture.TextureFormat;
                 this.RenderTarget3ClearColor = renderPassDescriptor.RenderTarget3.Value.ClearColor;
                 this.RenderTarget3BlendOperation = (GraphicsBlendOperation?)renderPassDescriptor.RenderTarget3.Value.BlendOperation;
@@ -159,7 +142,7 @@ namespace CoreEngine.HostServices
 
             else
             {
-                this.RenderTarget3TextureId = null;
+                this.RenderTarget3TexturePointer = null;
                 this.RenderTarget3TextureFormat = null;
                 this.RenderTarget3ClearColor = null;
                 this.RenderTarget3BlendOperation = null;
@@ -167,7 +150,7 @@ namespace CoreEngine.HostServices
 
             if (renderPassDescriptor.RenderTarget4 != null)
             {
-                this.RenderTarget4TextureId = (uint?)renderPassDescriptor.RenderTarget4.Value.ColorTexture.GraphicsResourceId;
+                this.RenderTarget4TexturePointer = renderPassDescriptor.RenderTarget4.Value.ColorTexture.NativePointer;
                 this.RenderTarget4TextureFormat = (GraphicsTextureFormat?)renderPassDescriptor.RenderTarget4.Value.ColorTexture.TextureFormat;
                 this.RenderTarget4ClearColor = renderPassDescriptor.RenderTarget4.Value.ClearColor;
                 this.RenderTarget4BlendOperation = (GraphicsBlendOperation?)renderPassDescriptor.RenderTarget4.Value.BlendOperation;
@@ -175,13 +158,13 @@ namespace CoreEngine.HostServices
 
             else
             {
-                this.RenderTarget4TextureId = null;
+                this.RenderTarget4TexturePointer = null;
                 this.RenderTarget4TextureFormat = null;
                 this.RenderTarget4ClearColor = null;
                 this.RenderTarget4BlendOperation = null;
             }
 
-            this.DepthTextureId = renderPassDescriptor.DepthTexture?.GraphicsResourceId;
+            this.DepthTexturePointer = renderPassDescriptor.DepthTexture?.NativePointer;
             this.DepthBufferOperation = (GraphicsDepthBufferOperation)renderPassDescriptor.DepthBufferOperation;
             this.BackfaceCulling = renderPassDescriptor.BackfaceCulling;
             this.PrimitiveType = (GraphicsPrimitiveType)renderPassDescriptor.PrimitiveType;
@@ -189,23 +172,23 @@ namespace CoreEngine.HostServices
 
         public readonly bool IsRenderShader { get; }
         public readonly int? MultiSampleCount { get; }
-        public readonly uint? RenderTarget1TextureId { get; }
+        public readonly IntPtr? RenderTarget1TexturePointer { get; }
         public readonly GraphicsTextureFormat? RenderTarget1TextureFormat { get; }
         public readonly Vector4? RenderTarget1ClearColor { get; }
         public readonly GraphicsBlendOperation? RenderTarget1BlendOperation { get; }
-        public readonly uint? RenderTarget2TextureId { get; }
+        public readonly IntPtr? RenderTarget2TexturePointer { get; }
         public readonly GraphicsTextureFormat? RenderTarget2TextureFormat { get; }
         public readonly Vector4? RenderTarget2ClearColor { get; }
         public readonly GraphicsBlendOperation? RenderTarget2BlendOperation { get; }
-        public readonly uint? RenderTarget3TextureId { get; }
+        public readonly IntPtr? RenderTarget3TexturePointer { get; }
         public readonly GraphicsTextureFormat? RenderTarget3TextureFormat { get; }
         public readonly Vector4? RenderTarget3ClearColor { get; }
         public readonly GraphicsBlendOperation? RenderTarget3BlendOperation { get; }
-        public readonly uint? RenderTarget4TextureId { get; }
+        public readonly IntPtr? RenderTarget4TexturePointer { get; }
         public readonly GraphicsTextureFormat? RenderTarget4TextureFormat { get; }
         public readonly Vector4? RenderTarget4ClearColor { get; }
         public readonly GraphicsBlendOperation? RenderTarget4BlendOperation { get; }
-        public readonly uint? DepthTextureId { get; }
+        public readonly IntPtr? DepthTexturePointer { get; }
         public readonly GraphicsDepthBufferOperation DepthBufferOperation { get; }
         public readonly bool BackfaceCulling { get; }
         public readonly GraphicsPrimitiveType PrimitiveType { get; }
@@ -247,17 +230,6 @@ namespace CoreEngine.HostServices
         }
     }
 
-    public readonly struct GraphicsCommandBufferStatus
-    {
-        public readonly GraphicsCommandBufferState State { get; }
-        public double ScheduledStartTime { get; }
-        public double ScheduledEndTime { get; }
-        public double ExecutionStartTime { get; }
-        public double ExecutionEndTime { get; }
-        public readonly int? ErrorCode { get; }
-        public readonly string? ErrorMessage { get; }
-    }
-
     // TODO: Make all method thread safe!
     [HostService]
     public interface IGraphicsService
@@ -267,109 +239,100 @@ namespace CoreEngine.HostServices
 
         // GraphicsAdapterInfos GetGraphicsAdapterInfos();
         string GetGraphicsAdapterName();
-
-        // TODO: This function should be merged into a GetSystemState function
-
-        // bool CreateSwapChain(uint swapChainId, int width, int height, GraphicsTextureFormat textureFormat);
-        // void DeleteSwapChain(uint swapChainId);
-        // void ResizeSwapChain(uint swapChainId, int with, int height);
-        // Vector2 GetSwapChainRenderSize();
-        // uint GetNextSwapChainTexture(uint swapChainId);
-
-        Vector2 GetRenderSize();
         GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 
-        bool CreateGraphicsHeap(uint graphicsHeapId, GraphicsServiceHeapType type, ulong length);
-        void SetGraphicsHeapLabel(uint graphicsHeapId, string label);
-        void DeleteGraphicsHeap(uint graphicsHeapId);
+        IntPtr CreateCommandQueue(GraphicsServiceCommandType commandQueueType);
+        void SetCommandQueueLabel(IntPtr commandQueuePointer, string label);
+        void DeleteCommandQueue(IntPtr commandQueuePointer);
+        void ResetCommandQueue(IntPtr commandQueuePointer);
+        ulong GetCommandQueueTimestampFrequency(IntPtr commandQueuePointer);
+        ulong ExecuteCommandLists(IntPtr commandQueuePointer, ReadOnlySpan<IntPtr> commandLists, bool isAwaitable);
+        void WaitForCommandQueue(IntPtr commandQueuePointer, IntPtr commandQueueToWaitPointer, ulong fenceValue);
+        void WaitForCommandQueueOnCpu(IntPtr commandQueueToWaitPointer, ulong fenceValue);
+ 
+        IntPtr CreateCommandList(IntPtr commandQueuePointer);
+        void SetCommandListLabel(IntPtr commandListPointer, string label);
+        void DeleteCommandList(IntPtr commandListId);
+        void ResetCommandList(IntPtr commandListId);
+        void CommitCommandList(IntPtr commandListId);
+        
+        IntPtr CreateGraphicsHeap(GraphicsServiceHeapType type, ulong length);
+        void SetGraphicsHeapLabel(IntPtr graphicsHeapPointer, string label);
+        void DeleteGraphicsHeap(IntPtr graphicsHeapPointer);
 
         // TODO: Move make aliasable into a separate method
-        bool CreateGraphicsBuffer(uint graphicsBufferId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, int sizeInBytes);
-        void SetGraphicsBufferLabel(uint graphicsBufferId, string label);
-        void DeleteGraphicsBuffer(uint graphicsBufferId);
-        IntPtr GetGraphicsBufferCpuPointer(uint graphicsBufferId);
+        IntPtr CreateGraphicsBuffer(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, int sizeInBytes);
+        void SetGraphicsBufferLabel(IntPtr graphicsBufferPointer, string label);
+        void DeleteGraphicsBuffer(IntPtr graphicsBufferPointer);
+        IntPtr GetGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer);
 
         // TODO: Move make aliasable into a separate method
-        bool CreateTexture(uint textureId, uint graphicsHeapId, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
-        void SetTextureLabel(uint textureId, string label);
-        void DeleteTexture(uint textureId);
+        IntPtr CreateTexture(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+        void SetTextureLabel(IntPtr texturePointer, string label);
+        void DeleteTexture(IntPtr texturePointer);
+
+        IntPtr CreateSwapChain(IntPtr windowPointer, IntPtr commandQueuePointer, int width, int height, GraphicsTextureFormat textureFormat);
+        // void DeleteSwapChain(uint swapChainId);
+        // void ResizeSwapChain(uint swapChainId, int width, int height);
+        IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer);
+        ulong PresentSwapChain(IntPtr swapChainPointer);
 
         // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
-        bool CreateIndirectCommandBuffer(uint indirectCommandBufferId, int maxCommandCount);
-        void SetIndirectCommandBufferLabel(uint indirectCommandBufferId, string label);
-        void DeleteIndirectCommandBuffer(uint indirectCommandBufferId);
+        // TODO: Rework indirect commands creation (Two steps, Command signature that returns the size and buffer creation)
+        // IntPtr CreateIndirectCommandBufferSignature();
+        IntPtr CreateIndirectCommandBuffer(int maxCommandCount);
+        void SetIndirectCommandBufferLabel(IntPtr indirectCommandBufferPointer, string label);
+        void DeleteIndirectCommandBuffer(IntPtr indirectCommandBufferPointer);
 
-        bool CreateShader(uint shaderId, string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode);
-        void SetShaderLabel(uint shaderId, string label);
-        void DeleteShader(uint shaderId);
+        IntPtr CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length);
+        void SetQueryBufferLabel(IntPtr queryBufferPointer, string label);
+        void DeleteQueryBuffer(IntPtr queryBufferPointer);
 
-        bool CreatePipelineState(uint pipelineStateId, uint shaderId, GraphicsRenderPassDescriptor renderPassDescriptor);
-        void SetPipelineStateLabel(uint pipelineStateId, string label);
-        void DeletePipelineState(uint pipelineStateId);
+        IntPtr CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode);
+        void SetShaderLabel(IntPtr shaderPointer, string label);
+        void DeleteShader(IntPtr shaderPointer);
 
-        bool CreateCommandQueue(uint commandQueueId, GraphicsServiceCommandType commandQueueType);
-        void SetCommandQueueLabel(uint commandQueueId, string label);
-        void DeleteCommandQueue(uint commandQueueId);
-        ulong GetCommandQueueTimestampFrequency(uint commandQueueId);
-        ulong ExecuteCommandLists(uint commandQueueId, ReadOnlySpan<uint> commandLists, bool signalFence);
-        void WaitForCommandQueue(uint commandQueueId, uint commandQueueToWaitId, ulong fenceValue);
-        void WaitForCommandQueueOnCpu(uint commandQueueToWaitId, ulong fenceValue);
- 
-        bool CreateCommandList(uint commandListId, uint commandQueueId);
-        void SetCommandListLabel(uint commandListId, string label);
-        void DeleteCommandList(uint commandListId);
-        void ResetCommandList(uint commandListId);
-        void CommitCommandList(uint commandListId);
-
-        bool CreateQueryBuffer(uint queryBufferId, GraphicsQueryBufferType queryBufferType, int length);
-        void SetQueryBufferLabel(uint queryBufferId, string label);
-        void DeleteQueryBuffer(uint queryBufferId);
+        IntPtr CreatePipelineState(IntPtr shaderPointer, GraphicsRenderPassDescriptor renderPassDescriptor);
+        void SetPipelineStateLabel(IntPtr pipelineStatePointer, string label);
+        void DeletePipelineState(IntPtr pipelineStatePointer);
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
-        void SetShaderBuffer(uint commandListId, uint graphicsBufferId, int slot, bool isReadOnly, int index);
-        void SetShaderBuffers(uint commandListId, ReadOnlySpan<uint> graphicsBufferIdList, int slot, int index);
-        void SetShaderTexture(uint commandListId, uint textureId, int slot, bool isReadOnly, int index);
-        void SetShaderTextures(uint commandListId, ReadOnlySpan<uint> textureIdList, int slot, int index);
-        void SetShaderIndirectCommandList(uint commandListId, uint indirectCommandListId, int slot, int index);
-        void SetShaderIndirectCommandLists(uint commandListId, ReadOnlySpan<uint> indirectCommandListIdList, int slot, int index);
+        void SetShaderBuffer(IntPtr commandListPointer, IntPtr graphicsBufferPointer, int slot, bool isReadOnly, int index);
+        void SetShaderBuffers(IntPtr commandListPointer, ReadOnlySpan<IntPtr> graphicsBufferPointerList, int slot, int index);
+        void SetShaderTexture(IntPtr commandListPointer, IntPtr texturePointer, int slot, bool isReadOnly, int index);
+        void SetShaderTextures(IntPtr commandListPointer, ReadOnlySpan<IntPtr> texturePointerList, int slot, int index);
+        void SetShaderIndirectCommandList(IntPtr commandListPointer, IntPtr indirectCommandListPointer, int slot, int index);
+        void SetShaderIndirectCommandLists(IntPtr commandListPointer, ReadOnlySpan<IntPtr> indirectCommandListPointerList, int slot, int index);
 
-        void CopyDataToGraphicsBuffer(uint commandListId, uint destinationGraphicsBufferId, uint sourceGraphicsBufferId, int length);
-        void CopyDataToTexture(uint commandListId, uint destinationTextureId, uint sourceGraphicsBufferId, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
-        void CopyTexture(uint commandListId, uint destinationTextureId, uint sourceTextureId);
+        void CopyDataToGraphicsBuffer(IntPtr commandListPointer, IntPtr destinationGraphicsBufferPointer, IntPtr sourceGraphicsBufferPointer, int length);
+        void CopyDataToTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceGraphicsBufferPointer, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
+        void CopyTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceTexturePointer);
 
         // TODO: Rename that to IndirectCommandBuffer
-        void ResetIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
-        void OptimizeIndirectCommandList(uint commandListId, uint indirectCommandListId, int maxCommandCount);
+        void ResetIndirectCommandList(IntPtr commandListPointer, IntPtr indirectCommandListPointer, int maxCommandCount);
+        void OptimizeIndirectCommandList(IntPtr commandListPointer, IntPtr indirectCommandListPointer, int maxCommandCount);
 
-        Vector3 DispatchThreads(uint commandListId, uint threadCountX, uint threadCountY, uint threadCountZ);
+        Vector3 DispatchThreads(IntPtr commandListPointer, uint threadCountX, uint threadCountY, uint threadCountZ);
 
-        void BeginRenderPass(uint commandListId, GraphicsRenderPassDescriptor renderPassDescriptor);
-        void EndRenderPass(uint commandListId);
+        void BeginRenderPass(IntPtr commandListPointer, GraphicsRenderPassDescriptor renderPassDescriptor);
+        void EndRenderPass(IntPtr commandListPointer);
 
-        void SetPipelineState(uint commandListId, uint pipelineStateId);
+        void SetPipelineState(IntPtr commandListPointer, IntPtr pipelineStatePointer);
 
         // TODO: Add a raytrace command list
 
         // TODO: This function should be removed. Only pipeline states can be set 
-        void SetShader(uint commandListId, uint shaderId);
-        void ExecuteIndirectCommandBuffer(uint commandListId, uint indirectCommandBufferId, int maxCommandCount);
+        void SetShader(IntPtr commandListPointer, IntPtr shaderPointer);
+        void ExecuteIndirectCommandBuffer(IntPtr commandListPointer, IntPtr indirectCommandBufferPointer, int maxCommandCount);
 
-        // TODO: Merge SetIndexBuffer to DrawIndexedPrimitives
-        void SetIndexBuffer(uint commandListId, uint graphicsBufferId);
-        void DrawIndexedPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
+        void SetIndexBuffer(IntPtr commandListPointer, IntPtr graphicsBufferPointer);
+        void DrawIndexedPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
 
         // TODO: Change that to take instances params
-        void DrawPrimitives(uint commandListId, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+        void DrawPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
 
-        void QueryTimestamp(uint commandListId, uint queryBufferId, int index);
-        void ResolveQueryData(uint commandListId, uint queryBufferId, uint destinationBufferId, int startIndex, int endIndex);
-        
-        // TODO: Add a parameter to specify which drawable we should update. Usefull for editor or multiple windows management
-        // TODO: Rename that to PresentSwapChain and add swap chain id parameter
-        void PresentScreenBuffer(uint commandBufferId);
-
-        // TODO: Rename that to GetNextSwapChainTexture()
-        void WaitForAvailableScreenBuffer();
+        void QueryTimestamp(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);
+        void ResolveQueryData(IntPtr commandListPointer, IntPtr queryBufferPointer, IntPtr destinationBufferPointer, int startIndex, int endIndex);
     }
 }

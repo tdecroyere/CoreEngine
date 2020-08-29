@@ -34,11 +34,9 @@ namespace CoreEngine.Rendering
             textureData.Fill(255);
 
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "TextureLoaderCommandList");
-            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, this.emptyTexture, cpuBuffer, 256, 256, 0, 0);
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
-            this.graphicsManager.DeleteCommandList(copyCommandList);
             Logger.EndAction();
 
             this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
@@ -50,7 +48,7 @@ namespace CoreEngine.Rendering
         public override Resource CreateEmptyResource(uint resourceId, string path)
         {
             var texture = new Texture(this.graphicsManager, 256, 256, resourceId, path, $"{Path.GetFileNameWithoutExtension(path)}Texture");
-            texture.GraphicsResourceSystemId = this.emptyTexture.GraphicsResourceSystemId;
+            texture.NativePointer1 = this.emptyTexture.NativePointer1;
             return texture;
         }
 
@@ -81,18 +79,17 @@ namespace CoreEngine.Rendering
             texture.FaceCount = reader.ReadInt32();
             texture.MipLevels = reader.ReadInt32();
 
-            if (texture.GraphicsResourceId != 0 && texture.GraphicsResourceSystemId != this.emptyTexture.GraphicsResourceSystemId)
+            if (texture.NativePointer != IntPtr.Zero && texture.NativePointer1 != this.emptyTexture.NativePointer1)
             {
                 this.graphicsManager.DeleteTexture(texture);
             }
 
             // TODO: Wait for the command buffer to finish execution before switching the system ids.
             var createdTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, texture.TextureFormat, TextureUsage.ShaderRead, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
-            texture.GraphicsResourceSystemId = createdTexture.GraphicsResourceSystemId;
-            texture.GraphicsResourceSystemId2 = createdTexture.GraphicsResourceSystemId2;
+            texture.NativePointer1 = createdTexture.NativePointer1;
+            texture.NativePointer2 = createdTexture.NativePointer2;
 
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "TextureLoader");
-            this.graphicsManager.ResetCommandList(copyCommandList);
 
             for (var i = 0; i < texture.FaceCount; i++)
             {
@@ -122,7 +119,6 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
-            this.graphicsManager.DeleteCommandList(copyCommandList);
 
             return texture;
         }

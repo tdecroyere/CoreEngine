@@ -9,19 +9,20 @@ namespace CoreEngine.Graphics
     {
         private readonly IGraphicsService graphicsService;
 
-        public BlockGraphicsMemoryAllocator(IGraphicsService graphicsService, uint graphicsResourceId, GraphicsHeapType heapType, ulong sizeInBytes, string label)
+        public BlockGraphicsMemoryAllocator(IGraphicsService graphicsService, GraphicsHeapType heapType, ulong sizeInBytes, string label)
         {
             this.graphicsService = graphicsService;
-
             this.CurrentOffset = 0;
+
+            var nativePointer = this.graphicsService.CreateGraphicsHeap((GraphicsServiceHeapType)heapType, sizeInBytes);
             
-            if (!this.graphicsService.CreateGraphicsHeap(graphicsResourceId, (GraphicsServiceHeapType)heapType, sizeInBytes))
+            if (nativePointer == IntPtr.Zero)
             {
                 throw new InvalidOperationException($"Cannot create {label}.");
             }
 
-            this.graphicsService.SetGraphicsHeapLabel(graphicsResourceId, label);
-            this.GraphicsHeap = new GraphicsHeap(graphicsResourceId, heapType, sizeInBytes, label);
+            this.graphicsService.SetGraphicsHeapLabel(nativePointer, label);
+            this.GraphicsHeap = new GraphicsHeap(nativePointer, heapType, sizeInBytes, label);
         }
 
         public GraphicsMemoryAllocation AllocateMemory(int sizeInBytes, ulong alignment)

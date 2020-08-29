@@ -8,38 +8,38 @@ namespace CoreEngine.Graphics
     {
         private readonly GraphicsManager graphicsManager;
 
-        internal IndirectCommandBuffer(GraphicsManager graphicsManager, uint systemId, uint? systemId2, int maxCommandCount, bool isStatic, string label)
+        internal IndirectCommandBuffer(GraphicsManager graphicsManager, IntPtr nativePointer1, IntPtr? nativePointer2, int maxCommandCount, bool isStatic, string label)
         {
             this.graphicsManager = graphicsManager;
-            this.GraphicsResourceSystemId = systemId;
-            this.GraphicsResourceSystemId2 = systemId2;
+            this.NativePointer1 = nativePointer1;
+            this.NativePointer2 = nativePointer2;
             this.MaxCommandCount = maxCommandCount;
             this.ResourceType = GraphicsResourceType.IndirectCommandBuffer;
             this.IsStatic = isStatic;
             this.Label = label;
         }
 
-        public uint GraphicsResourceId 
+        public IntPtr NativePointer 
         { 
             get
             {
-                var result = this.GraphicsResourceSystemId;
+                var result = this.NativePointer1;
 
-                if (!IsStatic && this.GraphicsResourceSystemId2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                if (!IsStatic && this.NativePointer2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
                 {
-                    result = this.GraphicsResourceSystemId2.Value;
+                    result = this.NativePointer2.Value;
                 }
 
                 return result;
             }
         }
 
-        public uint GraphicsResourceSystemId
+        public IntPtr NativePointer1
         {
             get;
         }
 
-        public uint? GraphicsResourceSystemId2
+        public IntPtr? NativePointer2
         {
             get;
         }

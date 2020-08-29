@@ -4,13 +4,17 @@
 
 typedef unsigned long QWORD;
 
-WindowsInputsService::WindowsInputsService(HWND window)
+WindowsInputsService::WindowsInputsService()
 {
     this->inputState = {};
     this->rawInputBuffer = nullptr;
     this->rawInputBufferSize = 0;
 
-    InitRawInput(window);
+}
+
+void WindowsInputsService::AssociateWindow(void* windowPointer)
+{
+    InitRawInput((HWND)windowPointer);
 }
 
 InputsState WindowsInputsService::GetInputsState()

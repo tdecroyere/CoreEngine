@@ -5,8 +5,9 @@
 class WindowsInputsService
 {
     public:
-        WindowsInputsService(HWND window);
+        WindowsInputsService();
 
+        void AssociateWindow(void* windowPointer);
         struct InputsState GetInputsState();
         void SendVibrationCommand(uint32_t playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint32_t duration10ms);
 

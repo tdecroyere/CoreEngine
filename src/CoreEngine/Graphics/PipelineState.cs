@@ -1,12 +1,14 @@
+using System;
+
 namespace CoreEngine.Graphics
 {
     public readonly struct PipelineState
     {
-        public PipelineState(uint pipelineStateId)
+        public PipelineState(IntPtr nativePointer)
         {
-            this.PipelineStateId = pipelineStateId;
+            this.NativePointer = nativePointer;
         }
 
-        public readonly uint PipelineStateId { get; }
+        public readonly IntPtr NativePointer { get; }
     }
 }

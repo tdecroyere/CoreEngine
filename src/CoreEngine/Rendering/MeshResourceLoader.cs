@@ -71,12 +71,10 @@ namespace CoreEngine.Rendering
             var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, indexBufferData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
 
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "MeshLoader");
-            this.graphicsManager.ResetCommandList(copyCommandList);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, cpuVertexBuffer, vertexBufferSize);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, indexBuffer, cpuIndexBuffer, indexBufferSize);
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
-            this.graphicsManager.DeleteCommandList(copyCommandList);
             
             var geometryPacket = new GeometryPacket(vertexBuffer, indexBuffer);
 

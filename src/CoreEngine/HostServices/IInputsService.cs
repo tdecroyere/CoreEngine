@@ -1,3 +1,5 @@
+using System;
+
 namespace CoreEngine.HostServices
 {
     public enum InputsObjectType
@@ -128,6 +130,7 @@ namespace CoreEngine.HostServices
 
     public interface IInputsService
     {
+        void AssociateWindow(IntPtr windowPointer);
         InputsState GetInputsState();
         void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms);
     }

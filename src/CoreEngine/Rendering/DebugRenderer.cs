@@ -16,9 +16,6 @@ namespace CoreEngine.Rendering
         private GraphicsBuffer cpuIndexBuffer;
         private GraphicsBuffer indexBuffer;
 
-        public CommandList copyCommandList { get; }
-        public CommandList renderCommandList { get; }
-
         private int currentDebugLineIndex;
 
         public DebugRenderer(GraphicsManager graphicsManager, RenderManager renderManager, ResourcesManager resourcesManager)
@@ -50,8 +47,6 @@ namespace CoreEngine.Rendering
             this.cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, maxLineCount * 2, isStatic: false, label: "DebugIndexBuffer");
 
-            this.copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "DebugRendererCopy");
-            this.renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "DebugRenderer");
             this.currentDebugLineIndex = 0;
         }
 
@@ -170,41 +165,57 @@ namespace CoreEngine.Rendering
         {
             if (this.currentDebugLineIndex > 0)
             {
-                this.graphicsManager.ResetCommandList(this.copyCommandList);
+                var copyCommandList = CreateCopyCommandList();
+                var renderCommandList = CreateRenderCommandList(renderPassParametersGraphicsBuffer, renderTargetTexture, depthTexture);
 
-                var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-                this.graphicsManager.CopyDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.cpuVertexBuffer, this.currentDebugLineIndex * 4);
-                this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.cpuIndexBuffer, this.currentDebugLineIndex * 2);
-                var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-                this.graphicsManager.CommitCommandList(copyCommandList);
                 var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
-
-                this.graphicsManager.ResetCommandList(renderCommandList);
-
-                var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
-                var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, true, PrimitiveType.Line);
-
-                this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
-
-                this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, this.renderManager.CopyCommandQueue, copyFence);
-                var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-
-                this.graphicsManager.SetShader(renderCommandList, this.shader);
-                this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
-                this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
-
-                this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
-                this.graphicsManager.DrawIndexedPrimitives(renderCommandList, PrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
-
-                this.graphicsManager.EndRenderPass(this.renderCommandList);
-
-                var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-                this.graphicsManager.CommitCommandList(renderCommandList);
+                
+                this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, copyFence);
                 this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, isAwaitable: false);
 
-                this.renderManager.AddGpuTiming("DebugRendererCopy", startCopyQueryIndex, endCopyQueryIndex);
-                this.renderManager.AddGpuTiming("DebugRenderer", startQueryIndex, endQueryIndex);
             }
+        }
+
+        private CommandList CreateCopyCommandList()
+        {
+            var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "DebugRendererCopy");
+
+            var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
+            this.graphicsManager.CopyDataToGraphicsBuffer<Vector4>(copyCommandList, this.vertexBuffer, this.cpuVertexBuffer, this.currentDebugLineIndex * 4);
+            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, this.cpuIndexBuffer, this.currentDebugLineIndex * 2);
+            var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
+
+            this.graphicsManager.CommitCommandList(copyCommandList);
+            this.renderManager.AddGpuTiming("DebugRendererCopy", QueryBufferType.CopyTimestamp, startCopyQueryIndex, endCopyQueryIndex);
+
+            return copyCommandList;
+        }
+
+        private CommandList CreateRenderCommandList(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture renderTargetTexture, Texture? depthTexture)
+        {
+            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "DebugRenderer");
+
+            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, true, PrimitiveType.Line);
+
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
+
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+
+            this.graphicsManager.SetShader(renderCommandList, this.shader);
+            this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
+            this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 1);
+
+            this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
+            this.graphicsManager.DrawIndexedPrimitives(renderCommandList, PrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
+
+            this.graphicsManager.EndRenderPass(renderCommandList);
+
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.CommitCommandList(renderCommandList);
+            this.renderManager.AddGpuTiming("DebugRenderer", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+
+            return renderCommandList;
         }
     }
 }

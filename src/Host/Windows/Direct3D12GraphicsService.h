@@ -14,7 +14,62 @@ struct GameState
 	bool GameRunning;
 };
 
-struct Shader
+struct Direct3D12CommandQueue
+{
+    ComPtr<ID3D12CommandQueue> CommandQueueObject;
+    ComPtr<ID3D12CommandAllocator>* CommandAllocators;
+    D3D12_COMMAND_LIST_TYPE Type;
+    ComPtr<ID3D12Fence1> Fence;
+    uint64_t FenceValue;
+};
+
+struct Direct3D12CommandList
+{
+    ComPtr<ID3D12GraphicsCommandList> CommandListObject;
+    D3D12_COMMAND_LIST_TYPE Type;
+    Direct3D12CommandQueue* CommandQueue;
+    GraphicsRenderPassDescriptor RenderPassDescriptor;
+};
+
+struct Direct3D12GraphicsHeap
+{
+    ComPtr<ID3D12Heap> HeapObject;
+    GraphicsServiceHeapType Type;
+};
+
+struct Direct3D12GraphicsBuffer
+{
+    ComPtr<ID3D12Resource> BufferObject;
+    GraphicsServiceHeapType Type;
+    D3D12_RESOURCE_DESC ResourceDesc;
+    D3D12_RESOURCE_STATES ResourceState;
+    void* CpuPointer;
+};
+
+struct Direct3D12Texture
+{
+    ComPtr<ID3D12Resource> TextureObject;
+    D3D12_RESOURCE_DESC ResourceDesc;
+    D3D12_RESOURCE_STATES ResourceState;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT FootPrint;
+    uint32_t TextureDescriptorOffset;
+    uint32_t SrvTextureDescriptorOffset;
+    uint32_t UavTextureDescriptorOffset;
+    bool IsPresentTexture;
+};
+
+struct Direct3D12IndirectCommandBuffer
+{
+    ComPtr<ID3D12CommandSignature> CommandSignature;
+};
+
+struct Direct3D12QueryBuffer
+{
+    ComPtr<ID3D12QueryHeap> QueryBufferObject;
+    D3D12_QUERY_HEAP_TYPE Type;
+};
+
+struct Direct3D12Shader
 {
     ComPtr<ID3DBlob> VertexShaderMethod;
     ComPtr<ID3DBlob> PixelShaderMethod;
@@ -22,151 +77,104 @@ struct Shader
     ComPtr<ID3D12RootSignature> RootSignature;
 };
 
+struct Direct3D12PipelineState
+{
+    ComPtr<ID3D12PipelineState> PipelineStateObject;
+};
+
+struct Direct3D12SwapChain
+{
+    ComPtr<IDXGISwapChain3> SwapChainObject;
+    Direct3D12CommandQueue* CommandQueue;
+    Direct3D12Texture* BackBufferTextures[RenderBuffersCount];
+};
+
 class Direct3D12GraphicsService
 {
     public:
-        Direct3D12GraphicsService(HWND window, int width, int height, GameState* gameState);
+        Direct3D12GraphicsService();
         ~Direct3D12GraphicsService();
 
-        struct Vector2 GetRenderSize();
         void GetGraphicsAdapterName(char* output);
         GraphicsAllocationInfos GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
-        
-        int CreateGraphicsHeap(unsigned int graphicsHeapId, enum GraphicsServiceHeapType type, unsigned long sizeInBytes);
-        void SetGraphicsHeapLabel(unsigned int graphicsHeapId, char* label);
-        void DeleteGraphicsHeap(unsigned int graphicsHeapId);
 
-        int CreateGraphicsBuffer(unsigned int graphicsBufferId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, int sizeInBytes);
-        void SetGraphicsBufferLabel(unsigned int graphicsBufferId, char* label);
-        void DeleteGraphicsBuffer(unsigned int graphicsBufferId);
-        void* GetGraphicsBufferCpuPointer(unsigned int graphicsBufferId);
+        void* CreateCommandQueue(enum GraphicsServiceCommandType commandQueueType);
+        void SetCommandQueueLabel(void* commandQueuePointer, char* label);
+        void DeleteCommandQueue(void* commandQueuePointer);
+        void ResetCommandQueue(void* commandQueuePointer);
+        unsigned long GetCommandQueueTimestampFrequency(void* commandQueuePointer);
+        unsigned long ExecuteCommandLists(void* commandQueuePointer, void** commandLists, int commandListsLength, int isAwaitable);
+        void WaitForCommandQueue(void* commandQueuePointer, void* commandQueueToWaitPointer, unsigned long fenceValue);
+        void WaitForCommandQueueOnCpu(void* commandQueueToWaitPointer, unsigned long fenceValue);
 
-        int CreateTexture(unsigned int textureId, unsigned int graphicsHeapId, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
-        void SetTextureLabel(unsigned int textureId, char* label);
-        void DeleteTexture(unsigned int textureId);
+        void* CreateCommandList(void* commandQueuePointer);
+        void SetCommandListLabel(void* commandListPointer, char* label);
+        void DeleteCommandList(void* commandListPointer);
+        void ResetCommandList(void* commandListPointer);
+        void CommitCommandList(void* commandListPointer);
 
-        int CreateIndirectCommandBuffer(unsigned int indirectCommandBufferId, int maxCommandCount);
-        void SetIndirectCommandBufferLabel(unsigned int indirectCommandBufferId, char* label);
-        void DeleteIndirectCommandBuffer(unsigned int indirectCommandBufferId);
+        void* CreateGraphicsHeap(enum GraphicsServiceHeapType type, unsigned long sizeInBytes);
+        void SetGraphicsHeapLabel(void* graphicsHeapPointer, char* label);
+        void DeleteGraphicsHeap(void* graphicsHeapPointer);
 
-        int CreateShader(unsigned int shaderId, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength);
-        void SetShaderLabel(unsigned int shaderId, char* label);
-        void DeleteShader(unsigned int shaderId);
+        void* CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes);
+        void SetGraphicsBufferLabel(void* graphicsBufferPointer, char* label);
+        void DeleteGraphicsBuffer(void* graphicsBufferPointer);
+        void* GetGraphicsBufferCpuPointer(void* graphicsBufferPointer);
 
-        int CreatePipelineState(unsigned int pipelineStateId, unsigned int shaderId, struct GraphicsRenderPassDescriptor renderPassDescriptor);
-        void SetPipelineStateLabel(unsigned int pipelineStateId, char* label);
-        void DeletePipelineState(unsigned int pipelineStateId);
+        void* CreateTexture(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
+        void SetTextureLabel(void* texturePointer, char* label);
+        void DeleteTexture(void* texturePointer);
 
-        int CreateCommandQueue(unsigned int commandQueueId, enum GraphicsServiceCommandType commandQueueType);
-        void SetCommandQueueLabel(unsigned int commandQueueId, char* label);
-        void DeleteCommandQueue(unsigned int commandQueueId);
-        unsigned long GetCommandQueueTimestampFrequency(unsigned int commandQueueId);
-        unsigned long ExecuteCommandLists(unsigned int commandQueueId, unsigned int* commandLists, int commandListsLength, int isAwaitable);
-        void WaitForCommandQueue(unsigned int commandQueueId, unsigned int commandQueueToWaitId, unsigned long fenceValue);
-        void WaitForCommandQueueOnCpu(unsigned int commandQueueToWaitId, unsigned long fenceValue);
+        void* CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
+        void* GetSwapChainBackBufferTexture(void* swapChainPointer);
+        unsigned long PresentSwapChain(void* swapChainPointer);
 
-        int CreateCommandList(unsigned int commandListId, unsigned int commandQueueId);
-        void SetCommandListLabel(unsigned int commandListId, char* label);
-        void DeleteCommandList(unsigned int commandListId);
-        void ResetCommandList(unsigned int commandListId);
-        void CommitCommandList(unsigned int commandListId);
+        void* CreateIndirectCommandBuffer(int maxCommandCount);
+        void SetIndirectCommandBufferLabel(void* indirectCommandBufferPointer, char* label);
+        void DeleteIndirectCommandBuffer(void* indirectCommandBufferPointer);
 
-        int CreateQueryBuffer(unsigned int queryBufferId, enum GraphicsQueryBufferType queryBufferType, int length);
-        void SetQueryBufferLabel(unsigned int queryBufferId, char* label);
-        void DeleteQueryBuffer(unsigned int queryBufferId);
+        void* CreateQueryBuffer(enum GraphicsQueryBufferType queryBufferType, int length);
+        void SetQueryBufferLabel(void* queryBufferPointer, char* label);
+        void DeleteQueryBuffer(void* queryBufferPointer);
 
-        int CreateCommandBuffer(unsigned int commandBufferId, enum GraphicsCommandBufferType commandBufferType, char* label);
-        void DeleteCommandBuffer(unsigned int commandBufferId);
-        void ResetCommandBuffer(unsigned int commandBufferId);
-        void ExecuteCommandBuffer(unsigned int commandBufferId);
-        NullableGraphicsCommandBufferStatus GetCommandBufferStatus(unsigned int commandBufferId);
+        void* CreateShader(char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength);
+        void SetShaderLabel(void* shaderPointer, char* label);
+        void DeleteShader(void* shaderPointer);
 
-        void SetShaderBuffer(unsigned int commandListId, unsigned int graphicsBufferId, int slot, int isReadOnly, int index);
-        void SetShaderBuffers(unsigned int commandListId, unsigned int* graphicsBufferIdList, int graphicsBufferIdListLength, int slot, int index);
-        void SetShaderTexture(unsigned int commandListId, unsigned int textureId, int slot, int isReadOnly, int index);
-        void SetShaderTextures(unsigned int commandListId, unsigned int* textureIdList, int textureIdListLength, int slot, int index);
-        void SetShaderIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int slot, int index);
-        void SetShaderIndirectCommandLists(unsigned int commandListId, unsigned int* indirectCommandListIdList, int indirectCommandListIdListLength, int slot, int index);
+        void* CreatePipelineState(void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
+        void SetPipelineStateLabel(void* pipelineStatePointer, char* label);
+        void DeletePipelineState(void* pipelineStatePointer);
 
-        int CreateCopyCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label);
-        void CommitCopyCommandList(unsigned int commandListId);
-        void CopyDataToGraphicsBuffer(unsigned int commandListId, unsigned int destinationGraphicsBufferId, unsigned int sourceGraphicsBufferId, int sizeInBytes);
-        void CopyDataToTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceGraphicsBufferId, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
-        void CopyTexture(unsigned int commandListId, unsigned int destinationTextureId, unsigned int sourceTextureId);
-        void ResetIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
-        void OptimizeIndirectCommandList(unsigned int commandListId, unsigned int indirectCommandListId, int maxCommandCount);
+        void SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index);
+        void SetShaderBuffers(void* commandListPointer, void** graphicsBufferPointerList, int graphicsBufferPointerListLength, int slot, int index);
+        void SetShaderTexture(void* commandListPointer, void* texturePointer, int slot, int isReadOnly, int index);
+        void SetShaderTextures(void* commandListPointer, void** texturePointerList, int texturePointerListLength, int slot, int index);
+        void SetShaderIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int slot, int index);
+        void SetShaderIndirectCommandLists(void* commandListPointer, void** indirectCommandListPointerList, int indirectCommandListPointerListLength, int slot, int index);
 
-        int CreateComputeCommandList(unsigned int commandListId, unsigned int commandBufferId, char* label);
-        void CommitComputeCommandList(unsigned int commandListId);
-        struct Vector3 DispatchThreads(unsigned int commandListId, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ);
+        void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes);
+        void CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
+        void CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
+        void ResetIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount);
+        void OptimizeIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount);
 
-        void BeginRenderPass(unsigned int commandListId, struct GraphicsRenderPassDescriptor renderPassDescriptor);
-        void EndRenderPass(unsigned int commandListId);
+        struct Vector3 DispatchThreads(void* commandListPointer, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ);
 
-        int CreateRenderCommandList(unsigned int commandListId, unsigned int commandBufferId, struct GraphicsRenderPassDescriptor renderDescriptor, char* label);
-        void CommitRenderCommandList(unsigned int commandListId);
-        void SetPipelineState(unsigned int commandListId, unsigned int pipelineStateId);
-        void SetShader(unsigned int commandListId, unsigned int shaderId);
-        void BindGraphicsHeap(unsigned int commandListId, unsigned int graphicsHeapId);
-        void ExecuteIndirectCommandBuffer(unsigned int commandListId, unsigned int indirectCommandBufferId, int maxCommandCount);
-        void SetIndexBuffer(unsigned int commandListId, unsigned int graphicsBufferId);
-        void DrawIndexedPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
-        void DrawPrimitives(unsigned int commandListId, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+        void BeginRenderPass(void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
+        void EndRenderPass(void* commandListPointer);
 
-        void QueryTimestamp(unsigned int commandListId, unsigned int queryBufferId, int index);
-        void ResolveQueryData(unsigned int commandListId, unsigned int queryBufferId, unsigned int destinationBufferId, int startIndex, int endIndex);
+        void SetPipelineState(void* commandListPointer, void* pipelineStatePointer);
+        void SetShader(void* commandListPointer, void* shaderPointer);
+        void ExecuteIndirectCommandBuffer(void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount);
+        void SetIndexBuffer(void* commandListPointer, void* graphicsBufferPointer);
+        void DrawIndexedPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
+        void DrawPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
 
-        void WaitForCommandList(unsigned int commandListId, unsigned int commandListToWaitId);
-        void PresentScreenBuffer(unsigned int commandBufferId);
-        void WaitForAvailableScreenBuffer();
-
-        bool CreateOrResizeSwapChain(int width, int height);
-        void WaitForGlobalFence(bool waitForAllPendingWork);
+        void QueryTimestamp(void* commandListPointer, void* queryBufferPointer, int index);
+        void ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex);
 
     private:
-
-        // TODO: To Delete
-        GameState* gameState;
-        ComPtr<ID3D12CommandQueue> directCommandQueue;
-        ComPtr<ID3D12CommandQueue> copyCommandQueue;
-        ComPtr<ID3D12CommandQueue> computeCommandQueue;
-        ComPtr<ID3D12QueryHeap> queryHeap;
-        ComPtr<ID3D12QueryHeap> copyQueryHeap;
-        uint32_t startQueryIndex = 0;
-        uint32_t startCopyQueryIndex = 0;
-        uint32_t queryHeapIndex = 0;
-        uint32_t copyQueryHeapIndex = 0;
-        uint64_t* currentCpuQueryHeap;
-        uint64_t* currentCpuCopyQueryHeap;
-        uint64_t directQueueFrequency = 0;
-        uint64_t computeQueueFrequency = 0;
-        uint64_t copyQueueFrequency = 0;
-        ComPtr<ID3D12Fence1> directFence;
-        ComPtr<ID3D12Fence1> copyFence;
-        ComPtr<ID3D12Fence1> computeFence;
-        uint64_t directFenceValue = 0;
-        uint64_t copyFenceValue = 0;
-        uint64_t computeFenceValue = 0;
-        ComPtr<ID3D12CommandAllocator> directCommandAllocators[CommandAllocatorsCount] = {};
-        ComPtr<ID3D12CommandAllocator> copyCommandAllocators[CommandAllocatorsCount] = {};
-        ComPtr<ID3D12CommandAllocator> computeCommandAllocators[CommandAllocatorsCount] = {};
-        ComPtr<ID3D12Heap> uploadHeap;
-        uint64_t currentUploadHeapOffset = 0;
-        ComPtr<ID3D12Heap> readBackHeap;
-        uint64_t currentReadBackHeapOffset = 0;
-        ComPtr<ID3D12Heap> globalHeap;
-        uint64_t currentGlobalHeapOffset;
-        map<uint32_t, ComPtr<ID3D12Resource>> cpuBuffers;
-        map<uint32_t, ComPtr<ID3D12Resource>> readBackBuffers;
-        map<uint32_t, ComPtr<ID3D12Resource>> cpuTextures;
-        map<uint32_t, ComPtr<ID3D12GraphicsCommandList>> commandBuffers;
-        map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandBufferTypes;
-        map<uint32_t, wstring> commandBufferLabels;
-        map<uint32_t, uint32_t> commandListBuffers;
-        map<uint32_t, uint64_t> commandBufferFenceValues;
-        map<uint32_t, uint32_t> commandBufferStartQueryIndex;
-        map<uint32_t, uint32_t> commandBufferEndQueryIndex;
-
         // Device objects
         wstring adapterName;
         HWND window;
@@ -176,35 +184,13 @@ class Direct3D12GraphicsService
         bool isPresentBarrier = false;
 
         // Command Objects
-        map<uint32_t, ComPtr<ID3D12CommandQueue>> commandQueues;
-        map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandQueueTypes;
-        map<uint32_t, ComPtr<ID3D12Fence1>> commandQueueFences;
-        map<uint32_t, ComPtr<ID3D12CommandAllocator>*> commandQueueAllocators;
         int32_t currentAllocatorIndex = 0;
-        // TODO: Merge that into one structure
-        map<uint32_t, ComPtr<ID3D12GraphicsCommandList>> commandLists;
-        map<uint32_t, uint32_t> commandListQueueIds;
-        map<uint32_t, D3D12_COMMAND_LIST_TYPE> commandListTypes;
-        map<uint32_t, GraphicsRenderPassDescriptor> commandListRenderPassDescriptors;
-        map<uint32_t, uint64_t> commandQueueFenceValues;
-
-        // Swap chain objects
-        ComPtr<IDXGISwapChain3> swapChain;
-        ComPtr<ID3D12Resource> backBufferRenderTargets[RenderBuffersCount];
-        ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-        int32_t rtvDescriptorHandleSize;
-        int32_t currentBackBufferIndex;
-        Vector2 currentRenderSize;
 
         // Synchronization objects
         HANDLE globalFenceEvent;
         bool isWaitingForGlobalFence;
-        uint64_t presentFences[RenderBuffersCount];
 
         // Heap objects
-        map<uint32_t, ComPtr<ID3D12Heap>> graphicsHeaps;
-        map<uint32_t, GraphicsServiceHeapType> graphicsHeapTypes;
-
         ComPtr<ID3D12DescriptorHeap> globalDescriptorHeap;
         uint32_t globalDescriptorHandleSize;
         uint32_t currentGlobalDescriptorOffset;
@@ -213,43 +199,21 @@ class Direct3D12GraphicsService
         uint32_t globalRtvDescriptorHandleSize;
         uint32_t currentGlobalRtvDescriptorOffset;
 
-        // Buffers
-        map<uint32_t, ComPtr<ID3D12Resource>> graphicsBuffers;
-        map<uint32_t, void*> graphicsBufferPointers;
-        map<uint32_t, ComPtr<ID3D12QueryHeap>> queryBuffers;
-        
+        // Buffers        
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
         map<uint32_t, uint32_t> uavBufferDescriptorOffets;
-        map<uint32_t, D3D12_RESOURCE_STATES> bufferResourceStates;
-        map<uint32_t, ComPtr<ID3D12CommandSignature>> indirectCommandBufferSignatures;
-
-        // Textures
-        map<uint32_t, ComPtr<ID3D12Resource>> gpuTextures;
-        map<uint32_t, D3D12_PLACED_SUBRESOURCE_FOOTPRINT> textureFootPrints;
-        map<uint32_t, uint32_t> textureDescriptorOffets;
-        map<uint32_t, uint32_t> srvtextureDescriptorOffets;
-        map<uint32_t, uint32_t> uavTextureDescriptorOffets;
-        map<uint32_t, D3D12_RESOURCE_STATES> textureResourceStates;
 
         // Shaders
-        map<uint32_t, Shader> shaders;
-        map<uint32_t, ComPtr<ID3D12PipelineState>> pipelineStates;
         bool shaderBound;
-        Shader currentShaderIndirectCommand = {}; // TODO: To remove
+        Direct3D12Shader currentShaderIndirectCommand = {}; // TODO: To remove
 
         map<uint32_t, ComPtr<ID3D12DescriptorHeap>> debugDescriptorHeaps;
-
-        // TODO: To Remove
-        int CreateGraphicsBufferOld(unsigned int graphicsBufferId, int sizeInBytes, int isWriteOnly, char* label);
 
         void EnableDebugLayer();
         ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);
         bool CreateDevice(const ComPtr<IDXGIFactory4> dxgiFactory, const ComPtr<IDXGIAdapter4> graphicsAdapter);
         bool CreateHeaps();
 
-        D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetViewHandle();
-        void TransitionTextureToState(uint32_t commandListId, uint32_t textureId, D3D12_RESOURCE_STATES destinationState);
-        void TransitionBufferToState(uint32_t commandListId, uint32_t bufferId, D3D12_RESOURCE_STATES destinationState);
-
-        void InitGpuProfiling();
+        void TransitionTextureToState(Direct3D12CommandList* commandList, Direct3D12Texture* texture, D3D12_RESOURCE_STATES destinationState);
+        void TransitionBufferToState(Direct3D12CommandList* commandList, Direct3D12GraphicsBuffer* graphicsBuffer, D3D12_RESOURCE_STATES destinationState);
 };

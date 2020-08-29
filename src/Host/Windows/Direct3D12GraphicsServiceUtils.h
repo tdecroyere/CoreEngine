@@ -14,12 +14,12 @@ ComPtr<ID3DBlob> CreateShaderBlob(void* data, int dataLength)
     return shaderBlob;
 }
 
-DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat) 
+DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat, bool noSrgb = false) 
 {
 	switch (textureFormat)
 	{
 		case GraphicsTextureFormat::Bgra8UnormSrgb:
-			return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+			return noSrgb ? DXGI_FORMAT_B8G8R8A8_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 	
 		case GraphicsTextureFormat::Depth32Float:
 			return DXGI_FORMAT_D32_FLOAT;

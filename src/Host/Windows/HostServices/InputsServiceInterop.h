@@ -1,6 +1,12 @@
 #pragma once
 #include "../WindowsInputsService.h"
 
+void AssociateWindowInterop(void* context, void* windowPointer)
+{
+    auto contextObject = (WindowsInputsService*)context;
+    contextObject->AssociateWindow(windowPointer);
+}
+
 struct InputsState GetInputsStateInterop(void* context)
 {
     auto contextObject = (WindowsInputsService*)context;
@@ -16,6 +22,7 @@ void SendVibrationCommandInterop(void* context, unsigned int playerId, float lef
 void InitInputsService(const WindowsInputsService& context, InputsService* service)
 {
     service->Context = (void*)&context;
+    service->InputsService_AssociateWindow = AssociateWindowInterop;
     service->InputsService_GetInputsState = GetInputsStateInterop;
     service->InputsService_SendVibrationCommand = SendVibrationCommandInterop;
 }

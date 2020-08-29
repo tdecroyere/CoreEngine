@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using CoreEngine.HostServices;
+using CoreEngine.UI.Native;
 
 namespace CoreEngine.Inputs
 {
@@ -21,6 +22,11 @@ namespace CoreEngine.Inputs
         {
             get;
             private set;
+        }
+
+        public void AssociateWindow(Window window)
+        {
+            this.inputsService.AssociateWindow(window.NativePointer);
         }
 
         public override void PreUpdate()

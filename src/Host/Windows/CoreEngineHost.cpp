@@ -7,14 +7,13 @@
 
 using namespace std;
 
-CoreEngineHost::CoreEngineHost(const WindowsNativeUIService& nativeUIService, const Direct3D12GraphicsService& graphicsService, const WindowsInputsService& inputsService) : nativeUIService(nativeUIService), graphicsService(graphicsService), inputsService(inputsService)
+CoreEngineHost::CoreEngineHost(const string assemblyName, const WindowsNativeUIService& nativeUIService, const Direct3D12GraphicsService& graphicsService, const WindowsInputsService& inputsService) : nativeUIService(nativeUIService), graphicsService(graphicsService), inputsService(inputsService)
 {
-    CoreEngineHost_InitCoreClr(&this->startEnginePointer, &this->updateEnginePointer);
+    CoreEngineHost_InitCoreClr(&this->startEnginePointer, assemblyName);
 }
 
 void CoreEngineHost::StartEngine(string appName)
 {
-
     // Add asserts to check for null values
 
     HostPlatform hostPlatform = {};
@@ -25,10 +24,5 @@ void CoreEngineHost::StartEngine(string appName)
 
     // TODO: Delete temp memory
     const char* appNamePtr = appName.c_str();
-    this->startEnginePointer(appNamePtr, &hostPlatform);
-}
-
-void CoreEngineHost::UpdateEngine(float deltaTime) 
-{
-    this->updateEnginePointer(deltaTime);
+    this->startEnginePointer(appNamePtr, hostPlatform);
 }

@@ -68,8 +68,7 @@ namespace CoreEngine.Rendering
         private CommandQueue presentQueue;
 
         // TODO: Each Render Manager should use their own Graphics Manager
-        // TODO: Disaciossate the inputsmanager and the nativeUIManager
-        public RenderManager(NativeUIManager nativeUIManager, GraphicsManager graphicsManager, InputsManager inputsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
+        public RenderManager(Window window, NativeUIManager nativeUIManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
         {
             if (graphicsManager == null)
             {
@@ -82,6 +81,7 @@ namespace CoreEngine.Rendering
             }
 
             this.graphicsManager = graphicsManager;
+            this.window = window;
 
             this.CopyCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Copy, "CopyCommandQueue");
             this.ComputeCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Compute, "ComputeCommandQueue");
@@ -89,8 +89,6 @@ namespace CoreEngine.Rendering
             this.presentQueue = this.graphicsManager.CreateCommandQueue(CommandType.Render, "PresentCommandQueue");
 
             // TODO: To remove, TESTS
-            this.window = nativeUIManager.CreateWindow("Core Engine", 1280, 720);
-            inputsManager.AssociateWindow(this.window);
             var windowRenderSize = nativeUIManager.GetWindowRenderSize(this.window);
 
             this.swapChain = graphicsManager.CreateSwapChain(window, this.presentQueue, (int)windowRenderSize.X, (int)windowRenderSize.Y, TextureFormat.Bgra8UnormSrgb);

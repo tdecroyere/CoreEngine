@@ -29,7 +29,7 @@ WindowsNativeUIService::~WindowsNativeUIService()
 {
 }
 
-void* WindowsNativeUIService::CreateWindow(char* title, int width, int height)
+void* WindowsNativeUIService::CreateWindow(char* title, int width, int height, enum NativeWindowState windowState)
 {
     RECT clientRectangle;
     clientRectangle.left = 0;
@@ -64,6 +64,11 @@ void* WindowsNativeUIService::CreateWindow(char* title, int width, int height)
         applicationInstance,
         0);
 
+    if (windowState == NativeWindowState::Maximized)
+    {
+        ShowWindow(window, SW_MAXIMIZE);
+    }
+
     return window;
 }
 
@@ -77,4 +82,15 @@ struct Vector2 WindowsNativeUIService::GetWindowRenderSize(void* windowPointer)
     renderSize.Y = windowRectangle.bottom - windowRectangle.top;
 
     return renderSize;
+}
+
+struct NativeAppStatus WindowsNativeUIService::ProcessSystemMessages()
+{
+    auto result = Win32ProcessPendingMessages();
+
+    auto status = NativeAppStatus();
+    status.IsActive = isAppActive;
+    status.IsRunning = result;
+
+    return status;
 }

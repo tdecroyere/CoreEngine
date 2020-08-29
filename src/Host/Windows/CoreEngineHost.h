@@ -10,10 +10,9 @@ using namespace std;
 class CoreEngineHost
 {
 public:
-    CoreEngineHost(const WindowsNativeUIService& nativeUIService, const Direct3D12GraphicsService& graphicsService, const WindowsInputsService& inputsService);
+    CoreEngineHost(const string assemblyName, const WindowsNativeUIService& nativeUIService, const Direct3D12GraphicsService& graphicsService, const WindowsInputsService& inputsService);
 
     void StartEngine(string appName);
-    void UpdateEngine(float deltaTime);
 
 private:
     const WindowsNativeUIService& nativeUIService;
@@ -21,5 +20,4 @@ private:
     const WindowsInputsService& inputsService;
 
     StartEnginePtr startEnginePointer;    
-    UpdateEnginePtr updateEnginePointer;
 };

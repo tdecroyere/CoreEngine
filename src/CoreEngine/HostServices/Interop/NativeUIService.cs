@@ -8,12 +8,12 @@ namespace CoreEngine.HostServices.Interop
     {
         private IntPtr context { get; }
 
-        private delegate* cdecl<IntPtr, string, int, int, IntPtr> nativeUIService_CreateWindowDelegate { get; }
-        public unsafe IntPtr CreateWindow(string title, int width, int height)
+        private delegate* cdecl<IntPtr, string, int, int, NativeWindowState, IntPtr> nativeUIService_CreateWindowDelegate { get; }
+        public unsafe IntPtr CreateWindow(string title, int width, int height, NativeWindowState windowState)
         {
             if (this.context != null && this.nativeUIService_CreateWindowDelegate != null)
             {
-                return this.nativeUIService_CreateWindowDelegate(this.context, title, width, height);
+                return this.nativeUIService_CreateWindowDelegate(this.context, title, width, height, windowState);
             }
 
             return default(IntPtr);
@@ -28,6 +28,17 @@ namespace CoreEngine.HostServices.Interop
             }
 
             return default(Vector2);
+        }
+
+        private delegate* cdecl<IntPtr, NativeAppStatus> nativeUIService_ProcessSystemMessagesDelegate { get; }
+        public unsafe NativeAppStatus ProcessSystemMessages()
+        {
+            if (this.context != null && this.nativeUIService_ProcessSystemMessagesDelegate != null)
+            {
+                return this.nativeUIService_ProcessSystemMessagesDelegate(this.context);
+            }
+
+            return default(NativeAppStatus);
         }
     }
 }

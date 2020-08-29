@@ -103,3 +103,36 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 
 	return 0;
 }
+
+bool Win32ProcessMessage(const MSG& message)
+{
+	if (message.message == WM_QUIT)
+	{
+		return false;
+	}
+
+	TranslateMessage(&message);
+	DispatchMessageA(&message);
+
+	return true;
+}
+
+bool Win32ProcessPendingMessages()
+{
+	bool gameRunning = true;
+	MSG message;
+
+	// NOTE: The 2 loops are needed only because of RawInput which require that we let the WM_INPUT messages
+	// in the windows message queue...
+	while (PeekMessageA(&message, nullptr, 0, WM_INPUT - 1, PM_REMOVE))
+	{
+		gameRunning = Win32ProcessMessage(message);
+	}
+
+	while (PeekMessageA(&message, nullptr, WM_INPUT + 1, 0xFFFFFFFF, PM_REMOVE))
+	{
+		gameRunning = Win32ProcessMessage(message);
+	}
+
+	return gameRunning;
+}

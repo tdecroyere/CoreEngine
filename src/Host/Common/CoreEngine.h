@@ -75,8 +75,7 @@ struct HostPlatform
     struct InputsService InputsService;
 };
 
-typedef void (*StartEnginePtr)(const char* appName, struct HostPlatform* hostPlatform);
-typedef void (*UpdateEnginePtr)(float deltaTime);
+typedef void (*StartEnginePtr)(const char* appName, struct HostPlatform hostPlatform);
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,
             const char* appDomainFriendlyName,
@@ -122,7 +121,7 @@ string CoreEngineHost_BuildTpaList(string path)
     return tpaList;
 }
 
-bool CoreEngineHost_InitCoreClr(StartEnginePtr* startEnginePointer, UpdateEnginePtr* updateEnginePointer)
+bool CoreEngineHost_InitCoreClr(StartEnginePtr* startEnginePointer, string assemblyName)
 {
     string hostPath;
 
@@ -178,26 +177,14 @@ bool CoreEngineHost_InitCoreClr(StartEnginePtr* startEnginePointer, UpdateEngine
 
         result = createManagedDelegate(hostHandle, 
                                         domainId,
-                                        "CoreEngine",
-                                        "CoreEngine.Bootloader",
-                                        "StartEngine",
+                                        assemblyName.c_str(),
+                                        "Program",
+                                        "Main",
                                         (void**)&managedDelegate);
 
         if (result == 0)
         {
             *startEnginePointer = (StartEnginePtr)managedDelegate;
-        }
-
-        result = createManagedDelegate(hostHandle, 
-                                        domainId,
-                                        "CoreEngine",
-                                        "CoreEngine.Bootloader",
-                                        "UpdateEngine",
-                                        (void**)&managedDelegate);
-
-        if (result == 0)
-        {
-            *updateEnginePointer = (UpdateEnginePtr)managedDelegate;
         }
     }
 

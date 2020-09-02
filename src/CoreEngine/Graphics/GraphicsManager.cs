@@ -11,7 +11,7 @@ using CoreEngine.UI.Native;
 
 namespace CoreEngine.Graphics
 {
-    public class GraphicsManager : SystemManager
+    public class GraphicsManager : SystemManager, IDisposable
     {
         private readonly IGraphicsService graphicsService;
         private readonly GraphicsMemoryManager graphicsMemoryManager;
@@ -23,12 +23,17 @@ namespace CoreEngine.Graphics
         internal int cpuDispatchCount;
 
         private Dictionary<IntPtr, GraphicsRenderPassDescriptor> renderPassDescriptors;
-        private List<IntPtr> aliasableResources = new List<IntPtr>();
+        private List<Texture> aliasableTextures = new List<Texture>();
 
-        // TODO: It is not thread safe for the moment
-        private Stack<IntPtr> copyCommandListFreeList;
-        private Stack<IntPtr> computeCommandListFreeList;
-        private Stack<IntPtr> renderCommandListFreeList;
+        private List<GraphicsBuffer> graphicsBuffers = new List<GraphicsBuffer>();
+        private List<Texture> textures = new List<Texture>();
+        private List<PipelineState> pipelineStates = new List<PipelineState>();
+        private List<Shader> shaders = new List<Shader>();
+
+        private List<GraphicsBuffer>[] graphicsBuffersToDelete = new List<GraphicsBuffer>[2];
+        private List<Texture>[] texturesToDelete = new List<Texture>[2];
+        private List<PipelineState>[] pipelineStatesToDelete = new List<PipelineState>[2];
+        private List<Shader>[] shadersToDelete = new List<Shader>[2];
 
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
@@ -42,10 +47,6 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(resourcesManager));
             }
 
-            this.copyCommandListFreeList = new Stack<IntPtr>();
-            this.computeCommandListFreeList = new Stack<IntPtr>();
-            this.renderCommandListFreeList = new Stack<IntPtr>();
-
             this.graphicsService = graphicsService;
             this.graphicsMemoryManager = new GraphicsMemoryManager(graphicsService);
 
@@ -54,7 +55,44 @@ namespace CoreEngine.Graphics
 
             this.renderPassDescriptors = new Dictionary<IntPtr, GraphicsRenderPassDescriptor>();
 
+            graphicsBuffersToDelete[0] = new List<GraphicsBuffer>();
+            graphicsBuffersToDelete[1] = new List<GraphicsBuffer>();
+
+            texturesToDelete[0] = new List<Texture>();
+            texturesToDelete[1] = new List<Texture>();
+
+            pipelineStatesToDelete[0] = new List<PipelineState>();
+            pipelineStatesToDelete[1] = new List<PipelineState>();
+
+            shadersToDelete[0] = new List<Shader>();
+            shadersToDelete[1] = new List<Shader>();
+
             InitResourceLoaders(resourcesManager);
+        }
+
+        public void Dispose()
+        {
+            for (var i = 0; i < this.graphicsBuffers.Count; i++)
+            {
+                DeleteGraphicsBuffer(this.graphicsBuffers[i]);
+            }
+
+            for (var i = 0; i < this.textures.Count; i++)
+            {
+                DeleteTexture(this.textures[i]);
+            }
+
+            for (var i = 0; i < this.pipelineStates.Count; i++)
+            {
+                DeletePipelineState(this.pipelineStates[i]);
+            }
+
+            for (var i = 0; i < this.shaders.Count; i++)
+            {
+                DeleteShader(this.shaders[i]);
+            }
+
+            GC.SuppressFinalize(this);
         }
 
         // TODO: Move that method
@@ -91,11 +129,12 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.SetCommandQueueLabel(nativePointer, label);
 
-            return new CommandQueue(nativePointer, queueType, label);
+            return new CommandQueue(this, nativePointer, queueType, label);
         }
 
-        public void DeleteCommandQueue(CommandQueue commandQueue)
+        internal void DeleteCommandQueue(CommandQueue commandQueue)
         {
+            Logger.WriteMessage($"Deleting Command Queue {commandQueue.Label}...");
             this.graphicsService.DeleteCommandQueue(commandQueue.NativePointer);
         }
 
@@ -112,30 +151,20 @@ namespace CoreEngine.Graphics
         public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, bool isAwaitable)
         {
             // TODO: This code is not thread safe!
-            // TODO: Put the committed command list to the free queue list
 
-            var freeList = this.renderCommandListFreeList;
+            var freeList = commandQueue.commandListFreeList;
 
-            if (commandQueue.Type == CommandType.Copy)
-            {
-                freeList = this.copyCommandListFreeList;
-            }
-
-            else if (commandQueue.Type == CommandType.Compute)
-            {
-                freeList = this.computeCommandListFreeList;
-            }
-
-            // TODO: Do a stack alloc here
-            var commandListsIds = new IntPtr[commandLists.Length];
+            var commandListsPointers = ArrayPool<IntPtr>.Shared.Rent(commandLists.Length);
 
             for (var i = 0; i < commandLists.Length; i++)
             {
-                commandListsIds[i] = commandLists[i].NativePointer;
-                freeList.Push(commandListsIds[i]);
+                commandListsPointers[i] = commandLists[i].NativePointer;
+                freeList.Push(commandLists[i]);
             }
 
-            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsIds, isAwaitable);
+            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsPointers.AsSpan(0..commandLists.Length), isAwaitable);
+            ArrayPool<IntPtr>.Shared.Return(commandListsPointers);
+
             return new Fence(commandQueue, fenceValue);
         }
 
@@ -152,26 +181,15 @@ namespace CoreEngine.Graphics
         public CommandList CreateCommandList(CommandQueue commandQueue, string label)
         {
             // TODO: This code is not thread safe!
-
-            var freeList = this.renderCommandListFreeList;
-
-            if (commandQueue.Type == CommandType.Copy)
-            {
-                freeList = this.copyCommandListFreeList;
-            }
-
-            else if (commandQueue.Type == CommandType.Compute)
-            {
-                freeList = this.computeCommandListFreeList;
-            }
+            var freeList = commandQueue.commandListFreeList;
 
             if (freeList.Count > 0)
             {
-                var commandListId = freeList.Pop();
-                this.graphicsService.ResetCommandList(commandListId);
-                this.graphicsService.SetCommandListLabel(commandListId, label);
+                var commandList = freeList.Pop();
+                this.graphicsService.ResetCommandList(commandList.NativePointer);
+                this.graphicsService.SetCommandListLabel(commandList.NativePointer, label);
 
-                return new CommandList(commandListId, commandQueue.Type, commandQueue, label);
+                return new CommandList(commandList.NativePointer, commandQueue.Type, commandQueue, label);
             }
 
             Logger.WriteMessage("Creating Command List");
@@ -186,6 +204,12 @@ namespace CoreEngine.Graphics
             graphicsService.SetCommandListLabel(nativePointer, label);
 
             return new CommandList(nativePointer, commandQueue.Type, commandQueue, label);
+        }
+
+        internal void DeleteCommandList(CommandList commandList)
+        {
+            Logger.WriteMessage($"Deleting Command List {commandList.Label}...");
+            this.graphicsService.DeleteCommandList(commandList.NativePointer);
         }
 
         public void CommitCommandList(CommandList commandList)
@@ -236,7 +260,10 @@ namespace CoreEngine.Graphics
                 }
             }
 
-            return new GraphicsBuffer(this, allocation, allocation2, nativePointer1, nativePointer2, cpuPointer, cpuPointer2, sizeInBytes, isStatic, label);
+            var graphicsBuffer = new GraphicsBuffer(this, allocation, allocation2, nativePointer1, nativePointer2, cpuPointer, cpuPointer2, sizeInBytes, isStatic, label);
+            this.graphicsBuffers.Add(graphicsBuffer);
+
+            return graphicsBuffer;
         }
 
         public unsafe Span<T> GetCpuGraphicsBufferPointer<T>(GraphicsBuffer graphicsBuffer) where T : struct
@@ -252,8 +279,15 @@ namespace CoreEngine.Graphics
             return new Span<T>(cpuPointer.ToPointer(), graphicsBuffer.Length / Marshal.SizeOf(typeof(T)));
         }
 
-        public void DeleteGraphicsBuffer(GraphicsBuffer graphicsBuffer)
+        internal void ScheduleDeleteGraphicsBuffer(GraphicsBuffer graphicsBuffer)
         {
+            this.graphicsBuffersToDelete[this.CurrentFrameNumber % 2].Add(graphicsBuffer);
+        }
+
+        private void DeleteGraphicsBuffer(GraphicsBuffer graphicsBuffer)
+        {
+            Logger.WriteMessage($"Deleting Graphics buffer {graphicsBuffer.Label}...");
+
             this.graphicsService.DeleteGraphicsBuffer(graphicsBuffer.NativePointer1);
             this.graphicsMemoryManager.FreeAllocation(graphicsBuffer.GraphicsMemoryAllocation);
 
@@ -269,6 +303,9 @@ namespace CoreEngine.Graphics
                     this.graphicsMemoryManager.FreeAllocation(graphicsBuffer.GraphicsMemoryAllocation2.Value);
                 }
             }
+
+            // TODO: Use something faster here
+            this.graphicsBuffers.Remove(graphicsBuffer);
         }
 
         // TODO: Do not forget to find a way to delete the transient resource
@@ -284,11 +321,6 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.SetTextureLabel(nativePointer1, $"{label}{(isStatic ? string.Empty : "0") }");
 
-            if (allocation.IsAliasable)
-            {
-                aliasableResources.Add(nativePointer1);
-            }
-
             IntPtr? nativePointer2 = null;
             GraphicsMemoryAllocation? allocation2 = null;
 
@@ -303,22 +335,32 @@ namespace CoreEngine.Graphics
                 }
 
                 this.graphicsService.SetTextureLabel(nativePointer2.Value, $"{label}1");
-
-                if (allocation2.Value.IsAliasable)
-                {
-                    aliasableResources.Add(nativePointer2.Value);
-                }
             }
 
-            return new Texture(this, allocation, allocation2, nativePointer1, nativePointer2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
+            var texture = new Texture(this, allocation, allocation2, nativePointer1, nativePointer2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
+            this.textures.Add(texture);
+
+            if (allocation.IsAliasable)
+            {
+                aliasableTextures.Add(texture);
+            }
+
+            return texture;
         }
 
-        public void DeleteTexture(Texture texture)
+        internal void ScheduleDeleteTexture(Texture texture)
+        {
+            this.texturesToDelete[this.CurrentFrameNumber % 2].Add(texture);
+        }
+
+        private void DeleteTexture(Texture texture)
         {
             if (texture == null)
             {
                 throw new ArgumentNullException(nameof(texture));
             }
+
+            Logger.WriteMessage($"Deleting Texture {texture.Label}...");
 
             this.graphicsService.DeleteTexture(texture.NativePointer1);
             this.graphicsMemoryManager.FreeAllocation(texture.GraphicsMemoryAllocation);
@@ -335,6 +377,9 @@ namespace CoreEngine.Graphics
                     this.graphicsMemoryManager.FreeAllocation(texture.GraphicsMemoryAllocation2.Value);
                 }
             }
+
+            // TODO: Use something faster here
+            this.textures.Remove(texture);
         }
 
         public SwapChain CreateSwapChain(Window window, CommandQueue commandQueue, int width, int height, TextureFormat textureFormat)
@@ -433,18 +478,44 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.SetShaderLabel(nativePointer, label);
 
-            return new Shader(nativePointer, label);
+            var shader = new Shader(this, nativePointer, label);
+            this.shaders.Add(shader);
+
+            return shader;
         }
 
-        internal void DeleteShader(Shader shader)
+        internal void ScheduleDeletePipelineState(PipelineState pipelineState)
+        {
+            this.pipelineStatesToDelete[this.CurrentFrameNumber % 2].Add(pipelineState);
+        }
+
+        private void DeletePipelineState(PipelineState pipelineState)
+        {
+            Logger.WriteMessage($"Deleting PipelineState {pipelineState.Label}...");
+            this.graphicsService.DeletePipelineState(pipelineState.NativePointer);
+
+            // TODO: Use something faster here
+            this.pipelineStates.Remove(pipelineState);
+        }
+
+        internal void ScheduleDeleteShader(Shader shader)
         {
             foreach (var pipelineState in shader.PipelineStates.Values)
             {
-                this.graphicsService.DeletePipelineState(pipelineState.NativePointer);
+                this.ScheduleDeletePipelineState(pipelineState);
             }
 
             shader.PipelineStates.Clear();
+            this.shadersToDelete[this.CurrentFrameNumber % 2].Add(shader);
+        }
+
+        private void DeleteShader(Shader shader)
+        {
+            Logger.WriteMessage($"Deleting Shader {shader.Label}...");
             this.graphicsService.DeleteShader(shader.NativePointer);
+
+            // TODO: Use something faster here
+            this.shaders.Remove(shader);
         }
 
         public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, int length) where T : struct
@@ -573,7 +644,10 @@ namespace CoreEngine.Graphics
                 }
 
                 this.graphicsService.SetPipelineStateLabel(nativePointer, $"{shader.Label}PSO");
-                shader.PipelineStates.Add(renderPassDescriptor, new PipelineState(nativePointer));
+
+                var pipelineState = new PipelineState(this, nativePointer, $"{shader.Label}PSO");
+                this.pipelineStates.Add(pipelineState);
+                shader.PipelineStates.Add(renderPassDescriptor, pipelineState);
             }
 
             this.graphicsService.SetPipelineState(commandList.NativePointer, shader.PipelineStates[renderPassDescriptor].NativePointer);
@@ -714,8 +788,15 @@ namespace CoreEngine.Graphics
             this.graphicsService.ResolveQueryData(commandList.NativePointer, queryBuffer.NativePointer, destinationBuffer.NativePointer, offsetAndLength.Offset, offsetAndLength.Length);
         }
 
-        public void WaitForAvailableScreenBuffer()
+        public void MoveToNextFrame()
         {
+            for (var i = 0; i < this.aliasableTextures.Count; i++)
+            {
+                this.aliasableTextures[i].Dispose();
+            }
+
+            this.aliasableTextures.Clear();
+
             // this.graphicsService.WaitForAvailableScreenBuffer();
 
             // TODO: A modulo here with Int.MaxValue
@@ -725,14 +806,33 @@ namespace CoreEngine.Graphics
 
             this.graphicsMemoryManager.Reset(this.CurrentFrameNumber);
 
-            // TODO: We can have an issue here because the D3D resource can be released while still being used
-            // We should do a kind of soft delete
-            for (var i = 0; i < this.aliasableResources.Count; i++)
+            for (var i = 0; i < this.graphicsBuffersToDelete[this.CurrentFrameNumber % 2].Count; i++)
             {
-                this.graphicsService.DeleteTexture(this.aliasableResources[i]);
+                this.DeleteGraphicsBuffer(this.graphicsBuffersToDelete[this.CurrentFrameNumber % 2][i]);
             }
 
-            this.aliasableResources.Clear();
+            this.graphicsBuffersToDelete[this.CurrentFrameNumber % 2].Clear();
+
+            for (var i = 0; i < this.texturesToDelete[this.CurrentFrameNumber % 2].Count; i++)
+            {
+                this.DeleteTexture(this.texturesToDelete[this.CurrentFrameNumber % 2][i]);
+            }
+
+            this.texturesToDelete[this.CurrentFrameNumber % 2].Clear();
+
+            for (var i = 0; i < this.pipelineStatesToDelete[this.CurrentFrameNumber % 2].Count; i++)
+            {
+                this.DeletePipelineState(this.pipelineStatesToDelete[this.CurrentFrameNumber % 2][i]);
+            }
+
+            this.pipelineStatesToDelete[this.CurrentFrameNumber % 2].Clear();
+
+            for (var i = 0; i < this.shadersToDelete[this.CurrentFrameNumber % 2].Count; i++)
+            {
+                this.DeleteShader(this.shadersToDelete[this.CurrentFrameNumber % 2][i]);
+            }
+
+            this.shadersToDelete[this.CurrentFrameNumber % 2].Clear();
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

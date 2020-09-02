@@ -3,7 +3,7 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
-    public class Texture : Resource, IGraphicsResource
+    public class Texture : Resource, IGraphicsResource, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
 
@@ -37,6 +37,12 @@ namespace CoreEngine.Graphics
             this.ResourceType = GraphicsResourceType.Texture;
             this.IsStatic = true;
             this.Label = label;
+        }
+
+        public void Dispose()
+        {
+            this.graphicsManager.ScheduleDeleteTexture(this);
+            GC.SuppressFinalize(this);
         }
 
         public IntPtr NativePointer 

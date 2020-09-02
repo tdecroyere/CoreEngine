@@ -76,13 +76,13 @@ namespace CoreEngine.Rendering
             
             var textureDataLength = reader.ReadInt32();
 
-            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
+            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
             var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             reader.Read(textureData);
 
             if (font.Texture.NativePointer != IntPtr.Zero)
             {
-                this.graphicsManager.DeleteTexture(font.Texture);
+                font.Texture.Dispose();
             }
 
             font.Texture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, TextureUsage.ShaderRead, width, height, 1, 1, 1, isStatic: true, label: "FontTexture");
@@ -93,7 +93,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
 
-            this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
             return font;
         }
     }

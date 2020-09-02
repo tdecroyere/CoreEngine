@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace CoreEngine.Graphics
 {
-    public readonly struct GraphicsBuffer : IGraphicsResource
+    public readonly struct GraphicsBuffer : IGraphicsResource, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
 
@@ -21,6 +21,12 @@ namespace CoreEngine.Graphics
             this.GraphicsMemoryAllocation2 = graphicsMemoryAllocation2;
             this.CpuPointer1 = cpuPointer;
             this.CpuPointer2 = cpuPointer2;
+        }
+
+        public void Dispose()
+        {
+            this.graphicsManager.ScheduleDeleteGraphicsBuffer(this);
+            GC.SuppressFinalize(this);
         }
 
         public IntPtr NativePointer 

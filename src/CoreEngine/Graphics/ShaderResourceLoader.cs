@@ -23,7 +23,7 @@ namespace CoreEngine.Graphics
 
         public override Resource CreateEmptyResource(uint resourceId, string path)
         {
-            return new Shader(resourceId, path);
+            return new Shader(this.graphicsManager, resourceId, path);
         }
 
         public override Resource LoadResourceData(Resource resource, byte[] data)
@@ -52,7 +52,7 @@ namespace CoreEngine.Graphics
 
             if (shader.NativePointer != IntPtr.Zero)
             {
-                this.graphicsManager.DeleteShader(shader);
+                shader.Dispose();
             }
 
             var computeFunction = (!resource.Parameters.IsEmpty) ? resource.Parameters.Span[0] : null;

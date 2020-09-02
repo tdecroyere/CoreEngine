@@ -459,6 +459,11 @@ namespace CoreEngine.Rendering
                 throw new ArgumentNullException(nameof(graphicsManager));
             }
 
+            if (renderManager == null)
+            {
+                throw new ArgumentNullException(nameof(renderManager));
+            }
+
             var result = new List<CommandList>();
 
             // TODO: Aquire 3 resources: Depth Buffer, CamerasBuffer, Local Compute buffer
@@ -643,6 +648,11 @@ namespace CoreEngine.Rendering
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
+            if (renderManager == null)
+            {
+                throw new ArgumentNullException(nameof(renderManager));
             }
 
             // TODO: Throw an error if more that one depth buffer was bound to inputs
@@ -1741,7 +1751,7 @@ namespace CoreEngine.Rendering
         //     return transparentCommandList;
         // }
 
-        int currentMomentCommandBuffer;
+        // int currentMomentCommandBuffer;
 
         // private CommandList ConvertToMomentShadowMap(ShaderCamera camera, CommandList commandListToWait)
         // {
@@ -1794,7 +1804,7 @@ namespace CoreEngine.Rendering
             }
             
             // this.currentDepthCommandBuffer = 0;
-            this.currentMomentCommandBuffer = 0;
+            // this.currentMomentCommandBuffer = 0;
 
             var copyCommandList = CreateCopyCommandList();
             var resetIcbCommandList = CreateResetIcbCommandList();

@@ -20,7 +20,7 @@ public static class Program
 {
     public static void Main(string appName, HostPlatform hostPlatform)
     {
-        Logger.BeginAction("Starting CoreEngine");
+        Logger.BeginAction($"Starting CoreEngine ({appName})");
 
         var resourcesManager = new ResourcesManager();
             

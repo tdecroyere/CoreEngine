@@ -126,9 +126,9 @@ typedef void (*GraphicsService_WaitForCommandQueuePtr)(void* context, void* comm
 typedef void (*GraphicsService_WaitForCommandQueueOnCpuPtr)(void* context, void* commandQueueToWaitPointer, unsigned long fenceValue);
 typedef void* (*GraphicsService_CreateCommandListPtr)(void* context, void* commandQueuePointer);
 typedef void (*GraphicsService_SetCommandListLabelPtr)(void* context, void* commandListPointer, char* label);
-typedef void (*GraphicsService_DeleteCommandListPtr)(void* context, void* commandListId);
-typedef void (*GraphicsService_ResetCommandListPtr)(void* context, void* commandListId);
-typedef void (*GraphicsService_CommitCommandListPtr)(void* context, void* commandListId);
+typedef void (*GraphicsService_DeleteCommandListPtr)(void* context, void* commandListPointer);
+typedef void (*GraphicsService_ResetCommandListPtr)(void* context, void* commandListPointer);
+typedef void (*GraphicsService_CommitCommandListPtr)(void* context, void* commandListPointer);
 typedef void* (*GraphicsService_CreateGraphicsHeapPtr)(void* context, enum GraphicsServiceHeapType type, unsigned long length);
 typedef void (*GraphicsService_SetGraphicsHeapLabelPtr)(void* context, void* graphicsHeapPointer, char* label);
 typedef void (*GraphicsService_DeleteGraphicsHeapPtr)(void* context, void* graphicsHeapPointer);

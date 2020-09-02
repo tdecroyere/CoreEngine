@@ -13,9 +13,9 @@ public protocol GraphicsServiceProtocol {
     func waitForCommandQueueOnCpu(_ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt)
     func createCommandList(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
     func setCommandListLabel(_ commandListPointer: UnsafeMutableRawPointer?, _ label: String)
-    func deleteCommandList(_ commandListId: UnsafeMutableRawPointer?)
-    func resetCommandList(_ commandListId: UnsafeMutableRawPointer?)
-    func commitCommandList(_ commandListId: UnsafeMutableRawPointer?)
+    func deleteCommandList(_ commandListPointer: UnsafeMutableRawPointer?)
+    func resetCommandList(_ commandListPointer: UnsafeMutableRawPointer?)
+    func commitCommandList(_ commandListPointer: UnsafeMutableRawPointer?)
     func createGraphicsHeap(_ type: GraphicsServiceHeapType, _ length: UInt) -> UnsafeMutableRawPointer?
     func setGraphicsHeapLabel(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteGraphicsHeap(_ graphicsHeapPointer: UnsafeMutableRawPointer?)

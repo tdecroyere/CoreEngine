@@ -73,22 +73,22 @@ void SetCommandListLabelInterop(void* context, void* commandListPointer, char* l
     contextObject->SetCommandListLabel(commandListPointer, label);
 }
 
-void DeleteCommandListInterop(void* context, void* commandListId)
+void DeleteCommandListInterop(void* context, void* commandListPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->DeleteCommandList(commandListId);
+    contextObject->DeleteCommandList(commandListPointer);
 }
 
-void ResetCommandListInterop(void* context, void* commandListId)
+void ResetCommandListInterop(void* context, void* commandListPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->ResetCommandList(commandListId);
+    contextObject->ResetCommandList(commandListPointer);
 }
 
-void CommitCommandListInterop(void* context, void* commandListId)
+void CommitCommandListInterop(void* context, void* commandListPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->CommitCommandList(commandListId);
+    contextObject->CommitCommandList(commandListPointer);
 }
 
 void* CreateGraphicsHeapInterop(void* context, enum GraphicsServiceHeapType type, unsigned long length)

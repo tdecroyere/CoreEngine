@@ -24,6 +24,7 @@ public static class Program
 
         while (appStatus.IsRunning)
         {
+            Logger.WriteMessage("OK");
             appStatus = nativeUIManager.ProcessSystemMessages();
 
             if (appStatus.IsActive)

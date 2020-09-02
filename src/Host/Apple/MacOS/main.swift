@@ -45,38 +45,35 @@ autoreleasepool {
     NSApplication.shared.activate(ignoringOtherApps: true)
     NSApplication.shared.finishLaunching()
 
+    let nativeUIService = MacOSNativeUIService()
+    let graphicsService = MetalGraphicsService()
     let inputsManager = InputsManager()
 
-    while (delegate.renderer == nil) {
-        processPendingMessages(inputsManager: inputsManager)
+    // while (delegate.renderer == nil) {
+    //     processPendingMessages(inputsManager: inputsManager)
+    // }
+
+    var assemblyName = "CoreEngine"
+
+    if (CommandLine.arguments.count > 1 && CommandLine.arguments[1] != "-NSDocumentRevisionsDebugMode") {
+        assemblyName = "CoreEngine-" + CommandLine.arguments[1]
     }
 
-    // TODO: Sometimes it seems there is a malloc error but not all the time (See MacOSCrash_20190324.txt)
-    let renderer = delegate.renderer!
-    var appName = "EcsTest"
-
-    if (CommandLine.arguments.count > 1) {
-        appName = CommandLine.arguments[1]
-    }
-
-    let coreEngineHost = CoreEngineHost(graphicsService: renderer, inputsManager: inputsManager)
+    let coreEngineHost = CoreEngineHost(nativeUIService: nativeUIService, graphicsService: graphicsService, inputsManager: inputsManager)
 
     autoreleasepool {
-        coreEngineHost.startEngine(appName)
+        coreEngineHost.startEngine(assemblyName)
     }
 
-    let stepTimeInSeconds = Float(1.0 / 60.0)
+    // while (isGameRunning) {
+    //     autoreleasepool {
+    //         processPendingMessages(inputsManager: inputsManager)
 
-    while (isGameRunning) {
-        autoreleasepool {
-            processPendingMessages(inputsManager: inputsManager)
+    //         isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
 
-            isGamePaused = (delegate.mainWindow.occlusionState.rawValue != 8194)
-
-            if (!isGamePaused) {
-                inputsManager.processGamepadControllers()
-                coreEngineHost.updateEngine(stepTimeInSeconds)
-            }
-        }
-    }
+    //         if (!isGamePaused) {
+    //             inputsManager.processGamepadControllers()
+    //         }
+    //     }
+    // }
 }

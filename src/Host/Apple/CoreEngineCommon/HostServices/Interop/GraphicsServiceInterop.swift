@@ -61,19 +61,19 @@ func GraphicsService_setCommandListLabelInterop(context: UnsafeMutableRawPointer
     contextObject.setCommandListLabel(commandListPointer, String(cString: label!))
 }
 
-func GraphicsService_deleteCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
+func GraphicsService_deleteCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.deleteCommandList(commandListId)
+    contextObject.deleteCommandList(commandListPointer)
 }
 
-func GraphicsService_resetCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
+func GraphicsService_resetCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.resetCommandList(commandListId)
+    contextObject.resetCommandList(commandListPointer)
 }
 
-func GraphicsService_commitCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListId: UnsafeMutableRawPointer?) {
+func GraphicsService_commitCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.commitCommandList(commandListId)
+    contextObject.commitCommandList(commandListPointer)
 }
 
 func GraphicsService_createGraphicsHeapInterop(context: UnsafeMutableRawPointer?, _ type: GraphicsServiceHeapType, _ length: UInt) -> UnsafeMutableRawPointer? {

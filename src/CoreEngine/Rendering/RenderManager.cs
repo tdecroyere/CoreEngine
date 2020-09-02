@@ -70,6 +70,11 @@ namespace CoreEngine.Rendering
         // TODO: Each Render Manager should use their own Graphics Manager
         public RenderManager(Window window, NativeUIManager nativeUIManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
         {
+            if (nativeUIManager == null)
+            {
+                throw new ArgumentNullException(nameof(nativeUIManager));
+            }
+
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
@@ -171,7 +176,7 @@ namespace CoreEngine.Rendering
             var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
             Logger.BeginAction("SceneRenderer");
-            this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
+            //this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
             Logger.EndAction();
 
             DrawDebugMessages();

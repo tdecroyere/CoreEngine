@@ -3,38 +3,36 @@ import Cocoa
 class MacOSAppDelegate: NSObject, NSApplicationDelegate {
     public var mainWindow: NSWindow!
     var metalView: MacOSMetalView!
-    var mainWindowDelegate: MacOSWindowDelegate!
-    public var renderer: MetalGraphicsService!
+    // var mainWindowDelegate: MacOSWindowDelegate!
+    // public var renderer: MetalGraphicsService!
 
     // TODO: Catch activate/inactivate events to interrupt game update
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         self.buildMainMenu()
 
-        self.mainWindow = NSWindow(contentRect: NSMakeRect(0, 0, 1280, 720), 
-                                   styleMask: [.resizable, .titled, .miniaturizable, .closable], 
-                                   backing: .buffered, 
-                                   defer: false)
+        // self.mainWindow = NSWindow(contentRect: NSMakeRect(0, 0, 1280, 720), 
+        //                            styleMask: [.resizable, .titled, .miniaturizable, .closable], 
+        //                            backing: .buffered, 
+        //                            defer: false)
 
-        self.mainWindow.title = "Core Engine"
+        // self.mainWindow.title = "Core Engine"
 
-        let contentView = self.mainWindow.contentView! as NSView
-        self.metalView = MacOSMetalView()
-        self.metalView.frame = contentView.frame
-        contentView.addSubview(self.metalView)
+        // let contentView = self.mainWindow.contentView! as NSView
+        // self.metalView = MacOSMetalView()
+        // self.metalView.frame = contentView.frame
+        // contentView.addSubview(self.metalView)
 
-        self.mainWindow.center()
-        self.mainWindow.makeKeyAndOrderFront(nil)
+        // self.mainWindow.center()
+        // self.mainWindow.makeKeyAndOrderFront(nil)
 
-        let scale = self.mainWindow.screen!.backingScaleFactor
-        var size = contentView.frame.size
-        size.width *= scale;
-        size.height *= scale;
+        // let scale = self.mainWindow.screen!.backingScaleFactor
+        // var size = contentView.frame.size
+        // size.width *= scale;
+        // size.height *= scale;
 
-        self.renderer = MetalGraphicsService(view: metalView, renderWidth: Int(size.width), renderHeight: Int(size.height))
-
-        self.mainWindowDelegate = MacOSWindowDelegate(window: self.mainWindow, metalView: self.metalView, renderer: self.renderer)
-        self.mainWindow.delegate = self.mainWindowDelegate
+        // self.mainWindowDelegate = MacOSWindowDelegate(window: self.mainWindow, metalView: self.metalView, renderer: self.renderer)
+        // self.mainWindow.delegate = self.mainWindowDelegate
     }
     
     func buildMainMenu() {
@@ -77,7 +75,7 @@ class MacOSAppDelegate: NSObject, NSApplicationDelegate {
         NSApp.windowsMenu = windowSubMenu
     }
 }
-
+/*
 class MacOSWindowDelegate: NSObject, NSWindowDelegate {
     let window: NSWindow
     let metalView: MacOSMetalView
@@ -111,6 +109,7 @@ class MacOSWindowDelegate: NSObject, NSWindowDelegate {
         size.width *= scale;
         size.height *= scale;
 
-        self.renderer.changeRenderSize(renderWidth: Int(size.width), renderHeight: Int(size.height))
+        //self.renderer.changeRenderSize(renderWidth: Int(size.width), renderHeight: Int(size.height))
     }
 }
+*/

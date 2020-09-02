@@ -22,6 +22,10 @@ public class InputsManager: InputsServiceProtocol {
         // print(GCKeyboard.coalesced);
     }
 
+    public func associateWindow(_ windowPointer: UnsafeMutableRawPointer?) {
+        
+    }
+
     public func getInputsState() -> InputsState {
         let result = self.inputsState
         self.inputsState.Mouse.DeltaX.Value = 0

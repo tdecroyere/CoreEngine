@@ -38,8 +38,8 @@ public static class Program
         var sceneQueue = new GraphicsSceneQueue();
         var sceneManager = new GraphicsSceneManager(sceneQueue);
 
-        var graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
-        var renderManager = new RenderManager(window, nativeUIManager, graphicsManager, resourcesManager, sceneQueue);
+        using var graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
+        using var renderManager = new RenderManager(window, nativeUIManager, graphicsManager, resourcesManager, sceneQueue);
 
         var systemManagerContainer = new SystemManagerContainer();
 

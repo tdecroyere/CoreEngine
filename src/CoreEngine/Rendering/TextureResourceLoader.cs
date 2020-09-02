@@ -29,7 +29,7 @@ namespace CoreEngine.Rendering
             this.emptyTexture = graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, TextureUsage.ShaderRead, 256, 256, 1, 1, 1, isStatic: true, label: "EmptyTexture");
             Logger.EndAction();
 
-            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, 256 * 256 * 4, isStatic: true, label: "TextureCpuBuffer");
+            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, 256 * 256 * 4, isStatic: true, label: "TextureCpuBuffer");
             var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             textureData.Fill(255);
 
@@ -38,8 +38,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
             Logger.EndAction();
-
-            this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
         }
 
         public override string Name => "Texture Loader";
@@ -81,10 +79,11 @@ namespace CoreEngine.Rendering
 
             if (texture.NativePointer != IntPtr.Zero && texture.NativePointer1 != this.emptyTexture.NativePointer1)
             {
-                this.graphicsManager.DeleteTexture(texture);
+                texture.Dispose();
             }
 
-            // TODO: Wait for the command buffer to finish execution before switching the system ids.
+            // TODO: Refactor that because normally it shouldn't be possible to continue using the texture object after the dispose
+            // Event if it is working now because of the dispose only free the native resources
             var createdTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, texture.TextureFormat, TextureUsage.ShaderRead, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
             texture.NativePointer1 = createdTexture.NativePointer1;
             texture.NativePointer2 = createdTexture.NativePointer2;
@@ -100,7 +99,7 @@ namespace CoreEngine.Rendering
                 {
                     var textureDataLength = reader.ReadInt32();
                  
-                    var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
+                    using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
                     var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
                     
                     reader.Read(textureData);
@@ -113,7 +112,6 @@ namespace CoreEngine.Rendering
 
                     // TODO: Make only one frame copy command list for all resource loaders
                     this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, texture, cpuBuffer, textureWidth, textureHeight, i, j);
-                    this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
                 }
             }
 

@@ -113,7 +113,6 @@ void Direct3D12GraphicsService::SetCommandQueueLabel(void* commandQueuePointer, 
 
 void Direct3D12GraphicsService::DeleteCommandQueue(void* commandQueuePointer)
 {
-	// TODO: Do we need to release manually ComPtr objects?
 	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
 	delete commandQueue;
 }
@@ -214,7 +213,6 @@ void Direct3D12GraphicsService::SetCommandListLabel(void* commandListPointer, ch
 
 void Direct3D12GraphicsService::DeleteCommandList(void* commandListPointer)
 {
-	// TODO: Do we need to release manually ComPtr objects?
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	delete commandList;
 }
@@ -238,7 +236,7 @@ void Direct3D12GraphicsService::CommitCommandList(void* commandListPointer)
 	this->shaderBound = false;
 
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	commandList->CommandListObject->Close();
+	AssertIfFailed(commandList->CommandListObject->Close());
 }
 
 void Direct3D12GraphicsService::SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index)
@@ -314,7 +312,6 @@ void Direct3D12GraphicsService::SetGraphicsHeapLabel(void* graphicsHeapPointer, 
 
 void Direct3D12GraphicsService::DeleteGraphicsHeap(void* graphicsHeapPointer)
 {
-	// TODO: Do we need to release manually ComPtr objects?
 	Direct3D12GraphicsHeap* graphicsHeap = (Direct3D12GraphicsHeap*)graphicsHeapPointer;
 	delete graphicsHeap;
 }
@@ -365,9 +362,8 @@ void Direct3D12GraphicsService::SetGraphicsBufferLabel(void* graphicsBufferPoint
 
 void Direct3D12GraphicsService::DeleteGraphicsBuffer(void* graphicsBufferPointer)
 {
-	// TODO: Wait for next frame for releasing resources
-
-	//this->gpuBuffers.erase(graphicsBufferId);
+	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
+	delete graphicsBuffer;
 }
 
 void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(void* graphicsBufferPointer)
@@ -479,8 +475,8 @@ void Direct3D12GraphicsService::SetTextureLabel(void* texturePointer, char* labe
 
 void Direct3D12GraphicsService::DeleteTexture(void* texturePointer)
 { 
-	// TODO: Wait for next frame for releasing resources
-	// this->textureFootPrints.erase(textureId);
+	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
+	delete texture;
 }
 
 void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat)
@@ -555,6 +551,9 @@ unsigned long Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer
 	auto fenceValue = swapChain->CommandQueue->FenceValue;
 	swapChain->CommandQueue->CommandQueueObject->Signal(swapChain->CommandQueue->Fence.Get(), fenceValue);
 	swapChain->CommandQueue->FenceValue = fenceValue + 1;
+
+	// TODO: Do something better here
+	this->currentAllocatorIndex = (this->currentAllocatorIndex + 1) % RenderBuffersCount;
 
 	return fenceValue;
 }
@@ -826,7 +825,6 @@ void Direct3D12GraphicsService::SetPipelineStateLabel(void* pipelineStatePointer
 
 void Direct3D12GraphicsService::DeletePipelineState(void* pipelineStatePointer)
 { 
-	// TODO: Do a delay release after the pso is not in flight anymore
 	Direct3D12PipelineState* pipelineState = (Direct3D12PipelineState*)pipelineStatePointer;
 	delete pipelineState;
 }

@@ -177,12 +177,9 @@ class Direct3D12GraphicsService
     private:
         // Device objects
         wstring adapterName;
-        HWND window;
         ComPtr<IDXGIFactory4> dxgiFactory; 
         ComPtr<ID3D12Device3> graphicsDevice;
         
-        bool isPresentBarrier = false;
-
         // Command Objects
         int32_t currentAllocatorIndex = 0;
 

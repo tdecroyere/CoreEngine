@@ -105,8 +105,8 @@ namespace CoreEngine.Rendering
 
             var maxSurfaceCount = 10000;
 
-            var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(GraphicsHeapType.Upload, 4, isStatic: true, label: "CpuGraphics2DVertexBuffer");
-            var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 6, isStatic: true, label: "CpuGraphics2DIndexBuffer");
+            using var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Graphics2DVertex>(GraphicsHeapType.Upload, 4, isStatic: true, label: "CpuGraphics2DVertexBuffer");
+            using var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 6, isStatic: true, label: "CpuGraphics2DIndexBuffer");
 
             var vertexData = this.graphicsManager.GetCpuGraphicsBufferPointer<Graphics2DVertex>(cpuVertexBuffer);
             var indexData = this.graphicsManager.GetCpuGraphicsBufferPointer<uint>(cpuIndexBuffer);
@@ -133,9 +133,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, cpuIndexBuffer, indexData.Length);
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
-
-            this.graphicsManager.DeleteGraphicsBuffer(cpuVertexBuffer);
-            this.graphicsManager.DeleteGraphicsBuffer(cpuIndexBuffer);
 
             this.cpuRenderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(GraphicsHeapType.Upload, 1, isStatic: false, label: "Graphics2DRenderPassBuffer");
             this.renderPassParametersGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RenderPassConstants2D>(GraphicsHeapType.Gpu, 1, isStatic: false, label: "Graphics2DRenderPassBuffer");

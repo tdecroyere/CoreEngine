@@ -5,19 +5,29 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Graphics
 {
-    public class Shader : Resource
+    public class Shader : Resource, IDisposable
     {
-        internal Shader(IntPtr nativePointer, string label) : base(0, string.Empty)
+        private readonly GraphicsManager graphicsManager;
+
+        internal Shader(GraphicsManager graphicsManager, IntPtr nativePointer, string label) : base(0, string.Empty)
         {
+            this.graphicsManager = graphicsManager;
             this.NativePointer = nativePointer;
             this.Label = label;
             this.PipelineStates = new Dictionary<GraphicsRenderPassDescriptor, PipelineState>();
         }
 
-        internal Shader(uint resourceId, string path) : base(resourceId, path)
+        internal Shader(GraphicsManager graphicsManager, uint resourceId, string path) : base(resourceId, path)
         {
+            this.graphicsManager = graphicsManager;
             this.PipelineStates = new Dictionary<GraphicsRenderPassDescriptor, PipelineState>();
             this.Label = System.IO.Path.GetFileNameWithoutExtension(path);
+        }
+
+        public void Dispose()
+        {
+            this.graphicsManager.ScheduleDeleteShader(this);
+            GC.SuppressFinalize(this);
         }
 
         public IntPtr NativePointer { get; internal set; }

@@ -36,7 +36,7 @@ namespace CoreEngine.Rendering
         public double EndTiming { get; set; }
     }
 
-    public class RenderManager : SystemManager
+    public class RenderManager : SystemManager, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
 
@@ -124,6 +124,16 @@ namespace CoreEngine.Rendering
 
             this.gpuTimings = this.gpuTimingsList[0];
             this.currentGpuTimings = new List<GpuTiming>(this.gpuTimings);
+        }
+
+        public void Dispose()
+        {
+            this.CopyCommandQueue.Dispose();
+            this.ComputeCommandQueue.Dispose();
+            this.RenderCommandQueue.Dispose();
+            this.presentQueue.Dispose();
+
+            GC.SuppressFinalize(this);
         }
 
         public CommandQueue CopyCommandQueue { get; }
@@ -229,7 +239,7 @@ namespace CoreEngine.Rendering
             }
 
             // TODO: Rename that to Reset
-            this.graphicsManager.WaitForAvailableScreenBuffer();
+            this.graphicsManager.MoveToNextFrame();
             ResetGpuTimers();
 
             this.graphicsManager.ResetCommandQueue(this.RenderCommandQueue);

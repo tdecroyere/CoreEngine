@@ -65,7 +65,7 @@ namespace CoreEngine.Rendering
 
             var materialDataLength = reader.ReadInt32();
 
-            var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, materialDataLength, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
+            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, materialDataLength, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
             var materialData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
             reader.Read(materialData);
 
@@ -76,7 +76,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData.Value, cpuBuffer, materialDataLength);
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
-            this.graphicsManager.DeleteGraphicsBuffer(cpuBuffer);
 
             return resource;
         }

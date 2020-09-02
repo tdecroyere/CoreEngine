@@ -20,7 +20,7 @@
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            "args": ["EcsTest"],
+            "args": [],
             "stopAtEntry": false,
             "externalConsole": false,
             "osx": {

@@ -13,12 +13,14 @@ using CoreEngine.Resources;
 using CoreEngine.Rendering;
 using CoreEngine.UI.Native;
 using CoreEngine;
+using System.Runtime.InteropServices;
 
 [assembly: InternalsVisibleTo("CoreEngine.UnitTests")]
 
 public static class Program
 {
-    public static void Main(string appName, HostPlatform hostPlatform)
+    [UnmanagedCallersOnlyAttribute]
+    public static void Main(HostPlatform hostPlatform)
     {
         Logger.BeginAction("Starting CoreEngine");
 

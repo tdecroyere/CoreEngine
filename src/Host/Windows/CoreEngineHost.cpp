@@ -24,5 +24,5 @@ void CoreEngineHost::StartEngine(string appName)
 
     // TODO: Delete temp memory
     const char* appNamePtr = appName.c_str();
-    this->startEnginePointer(appNamePtr, hostPlatform);
+    this->startEnginePointer(hostPlatform);
 }

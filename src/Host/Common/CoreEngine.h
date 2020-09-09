@@ -75,7 +75,7 @@ struct HostPlatform
     struct InputsService InputsService;
 };
 
-typedef void (*StartEnginePtr)(const char* appName, struct HostPlatform hostPlatform);
+typedef void (*StartEnginePtr)(struct HostPlatform hostPlatform);
 
 typedef int (*coreclr_initialize_ptr)(const char* exePath,
             const char* appDomainFriendlyName,

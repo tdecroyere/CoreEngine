@@ -123,12 +123,20 @@ namespace CoreEngine.Rendering
 
         public void Dispose()
         {
-            this.CopyCommandQueue.Dispose();
-            this.ComputeCommandQueue.Dispose();
-            this.RenderCommandQueue.Dispose();
-            this.presentQueue.Dispose();
-
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                this.computeDirectTransferShader.Dispose();
+                this.CopyCommandQueue.Dispose();
+                this.ComputeCommandQueue.Dispose();
+                this.RenderCommandQueue.Dispose();
+                this.presentQueue.Dispose();
+            }
         }
 
         public CommandQueue CopyCommandQueue { get; }

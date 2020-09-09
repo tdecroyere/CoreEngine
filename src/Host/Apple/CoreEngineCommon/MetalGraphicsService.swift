@@ -273,6 +273,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func executeCommandLists(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: [UnsafeMutableRawPointer?], _ isAwaitable: Bool) -> UInt {
+        // TODO: Track if we have actually encoded something in the command buffer and if not don't commit it
         let commandQueue = Unmanaged<MetalCommandQueue>.fromOpaque(commandQueuePointer!).takeUnretainedValue()
         var fenceValue = UInt64(0)
 

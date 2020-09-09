@@ -41,8 +41,16 @@ namespace CoreEngine.Graphics
 
         public void Dispose()
         {
-            this.graphicsManager.ScheduleDeleteTexture(this);
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                this.graphicsManager.ScheduleDeleteTexture(this);
+            }
         }
 
         public IntPtr NativePointer 

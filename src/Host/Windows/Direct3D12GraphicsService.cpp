@@ -476,7 +476,11 @@ void Direct3D12GraphicsService::SetTextureLabel(void* texturePointer, char* labe
 void Direct3D12GraphicsService::DeleteTexture(void* texturePointer)
 { 
 	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
-	delete texture;
+
+	if (!texture->IsPresentTexture)
+	{
+		delete texture;
+	}
 }
 
 void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat)

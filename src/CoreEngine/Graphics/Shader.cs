@@ -26,8 +26,16 @@ namespace CoreEngine.Graphics
 
         public void Dispose()
         {
-            this.graphicsManager.ScheduleDeleteShader(this);
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                this.graphicsManager.ScheduleDeleteShader(this);
+            }
         }
 
         public IntPtr NativePointer { get; internal set; }

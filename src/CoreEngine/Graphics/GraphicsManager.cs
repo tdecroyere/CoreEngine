@@ -72,27 +72,36 @@ namespace CoreEngine.Graphics
 
         public void Dispose()
         {
-            for (var i = 0; i < this.graphicsBuffers.Count; i++)
-            {
-                DeleteGraphicsBuffer(this.graphicsBuffers[i]);
-            }
-
-            for (var i = 0; i < this.textures.Count; i++)
-            {
-                DeleteTexture(this.textures[i]);
-            }
-
-            for (var i = 0; i < this.pipelineStates.Count; i++)
-            {
-                DeletePipelineState(this.pipelineStates[i]);
-            }
-
-            for (var i = 0; i < this.shaders.Count; i++)
-            {
-                DeleteShader(this.shaders[i]);
-            }
-
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                for (var i = 0; i < this.graphicsBuffers.Count; i++)
+                {
+                    DeleteGraphicsBuffer(this.graphicsBuffers[i]);
+                }
+
+                for (var i = 0; i < this.textures.Count; i++)
+                {
+                    DeleteTexture(this.textures[i]);
+                }
+
+                for (var i = 0; i < this.pipelineStates.Count; i++)
+                {
+                    DeletePipelineState(this.pipelineStates[i]);
+                }
+
+                for (var i = 0; i < this.shaders.Count; i++)
+                {
+                    DeleteShader(this.shaders[i]);
+                }
+            }
+
+            
         }
 
         // TODO: Move that method

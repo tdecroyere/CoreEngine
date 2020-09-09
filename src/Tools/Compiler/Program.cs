@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
 using CoreEngine.HostServices;
@@ -5,7 +6,8 @@ using CoreEngine.Resources;
 
 public static class Program
 {
-    public static void Main(string appName, HostPlatform hostPlatform)
+    [UnmanagedCallersOnlyAttribute]
+    public static void Main(HostPlatform hostPlatform)
     {
         Logger.BeginAction("Starting CoreEngine Compiler");
 

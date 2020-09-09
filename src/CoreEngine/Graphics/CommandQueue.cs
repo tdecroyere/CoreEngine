@@ -37,6 +37,6 @@ namespace CoreEngine.Graphics
         public readonly IntPtr NativePointer { get; }
         public readonly CommandType Type { get; }
         public readonly string Label { get; }
-        public readonly Stack<CommandList> commandListFreeList;
+        public readonly Stack<CommandList> commandListFreeList { get; }
     }
 }

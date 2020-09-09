@@ -22,7 +22,7 @@ public static class Program
     [UnmanagedCallersOnlyAttribute]
     public static void Main(HostPlatform hostPlatform)
     {
-        Logger.BeginAction($"Starting CoreEngine ({appName})");
+        Logger.BeginAction($"Starting CoreEngine (EcsTest)");
 
         var resourcesManager = new ResourcesManager();
             

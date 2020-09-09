@@ -223,13 +223,13 @@ namespace CoreEngine.Rendering
             using var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
             var renderTarget = new RenderTargetDescriptor(backBufferTexture, null, BlendOperation.None);
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
-            var startQueryIndex = InsertQueryTimestamp(presentCommandList);
             this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2);
+            var startQueryIndex = InsertQueryTimestamp(presentCommandList);
             this.graphicsManager.SetShader(presentCommandList, this.computeDirectTransferShader);
             this.graphicsManager.SetShaderTexture(presentCommandList, mainRenderTargetTexture, 0);
             this.graphicsManager.DrawPrimitives(presentCommandList, PrimitiveType.TriangleStrip, 0, 4);
-            this.graphicsManager.EndRenderPass(presentCommandList);
             var endQueryIndex = InsertQueryTimestamp(presentCommandList);
+            this.graphicsManager.EndRenderPass(presentCommandList);
             this.graphicsManager.ResolveQueryData(presentCommandList, this.globalQueryBuffer, this.globalCpuQueryBuffer, 0..this.globalQueryBuffer.Length);
             this.graphicsManager.CommitCommandList(presentCommandList);
 

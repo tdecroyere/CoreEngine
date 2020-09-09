@@ -257,8 +257,19 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func getCommandQueueTimestampFrequency(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UInt {
-        // TODO
-        return 250000
+        // let timestamps = self.device.sampleTimestamps()
+
+        // if(timestamps.cpu > m_cpu_timestamp && gpu_timestamp > m_gpu_timestamp)
+        // {
+        //     const double cpu_delta = cpu_timestamp - m_cpu_timestamp;
+        //     const double gpu_delta = gpu_timestamp - m_gpu_timestamp;
+                
+        //     m_gpu_cpu_timestamp_factor = cpu_delta / gpu_delta;
+        // }
+
+        // m_gpu_timestamp = gpu_timestamp;
+        // m_cpu_timestamp = cpu_timestamp;
+        return 0
     }
 
     public func executeCommandLists(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: [UnsafeMutableRawPointer?], _ isAwaitable: Bool) -> UInt {
@@ -1019,11 +1030,25 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func resetIndirectCommandList(_ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int) {
+        let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandListPointer!).takeUnretainedValue()
+        let indirectCommandBuffer = Unmanaged<MetalIndirectCommandBuffer>.fromOpaque(indirectCommandListPointer!).takeUnretainedValue()
 
+        guard let copyCommandEncoder = commandList.commandEncoder as? MTLBlitCommandEncoder else {
+            return
+        }
+
+        copyCommandEncoder.resetCommandsInBuffer(indirectCommandBuffer.commandBufferObject, range: 0..<maxCommandCount)
     }
 
     public func optimizeIndirectCommandList(_ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int) {
+        let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandListPointer!).takeUnretainedValue()
+        let indirectCommandBuffer = Unmanaged<MetalIndirectCommandBuffer>.fromOpaque(indirectCommandListPointer!).takeUnretainedValue()
 
+        guard let copyCommandEncoder = commandList.commandEncoder as? MTLBlitCommandEncoder else {
+            return
+        }
+
+        copyCommandEncoder.optimizeIndirectCommandBuffer(indirectCommandBuffer.commandBufferObject, range: 0..<maxCommandCount)
     }
 
     public func dispatchThreads(_ commandListPointer: UnsafeMutableRawPointer?, _ threadCountX: UInt, _ threadCountY: UInt, _ threadCountZ: UInt) -> Vector3 {
@@ -1317,10 +1342,43 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func queryTimestamp(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int) {
+        let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandListPointer!).takeUnretainedValue()
+        let queryBuffer = Unmanaged<MetalQueryBuffer>.fromOpaque(queryBufferPointer!).takeUnretainedValue()
 
+        if (commandList.commandQueue.commandQueueType == Render) {
+            guard let renderCommandEncoder = commandList.commandEncoder as? MTLRenderCommandEncoder else {
+                print("queryTimestamp: ERROR: Cannot get renderCommandEncoder")
+                return
+            }
+
+            renderCommandEncoder.sampleCounters(sampleBuffer: queryBuffer.queryBufferObject, sampleIndex: index, barrier: false)
+        } else if (commandList.commandQueue.commandQueueType == Compute) {
+            guard let computeCommandEncoder = commandList.commandEncoder as? MTLComputeCommandEncoder else {
+                print("queryTimestamp: ERROR: Cannot get computeCommandEncoder")
+                return
+            }
+
+            computeCommandEncoder.sampleCounters(sampleBuffer: queryBuffer.queryBufferObject, sampleIndex: index, barrier: false)
+        } else if (commandList.commandQueue.commandQueueType == Copy) {
+            guard let copyCommandEncoder = commandList.commandEncoder as? MTLBlitCommandEncoder else {
+                print("queryTimestamp: ERROR: Cannot get copyCommandEncoder")
+                return
+            }
+
+            copyCommandEncoder.sampleCounters(sampleBuffer: queryBuffer.queryBufferObject, sampleIndex: index, barrier: false)
+        }
     }
 
     public func resolveQueryData(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ destinationBufferPointer: UnsafeMutableRawPointer?, _ startIndex: Int, _ endIndex: Int) {
+        let queryBuffer = Unmanaged<MetalQueryBuffer>.fromOpaque(queryBufferPointer!).takeUnretainedValue()
+        let destinsationGraphicsBuffer = Unmanaged<MetalGraphicsBuffer>.fromOpaque(destinationBufferPointer!).takeUnretainedValue()
 
+        do {
+            let data = try queryBuffer.queryBufferObject.resolveCounterRange(0..<queryBuffer.queryBufferObject.sampleCount)!
+            data.copyBytes(to: destinsationGraphicsBuffer.bufferObject.contents().assumingMemoryBound(to: UInt8.self), from: 0..<data.count)
+        } catch {
+            print("resolveQueryData: Unable to resolve query buffer, \(error)")
+            return
+        }
     }
 }

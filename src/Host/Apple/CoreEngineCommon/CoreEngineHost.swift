@@ -19,8 +19,6 @@ public class CoreEngineHost {
     public func startEngine(_ assemblyName: String) {
         initCoreClrSwift(assemblyName)
 
-        let appNameUnsafe: UnsafeMutablePointer<Int8>? = nil
-
         initNativeUIService(self.nativeUIService, &self.hostPlatform.NativeUIService)
         initGraphicsService(self.graphicsService, &self.hostPlatform.GraphicsService)
         initInputsService(self.inputsManager, &self.hostPlatform.InputsService)
@@ -30,7 +28,7 @@ public class CoreEngineHost {
             return
         }
 
-        startEngineInterop(appNameUnsafe, self.hostPlatform)
+        startEngineInterop(self.hostPlatform)
     }
 
     func initCoreClrSwift(_ assemblyName: String) {

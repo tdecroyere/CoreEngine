@@ -186,7 +186,7 @@ namespace CoreEngine.Rendering
             var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
             Logger.BeginAction("SceneRenderer");
-            //this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
+            this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
             Logger.EndAction();
 
             DrawDebugMessages();
@@ -212,7 +212,7 @@ namespace CoreEngine.Rendering
 
             var presentCommandList = this.graphicsManager.CreateCommandList(this.presentQueue, "PresentScreenBuffer");
 
-            var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
+            using var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
             var renderTarget = new RenderTargetDescriptor(backBufferTexture, null, BlendOperation.None);
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
             var startQueryIndex = InsertQueryTimestamp(presentCommandList);

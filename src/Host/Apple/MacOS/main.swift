@@ -45,9 +45,9 @@ autoreleasepool {
     NSApplication.shared.activate(ignoringOtherApps: true)
     NSApplication.shared.finishLaunching()
 
-    let nativeUIService = MacOSNativeUIService()
-    let graphicsService = MetalGraphicsService()
     let inputsManager = InputsManager()
+    let nativeUIService = MacOSNativeUIService(inputsManager: inputsManager)
+    let graphicsService = MetalGraphicsService()
 
     // while (delegate.renderer == nil) {
     //     processPendingMessages(inputsManager: inputsManager)

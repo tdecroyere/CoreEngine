@@ -15,8 +15,11 @@ class MacOSWindow {
 }
 
 public class MacOSNativeUIService: NativeUIServiceProtocol {
-    public init() {
-     
+    private var currentWindow: MacOSWindow?
+    private let inputsManager: InputsManager
+
+    public init(inputsManager: InputsManager) {
+        self.inputsManager = inputsManager
     }
 
     public func createWindow(_ title: String, _ width: Int, _ height: Int, _ windowState: NativeWindowState) -> UnsafeMutableRawPointer? {
@@ -42,6 +45,7 @@ public class MacOSNativeUIService: NativeUIServiceProtocol {
         let mainScreenScaling = window.screen!.backingScaleFactor
 
         let nativeWindow = MacOSWindow(window, metalView, mainScreenScaling)
+        self.currentWindow = nativeWindow
         return Unmanaged.passRetained(nativeWindow).toOpaque()
     }
 
@@ -80,19 +84,19 @@ public class MacOSNativeUIService: NativeUIServiceProtocol {
             }
             
             switch event.type {
-            // case .keyUp, .keyDown:
-            //     if (!event.modifierFlags.contains(.command)) {
-            //         inputsManager.processKeyboardEvent(event)
-            //     } else {
-            //         NSApplication.shared.sendEvent(event)
-            //     }
-            // case .mouseMoved, .leftMouseDragged:
-            //     inputsManager.processMouseMovedEvent(event)
-            //     NSApplication.shared.sendEvent(event)
-            // case .leftMouseUp, .leftMouseDown:
-            //     // TODO: Prevent the event to be catched when dragging the window title
-            //     inputsManager.processMouseLeftButtonEvent(event)
-            //     NSApplication.shared.sendEvent(event)
+            case .keyUp, .keyDown:
+                if (!event.modifierFlags.contains(.command)) {
+                    inputsManager.processKeyboardEvent(event)
+                } else {
+                    NSApplication.shared.sendEvent(event)
+                }
+            case .mouseMoved, .leftMouseDragged:
+                inputsManager.processMouseMovedEvent(event)
+                NSApplication.shared.sendEvent(event)
+            case .leftMouseUp, .leftMouseDown:
+                // TODO: Prevent the event to be catched when dragging the window title
+                inputsManager.processMouseLeftButtonEvent(event)
+                NSApplication.shared.sendEvent(event)
             default:
                 NSApplication.shared.sendEvent(event)
             }

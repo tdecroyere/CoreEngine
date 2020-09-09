@@ -1152,17 +1152,17 @@ namespace CoreEngine.Rendering
                                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer")),
                                             new BindingGraphicsPipelineParameter<int>("GeometryInstanceCount", new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
                                         }),
-                new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
-                                                resourcesManager,
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<int>(0)),
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MinMaxDepthComputeBuffer"), new ConstantPipelineParameterBinding<int>(2))
-                                                },
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
-                                                }),
+                // new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
+                //                                 resourcesManager,
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<int>(0)),
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MinMaxDepthComputeBuffer"), new ConstantPipelineParameterBinding<int>(2))
+                //                                 },
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
+                //                                 }),
                 new RenderIndirectCommandBufferPipelineStep("RenderOpaqueGeometry",
                                                             "/System/Shaders/RenderMeshInstance.shader",
                                                             new GraphicsPipelineResourceBinding[]

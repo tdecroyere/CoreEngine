@@ -5,6 +5,7 @@ namespace CoreEngine.Graphics
         ulong AllocatedMemory { get; }
 
         GraphicsMemoryAllocation AllocateMemory(int sizeInBytes, ulong alignment);
+        void FreeMemory(GraphicsMemoryAllocation allocation);
         void Reset(uint frameNumber);
     }
 }

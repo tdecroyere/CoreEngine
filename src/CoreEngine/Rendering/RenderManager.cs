@@ -70,6 +70,11 @@ namespace CoreEngine.Rendering
         // TODO: Each Render Manager should use their own Graphics Manager
         public RenderManager(Window window, NativeUIManager nativeUIManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
         {
+            if (nativeUIManager == null)
+            {
+                throw new ArgumentNullException(nameof(nativeUIManager));
+            }
+
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
@@ -215,7 +220,7 @@ namespace CoreEngine.Rendering
 
             var presentCommandList = this.graphicsManager.CreateCommandList(this.presentQueue, "PresentScreenBuffer");
 
-            var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
+            using var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
             var renderTarget = new RenderTargetDescriptor(backBufferTexture, null, BlendOperation.None);
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
             var startQueryIndex = InsertQueryTimestamp(presentCommandList);

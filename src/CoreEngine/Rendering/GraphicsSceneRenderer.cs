@@ -459,6 +459,11 @@ namespace CoreEngine.Rendering
                 throw new ArgumentNullException(nameof(graphicsManager));
             }
 
+            if (renderManager == null)
+            {
+                throw new ArgumentNullException(nameof(renderManager));
+            }
+
             var result = new List<CommandList>();
 
             // TODO: Aquire 3 resources: Depth Buffer, CamerasBuffer, Local Compute buffer
@@ -643,6 +648,11 @@ namespace CoreEngine.Rendering
             if (graphicsManager == null)
             {
                 throw new ArgumentNullException(nameof(graphicsManager));
+            }
+
+            if (renderManager == null)
+            {
+                throw new ArgumentNullException(nameof(renderManager));
             }
 
             // TODO: Throw an error if more that one depth buffer was bound to inputs
@@ -1142,17 +1152,17 @@ namespace CoreEngine.Rendering
                                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer")),
                                             new BindingGraphicsPipelineParameter<int>("GeometryInstanceCount", new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
                                         }),
-                new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
-                                                resourcesManager,
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<int>(0)),
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MinMaxDepthComputeBuffer"), new ConstantPipelineParameterBinding<int>(2))
-                                                },
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
-                                                }),
+                // new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
+                //                                 resourcesManager,
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<int>(0)),
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MinMaxDepthComputeBuffer"), new ConstantPipelineParameterBinding<int>(2))
+                //                                 },
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
+                //                                 }),
                 new RenderIndirectCommandBufferPipelineStep("RenderOpaqueGeometry",
                                                             "/System/Shaders/RenderMeshInstance.shader",
                                                             new GraphicsPipelineResourceBinding[]
@@ -1741,7 +1751,7 @@ namespace CoreEngine.Rendering
         //     return transparentCommandList;
         // }
 
-        int currentMomentCommandBuffer;
+        // int currentMomentCommandBuffer;
 
         // private CommandList ConvertToMomentShadowMap(ShaderCamera camera, CommandList commandListToWait)
         // {
@@ -1794,7 +1804,7 @@ namespace CoreEngine.Rendering
             }
             
             // this.currentDepthCommandBuffer = 0;
-            this.currentMomentCommandBuffer = 0;
+            // this.currentMomentCommandBuffer = 0;
 
             var copyCommandList = CreateCopyCommandList();
             var resetIcbCommandList = CreateResetIcbCommandList();

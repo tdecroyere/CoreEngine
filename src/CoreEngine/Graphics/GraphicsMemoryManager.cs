@@ -62,7 +62,26 @@ namespace CoreEngine.Graphics
 
         public void FreeAllocation(GraphicsMemoryAllocation allocation)
         {
-            // this.AllocatedGpuMemory -= (ulong)allocation.SizeInBytes;
+            var memoryAllocator = this.globalGpuMemoryAllocator;
+
+            if (allocation.GraphicsHeap.Type == GraphicsHeapType.Upload)
+            {
+                memoryAllocator = this.globalUploadMemoryAllocator;
+            }
+
+            else if (allocation.GraphicsHeap.Type == GraphicsHeapType.ReadBack)
+            {
+                memoryAllocator = this.globalReadBackMemoryAllocator;
+            }
+
+            else if (allocation.GraphicsHeap.Type == GraphicsHeapType.TransientGpu)
+            {
+                memoryAllocator = this.globalTransientGpuMemoryAllocator;
+            }
+
+            memoryAllocator.FreeMemory(allocation);
+
+            //this.AllocatedGpuMemory -= (ulong)allocation.SizeInBytes;
 
             // TODO: Free allocation
             // TODO: Don't delete graphics buffer until next frame to not overwrite data

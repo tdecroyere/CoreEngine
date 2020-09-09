@@ -3,27 +3,25 @@ import CoreEngineCommonInterop
 
 public class CoreEngineHost {
     public var hostPlatform: HostPlatform!
+    let nativeUIService: MacOSNativeUIService
     let graphicsService: MetalGraphicsService
     let inputsManager: InputsManager
 
     var startEnginePointer: StartEnginePtr?
-    var updateEnginePointer: UpdateEnginePtr?
 
-    public init(graphicsService: MetalGraphicsService, inputsManager: InputsManager) {
+    public init(nativeUIService: MacOSNativeUIService, graphicsService: MetalGraphicsService, inputsManager: InputsManager) {
         self.hostPlatform = HostPlatform()
+        self.nativeUIService = nativeUIService
         self.graphicsService = graphicsService
         self.inputsManager = inputsManager
     }
 
-    public func startEngine(_ appName: String? = nil) {
-        initCoreClrSwift()
+    public func startEngine(_ assemblyName: String) {
+        initCoreClrSwift(assemblyName)
 
-        var appNameUnsafe: UnsafeMutablePointer<Int8>? = nil
+        let appNameUnsafe: UnsafeMutablePointer<Int8>? = nil
 
-        if (appName != nil) {
-            appNameUnsafe = strdup(appName)
-        }
-        
+        initNativeUIService(self.nativeUIService, &self.hostPlatform.NativeUIService)
         initGraphicsService(self.graphicsService, &self.hostPlatform.GraphicsService)
         initInputsService(self.inputsManager, &self.hostPlatform.InputsService)
 
@@ -32,23 +30,13 @@ public class CoreEngineHost {
             return
         }
 
-        // TODO: The struct seems to be passed by value instead of this address
-        startEngineInterop(appNameUnsafe, &self.hostPlatform)
+        startEngineInterop(appNameUnsafe, self.hostPlatform)
     }
 
-    public func updateEngine(_ deltaTime: Float) {
-        guard let updateEngineInterop = self.updateEnginePointer else {
-            print("CoreEngine UpdatEngine method is not initialized")
-            return
-        }
-
-        updateEngineInterop(deltaTime)
-    }
-
-    func initCoreClrSwift() {
+    func initCoreClrSwift(_ assemblyName: String) {
         let appPath = Bundle.main.bundleURL.appendingPathComponent("Contents/CoreClr")
         let coreLibPath = appPath.appendingPathComponent("libcoreclr.dylib").path
-        
+
         let handle = dlopen(coreLibPath, RTLD_NOW | RTLD_LOCAL)
         
         let coreClrInitializeHandle = dlsym(handle, "coreclr_initialize")
@@ -98,24 +86,13 @@ public class CoreEngineHost {
         if (result == 0) {
             result = coreclr_create_delegate(hostHandle!, 
                                             domainId,
-                                            "CoreEngine",
-                                            "CoreEngine.Bootloader",
-                                            "StartEngine",
+                                            assemblyName,
+                                            "Program",
+                                            "Main",
                                             &managedDelegate)
 
             if (result == 0) {
                 self.startEnginePointer = unsafeBitCast(managedDelegate!, to: StartEnginePtr.self)
-            }
-
-            result = coreclr_create_delegate(hostHandle!, 
-                                            domainId,
-                                            "CoreEngine",
-                                            "CoreEngine.Bootloader",
-                                            "UpdateEngine",
-                                            &managedDelegate)
-
-            if (result == 0) {
-                self.updateEnginePointer = unsafeBitCast(managedDelegate!, to: UpdateEnginePtr.self)
             }
         }
         

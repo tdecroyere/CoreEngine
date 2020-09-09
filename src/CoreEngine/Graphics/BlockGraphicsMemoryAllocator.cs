@@ -43,6 +43,11 @@ namespace CoreEngine.Graphics
             return allocation;
         }
 
+        public void FreeMemory(GraphicsMemoryAllocation allocation)
+        {
+
+        }
+
         public void Reset(uint frameNumber)
         {
 

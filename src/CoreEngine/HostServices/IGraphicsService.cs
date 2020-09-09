@@ -252,9 +252,9 @@ namespace CoreEngine.HostServices
  
         IntPtr CreateCommandList(IntPtr commandQueuePointer);
         void SetCommandListLabel(IntPtr commandListPointer, string label);
-        void DeleteCommandList(IntPtr commandListId);
-        void ResetCommandList(IntPtr commandListId);
-        void CommitCommandList(IntPtr commandListId);
+        void DeleteCommandList(IntPtr commandListPointer);
+        void ResetCommandList(IntPtr commandListPointer);
+        void CommitCommandList(IntPtr commandListPointer);
         
         IntPtr CreateGraphicsHeap(GraphicsServiceHeapType type, ulong length);
         void SetGraphicsHeapLabel(IntPtr graphicsHeapPointer, string label);

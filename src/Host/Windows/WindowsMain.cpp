@@ -16,7 +16,7 @@ int CALLBACK WinMain(HINSTANCE applicationInstance, HINSTANCE, LPSTR commandLine
         assemblyName = "CoreEngine";
     }
 
-    else
+    else if (assemblyName == "compile" || assemblyName == "editor")
     {
         assemblyName = "CoreEngine-" + assemblyName;
     }

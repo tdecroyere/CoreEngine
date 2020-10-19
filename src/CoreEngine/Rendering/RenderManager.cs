@@ -191,9 +191,11 @@ namespace CoreEngine.Rendering
         internal void Render()
         {
             this.currentFrameSize = GetRenderSize();
+
+            // TODO: Resize the swap chain
             var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
-            Logger.BeginAction("SceneRenderer");
+            Logger.BeginAction($"SceneRenderer (FrameSize: {this.currentFrameSize})");
             this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
             Logger.EndAction();
 

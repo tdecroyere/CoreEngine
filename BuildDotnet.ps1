@@ -17,7 +17,7 @@ function CompileDotnet($projectPath)
 {
     Push-Location $OutputFolder
     Write-Output "[93mCompiling $projectPath...[0m"
-    dotnet build --nologo -c Debug -v Q -o "." "..\..\$projectPath"
+    dotnet build --nologo -c Debug -v Q -o "." "$projectPath"
 
     if(-Not $?)
     {
@@ -29,9 +29,31 @@ function CompileDotnet($projectPath)
     Pop-Location
 }
 
-CompileDotnet(".\src\Tools\Compiler")
-CompileDotnet(".\src\Tools\Editor")
-CompileDotnet(".\tests\EcsTest")
+function CompileAllDotnetProjects()
+{
+    ForEach ($projectDirectory in (get-childitem .\*.csproj -Recurse | Select-Object Directory))
+    {
+        CompileDotnet($projectDirectory.Directory.FullName)
+    }
+}
+
+function CompileDotnetProject($projectName)
+{
+    ForEach ($projectDirectory in (get-childitem .\$projectName.csproj -Recurse | Select-Object Directory))
+    {
+        CompileDotnet($projectDirectory.Directory.FullName)
+    }
+}
+
+if ($args.length -gt 0)
+{
+    CompileDotnetProject($args[0])
+}
+
+else
+{
+    CompileAllDotnetProjects
+}
 
 Write-Output "[92mSuccess: Compilation done.[0m"
 

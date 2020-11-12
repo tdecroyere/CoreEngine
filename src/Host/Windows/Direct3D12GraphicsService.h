@@ -127,6 +127,7 @@ class Direct3D12GraphicsService
         void DeleteTexture(void* texturePointer);
 
         void* CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
+        void ResizeSwapChain(void* swapChainPointer, int width, int height);
         void* GetSwapChainBackBufferTexture(void* swapChainPointer);
         unsigned long PresentSwapChain(void* swapChainPointer);
 

@@ -27,6 +27,7 @@ public protocol GraphicsServiceProtocol {
     func setTextureLabel(_ texturePointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteTexture(_ texturePointer: UnsafeMutableRawPointer?)
     func createSwapChain(_ windowPointer: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ width: Int, _ height: Int, _ textureFormat: GraphicsTextureFormat) -> UnsafeMutableRawPointer?
+    func resizeSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?, _ width: Int, _ height: Int)
     func getSwapChainBackBufferTexture(_ swapChainPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
     func presentSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?) -> UInt
     func createIndirectCommandBuffer(_ maxCommandCount: Int) -> UnsafeMutableRawPointer?

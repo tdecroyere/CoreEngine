@@ -49,6 +49,14 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 
 	switch (message)
 	{
+	case WM_CREATE:
+	{
+		if (g_darkModeSupported)
+		{
+			_AllowDarkModeForWindow(window, true);
+			RefreshTitleBarThemeColor(window);
+		}
+	}
 	case WM_ACTIVATE:
 	{
 		isAppActive = !(wParam == WA_INACTIVE);

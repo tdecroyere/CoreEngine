@@ -35,6 +35,7 @@ function RegisterVisualStudioEnvironment
         $vs2019ComPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019ProfPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019EntPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        $vs2019PreviewPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Preview\VC\Auxiliary\Build\vcvars64.bat"
 
         if (Test-Path -Path $vs2019ComPath)
         {
@@ -49,6 +50,11 @@ function RegisterVisualStudioEnvironment
         if (Test-Path -Path $vs2019EntPath)
         {
             $vsPath = $vs2019EntPath
+        }
+
+        if (Test-Path -Path $vs2019PreviewPath)
+        {
+            $vsPath = $vs2019PreviewPath
         }
 
         $batchCommand = "`"$vsPath`" > nul & set"

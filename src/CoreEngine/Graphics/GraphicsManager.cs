@@ -403,6 +403,14 @@ namespace CoreEngine.Graphics
             return new SwapChain(nativePointer, commandQueue, width, height, textureFormat);
         }
 
+        public void ResizeSwapChain(SwapChain swapChain, int width, int height)
+        {
+            swapChain.Width = width;
+            swapChain.Height = height;
+            
+            this.graphicsService.ResizeSwapChain(swapChain.NativePointer, width, height);
+        }
+
         public Texture GetSwapChainBackBufferTexture(SwapChain swapChain)
         {
             var textureNativePointer = this.graphicsService.GetSwapChainBackBufferTexture(swapChain.NativePointer);

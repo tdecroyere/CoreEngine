@@ -273,7 +273,7 @@ namespace CoreEngine.HostServices
 
         IntPtr CreateSwapChain(IntPtr windowPointer, IntPtr commandQueuePointer, int width, int height, GraphicsTextureFormat textureFormat);
         // void DeleteSwapChain(uint swapChainId);
-        // void ResizeSwapChain(uint swapChainId, int width, int height);
+        void ResizeSwapChain(IntPtr swapChainPointer, int width, int height);
         IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer);
         ulong PresentSwapChain(IntPtr swapChainPointer);
 

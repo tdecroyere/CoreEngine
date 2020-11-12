@@ -11,7 +11,7 @@ namespace CoreEngine.HostServices.Interop
         private delegate* unmanaged[Cdecl]<IntPtr, IntPtr, void> inputsService_AssociateWindowDelegate { get; }
         public unsafe void AssociateWindow(IntPtr windowPointer)
         {
-            if (this.context != null && this.inputsService_AssociateWindowDelegate != null)
+            if (this.inputsService_AssociateWindowDelegate != null)
             {
                 this.inputsService_AssociateWindowDelegate(this.context, windowPointer);
             }
@@ -20,7 +20,7 @@ namespace CoreEngine.HostServices.Interop
         private delegate* unmanaged[Cdecl]<IntPtr, InputsState> inputsService_GetInputsStateDelegate { get; }
         public unsafe InputsState GetInputsState()
         {
-            if (this.context != null && this.inputsService_GetInputsStateDelegate != null)
+            if (this.inputsService_GetInputsStateDelegate != null)
             {
                 return this.inputsService_GetInputsStateDelegate(this.context);
             }
@@ -31,7 +31,7 @@ namespace CoreEngine.HostServices.Interop
         private delegate* unmanaged[Cdecl]<IntPtr, uint, float, float, float, float, uint, void> inputsService_SendVibrationCommandDelegate { get; }
         public unsafe void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms)
         {
-            if (this.context != null && this.inputsService_SendVibrationCommandDelegate != null)
+            if (this.inputsService_SendVibrationCommandDelegate != null)
             {
                 this.inputsService_SendVibrationCommandDelegate(this.context, playerId, leftTriggerMotor, rightTriggerMotor, leftStickMotor, rightStickMotor, duration10ms);
             }

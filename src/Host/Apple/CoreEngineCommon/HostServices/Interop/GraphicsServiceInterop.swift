@@ -131,6 +131,11 @@ func GraphicsService_createSwapChainInterop(context: UnsafeMutableRawPointer?, _
     return contextObject.createSwapChain(windowPointer, commandQueuePointer, Int(width), Int(height), textureFormat)
 }
 
+func GraphicsService_resizeSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?, _ width: Int32, _ height: Int32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.resizeSwapChain(swapChainPointer, Int(width), Int(height))
+}
+
 func GraphicsService_getSwapChainBackBufferTextureInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.getSwapChainBackBufferTexture(swapChainPointer)
@@ -339,6 +344,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetTextureLabel = GraphicsService_setTextureLabelInterop
     service.GraphicsService_DeleteTexture = GraphicsService_deleteTextureInterop
     service.GraphicsService_CreateSwapChain = GraphicsService_createSwapChainInterop
+    service.GraphicsService_ResizeSwapChain = GraphicsService_resizeSwapChainInterop
     service.GraphicsService_GetSwapChainBackBufferTexture = GraphicsService_getSwapChainBackBufferTextureInterop
     service.GraphicsService_PresentSwapChain = GraphicsService_presentSwapChainInterop
     service.GraphicsService_CreateIndirectCommandBuffer = GraphicsService_createIndirectCommandBufferInterop

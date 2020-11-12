@@ -10,6 +10,7 @@
 
 #include <ShellScalingAPI.h>
 #include <Windows.h>
+#include <Uxtheme.h>
 #include <wrl/client.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>

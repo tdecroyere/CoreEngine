@@ -8,8 +8,6 @@ using namespace Microsoft::WRL;
 
 #define GetAlignedValue(value, alignement) (value + (alignement - (value % alignement)) % alignement)
 
-bool enableTiming = true;
-
 Direct3D12GraphicsService::Direct3D12GraphicsService()
 {
 	this->isWaitingForGlobalFence = false;
@@ -538,6 +536,55 @@ void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* comm
 	}
 
 	return swapChainStructure;
+}
+
+void Direct3D12GraphicsService::ResizeSwapChain(void* swapChainPointer, int width, int height)
+{
+	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
+
+	this->WaitForCommandQueueOnCpu(swapChain->CommandQueue, swapChain->CommandQueue->FenceValue - 1);
+
+	D3D12_RESOURCE_DESC backBufferDesc;
+
+	for (int i = 0; i < RenderBuffersCount; i++)
+	{
+		backBufferDesc = swapChain->BackBufferTextures[i]->ResourceDesc;
+		delete swapChain->BackBufferTextures[i];
+	}
+
+	backBufferDesc.Width = width;
+	backBufferDesc.Height = height;
+
+	AssertIfFailed(swapChain->SwapChainObject->ResizeBuffers(RenderBuffersCount, width, height, DXGI_FORMAT_UNKNOWN, 0));
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.Format = backBufferDesc.Format;
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+	for (int i = 0; i < RenderBuffersCount; i++)
+	{
+		ComPtr<ID3D12Resource> backBuffer;
+		AssertIfFailed(swapChain->SwapChainObject->GetBuffer(i, IID_PPV_ARGS(backBuffer.ReleaseAndGetAddressOf())));
+
+		wchar_t buff[64] = {};
+  		swprintf(buff, L"BackBufferRenderTarget%d", i);
+		backBuffer->SetName(buff);
+
+		Direct3D12Texture* backBufferTexture = new Direct3D12Texture();
+		backBufferTexture->TextureObject = backBuffer;
+		backBufferTexture->ResourceState = D3D12_RESOURCE_STATE_PRESENT;
+		backBufferTexture->IsPresentTexture = true;
+		backBufferTexture->ResourceDesc = backBufferDesc;
+
+		auto globalRtvDescriptorHeapHandle = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		globalRtvDescriptorHeapHandle.ptr += this->currentGlobalRtvDescriptorOffset;
+
+		this->graphicsDevice->CreateRenderTargetView(backBuffer.Get(), &rtvDesc, globalRtvDescriptorHeapHandle);
+		backBufferTexture->TextureDescriptorOffset = this->currentGlobalRtvDescriptorOffset;
+		this->currentGlobalRtvDescriptorOffset += this->globalRtvDescriptorHandleSize;
+
+		swapChain->BackBufferTextures[i] = backBufferTexture;
+	}
 }
 
 void* Direct3D12GraphicsService::GetSwapChainBackBufferTexture(void* swapChainPointer)
@@ -1241,7 +1288,11 @@ void Direct3D12GraphicsService::QueryTimestamp(void* commandListPointer, void* q
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	Direct3D12QueryBuffer* queryBuffer = (Direct3D12QueryBuffer*)queryBufferPointer;
 
-	commandList->CommandListObject->EndQuery(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
+	// TODO: Copy queries are crashing
+	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		commandList->CommandListObject->EndQuery(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
+	}
 }
 
 void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex)
@@ -1257,7 +1308,11 @@ void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void*
 		destinationBuffer->CpuPointer = nullptr;
 	}
 
-	commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
+	// TODO: Copy queries are crashing
+	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
+	}
 }
 
 void Direct3D12GraphicsService::EnableDebugLayer()
@@ -1325,117 +1380,6 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 
 	return true;
 }
-
-/*
-bool Direct3D12GraphicsService::CreateOrResizeSwapChain(int width, int height)
-{
-	if (width == 0 || height == 0)
-	{
-		return true;
-	}
-
-	this->currentRenderSize = { (float)width, (float)height };
-
-	// Create the swap chain
-	// TODO: Check for supported formats
-	// TODO: Add support for HDR displays
-	// TODO: Add support for resizing
-
-	if (this->swapChain)
-	{
-		// Wait until all previous GPU work is complete.
-		WaitForGlobalFence(true);
-
-		// Release resources that are tied to the swap chain and update fence values.
-		for (int i = 0; i < RenderBuffersCount; i++)
-		{
-			this->backBufferRenderTargets[i].Reset();
-		}
-	}
-
-	// TODO: Select the right format for HDR or SDR
-	auto format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	auto formatSrgb = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-
-	if (!this->swapChain)
-	{
-		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-		swapChainDesc.BufferCount = RenderBuffersCount;
-		swapChainDesc.Width = width;
-		swapChainDesc.Height = height;
-		swapChainDesc.Format = format;
-		swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-		swapChainDesc.SampleDesc = { 1, 0 };
-
-		DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFullScreenDesc = {};
-		swapChainFullScreenDesc.Windowed = true;
-		
-		AssertIfFailed(dxgiFactory->CreateSwapChainForHwnd(this->directCommandQueue.Get(), window, &swapChainDesc, &swapChainFullScreenDesc, nullptr, (IDXGISwapChain1**)this->swapChain.ReleaseAndGetAddressOf()));
-	}
-
-	else
-	{
-		// If the swap chain already exists, resize it.
-        auto result = this->swapChain->ResizeBuffers(RenderBuffersCount, width, height, format, 0);
-
-        if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET)
-        {
-            char buff[64] = {};
-            sprintf_s(buff, "Device Lost on ResizeBuffers: Reason code 0x%08X\n", (result == DXGI_ERROR_DEVICE_REMOVED) ? this->graphicsDevice->GetDeviceRemovedReason() : result);
-            OutputDebugStringA(buff);
-
-            // If the device was removed for any reason, a new device and swap chain will need to be created.
-            //HandleDeviceLost();
-
-            // Everything is set up now. Do not continue execution of this method. HandleDeviceLost will reenter this method
-            // and correctly set up the new device.
-            return false;
-        }
-
-        else
-        {
-            AssertIfFailed(result);
-        }
-	}
-
-	// TODO: Move that to the global rtv descriptor heap
-
-	// Describe and create a render target view (RTV) descriptor heap
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-	rtvHeapDesc.NumDescriptors = RenderBuffersCount;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	
-	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(this->rtvDescriptorHeap.ReleaseAndGetAddressOf())));
-	this->rtvDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-	// Create a RTV for each back buffers
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvDecriptorHandle = this->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-	rtvDesc.Format = formatSrgb;
-	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-	for (int i = 0; i < RenderBuffersCount; i++)
-	{
-		AssertIfFailed(this->swapChain->GetBuffer(i, IID_PPV_ARGS(this->backBufferRenderTargets[i].ReleaseAndGetAddressOf())));
-
-		wchar_t buff[64] = {};
-  		swprintf(buff, L"BackBufferRenderTarget%d", i);
-		this->backBufferRenderTargets[i]->SetName(buff);
-
-		this->graphicsDevice->CreateRenderTargetView(this->backBufferRenderTargets[i].Get(), &rtvDesc, rtvDecriptorHandle);
-		rtvDecriptorHandle.ptr += this->rtvDescriptorHandleSize;
-	}
-
-    // Reset the index to the current back buffer
-    this->currentBackBufferIndex = this->swapChain->GetCurrentBackBufferIndex();
-
-	return true;
-}*/
 
 bool Direct3D12GraphicsService::CreateHeaps()
 {

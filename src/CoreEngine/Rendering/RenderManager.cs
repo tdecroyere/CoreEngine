@@ -39,6 +39,7 @@ namespace CoreEngine.Rendering
     public class RenderManager : SystemManager, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
+        private readonly NativeUIManager nativeUIManager;
 
         private Vector2 currentFrameSize;
         private Stopwatch stopwatch;
@@ -63,6 +64,7 @@ namespace CoreEngine.Rendering
         private List<GpuTiming> currentGpuTimings;
 
         private Window window;
+        private Vector2 currentWindowRenderSize;
         private SwapChain swapChain;
         private Stack<Fence> presentFences;
         private CommandQueue presentQueue;
@@ -86,6 +88,7 @@ namespace CoreEngine.Rendering
             }
 
             this.graphicsManager = graphicsManager;
+            this.nativeUIManager = nativeUIManager;
             this.window = window;
 
             this.CopyCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Copy, "CopyCommandQueue");
@@ -94,9 +97,9 @@ namespace CoreEngine.Rendering
             this.presentQueue = this.graphicsManager.CreateCommandQueue(CommandType.Render, "PresentCommandQueue");
 
             // TODO: To remove, TESTS
-            var windowRenderSize = nativeUIManager.GetWindowRenderSize(this.window);
+            this.currentWindowRenderSize = nativeUIManager.GetWindowRenderSize(this.window);
 
-            this.swapChain = graphicsManager.CreateSwapChain(window, this.presentQueue, (int)windowRenderSize.X, (int)windowRenderSize.Y, TextureFormat.Bgra8UnormSrgb);
+            this.swapChain = graphicsManager.CreateSwapChain(window, this.presentQueue, (int)this.currentWindowRenderSize.X, (int)this.currentWindowRenderSize.Y, TextureFormat.Bgra8UnormSrgb);
             this.presentFences = new Stack<Fence>();
 
             InitResourceLoaders(resourcesManager);
@@ -190,6 +193,14 @@ namespace CoreEngine.Rendering
 
         internal void Render()
         {
+            var windowRenderSize = this.nativeUIManager.GetWindowRenderSize(this.window);
+
+            if (windowRenderSize != this.currentWindowRenderSize)
+            {
+                this.currentWindowRenderSize = windowRenderSize;
+                graphicsManager.ResizeSwapChain(this.swapChain, (int)windowRenderSize.X, (int)windowRenderSize.Y);
+            }
+            
             this.currentFrameSize = GetRenderSize();
 
             // TODO: Resize the swap chain
@@ -222,7 +233,7 @@ namespace CoreEngine.Rendering
 
             var presentCommandList = this.graphicsManager.CreateCommandList(this.presentQueue, "PresentScreenBuffer");
 
-            using var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
+            var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
             var renderTarget = new RenderTargetDescriptor(backBufferTexture, null, BlendOperation.None);
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.TriangleStrip);
             this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2);

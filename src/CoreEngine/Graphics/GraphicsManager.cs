@@ -16,6 +16,8 @@ namespace CoreEngine.Graphics
         private readonly IGraphicsService graphicsService;
         private readonly GraphicsMemoryManager graphicsMemoryManager;
 
+        private readonly bool logResourceAllocationInfos;
+
         // TODO: Remove internal
         internal string graphicsAdapterName;
         internal int gpuMemoryUploaded;
@@ -143,7 +145,11 @@ namespace CoreEngine.Graphics
 
         internal void DeleteCommandQueue(CommandQueue commandQueue)
         {
-            Logger.WriteMessage($"Deleting Command Queue {commandQueue.Label}...");
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting Command Queue {commandQueue.Label}...");
+            }
+
             this.graphicsService.DeleteCommandQueue(commandQueue.NativePointer);
         }
 
@@ -217,7 +223,11 @@ namespace CoreEngine.Graphics
 
         internal void DeleteCommandList(CommandList commandList)
         {
-            Logger.WriteMessage($"Deleting Command List {commandList.Label}...");
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting Command List {commandList.Label}...");
+            }
+
             this.graphicsService.DeleteCommandList(commandList.NativePointer);
         }
 
@@ -295,7 +305,10 @@ namespace CoreEngine.Graphics
 
         private void DeleteGraphicsBuffer(GraphicsBuffer graphicsBuffer)
         {
-            Logger.WriteMessage($"Deleting Graphics buffer {graphicsBuffer.Label}...");
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting Graphics buffer {graphicsBuffer.Label}...");
+            }
 
             this.graphicsService.DeleteGraphicsBuffer(graphicsBuffer.NativePointer1);
             this.graphicsMemoryManager.FreeAllocation(graphicsBuffer.GraphicsMemoryAllocation);
@@ -369,7 +382,10 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(texture));
             }
 
-            Logger.WriteMessage($"Deleting Texture {texture.Label}...");
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting Texture {texture.Label}...");
+            }
 
             this.graphicsService.DeleteTexture(texture.NativePointer1);
             this.graphicsMemoryManager.FreeAllocation(texture.GraphicsMemoryAllocation);
@@ -405,6 +421,11 @@ namespace CoreEngine.Graphics
 
         public void ResizeSwapChain(SwapChain swapChain, int width, int height)
         {
+            if (swapChain == null)
+            {
+                throw new ArgumentNullException(nameof(swapChain));
+            }
+
             swapChain.Width = width;
             swapChain.Height = height;
             
@@ -413,12 +434,22 @@ namespace CoreEngine.Graphics
 
         public Texture GetSwapChainBackBufferTexture(SwapChain swapChain)
         {
+            if (swapChain == null)
+            {
+                throw new ArgumentNullException(nameof(swapChain));
+            }
+
             var textureNativePointer = this.graphicsService.GetSwapChainBackBufferTexture(swapChain.NativePointer);
             return new Texture(this, new GraphicsMemoryAllocation(), null, textureNativePointer, null, swapChain.TextureFormat, TextureUsage.RenderTarget, swapChain.Width, swapChain.Height, 1, 1, 1, isStatic: true, "BackBuffer");
         }
 
         public Fence PresentSwapChain(SwapChain swapChain)
         {
+            if (swapChain == null)
+            {
+                throw new ArgumentNullException(nameof(swapChain));
+            }
+            
             var fenceValue = this.graphicsService.PresentSwapChain(swapChain.NativePointer);
             return new Fence(swapChain.CommandQueue, fenceValue);
         }
@@ -508,7 +539,11 @@ namespace CoreEngine.Graphics
 
         private void DeletePipelineState(PipelineState pipelineState)
         {
-            Logger.WriteMessage($"Deleting PipelineState {pipelineState.Label}...");
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting PipelineState {pipelineState.Label}...");
+            }
+
             this.graphicsService.DeletePipelineState(pipelineState.NativePointer);
 
             // TODO: Use something faster here
@@ -528,7 +563,11 @@ namespace CoreEngine.Graphics
 
         private void DeleteShader(Shader shader)
         {
-            Logger.WriteMessage($"Deleting Shader {shader.Label}...");
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting Shader {shader.Label}...");
+            }
+
             this.graphicsService.DeleteShader(shader.NativePointer);
 
             // TODO: Use something faster here

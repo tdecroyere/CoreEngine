@@ -5,20 +5,21 @@
 #include "CoreEngineHost.h"
 #include "WindowsNativeUIServiceUtils.h"
 
-int CALLBACK WinMain(HINSTANCE applicationInstance, HINSTANCE, LPSTR commandLine, int)
+int CALLBACK wWinMain(HINSTANCE applicationInstance, HINSTANCE, LPWSTR commandLine, int)
 {
 	AttachConsole(ATTACH_PARENT_PROCESS);
 
-    auto assemblyName = string(commandLine);
+    auto assemblyName = wstring(commandLine);
+    assemblyName = assemblyName.erase(assemblyName.find_last_not_of(' ')+1);
 
     if (assemblyName.empty())
     {
-        assemblyName = "CoreEngine";
+        assemblyName = L"CoreEngine";
     }
 
-    else if (assemblyName == "compile" || assemblyName == "editor")
+    else if (assemblyName == L"compile" || assemblyName == L"editor")
     {
-        assemblyName = "CoreEngine-" + assemblyName;
+        assemblyName = L"CoreEngine-" + assemblyName;
     }
 
     auto nativeUIService = WindowsNativeUIService(applicationInstance);

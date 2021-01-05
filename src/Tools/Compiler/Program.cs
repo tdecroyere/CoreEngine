@@ -6,7 +6,7 @@ using CoreEngine.Resources;
 
 public static class Program
 {
-    [UnmanagedCallersOnlyAttribute]
+    [UnmanagedCallersOnly]
     public static void Main(HostPlatform hostPlatform)
     {
         Logger.BeginAction("Starting CoreEngine Compiler");

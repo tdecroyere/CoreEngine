@@ -8,7 +8,7 @@ using CoreEngine.UI.Native;
 
 public static class Program
 {
-    [UnmanagedCallersOnlyAttribute]
+    [UnmanagedCallersOnly(EntryPoint = "main")]
     public static void Main(HostPlatform hostPlatform)
     {
         Logger.WriteMessage("Hello Triangle");

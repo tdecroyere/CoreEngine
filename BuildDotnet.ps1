@@ -19,6 +19,8 @@ function CompileDotnet($projectPath)
     Write-Output "[93mCompiling $projectPath...[0m"
     dotnet build --nologo -c Debug -v Q -o "." "$projectPath"
 
+    #dotnet publish /p:NativeLib=Shared -r win-x64 -c release
+
     if(-Not $?)
     {
         Pop-Location

@@ -19,7 +19,7 @@ using System.Runtime.InteropServices;
 
 public static class Program
 {
-    [UnmanagedCallersOnlyAttribute]
+    [UnmanagedCallersOnly(EntryPoint = "main")]
     public static void Main(HostPlatform hostPlatform)
     {
         Logger.BeginAction($"Starting CoreEngine (EcsTest)");

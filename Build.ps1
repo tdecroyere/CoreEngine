@@ -66,7 +66,7 @@ function RegisterVisualStudioEnvironment
     }
 }
 
-function GenerateIncludeFiles
+function RestoreNugetPackages
 {
     $nuGetExe = ".\nuget.exe"
     $packagesFile = "..\packages.config"
@@ -137,7 +137,9 @@ function CompileDotnet
 {
     Push-Location $TempFolder
     Write-Output "[93mCompiling CoreEngine Library...[0m"
-    dotnet publish --nologo -r win-x64 -c Debug -v Q --self-contained true -o "." "..\..\src\CoreEngine"
+    # dotnet publish --nologo -r win-x64 -c Debug -v Q --self-contained true -o "." "..\..\src\CoreEngine"
+    dotnet restore "..\..\src\CoreEngine\CoreEngine.csproj"
+    dotnet build --nologo -c Debug -v Q -o "." "..\..\src\CoreEngine"
 
     if(-Not $?)
     {
@@ -191,8 +193,10 @@ function LinkWindowsHost
 {
     Push-Location $ObjFolder
     Write-Output "[93mLinking Windows Executable...[0m"
+
+    # TODO: Copy nethost.dll to outputdir from the package folder
    
-    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
+    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.5.0.1\runtimes\win-x64\native\nethost.lib"
 
     if (-Not $?)
     {
@@ -209,14 +213,17 @@ function CopyFiles
     Write-Output "[93mCopy files...[0m"
     Push-Location $TempFolder
 
-    Copy-Item "*.dll" "..\Windows"
-    Copy-Item "*.pdb" "..\Windows"
-    Copy-Item "CoreEngine.exe" "..\Windows"
+    # Copy-Item "*.dll" "..\Windows"
+    # Copy-Item "*.pdb" "..\Windows"
+    # Copy-Item "CoreEngine.exe" "..\Windows"
+
+    Copy-Item "*" "..\Windows" -Recurse -Force
 
     Pop-Location
 }
 
 RegisterVisualStudioEnvironment
+RestoreNugetPackages
 GenerateInteropCode
 CompileDotnet
 PreCompileHeader

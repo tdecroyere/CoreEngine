@@ -7,7 +7,7 @@ using CoreEngine.UI.Native;
 
 public static class Program
 {
-    [UnmanagedCallersOnlyAttribute]
+    [UnmanagedCallersOnly]
     public static void Main(HostPlatform hostPlatform)
     {
         Logger.BeginAction("Starting CoreEngine Editor");

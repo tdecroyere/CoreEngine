@@ -52,6 +52,7 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
+            // "environment": [{"name": "COREHOST_TRACE", "value": "1"}],
             "environment": [],
             "externalConsole": false
         }

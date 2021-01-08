@@ -6,12 +6,12 @@ namespace CoreEngine.Samples.SuperMario
     {
         public override string Name => "Super Mario";
 
-        public App(SystemManagerContainer systemManagerContainer) : base(systemManagerContainer)
+        public override void OnInit(CoreEngineContext context)
         {
             Logger.WriteMessage("Starting Super Mario...");
         }
 
-        public override void Update(float deltaTime)
+        public override void OnUpdate(CoreEngineContext context, float deltaTime)
         {
             Logger.WriteMessage("Update Super Mario...");
         }

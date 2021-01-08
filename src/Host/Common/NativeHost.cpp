@@ -116,6 +116,14 @@ bool NativeHost_LoadEngine(StartEnginePtr* startEnginePointer, wstring assemblyN
     assert(pos != wstring::npos);
     root_path = root_path.substr(0, pos + 1);
 
+    wstring assemblyFileName = assemblyName;
+    pos = assemblyFileName.find_last_of(DIR_SEPARATOR);
+    
+    if(pos != wstring::npos)
+    {
+        assemblyFileName = assemblyFileName.substr(pos + 1);
+    }
+
     const string_t dotnetlib_path = root_path + assemblyName + L".dll";
 
     if (nativeLoad)
@@ -138,7 +146,7 @@ bool NativeHost_LoadEngine(StartEnginePtr* startEnginePointer, wstring assemblyN
         assert(load_assembly_and_get_function_pointer != nullptr && "Failure: get_dotnet_load_assembly()");
 
         const char_t* dotnetlib_pathPtr = dotnetlib_path.c_str();
-        const string_t dotnetType = (L"Program, " + assemblyName);
+        const string_t dotnetType = (L"Program, " + assemblyFileName);
         const char_t *dotnet_type = dotnetType.c_str();
         const char_t *dotnet_type_method = STR("Main");
 

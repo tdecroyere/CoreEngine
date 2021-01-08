@@ -4,21 +4,16 @@ namespace CoreEngine
 {
     public abstract class CoreEngineApp
     {
-        protected CoreEngineApp(SystemManagerContainer systemManagerContainer)
-        {
-            this.SystemManagerContainer = systemManagerContainer;
-        }
-
         public abstract string Name
         {
             get;
         }
 
-        public SystemManagerContainer SystemManagerContainer
+        public virtual void OnInit(CoreEngineContext context)
         {
-            get;
+
         }
 
-        public abstract void Update(float deltaTime);
+        public abstract void OnUpdate(CoreEngineContext context, float deltaTime);
     }
 }

@@ -13,7 +13,7 @@ class CoreEngineHost
 public:
     CoreEngineHost(const wstring assemblyName, const WindowsNativeUIService& nativeUIService, const Direct3D12GraphicsService& graphicsService, const WindowsInputsService& inputsService);
 
-    void StartEngine(string appName);
+    void StartEngine();
 
 private:
     const WindowsNativeUIService& nativeUIService;

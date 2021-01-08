@@ -50,7 +50,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "./CoreEngine.exe",
-            "args": ["Compiler Test"],
+            "args": ["Compiler\\Compiler Test"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
             // "environment": [{"name": "COREHOST_TRACE", "value": "1"}],

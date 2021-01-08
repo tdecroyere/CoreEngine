@@ -27,7 +27,7 @@ public static class Program
         }
 
         var resourcesManager = new ResourcesManager();
-            
+
         // TODO: Get the config from the host using hardcoded values for the moment
         resourcesManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
         resourcesManager.AddResourceStorage(new FileSystemResourceStorage("./Resources"));
@@ -56,19 +56,20 @@ public static class Program
         systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(renderManager.Graphics2DRenderer);
         systemManagerContainer.RegisterSystemManager<InputsManager>(inputsManager);
 
+        var context = new CoreEngineContext(systemManagerContainer);
         CoreEngineApp? coreEngineApp = null;
+        var pluginManager = new PluginManager();
 
         if (!string.IsNullOrEmpty(appPath))
         {
             Logger.BeginAction($"Loading CoreEngineApp '{appPath}'");
-            var pluginManager = new PluginManager();
-            coreEngineApp = pluginManager.LoadCoreEngineApp(appPath, systemManagerContainer).Result;
+            coreEngineApp = pluginManager.LoadCoreEngineApp(appPath, context).Result;
 
             if (coreEngineApp != null)
             {
                 resourcesManager.WaitForPendingResources();
                 nativeUIManager.SetWindowTitle(window, coreEngineApp.Name);
-             
+
                 Logger.EndAction();
             }
 
@@ -86,13 +87,21 @@ public static class Program
 
             while (appStatus.IsRunning)
             {
+                var updatedApp = pluginManager.CheckForUpdatedAssemblies().Result;
+
+                if (updatedApp != null)
+                {
+                    coreEngineApp = updatedApp;
+                }
+                
                 appStatus = nativeUIManager.ProcessSystemMessages();
 
                 if (appStatus.IsActive)
                 {
-                    coreEngineApp.SystemManagerContainer.PreUpdateSystemManagers();
-                    coreEngineApp.Update(1.0f / 60.0f);
-                    coreEngineApp.SystemManagerContainer.PostUpdateSystemManagers();
+                    systemManagerContainer.PreUpdateSystemManagers();
+                    // TOODO: Compute correct delta time
+                    coreEngineApp.OnUpdate(context, 1.0f / 60.0f);
+                    systemManagerContainer.PostUpdateSystemManagers();
 
                     if (renderManager != null)
                     {

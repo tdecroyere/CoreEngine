@@ -74,5 +74,5 @@ int CALLBACK wWinMain(HINSTANCE applicationInstance, HINSTANCE, LPWSTR fullComma
     auto inputsService = WindowsInputsService();
 
     auto coreEngineHost = CoreEngineHost(assemblyName, nativeUIService, graphicsService, inputsService);
-    coreEngineHost.StartEngine("EcsTest");
+    coreEngineHost.StartEngine();
 }

@@ -12,10 +12,8 @@ CoreEngineHost::CoreEngineHost(const wstring assemblyName, const WindowsNativeUI
     NativeHost_LoadEngine(&this->startEnginePointer, assemblyName, false);
 }
 
-void CoreEngineHost::StartEngine(string appName)
+void CoreEngineHost::StartEngine()
 {
-    // Add asserts to check for null values
-
     HostPlatform hostPlatform = {};
 
     InitNativeUIService(this->nativeUIService, &hostPlatform.NativeUIService);
@@ -23,6 +21,5 @@ void CoreEngineHost::StartEngine(string appName)
     InitInputsService(this->inputsService, &hostPlatform.InputsService);
 
     // TODO: Delete temp memory
-    const char* appNamePtr = appName.c_str();
     this->startEnginePointer(hostPlatform);
 }

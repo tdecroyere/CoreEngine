@@ -98,8 +98,10 @@ namespace CoreEngine.Tools.Compiler
 
                     if (diagnostics.Count(n => n.Severity == DiagnosticSeverity.Error) == 0)
                     {
-                        using var stream = new FileStream(Path.Combine(outputDirectory, project.AssemblyName + ".dll"), FileMode.Create);
+                        using var stream = new MemoryStream();
                         compilation.Emit(stream);
+
+                        await File.WriteAllBytesAsync(Path.Combine(outputDirectory, project.AssemblyName + ".dll"), stream.ToArray());
                     }
                 }
 

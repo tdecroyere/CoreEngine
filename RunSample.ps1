@@ -3,13 +3,8 @@ try
     Push-Location .\build\Windows\
     $env:COREHOST_TRACE=0
 
-    if ($args.length -gt 0 -And $args[0] -eq "Compiler")
-    {
-        $args = ".\Compiler\Compiler"
-    }
-
-    if($args) {
-        Start-Process .\CoreEngine.exe $args -Wait -NoNewWindow
+    if($args.length -gt 0) {
+        Start-Process .\CoreEngine.exe ../../samples/$args -Wait -NoNewWindow
     } else {
         Start-Process .\CoreEngine.exe -Wait -NoNewWindow
     }

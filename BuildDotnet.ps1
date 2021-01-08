@@ -4,10 +4,11 @@ $ProgressPreference = "SilentlyContinue"
 $SourceFolder = ".\src"
 $OutputFolder = "..\build\Windows"
 
-if (-not(Test-Path -Path $OutputFolder))
+if ($args.length -gt 0 -And $args[0] -eq "Compiler")
 {
-    New-Item -Path $OutputFolder -ItemType "directory" | Out-Null
+    $OutputFolder = "..\build\Windows\Compiler"
 }
+
 
 function ShowErrorMessage
 {
@@ -37,6 +38,11 @@ function CompileAllDotnetProjects()
 {
     Push-Location $SourceFolder
 
+    if (-not(Test-Path -Path $OutputFolder))
+    {
+        New-Item -Path $OutputFolder -ItemType "directory" | Out-Null
+    }
+
     ForEach ($projectDirectory in (get-childitem .\*.csproj -Recurse | Select-Object Directory))
     {
         CompileDotnet($projectDirectory.Directory.FullName)
@@ -48,6 +54,11 @@ function CompileAllDotnetProjects()
 function CompileDotnetProject($projectName)
 {
     Push-Location $SourceFolder
+
+    if (-not(Test-Path -Path $OutputFolder))
+    {
+        New-Item -Path $OutputFolder -ItemType "directory" | Out-Null
+    }
 
     ForEach ($projectDirectory in (get-childitem .\$projectName.csproj -Recurse | Select-Object Directory))
     {

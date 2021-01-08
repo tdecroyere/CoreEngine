@@ -1,8 +1,12 @@
 #pragma once
 
 #include <stdint.h>
+#include <sys/stat.h>
 
+#include <locale>
+#include <codecvt>
 #include <string>
+
 #include <map>
 #include <vector>
 #include <stack>

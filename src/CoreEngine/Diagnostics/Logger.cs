@@ -49,7 +49,7 @@ namespace CoreEngine.Diagnostics
                 Console.Write(" ");
             }
 
-            if (messageType != LogMessageTypes.Normal && messageType != LogMessageTypes.Action && messageType != LogMessageTypes.Success)
+            if (messageType != LogMessageTypes.Normal && messageType != LogMessageTypes.Action && messageType != LogMessageTypes.Success && messageType != LogMessageTypes.Important)
             {
                 message = $"{messageType.ToString()}: " + message;
             }

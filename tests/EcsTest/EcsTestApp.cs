@@ -14,8 +14,6 @@ namespace CoreEngine.Tests.EcsTest
         public EcsTestApp(SystemManagerContainer systemManagerContainer) : base(systemManagerContainer)
         {
             var resourcesManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
-            // resourcesManager.AddResourceStorage(new FileSystemResourceStorage("/Users/tdecroyere/Projects/CoreEngine/build/MacOS/CoreEngine.app/Contents/Resources"));
-            // resourcesManager.AddResourceStorage(new FileSystemResourceStorage(@"C:\Projects\perso\CoreEngine\build\Windows\Resources"));
 
             this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
             // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Bistro/Bistro.scene");

@@ -137,8 +137,6 @@ function CompileDotnet
 {
     Push-Location $TempFolder
     Write-Output "[93mCompiling CoreEngine Library...[0m"
-    # dotnet publish --nologo -r win-x64 -c Debug -v Q --self-contained true -o "." "..\..\src\CoreEngine"
-    dotnet restore "..\..\src\CoreEngine\CoreEngine.csproj"
     dotnet build --nologo -c Debug -v Q -o "." "..\..\src\CoreEngine"
 
     if(-Not $?)

@@ -19,6 +19,15 @@ namespace CoreEngine.HostServices.Interop
             return default(IntPtr);
         }
 
+        private delegate* unmanaged[Cdecl]<IntPtr, IntPtr, string, void> nativeUIService_SetWindowTitleDelegate { get; }
+        public unsafe void SetWindowTitle(IntPtr windowPointer, string title)
+        {
+            if (this.nativeUIService_SetWindowTitleDelegate != null)
+            {
+                this.nativeUIService_SetWindowTitleDelegate(this.context, windowPointer, title);
+            }
+        }
+
         private delegate* unmanaged[Cdecl]<IntPtr, IntPtr, Vector2> nativeUIService_GetWindowRenderSizeDelegate { get; }
         public unsafe Vector2 GetWindowRenderSize(IntPtr windowPointer)
         {

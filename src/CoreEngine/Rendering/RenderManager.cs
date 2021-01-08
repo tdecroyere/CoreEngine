@@ -190,6 +190,7 @@ namespace CoreEngine.Rendering
         }
 
         List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
+        internal bool logFrameTime = false;
 
         internal void Render()
         {
@@ -206,9 +207,17 @@ namespace CoreEngine.Rendering
             // TODO: Resize the swap chain
             var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
-            Logger.BeginAction($"SceneRenderer (FrameSize: {this.currentFrameSize})");
+            if (logFrameTime)
+            {
+                Logger.BeginAction($"SceneRenderer (FrameSize: {this.currentFrameSize})");
+            }
+
             this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
-            Logger.EndAction();
+            
+            if (logFrameTime)
+            {
+                Logger.EndAction();
+            }
 
             DrawDebugMessages();
             var fence = this.Graphics2DRenderer.Render(mainRenderTargetTexture);

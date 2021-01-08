@@ -1,0 +1,105 @@
+Entities:
+  - Entity: 'Scene'
+    Components:
+      - Component: 'CoreEngine.Components.SceneComponent'
+        ActiveCamera: 'MainCamera'
+  - Entity: 'UnitCube'
+    Components:
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [0, 0.45, -1]
+        Scale: [0.5, 0.5, 0.5]
+      - Component: 'CoreEngine.Rendering.Components.MeshComponent'
+        MeshResourceId: 'resource:/UnitCube.mesh'
+      - Component: 'CoreEngine.Rendering.Components.MaterialComponent'
+        MaterialResourceId: 'resource:/TestWhiteMaterial.material'
+  - Entity: 'Teapot1'
+    Components:
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [0, 1, 0]
+        Scale: [0.01, 0.01, 0.01]
+        RotationY: 90
+      - Component: 'CoreEngine.Rendering.Components.MeshComponent'
+        MeshResourceId: 'resource:/teapot.mesh'
+      - Component: 'CoreEngine.Rendering.Components.MaterialComponent'
+        MaterialResourceId: 'resource:/TestRedMaterial.material'
+  - Entity: 'Teapot2'
+    Components:
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [0.5, 1, 0]
+        Scale: [0.01, 0.01, 0.01]
+        RotationY: 45
+      - Component: 'CoreEngine.Rendering.Components.MeshComponent'
+        MeshResourceId: 'resource:/teapot.mesh'
+      - Component: 'CoreEngine.Rendering.Components.MaterialComponent'
+        MaterialResourceId: 'resource:/TestTextureMaterial.material'
+  - Entity: 'Teapot3'
+    Components:
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [1, 1, 0]
+        Scale: [0.01, 0.01, 0.01]
+        RotationY: 45
+      - Component: 'CoreEngine.Rendering.Components.MeshComponent'
+        MeshResourceId: 'resource:/teapot.mesh'
+      - Component: 'CoreEngine.Rendering.Components.MaterialComponent'
+        MaterialResourceId: 'resource:/TestWoodMaterial.material'
+  - Entity: 'Teapot4'
+    Components:
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [1.5, 1, 0]
+        Scale: [0.01, 0.01, 0.01]
+        RotationY: 45
+      - Component: 'CoreEngine.Rendering.Components.MeshComponent'
+        MeshResourceId: 'resource:/teapot.mesh'
+      - Component: 'CoreEngine.Rendering.Components.MaterialComponent'
+        MaterialResourceId: 'resource:/TestTextureMaterial.material'
+  - Entity: 'Teapot5'
+    Components:
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [2, 1, 0]
+        Scale: [0.01, 0.01, 0.01]
+        RotationY: 45
+      - Component: 'CoreEngine.Rendering.Components.MeshComponent'
+        MeshResourceId: 'resource:/teapot.mesh'
+      - Component: 'CoreEngine.Rendering.Components.MaterialComponent'
+        MaterialResourceId: 'resource:/TestWhiteMaterial.material'
+  - Entity: 'LightGenerator'
+    Components:
+      - Component: 'CoreEngine.Samples.SceneViewer.LightGeneratorComponent'
+        Dimensions: [34, 14, 19]
+        LightCount: 5
+  - Entity: 'SponzaModel'
+    Components:
+      - Component: 'CoreEngine.Rendering.Components.MeshComponent'
+        MeshResourceId: 'resource:/Sponza/sponza.mesh'
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Scale: [0.013, 0.013, 0.013]
+  # - Entity: 'Maison'
+  #   Components:
+  #     - Component: 'CoreEngine.Graphics.MeshComponent'
+  #       MeshResourceId: 'resource:/Maison3D.mesh'
+  #     - Component: 'CoreEngine.TransformComponent'
+  #       Scale: [100, 100, 100]
+  - Entity: 'MainLight'
+    Components:
+      - Component: 'CoreEngine.Rendering.Components.LightComponent'
+        Color: [0.3, 0.3, 1]
+        LightType: 1
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [-0.2, 1.0, -0.05]
+  - Entity: 'MainCamera'
+    Components:
+      - Component: 'CoreEngine.Rendering.Components.CameraComponent'
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [-1, 1.8, 0]
+        RotationY: 90
+      - Component: 'CoreEngine.Samples.SceneViewer.PlayerComponent'
+        MovementAcceleration: 300
+  - Entity: 'DebugCamera'
+    Components:
+      - Component: 'CoreEngine.Rendering.Components.CameraComponent'
+      - Component: 'CoreEngine.Components.TransformComponent'
+        Position: [-1, 10, 0]
+        RotationY: 90
+        RotationX: 90
+      # - Component: 'CoreEngine.Tests.EcsTest.PlayerComponent'
+      #   MovementAcceleration: 30000 

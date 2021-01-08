@@ -1,7 +1,8 @@
 $OriginalProgressPreference = $ProgressPreference
 $ProgressPreference = "SilentlyContinue"
 
-$OutputFolder = ".\build\Windows"
+$SourceFolder = ".\src"
+$OutputFolder = "..\build\Windows"
 
 if (-not(Test-Path -Path $OutputFolder))
 {
@@ -24,6 +25,7 @@ function CompileDotnet($projectPath)
     if(-Not $?)
     {
         Pop-Location
+        Pop-Location
         ShowErrorMessage
         Exit 1
     }
@@ -33,18 +35,26 @@ function CompileDotnet($projectPath)
 
 function CompileAllDotnetProjects()
 {
+    Push-Location $SourceFolder
+
     ForEach ($projectDirectory in (get-childitem .\*.csproj -Recurse | Select-Object Directory))
     {
         CompileDotnet($projectDirectory.Directory.FullName)
     }
+
+    Pop-Location
 }
 
 function CompileDotnetProject($projectName)
 {
+    Push-Location $SourceFolder
+
     ForEach ($projectDirectory in (get-childitem .\$projectName.csproj -Recurse | Select-Object Directory))
     {
         CompileDotnet($projectDirectory.Directory.FullName)
     }
+
+    Pop-Location
 }
 
 if ($args.length -gt 0)

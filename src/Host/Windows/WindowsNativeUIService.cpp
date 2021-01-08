@@ -75,6 +75,11 @@ void* WindowsNativeUIService::CreateWindow(char* title, int width, int height, e
     return window;
 }
 
+void WindowsNativeUIService::SetWindowTitle(void* windowPointer, char* title)
+{
+    SetWindowTextA((HWND)windowPointer, title);
+}
+
 struct Vector2 WindowsNativeUIService::GetWindowRenderSize(void* windowPointer)
 {
     RECT windowRectangle;

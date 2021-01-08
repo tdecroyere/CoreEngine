@@ -1242,13 +1242,25 @@ namespace CoreEngine.Rendering
             // TODO: Move that to render pipeline
             this.debugRenderer.ClearDebugLines();
 
-            Logger.BeginAction("InitGpuData");
-            InitializeGpuData(scene);
-            Logger.EndAction();
+            if (this.renderManager.logFrameTime)
+            {
+                Logger.BeginAction("InitGpuData");
+            }
 
-            Logger.BeginAction("RunPipeline");
+            InitializeGpuData(scene);
+            
+            if (this.renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+                Logger.BeginAction("RunPipeline");
+            }
+
             RunRenderPipeline(mainRenderTargetTexture);
-            Logger.EndAction();
+
+            if (this.renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+            }
         }
 
         GraphicsBuffer[] graphicsBufferList = new GraphicsBuffer[10000];

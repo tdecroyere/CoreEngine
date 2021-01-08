@@ -11,6 +11,7 @@ class WindowsNativeUIService
         ~WindowsNativeUIService();
 
         void* CreateWindow(char* title, int width, int height, enum NativeWindowState windowState);
+        void SetWindowTitle(void* windowPointer, char* title);
         struct Vector2 GetWindowRenderSize(void* windowPointer);
         struct NativeAppStatus ProcessSystemMessages();
 

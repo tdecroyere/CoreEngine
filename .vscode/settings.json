@@ -67,10 +67,25 @@
         "stack": "cpp",
         "deque": "cpp",
         "*.rh": "cpp",
-        "compare": "cpp"
+        "compare": "cpp",
+        "codecvt": "cpp",
+        "ctime": "cpp",
+        "locale": "cpp",
+        "xlocbuf": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xloctime": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++17",
     "omnisharp.enableRoslynAnalyzers": false,
-    "dotnetCoreExplorer.logpanel": true,
-    "csharp.referencesCodeLens.enabled": false
+    "csharp.referencesCodeLens.enabled": false,
+    "saveAndRunExt": {
+        "commands": [
+            {
+                "match": "\\.cs$",
+                "isShellCommand" : false,
+                "cmd": "csharpFormatUsings.formatUsings"
+            }
+        ]
+    }
 }

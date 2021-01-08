@@ -1,19 +1,13 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Numerics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using CoreEngine;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
 using CoreEngine.HostServices;
 using CoreEngine.Inputs;
-using CoreEngine.Resources;
 using CoreEngine.Rendering;
+using CoreEngine.Resources;
 using CoreEngine.UI.Native;
-using CoreEngine;
-using System.Runtime.InteropServices;
 
 [assembly: InternalsVisibleTo("CoreEngine.UnitTests")]
 
@@ -23,6 +17,14 @@ public static class Program
     public static void Main(HostPlatform hostPlatform)
     {
         Logger.BeginAction($"Starting CoreEngine (EcsTest)");
+
+        var args = Utils.GetCommandLineArguments();
+        var appPath = string.Empty;
+
+        if (args.Length > 0)
+        {
+            appPath = args[0];
+        }
 
         var resourcesManager = new ResourcesManager();
             
@@ -54,69 +56,52 @@ public static class Program
         systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(renderManager.Graphics2DRenderer);
         systemManagerContainer.RegisterSystemManager<InputsManager>(inputsManager);
 
-        Logger.BeginAction($"Loading CoreEngineApp 'EcsTest'");
-        var coreEngineApp = LoadCoreEngineApp("EcsTest", systemManagerContainer).Result;
-        resourcesManager.WaitForPendingResources();
+        CoreEngineApp? coreEngineApp = null;
 
-        if (coreEngineApp != null)
+        if (!string.IsNullOrEmpty(appPath))
         {
+            Logger.BeginAction($"Loading CoreEngineApp '{appPath}'");
+            var pluginManager = new PluginManager();
+            coreEngineApp = pluginManager.LoadCoreEngineApp(appPath, systemManagerContainer).Result;
+
+            if (coreEngineApp != null)
+            {
+                resourcesManager.WaitForPendingResources();
+                nativeUIManager.SetWindowTitle(window, coreEngineApp.Name);
+             
+                Logger.EndAction();
+            }
+
+            else
+            {
+                Logger.EndActionError();
+            }
+
             Logger.EndAction();
         }
 
-        else
+        if (coreEngineApp != null)
         {
-            Logger.EndActionError();
-        }
+            var appStatus = new AppStatus() { IsActive = true, IsRunning = true };
 
-        Logger.EndAction();
-
-        var appStatus = new AppStatus() { IsActive = true, IsRunning = true };
-
-        while (appStatus.IsRunning)
-        {
-            appStatus = nativeUIManager.ProcessSystemMessages();
-
-            if (appStatus.IsActive)
+            while (appStatus.IsRunning)
             {
-                if (coreEngineApp != null)
+                appStatus = nativeUIManager.ProcessSystemMessages();
+
+                if (appStatus.IsActive)
                 {
                     coreEngineApp.SystemManagerContainer.PreUpdateSystemManagers();
                     coreEngineApp.Update(1.0f / 60.0f);
                     coreEngineApp.SystemManagerContainer.PostUpdateSystemManagers();
-                }
 
-                if (renderManager != null)
-                {
-                    renderManager.Render();
+                    if (renderManager != null)
+                    {
+                        renderManager.Render();
+                    }
                 }
             }
         }
 
         Logger.WriteMessage("Exiting");
-
-    }
-
-    // TODO: Use the isolated app domain new feature to be able to do hot build of the app dll
-    private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName, SystemManagerContainer systemManagerContainer)
-    {
-        // TODO: Check if dll exists
-        var currentAssemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        var assemblyPath = Path.Combine(currentAssemblyPath, $"{appName}.dll");
-
-        if (File.Exists(assemblyPath))
-        {
-            var assemblyContent = await File.ReadAllBytesAsync(assemblyPath);
-            var assembly = Assembly.Load(assemblyContent);
-
-            foreach (var type in assembly.GetTypes())
-            {
-                if (type.IsSubclassOf(typeof(CoreEngineApp)))
-                {
-                    return (CoreEngineApp?)Activator.CreateInstance(type, systemManagerContainer);
-                }
-            }
-        }
-
-        return null;
     }
 }

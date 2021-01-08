@@ -20,7 +20,8 @@
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            "args": [],
+            // "args": ["Compiler ../../samples/SuperMario/SuperMario.csproj"],
+            "args": ["../../samples/SuperMario"],
             "stopAtEntry": false,
             "externalConsole": false,
             "osx": {
@@ -49,7 +50,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "./CoreEngine.exe",
-            "args": [],
+            "args": ["Compiler Test"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
             // "environment": [{"name": "COREHOST_TRACE", "value": "1"}],

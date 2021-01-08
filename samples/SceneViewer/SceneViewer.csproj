@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TargetFramework>net5.0</TargetFramework>
+    <NoWarn>CA1303;CA1815;CA2007;CS8604</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CoreEngine\CoreEngine.csproj" />
+  </ItemGroup>
+  
+</Project>

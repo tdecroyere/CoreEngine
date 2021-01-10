@@ -4,11 +4,10 @@ $ProgressPreference = "SilentlyContinue"
 $SourceFolder = ".\src"
 $OutputFolder = "..\build\Windows"
 
-if ($args.length -gt 0 -And $args[0] -eq "Compiler")
+if ($args.length -gt 0 -And $args[0] -eq "Compiler" -Or $args[0] -eq "Editor")
 {
-    $OutputFolder = "..\build\Windows\Compiler"
+    $OutputFolder = "..\build\Windows\Tools"
 }
-
 
 function ShowErrorMessage
 {
@@ -45,7 +44,23 @@ function CompileAllDotnetProjects()
 
     ForEach ($projectDirectory in (get-childitem .\*.csproj -Recurse | Select-Object Directory))
     {
+        if ($projectDirectory.Directory.Parent.Name -eq "Tools")
+        {
+            $OldOutputFolder = $OutputFolder
+            $OutputFolder = "..\build\Windows\Tools"
+
+            if (-not(Test-Path -Path $OutputFolder))
+            {
+                New-Item -Path $OutputFolder -ItemType "directory" | Out-Null
+            }
+        }
+
         CompileDotnet($projectDirectory.Directory.FullName)
+
+        if ($projectDirectory.Directory.Parent.Name -eq "Tools")
+        {
+            $OutputFolder = $OldOutputFolder
+        }
     }
 
     Pop-Location
@@ -63,6 +78,12 @@ function CompileDotnetProject($projectName)
     ForEach ($projectDirectory in (get-childitem .\$projectName.csproj -Recurse | Select-Object Directory))
     {
         CompileDotnet($projectDirectory.Directory.FullName)
+
+        if ($projectDirectory.Directory.Name -eq "CoreEngine")
+        {
+            $OutputFolder = "..\build\Windows\Tools"
+            CompileDotnet($projectDirectory.Directory.FullName)
+        }
     }
 
     Pop-Location

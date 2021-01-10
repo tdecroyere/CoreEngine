@@ -21,7 +21,7 @@
             "type": "coreclr",
             "request": "launch",
             // "args": ["Compiler ../../samples/SuperMario/SuperMario.csproj"],
-            "args": ["../../samples/SuperMario"],
+            "args": ["..\\..\\samples\\SuperMario"],
             "stopAtEntry": false,
             "externalConsole": false,
             "osx": {
@@ -50,7 +50,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "./CoreEngine.exe",
-            "args": ["Compiler\\Compiler Test"],
+            "args": ["..\\..\\samples\\SuperMario"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
             // "environment": [{"name": "COREHOST_TRACE", "value": "1"}],

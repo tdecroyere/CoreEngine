@@ -6,21 +6,20 @@ namespace CoreEngine.Samples.SceneViewer
 {
     public class App : CoreEngineApp
     {
-        private Scene currentScene;
         private EntitySystemManager entitySystemManager;
 
         public override string Name => "Scene Viewer";
 
-        public App(SystemManagerContainer systemManagerContainer) : base(systemManagerContainer)
+        public override void OnInit(CoreEngineContext context)
         {
-            var resourcesManager = this.SystemManagerContainer.GetSystemManager<ResourcesManager>();
+            var resourcesManager = context.SystemManagerContainer.GetSystemManager<ResourcesManager>();
 
-            this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
+            context.CurrentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
             // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Bistro/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/BistroV4/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
 
-            this.entitySystemManager = new EntitySystemManager(this.SystemManagerContainer);
+            this.entitySystemManager = new EntitySystemManager(context.SystemManagerContainer);
             this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
             this.entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
             this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
@@ -33,9 +32,9 @@ namespace CoreEngine.Samples.SceneViewer
             this.entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
         }
 
-        public override void Update(float deltaTime)
+        public override void OnUpdate(CoreEngineContext context, float deltaTime)
         {
-            this.entitySystemManager.Process(this.currentScene.EntityManager, deltaTime);
+            this.entitySystemManager.Process(context.CurrentScene.EntityManager, deltaTime);
         }
     }
 }

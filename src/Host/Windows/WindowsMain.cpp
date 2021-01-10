@@ -61,11 +61,22 @@ int CALLBACK wWinMain(HINSTANCE applicationInstance, HINSTANCE, LPWSTR fullComma
     {
         auto firstArgument = arguments[0];
 
-        if(FileExists(firstArgument + L".dll")) 
+        if (FileExists(firstArgument + L".dll")) 
         {
             assemblyName = firstArgument;
+        }
 
-            // TODO: Remove first element
+        else
+        {
+            auto fileParts = SplitString(commandLine, '\\');
+            auto directoryName = fileParts[fileParts.size() - 1];
+
+            // TODO: Detect architecture
+
+            // if (FileExists(firstArgument + L"\\bin\\win-x64\\" + directoryName + L".dll")) 
+            // {
+            //     assemblyName = firstArgument + L"\\bin\\win-x64\\" + directoryName;
+            // }
         }
     }
 

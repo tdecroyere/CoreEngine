@@ -114,10 +114,18 @@ namespace CoreEngine
         private async Task<CoreEngineApp?> LoadCoreEngineApp(string assemblyPath)
         {
             byte[]? assemblyContent = null;
+            byte[]? pdbContent = null;
             
             try
             {
                 assemblyContent = await File.ReadAllBytesAsync(assemblyPath);
+
+                var pdbPath = Path.Combine(Path.GetDirectoryName(assemblyPath), Path.GetFileNameWithoutExtension(assemblyPath) + ".pdb");
+
+                if (File.Exists(pdbPath))
+                {
+                    pdbContent = await File.ReadAllBytesAsync(pdbPath);
+                }
             }
 
             catch
@@ -143,6 +151,13 @@ namespace CoreEngine
 
                 using var memoryStream = new MemoryStream(assemblyContent);
 
+                MemoryStream? pdbStream = null;
+
+                if (pdbContent != null)
+                {
+                    pdbStream = new MemoryStream(pdbContent);
+                }
+
                 foreach (var test3 in AssemblyLoadContext.All)
                 {
                     Logger.BeginAction($"LoadContext: {test3.Name}");
@@ -155,7 +170,7 @@ namespace CoreEngine
                     Logger.EndAction();
                 }
 
-                var assembly = this.loadContext.LoadFromStream(memoryStream);
+                var assembly = this.loadContext.LoadFromStream(memoryStream, pdbStream);
 
                 foreach (var type in assembly.GetTypes())
                 {

@@ -257,8 +257,7 @@ namespace CoreEngine.Rendering
             var commandListName = "Graphics2DRenderer";
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, commandListName);
             
-            // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
-            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, new Vector4(0, 0, 0, 0), BlendOperation.AlphaBlending);
+            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.Triangle);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);

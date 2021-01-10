@@ -5,6 +5,8 @@ using CoreEngine.Diagnostics;
 using System;
 using Microsoft.CodeAnalysis;
 using System.Linq;
+using Microsoft.CodeAnalysis.Emit;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace CoreEngine.Tools.Compiler
 {
@@ -69,6 +71,9 @@ namespace CoreEngine.Tools.Compiler
 
                 if (compilation != null)
                 {
+                    compilation = compilation.WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, 
+                                                            optimizationLevel: OptimizationLevel.Debug));
+
                     var diagnostics = compilation.GetDiagnostics();
 
                     foreach (var diagnostic in diagnostics)
@@ -99,9 +104,11 @@ namespace CoreEngine.Tools.Compiler
                     if (diagnostics.Count(n => n.Severity == DiagnosticSeverity.Error) == 0)
                     {
                         using var stream = new MemoryStream();
-                        compilation.Emit(stream);
+                        using var pdbStream = new MemoryStream();
+                        compilation.Emit(stream, pdbStream: pdbStream, options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb));
 
                         await File.WriteAllBytesAsync(Path.Combine(outputDirectory, project.AssemblyName + ".dll"), stream.ToArray());
+                        await File.WriteAllBytesAsync(Path.Combine(outputDirectory, project.AssemblyName + ".pdb"), pdbStream.ToArray());
                     }
                 }
 

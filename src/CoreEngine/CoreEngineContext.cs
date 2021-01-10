@@ -7,9 +7,7 @@ namespace CoreEngine
             this.SystemManagerContainer = systemManagerContainer;
         }
 
-        public SystemManagerContainer SystemManagerContainer
-        {
-            get;
-        }
+        public Scene? CurrentScene { get; set; }
+        public SystemManagerContainer SystemManagerContainer { get; }
     }
 }

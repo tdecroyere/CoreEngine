@@ -8,6 +8,7 @@ namespace CoreEngine
         }
 
         public Scene? CurrentScene { get; set; }
+        public bool IsAppActive { get; set; }
         public SystemManagerContainer SystemManagerContainer { get; }
     }
 }

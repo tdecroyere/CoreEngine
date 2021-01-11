@@ -29,13 +29,21 @@ namespace CoreEngine.Inputs
             this.inputsService.AssociateWindow(window.NativePointer);
         }
 
-        public override void PreUpdate()
+        public override void PreUpdate(CoreEngineContext context)
         {
             // TODO: Implement an input action system to map the controls to actions
             // TODO: Take into account transition count
             // TODO: For the configuration, we should have access to the controller name and vendor
 
-            this.inputsState = this.inputsService.GetInputsState();
+            if (context.IsAppActive)
+            {
+                this.inputsState = this.inputsService.GetInputsState();
+            }
+
+            else
+            {
+                this.inputsState = new InputsState();
+            }
         }
 
         // TODO: Add an action system to process more easily the raw data from the host

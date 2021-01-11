@@ -15,7 +15,7 @@ namespace CoreEngine.Rendering
             this.CurrentScene = new GraphicsScene();
         }
 
-        public override void PostUpdate()
+        public override void PostUpdate(CoreEngineContext context)
         {
             this.CurrentScene.CleanItems();
 

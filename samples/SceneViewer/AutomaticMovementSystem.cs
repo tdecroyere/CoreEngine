@@ -2,8 +2,6 @@ using System;
 using System.Numerics;
 using CoreEngine.Components;
 using CoreEngine.Diagnostics;
-using CoreEngine.Rendering.Components;
-using CoreEngine.Inputs;
 
 namespace CoreEngine.Samples.SceneViewer
 {

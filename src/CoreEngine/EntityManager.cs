@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using CoreEngine.Collections;
 
 namespace CoreEngine
@@ -141,14 +143,14 @@ namespace CoreEngine
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
             var dataStorage = this.componentStorage[componentLayout];
 
-            var componentOffset = componentLayoutDesc.FindComponentOffset(typeof(T).GetHashCode());
+            var componentOffset = componentLayoutDesc.FindComponentOffset(new EntityHash(typeof(T)));
 
             if (componentOffset == null)
             {
-                throw new ArgumentException("Component type it part of the entity component layout.", nameof(component));
+                throw new ArgumentException("Component type is not part of the entity component layout.", nameof(component));
             }
 
-            var componentSize = componentLayoutDesc.FindComponentSize(typeof(T).GetHashCode());
+            var componentSize = componentLayoutDesc.FindComponentSize(new EntityHash(typeof(T)));
 
             // TODO: Throw an exception if entity not found
             for (var i = 0; i < dataStorage.Count; i++)
@@ -176,14 +178,14 @@ namespace CoreEngine
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
             var dataStorage = this.componentStorage[componentLayout];
 
-            var componentOffset = componentLayoutDesc.FindComponentOffset(componentType.GetHashCode());
+            var componentOffset = componentLayoutDesc.FindComponentOffset(new EntityHash(componentType));
 
             if (componentOffset == null)
             {
-                throw new ArgumentException("Component type it part of the entity component layout.", nameof(componentType));
+                throw new ArgumentException("Component type is not part of the entity component layout.", nameof(componentType));
             }
 
-            var componentSize = componentLayoutDesc.FindComponentSize(componentType.GetHashCode());
+            var componentSize = componentLayoutDesc.FindComponentSize(new EntityHash(componentType));
 
             // TODO: Throw an exception if entity not found 
             for (var i = 0; i < dataStorage.Count; i++)
@@ -225,14 +227,14 @@ namespace CoreEngine
             var componentLayoutDesc = this.componentLayouts[(int)componentLayout.EntityComponentLayoutId];
             var dataStorage = this.componentStorage[componentLayout];
 
-            var componentOffset = componentLayoutDesc.FindComponentOffset(typeof(T).GetHashCode());
+            var componentOffset = componentLayoutDesc.FindComponentOffset(new EntityHash(typeof(T)));
 
             if (componentOffset == null)
             {
                 throw new ArgumentException("Component type it part of the entity component layout.", nameof(T));
             }
 
-            var componentSize = componentLayoutDesc.FindComponentSize(typeof(T).GetHashCode());
+            var componentSize = componentLayoutDesc.FindComponentSize(new EntityHash(typeof(T)));
 
             // TODO: Throw an exception if entity not found
             for (var i = 0; i < dataStorage.Count; i++)
@@ -267,7 +269,7 @@ namespace CoreEngine
 
             for (var i = 0; i < componentLayoutDesc.ComponentCount; i++)
             {
-                if (componentLayoutDesc.ComponentTypes[i] == typeof(T).GetHashCode())
+                if (componentLayoutDesc.ComponentTypes[i] == new EntityHash(typeof(T)))
                 {
                     return true;
                 }
@@ -279,11 +281,11 @@ namespace CoreEngine
         internal EntitySystemData GetEntitySystemData(Type[] componentTypes)
         {
             var componentSizes = new int[componentTypes.Length];
-            var componentHashCodes = new int[componentTypes.Length];
+            var componentHashCodes = new EntityHash[componentTypes.Length];
 
             for (var i = 0; i < componentTypes.Length; i++)
             {
-                componentHashCodes[i] = componentTypes[i].GetHashCode();
+                componentHashCodes[i] = new EntityHash(componentTypes[i]);
             }
 
             // TODO: Re-use entity system data?
@@ -365,10 +367,9 @@ namespace CoreEngine
             return entitySystemData;
         }
 
-        private static int ComputeComponentLayoutHashCodeAndSort(ref Type[] componentTypes)
+        private static EntityHash ComputeComponentLayoutHashCodeAndSort(ref Type[] componentTypes)
         {
-            var result = 0;
-            var sortedList = new SortedList<int, Type>();
+            var sortedList = new SortedList<string, Type>();
 
             for (var i = 0; i < componentTypes.Length; i++)
             {
@@ -379,14 +380,13 @@ namespace CoreEngine
                     throw new ArgumentException("Type doesn't inherit from IComponentData", nameof(componentTypes));
                 }
 
-                var typeHashCode = componentType.GetHashCode();
-                sortedList.Add(typeHashCode, componentType);
-                result |= typeHashCode;
+                var typeHashCode = new EntityHash(componentType);
+                sortedList.Add(componentType.FullName, componentType);
             }
 
             sortedList.Values.CopyTo(componentTypes, 0);
 
-            return result;
+            return new EntityHash(componentTypes);
         }
 
         private static int ComputeChunkItemSize(ComponentLayoutDesc componentLayoutDesc)

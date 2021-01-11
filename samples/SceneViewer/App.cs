@@ -6,8 +6,6 @@ namespace CoreEngine.Samples.SceneViewer
 {
     public class App : CoreEngineApp
     {
-        private EntitySystemManager entitySystemManager;
-
         public override string Name => "Scene Viewer";
 
         public override void OnInit(CoreEngineContext context)
@@ -19,22 +17,29 @@ namespace CoreEngine.Samples.SceneViewer
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/BistroV4/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
 
-            this.entitySystemManager = new EntitySystemManager(context.SystemManagerContainer);
-            this.entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
-            this.entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
-            this.entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
-            this.entitySystemManager.RegisterEntitySystem<LightGeneratorSystem>();
-            this.entitySystemManager.RegisterEntitySystem<AutomaticMovementSystem>();
-            this.entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
-            this.entitySystemManager.RegisterEntitySystem<UpdateCameraSystem>();
-            this.entitySystemManager.RegisterEntitySystem<UpdateLightSystem>();
-            this.entitySystemManager.RegisterEntitySystem<UpdateGraphicsSceneSystem>();
-            this.entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
+            if (context.CurrentScene != null)
+            {
+                var entitySystemManager = context.CurrentScene.EntitySystemManager;
+
+                entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
+                // entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
+                entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
+                entitySystemManager.RegisterEntitySystem<LightGeneratorSystem>();
+                entitySystemManager.RegisterEntitySystem<AutomaticMovementSystem>();
+                entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
+                entitySystemManager.RegisterEntitySystem<UpdateCameraSystem>();
+                entitySystemManager.RegisterEntitySystem<UpdateLightSystem>();
+                entitySystemManager.RegisterEntitySystem<UpdateGraphicsSceneSystem>();
+                entitySystemManager.RegisterEntitySystem<RenderMeshSystem>();
+            }
         }
 
         public override void OnUpdate(CoreEngineContext context, float deltaTime)
         {
-            this.entitySystemManager.Process(context.CurrentScene.EntityManager, deltaTime);
+            if (context.CurrentScene != null)
+            {
+                context.CurrentScene.EntitySystemManager.Process(context.SystemManagerContainer, context.CurrentScene.EntityManager, deltaTime);
+            }
         }
     }
 }

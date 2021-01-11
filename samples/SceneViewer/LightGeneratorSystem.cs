@@ -54,7 +54,7 @@ namespace CoreEngine.Samples.SceneViewer
                         var speed = (float)random.NextDouble() * 1.3f;
 
                         var entity = entityManager.CreateEntity(componentLayout);
-                        entityManager.SetComponentData(entity, new LightComponent { Color = new Vector3((j % 3 == 0) ? 1: 0, (j % 3 == 1) ? 1: 0, (j % 3 == 2) ? 1: 0) });
+                        entityManager.SetComponentData(entity, new LightComponent { Color = new Vector3((j % 3 == 0) ? 1: 0, (j % 3 == 1) ? 1: 0, (j % 3 == 2) ? 1: 0) });
                         entityManager.SetComponentData(entity, new TransformComponent{ Position = new Vector3(offsetX, offsetY, offsetZ), Scale = Vector3.One, WorldMatrix = Matrix4x4.Identity });
                         entityManager.SetComponentData(entity, new AutomaticMovementComponent{ Radius = 1.0f, Speed = speed });
                     }

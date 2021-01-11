@@ -10,5 +10,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CoreEngine\CoreEngine.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+  <Content Include="*" />
+    <Content Update="Images/mario_bros.png">
+      <Compress>true</Compress>
+    </Content>
+  </ItemGroup>
   
 </Project>

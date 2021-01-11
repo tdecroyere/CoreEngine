@@ -33,12 +33,16 @@ namespace CoreEngine
 
         public T CreateInstance<T>()
         {
-            var type = typeof(T);
+            return CreateInstance<T>(typeof(T));
+        }
+
+        public T CreateInstance<T>(Type type)
+        {
             var constructorsInfo = type.GetConstructors();
 
             if (constructorsInfo.Length == 0 || constructorsInfo[0].IsPublic == false)
             {
-                throw new ArgumentException($"Type '{typeof(T).ToString()}' has no public constructor.");
+                throw new ArgumentException($"Type '{type.ToString()}' has no public constructor.");
             }
 
             var constructorInfo = constructorsInfo[0];
@@ -57,7 +61,7 @@ namespace CoreEngine
                 resolvedParameters[i] = this.systemManagerList[parameter.ParameterType];
             }
 
-            var instance = Activator.CreateInstance(typeof(T), resolvedParameters);
+            var instance = Activator.CreateInstance(type, resolvedParameters);
 
             if (instance == null)
             {
@@ -67,21 +71,21 @@ namespace CoreEngine
             return (T)instance;
         }
 
-        public void PreUpdateSystemManagers()
+        public void PreUpdateSystemManagers(CoreEngineContext context)
         {
             // TODO: Performance issue here?
             foreach (var manager in this.systemManagerList)
             {
-                manager.Value.PreUpdate();
+                manager.Value.PreUpdate(context);
             }
         }
 
-        public void PostUpdateSystemManagers()
+        public void PostUpdateSystemManagers(CoreEngineContext context)
         {
             // TODO: Performance issue here?
             foreach (var manager in this.systemManagerList)
             {
-                manager.Value.PostUpdate();
+                manager.Value.PostUpdate(context);
             }
         }
     }

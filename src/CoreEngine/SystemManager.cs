@@ -6,12 +6,12 @@ namespace CoreEngine
     {
         // TODO: Add Init/DeInit methods
 
-        public virtual void PreUpdate()
+        public virtual void PreUpdate(CoreEngineContext context)
         {
 
         }
 
-        public virtual void PostUpdate()
+        public virtual void PostUpdate(CoreEngineContext context)
         {
 
         }

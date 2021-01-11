@@ -29,17 +29,19 @@ namespace CoreEngine
 
     // TODO: Unify hot reloading with resource manager?
 
-    public class PluginManager
+    public class PluginManager : SystemManager
     {
         private PluginLoadContext? loadContext;
         private IDictionary<string, CoreEngineApp> loadedApplications;
         private IDictionary<string, DateTime> applicationsWriteDates;
         private DateTime lastCheckedDate;
+        private IList<Assembly> loadedAssemblies;
         
         public PluginManager()
         {
             this.loadedApplications = new Dictionary<string, CoreEngineApp>();
             this.applicationsWriteDates = new Dictionary<string, DateTime>();
+            this.loadedAssemblies = new List<Assembly>();
 
             this.lastCheckedDate = DateTime.Now;
         }
@@ -74,15 +76,13 @@ namespace CoreEngine
         }
 
         // TODO: Refactor that code!
-        public async Task<CoreEngineApp?> CheckForUpdatedAssemblies()
+        public async Task<CoreEngineApp?> CheckForUpdatedAssemblies(CoreEngineContext context)
         {
             // TODO: Convert that to a long running task
             var currentDate = DateTime.Now;
 
             if ((currentDate - this.lastCheckedDate).TotalMilliseconds >= 1000)
             {
-                this.lastCheckedDate = currentDate;
-
                 foreach (var assemblyPath in this.loadedApplications.Keys)
                 {
                     if (File.Exists(assemblyPath))
@@ -97,8 +97,17 @@ namespace CoreEngine
 
                             if (app != null)
                             {
+                                this.loadedAssemblies.Clear();
+
+                                if (context.CurrentScene != null)
+                                {
+                                    context.CurrentScene.EntitySystemManager.UnbindRegisteredSystems();
+                                }
+
                                 this.loadedApplications[assemblyPath] = app;
                                 this.applicationsWriteDates[assemblyPath] = lastWriteTime;
+                                this.lastCheckedDate = currentDate;
+                                
                                 return app;
                             }
                         }
@@ -109,6 +118,30 @@ namespace CoreEngine
             }
 
             return null;
+        }
+
+        public Assembly FindLoadedAssembly(string assemblyName)
+        {
+            for (var i = 0; i < this.loadedAssemblies.Count; i++)
+            {
+                if (this.loadedAssemblies[i].FullName == assemblyName)
+                {
+                    return this.loadedAssemblies[i];
+                }
+            }
+
+            foreach (var loadContext in AssemblyLoadContext.All)
+            {
+                foreach (var assembly in loadContext.Assemblies)
+                {
+                    if (assembly.FullName == assemblyName)
+                    {
+                        return assembly;
+                    }
+                }
+            }
+
+            return Assembly.GetExecutingAssembly();
         }
 
         private async Task<CoreEngineApp?> LoadCoreEngineApp(string assemblyPath)
@@ -145,7 +178,7 @@ namespace CoreEngine
                     this.loadContext.Unload();
                     this.loadContext = new PluginLoadContext();
 
-                    GC.Collect();
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
                     GC.WaitForPendingFinalizers();
                 }
 
@@ -171,6 +204,7 @@ namespace CoreEngine
                 }
 
                 var assembly = this.loadContext.LoadFromStream(memoryStream, pdbStream);
+                this.loadedAssemblies.Add(assembly);
 
                 foreach (var type in assembly.GetTypes())
                 {

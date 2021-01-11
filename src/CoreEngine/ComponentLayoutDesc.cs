@@ -5,20 +5,20 @@ namespace CoreEngine
 {
     internal class ComponentLayoutDesc
     {
-        public ComponentLayoutDesc(ComponentLayout componentLayout, int hashCode, Type[] componentTypes)
+        public ComponentLayoutDesc(ComponentLayout componentLayout, EntityHash hashCode, Type[] componentTypes)
         {
             this.ComponentLayout = componentLayout;
             this.HashCode = hashCode;
             this.Size = 0;
             this.ComponentCount = componentTypes.Length;
-            this.ComponentTypes = new int[this.ComponentCount];
+            this.ComponentTypes = new EntityHash[this.ComponentCount];
             this.ComponentOffsets = new int[this.ComponentCount];
             this.ComponentSizes = new int[this.ComponentCount];
             this.ComponentDefaultValues = new IComponentData[this.ComponentCount];
 
             for (int i = 0; i < this.ComponentCount; i++)
             {
-                this.ComponentTypes[i] = componentTypes[i].GetHashCode();
+                this.ComponentTypes[i] = new EntityHash(componentTypes[i]);
                 this.ComponentOffsets[i] = this.Size;
                 this.ComponentSizes[i] = Marshal.SizeOf(componentTypes[i]);
 
@@ -37,15 +37,15 @@ namespace CoreEngine
         }
 
         public ComponentLayout ComponentLayout { get; }
-        public int HashCode { get;}
+        public EntityHash HashCode { get;}
         public int Size { get; set; }
         public int ComponentCount { get; }
-        public int[] ComponentTypes { get; }
+        public EntityHash[] ComponentTypes { get; }
         public int[] ComponentOffsets { get; }
         public int[] ComponentSizes { get; }
         public IComponentData[] ComponentDefaultValues { get; }
 
-        public int? FindComponentOffset(int componentTypeHash)
+        public int? FindComponentOffset(EntityHash componentTypeHash)
         {
             var componentIndex = -1;
 
@@ -66,7 +66,7 @@ namespace CoreEngine
             return this.ComponentOffsets[componentIndex];
         }
 
-        public int FindComponentSize(int componentTypeHash)
+        public int FindComponentSize(EntityHash componentTypeHash)
         {
             var componentIndex = -1;
 

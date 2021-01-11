@@ -140,7 +140,7 @@ namespace CoreEngine.Rendering
             this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Gpu, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer");
         }
 
-        public override void PreUpdate()
+        public override void PreUpdate(CoreEngineContext context)
         {
             this.textures.Clear();
             this.currentSurfaceCount = 0;

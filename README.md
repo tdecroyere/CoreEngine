@@ -1,6 +1,6 @@
 # Core Engine
 
-![CI_BuildMacOS](https://github.com/tdecroyere/CoreEngine/workflows/CI_BuildMacOS/badge.svg?branch=master) [![codecov](https://codecov.io/gh/tdecroyere/CoreEngine/branch/master/graph/badge.svg)](https://codecov.io/gh/tdecroyere/CoreEngine)
+![CI_BuildMacOS](https://github.com/tdecroyere/CoreEngine/workflows/CI_BuildMacOS/badge.svg?branch=main) [![codecov](https://codecov.io/gh/tdecroyere/CoreEngine/branch/master/graph/badge.svg)](https://codecov.io/gh/tdecroyere/CoreEngine)
 
 Core Engine is a multi-platform realtime Game Engine written in .NET 5.
 

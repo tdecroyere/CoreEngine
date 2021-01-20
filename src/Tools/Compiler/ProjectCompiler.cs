@@ -82,7 +82,7 @@ namespace CoreEngine.Tools.Compiler
                         {
                             LogMessageTypes messageType;
 
-                            switch(diagnostic.Severity)
+                            switch (diagnostic.Severity)
                             {
                                 case DiagnosticSeverity.Warning:
                                     messageType = LogMessageTypes.Warning;
@@ -101,7 +101,7 @@ namespace CoreEngine.Tools.Compiler
                         }
                     }
 
-                    if (diagnostics.Count(n => n.Severity == DiagnosticSeverity.Error) == 0)
+                    if (!diagnostics.Any(n => n.Severity == DiagnosticSeverity.Error))
                     {
                         using var stream = new MemoryStream();
                         using var pdbStream = new MemoryStream();

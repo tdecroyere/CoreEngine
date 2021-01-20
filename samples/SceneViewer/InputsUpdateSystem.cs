@@ -20,7 +20,7 @@ namespace CoreEngine.Samples.SceneViewer
         {
             var definition = new EntitySystemDefinition("Inputs Update System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(PlayerComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<PlayerComponent>());
 
             return definition;
         }

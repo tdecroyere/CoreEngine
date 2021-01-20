@@ -14,7 +14,7 @@ namespace CoreEngine
 
         public string TypeName { get; }
 
-        public Type[]? ComponentTypes { get; set; }
+        public ComponentHash[]? ComponentHashs { get; set; }
         public EntitySystem? EntitySystem { get; set; }
     }
 
@@ -50,13 +50,18 @@ namespace CoreEngine
             for (var i = 0; i < this.RegisteredSystems.Count; i++)
             {
                 this.RegisteredSystems[i].EntitySystem = null;
-                this.RegisteredSystems[i].ComponentTypes = null;
+                this.RegisteredSystems[i].ComponentHashs = null;
             }
         }
 
         public void Process(SystemManagerContainer systemManagerContainer, EntityManager entityManager, float deltaTime)
         {
-            if (entityManager == null)
+            if (systemManagerContainer is null)
+            {
+                throw new ArgumentNullException(nameof(systemManagerContainer));
+            }
+
+            if (entityManager is null)
             {
                 throw new ArgumentNullException(nameof(entityManager));
             }
@@ -87,14 +92,11 @@ namespace CoreEngine
                     var systemDefinition = registeredSystem.EntitySystem.BuildDefinition();
 
                     // TODO: Be carreful of memory management and small buffers
-                    registeredSystem.ComponentTypes = new Type[systemDefinition.Parameters.Count];
+                    registeredSystem.ComponentHashs = new ComponentHash[systemDefinition.Parameters.Count];
 
-                    if (registeredSystem.ComponentTypes != null)
+                    for (var j = 0; j < registeredSystem.ComponentHashs.Length; j++)
                     {
-                        for (var j = 0; j < registeredSystem.ComponentTypes.Length; j++)
-                        {
-                            registeredSystem.ComponentTypes[j] = systemDefinition.Parameters[j].ComponentType;
-                        }
+                        registeredSystem.ComponentHashs[j] = systemDefinition.Parameters[j].ComponentHash;
                     }
                 }
 
@@ -102,7 +104,7 @@ namespace CoreEngine
 
                 if (entitySystem != null)
                 {
-                    var entitySystemData = entityManager.GetEntitySystemData(this.RegisteredSystems[i].ComponentTypes);
+                    var entitySystemData = entityManager.GetEntitySystemData(this.RegisteredSystems[i].ComponentHashs);
 
                     entitySystem.SetEntitySystemData(entitySystemData);
                     entitySystem.Process(entityManager, deltaTime);

@@ -8,6 +8,8 @@ using CoreEngine.Inputs;
 using CoreEngine.Rendering;
 using CoreEngine.Resources;
 using CoreEngine.UI.Native;
+using CoreEngine.Components;
+using CoreEngine.Rendering.Components;
 
 [assembly: InternalsVisibleTo("CoreEngine.UnitTests")]
 
@@ -59,6 +61,11 @@ public static class Program
         systemManagerContainer.RegisterSystemManager<InputsManager>(inputsManager);
         systemManagerContainer.RegisterSystemManager<PluginManager>(pluginManager);
 
+        var entityManager = new EntityManager();
+        entityManager.CreateComponentLayout<TransformComponent>();
+        entityManager.CreateComponentLayout<TransformComponent>();
+        // entityManager.CreateComponentLayout<TransformComponent, MeshComponent>();
+
         var context = new CoreEngineContext(systemManagerContainer);
         CoreEngineApp? coreEngineApp = null;
 
@@ -100,14 +107,11 @@ public static class Program
                 context.IsAppActive = appStatus.IsActive;
 
                 systemManagerContainer.PreUpdateSystemManagers(context);
-                // TOODO: Compute correct delta time
+                // TODO: Compute correct delta time
                 coreEngineApp.OnUpdate(context, 1.0f / 60.0f);
                 systemManagerContainer.PostUpdateSystemManagers(context);
-
-                if (renderManager != null)
-                {
-                    renderManager.Render();
-                }
+                
+                renderManager.Render();
             }
         }
 

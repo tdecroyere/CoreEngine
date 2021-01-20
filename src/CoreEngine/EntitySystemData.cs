@@ -9,6 +9,6 @@ namespace CoreEngine
     {
         // TODO: Use array pool to reuse memory?
         public EntitySystemArray<Entity> EntityArray { get; } = new EntitySystemArray<Entity>(Marshal.SizeOf<Entity>());
-        public IDictionary<EntityHash, EntitySystemArray<byte>> ComponentsData { get; } = new Dictionary<EntityHash, EntitySystemArray<byte>>();
+        public IDictionary<ComponentHash, EntitySystemArray<byte>> ComponentsData { get; } = new Dictionary<ComponentHash, EntitySystemArray<byte>>();
     }
 }

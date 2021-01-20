@@ -29,7 +29,7 @@ namespace CoreEngine
 
             if (entitySystemData != null)
             {
-                var componentTypeHashCode = new EntityHash(typeof(T));
+                var componentTypeHashCode = new T().GetComponentHash();
 
                 if (!this.entitySystemData.ComponentsData.ContainsKey(componentTypeHashCode))
                 {

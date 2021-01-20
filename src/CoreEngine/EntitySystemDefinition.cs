@@ -10,6 +10,6 @@ namespace CoreEngine
         }
 
         public string Name { get; }
-        public IList<EntitySystemParameter> Parameters { get; } = new List<EntitySystemParameter>();
+        public IList<IEntitySystemParameter> Parameters { get; } = new List<IEntitySystemParameter>();
     }
 }

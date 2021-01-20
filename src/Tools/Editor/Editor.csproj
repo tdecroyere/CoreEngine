@@ -4,16 +4,13 @@
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <TargetFramework>net5.0</TargetFramework>
-    <NoWarn>CA1303;CA1815;CA2007;CS8604</NoWarn>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <NoWarn>CA1014;CA1303;CA1815;CA2007;CS8604</NoWarn>
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\CoreEngine\CoreEngine.csproj" />
-    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
   
 </Project>

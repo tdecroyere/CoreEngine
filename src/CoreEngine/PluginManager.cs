@@ -18,6 +18,11 @@ namespace CoreEngine
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
+            if (assemblyName is null)
+            {
+                throw new ArgumentNullException(nameof(assemblyName));
+            }
+
             if (assemblyName.FullName == Assembly.GetExecutingAssembly().FullName)
             {
                 return Assembly.GetExecutingAssembly();
@@ -31,11 +36,11 @@ namespace CoreEngine
 
     public class PluginManager : SystemManager
     {
+        private readonly IDictionary<string, CoreEngineApp> loadedApplications;
+        private readonly IDictionary<string, DateTime> applicationsWriteDates;
+        private readonly IList<Assembly> loadedAssemblies;
         private PluginLoadContext? loadContext;
-        private IDictionary<string, CoreEngineApp> loadedApplications;
-        private IDictionary<string, DateTime> applicationsWriteDates;
         private DateTime lastCheckedDate;
-        private IList<Assembly> loadedAssemblies;
         
         public PluginManager()
         {
@@ -48,6 +53,11 @@ namespace CoreEngine
 
         public async Task<CoreEngineApp?> LoadCoreEngineApp(string appPath, CoreEngineContext context)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            
             // TODO: Check if dll exists
             // TODO: Implement target selection
 
@@ -78,6 +88,11 @@ namespace CoreEngine
         // TODO: Refactor that code!
         public async Task<CoreEngineApp?> CheckForUpdatedAssemblies(CoreEngineContext context)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             // TODO: Convert that to a long running task
             var currentDate = DateTime.Now;
 
@@ -146,7 +161,7 @@ namespace CoreEngine
 
         private async Task<CoreEngineApp?> LoadCoreEngineApp(string assemblyPath)
         {
-            byte[]? assemblyContent = null;
+            byte[]? assemblyContent;
             byte[]? pdbContent = null;
             
             try
@@ -161,7 +176,7 @@ namespace CoreEngine
                 }
             }
 
-            catch
+            catch(IOException)
             {
                 return null;
             }
@@ -186,31 +201,42 @@ namespace CoreEngine
 
                 MemoryStream? pdbStream = null;
 
-                if (pdbContent != null)
+                try
                 {
-                    pdbStream = new MemoryStream(pdbContent);
-                }
-
-                foreach (var test3 in AssemblyLoadContext.All)
-                {
-                    Logger.BeginAction($"LoadContext: {test3.Name}");
-
-                    foreach (var test2 in test3.Assemblies)
+                    if (pdbContent != null)
                     {
-                        Logger.WriteMessage($"Assembly: {test2.FullName}");
+                        pdbStream = new MemoryStream(pdbContent);
                     }
 
-                    Logger.EndAction();
+                    foreach (var test3 in AssemblyLoadContext.All)
+                    {
+                        Logger.BeginAction($"LoadContext: {test3.Name}");
+
+                        foreach (var test2 in test3.Assemblies)
+                        {
+                            Logger.WriteMessage($"Assembly: {test2.FullName}");
+                        }
+
+                        Logger.EndAction();
+                    }
+
+                    var assembly = this.loadContext.LoadFromStream(memoryStream, pdbStream);
+                    this.loadedAssemblies.Add(assembly);
+
+                    foreach (var type in assembly.GetTypes())
+                    {
+                        if (type.IsSubclassOf(typeof(CoreEngineApp)))
+                        {
+                            return (CoreEngineApp?)Activator.CreateInstance(type);
+                        }
+                    }
                 }
 
-                var assembly = this.loadContext.LoadFromStream(memoryStream, pdbStream);
-                this.loadedAssemblies.Add(assembly);
-
-                foreach (var type in assembly.GetTypes())
+                finally
                 {
-                    if (type.IsSubclassOf(typeof(CoreEngineApp)))
+                    if (pdbStream != null)
                     {
-                        return (CoreEngineApp?)Activator.CreateInstance(type);
+                        pdbStream.Dispose();
                     }
                 }
             }

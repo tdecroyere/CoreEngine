@@ -10,8 +10,8 @@ namespace CoreEngine.Samples.SceneViewer
         {
             var definition = new EntitySystemDefinition("Movement Update System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(PlayerComponent)));
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<PlayerComponent>());
+            definition.Parameters.Add(new EntitySystemParameter<TransformComponent>());
 
             return definition;
         }

@@ -4,7 +4,7 @@ using CoreEngine.Collections;
 
 namespace CoreEngine.Rendering.Components
 {
-    public struct MaterialComponent : IComponentData
+    public partial struct MaterialComponent : IComponentData
     {
         public uint MaterialResourceId { get; set; }
 

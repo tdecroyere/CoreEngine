@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace CoreEngine.Components
 {
-    public struct TransformComponent : IComponentData
+    public partial struct TransformComponent : IComponentData
     {
         public Vector3 Position { get; set; }
         public Vector3 Scale { get; set; }

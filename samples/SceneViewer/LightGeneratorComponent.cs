@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace CoreEngine.Samples.SceneViewer
 {
-    public struct LightGeneratorComponent : IComponentData
+    public partial struct LightGeneratorComponent : IComponentData
     {
         public Vector3 Dimensions { get; set; }
         public float LightCount { get; set; }

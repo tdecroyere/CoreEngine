@@ -77,7 +77,7 @@
         "xloctime": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++17",
-    "omnisharp.enableRoslynAnalyzers": false,
+    "omnisharp.enableRoslynAnalyzers": true,
     "csharp.referencesCodeLens.enabled": false,
     "saveAndRunExt": {
         "commands": [

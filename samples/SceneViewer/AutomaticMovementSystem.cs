@@ -15,8 +15,8 @@ namespace CoreEngine.Samples.SceneViewer
         {
             var definition = new EntitySystemDefinition("Automatic Movement System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(AutomaticMovementComponent)));
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<AutomaticMovementComponent>());
+            definition.Parameters.Add(new EntitySystemParameter<TransformComponent>());
 
             return definition;
         }

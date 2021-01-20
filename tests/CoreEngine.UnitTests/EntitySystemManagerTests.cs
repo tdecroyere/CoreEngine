@@ -3,26 +3,6 @@ using Xunit;
 
 namespace CoreEngine.UnitTests
 {
-    struct TestComponent : IComponentData
-    {
-        public int TestField { get; set; }
-
-        public void SetDefaultValues()
-        {
-            this.TestField = 5;
-        }
-    }
-
-    struct TestComponent2 : IComponentData
-    {
-        public int TestField { get; set; }
-
-        public void SetDefaultValues()
-        {
-            this.TestField = 10;
-        }
-    }
-
     public class TestSystem : EntitySystem
     {
         public TestSystem()
@@ -36,7 +16,7 @@ namespace CoreEngine.UnitTests
         public override EntitySystemDefinition BuildDefinition()
         {
             var definition = new EntitySystemDefinition("Test");
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TestComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<TestComponent>());
 
             return definition;
         }
@@ -81,7 +61,7 @@ namespace CoreEngine.UnitTests
             // Arrange
             var entityManager = new EntityManager();
             var container = new SystemManagerContainer();
-            container.RegisterSystemManager<PluginManager>(new PluginManager());
+            container.RegisterSystemManager(new PluginManager());
 
             var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
@@ -98,11 +78,11 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent));
-            var entity = entityManager.CreateEntity(componentLayout);
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent>();
+            entityManager.CreateEntity(componentLayout);
 
             var container = new SystemManagerContainer();
-            container.RegisterSystemManager<PluginManager>(new PluginManager());
+            container.RegisterSystemManager(new PluginManager());
 
             var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
@@ -119,11 +99,11 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent2));
-            var entity = entityManager.CreateEntity(componentLayout);
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent2>();
+            entityManager.CreateEntity(componentLayout);
 
             var container = new SystemManagerContainer();
-            container.RegisterSystemManager<PluginManager>(new PluginManager());
+            container.RegisterSystemManager(new PluginManager());
 
             var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
@@ -140,11 +120,11 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent));
-            var entity = entityManager.CreateEntity(componentLayout);
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent>();
+            entityManager.CreateEntity(componentLayout);
 
             var container = new SystemManagerContainer();
-            container.RegisterSystemManager<PluginManager>(new PluginManager());
+            container.RegisterSystemManager(new PluginManager());
             
             var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();

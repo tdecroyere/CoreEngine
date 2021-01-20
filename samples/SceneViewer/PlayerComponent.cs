@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace CoreEngine.Samples.SceneViewer
 {
-    public struct PlayerComponent : IComponentData
+    public partial struct PlayerComponent : IComponentData
     {
         public Vector3 MovementVector { get; set; }
         public Vector3 MovementVelocity { get; set; }

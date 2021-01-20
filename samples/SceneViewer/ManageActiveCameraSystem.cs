@@ -20,7 +20,7 @@ namespace CoreEngine.Samples.SceneViewer
         {
             var definition = new EntitySystemDefinition("Manage Camera System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(CameraComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<CameraComponent>());
 
             return definition;
         }
@@ -46,7 +46,7 @@ namespace CoreEngine.Samples.SceneViewer
                 sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
             }
         
-            var changeCamera = (this.inputsManager.inputsState.Keyboard.Space.Value == 0.0f && this.inputsManager.inputsState.Keyboard.Space.TransitionCount > 0);
+            var changeCamera = (this.inputsManager.InputsState.Keyboard.Space.Value == 0.0f && this.inputsManager.InputsState.Keyboard.Space.TransitionCount > 0);
             // var activeCameraIndex = -1;
 
             for (var i = 0; i < entityArray.Length; i++)
@@ -103,7 +103,7 @@ namespace CoreEngine.Samples.SceneViewer
 
             if (sceneEntity.HasValue && sceneComponent.HasValue)
             {
-                entityManager.SetComponentData<SceneComponent>(sceneEntity.Value, sceneComponent.Value);
+                entityManager.SetComponentData(sceneEntity.Value, sceneComponent.Value);
             }
         }
     }

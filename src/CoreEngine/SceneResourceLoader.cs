@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Reflection;
 using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
+using System.Runtime.InteropServices;
 
 namespace CoreEngine
 {
@@ -59,7 +60,7 @@ namespace CoreEngine
             for (var i = 0; i < entityLayoutsCount; i++)
             {
                 var typesCount = reader.ReadInt32();
-                var layoutTypes = new Type[typesCount];
+                var layoutTypes = new IComponentData[typesCount];
                 var isLayoutComplete = true;
 
                 for (var j = 0; j < typesCount; j++)
@@ -75,14 +76,19 @@ namespace CoreEngine
 
                     else
                     {
-                        layoutTypes[j] = type;
+                        layoutTypes[j] = (IComponentData)Activator.CreateInstance(type)!;
                     }
                 }
 
                 if (isLayoutComplete)
                 {
-                    var entityLayout = scene.EntityManager.CreateComponentLayout(layoutTypes);
+                    var entityLayout = scene.EntityManager.CreateComponentLayout();
                     sceneEntityLayoutsList.Add(entityLayout);
+
+                    for (var j = 0; j < typesCount; j++)
+                    {
+                        entityLayout.RegisterComponent(layoutTypes[j].GetComponentHash(), Marshal.SizeOf(layoutTypes[j]), null);
+                    }
                 }
 
                 else
@@ -106,13 +112,8 @@ namespace CoreEngine
                 // Logger.WriteMessage($"EntityLayoutIndex: {entityLayoutIndex}");
 
                 var entityLayout = sceneEntityLayoutsList[entityLayoutIndex];
-                Entity? entity = null;
-
-                if (entityLayout != null)
-                {
-                    entity = scene.EntityManager.CreateEntity(entityLayout.Value);
-                    entitiesMapping.Add(entityName, entity.Value);
-                }
+                var entity = scene.EntityManager.CreateEntity(entityLayout);
+                entitiesMapping.Add(entityName, entity);
 
                 for (var j = 0; j < componentsCount; j++)
                 {
@@ -180,7 +181,7 @@ namespace CoreEngine
 
                                     if (entity != null && componentType != null && component != null)
                                     {
-                                        entitiesToResolve[stringValue].Add((entity.Value, componentType, component, propertyInfo));
+                                        entitiesToResolve[stringValue].Add((entity, componentType, component, propertyInfo));
                                     }
                                 }
 
@@ -252,7 +253,18 @@ namespace CoreEngine
                 
                     if (entity != null && component != null && componentType != null)
                     {
-                        scene.EntityManager.SetComponentData(entity.Value, componentType, component);
+                        var size = Marshal.SizeOf(component);
+                        // Both managed and unmanaged buffers required.
+                        var bytes = new byte[size];
+                        var ptr = Marshal.AllocHGlobal(size);
+                        // Copy object byte-to-byte to unmanaged memory.
+                        Marshal.StructureToPtr(component, ptr, false);
+                        // Copy data from unmanaged memory to managed buffer.
+                        Marshal.Copy(ptr, bytes, 0, size);
+                        // Release unmanaged memory.
+                        Marshal.FreeHGlobal(ptr);
+
+                        scene.EntityManager.SetComponentData(entity, component.GetComponentHash(), bytes);
                     }
 
                     Logger.EndAction();
@@ -276,7 +288,19 @@ namespace CoreEngine
                         // Logger.WriteMessage($"Found entity with Id: {value.entity.EntityId}");
 
                         value.property.SetValue(value.component, resolvedEntity);
-                        scene.EntityManager.SetComponentData(value.entity, value.componentType, value.component);
+
+                        var size = Marshal.SizeOf(value.component);
+                        // Both managed and unmanaged buffers required.
+                        var bytes = new byte[size];
+                        var ptr = Marshal.AllocHGlobal(size);
+                        // Copy object byte-to-byte to unmanaged memory.
+                        Marshal.StructureToPtr(value.component, ptr, false);
+                        // Copy data from unmanaged memory to managed buffer.
+                        Marshal.Copy(ptr, bytes, 0, size);
+                        // Release unmanaged memory.
+                        Marshal.FreeHGlobal(ptr);
+
+                        scene.EntityManager.SetComponentData(value.entity, value.component.GetComponentHash(), bytes);
                     }
                 }
 

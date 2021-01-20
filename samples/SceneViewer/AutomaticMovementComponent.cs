@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace CoreEngine.Samples.SceneViewer
 {
-    public struct AutomaticMovementComponent : IComponentData
+    public partial struct AutomaticMovementComponent : IComponentData
     {
         public float Radius { get; set; }
         public float Speed { get; set; }

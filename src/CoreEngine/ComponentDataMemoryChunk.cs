@@ -4,7 +4,7 @@ namespace CoreEngine
 {
     internal class ComponentDataMemoryChunk
     {
-        public ComponentDataMemoryChunk(ComponentLayoutDesc componentLayout, Memory<byte> storage, int chunkItemSize, int maxEntityCount)
+        public ComponentDataMemoryChunk(ComponentLayout componentLayout, Memory<byte> storage, int chunkItemSize, int maxEntityCount)
         {
             this.ComponentLayout = componentLayout;
             this.Storage = storage;
@@ -13,7 +13,7 @@ namespace CoreEngine
             this.ChunkItemSize = chunkItemSize;
         }
 
-        public ComponentLayoutDesc ComponentLayout;
+        public ComponentLayout ComponentLayout;
         public Memory<byte> Storage;
         public int EntityCount;
         public int ChunkItemSize;

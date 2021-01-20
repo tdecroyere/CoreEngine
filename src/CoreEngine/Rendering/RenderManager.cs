@@ -190,7 +190,7 @@ namespace CoreEngine.Rendering
         }
 
         List<GpuTiming> previousGpuTiming = new List<GpuTiming>();
-        internal bool logFrameTime = false;
+        internal bool logFrameTime;
 
         internal void Render()
         {

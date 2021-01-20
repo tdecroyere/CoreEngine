@@ -19,7 +19,7 @@ namespace CoreEngine.Samples.SceneViewer
         {
             var definition = new EntitySystemDefinition("Light Generator System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(LightGeneratorComponent), isReadOnly: true));
+            definition.Parameters.Add(new EntitySystemParameter<LightGeneratorComponent>(isReadOnly: true));
 
             return definition;
         }
@@ -43,7 +43,7 @@ namespace CoreEngine.Samples.SceneViewer
                     ref var lightGeneratorComponent = ref lightGeneratorArray[i];
 
                     var random = new Random();
-                    var componentLayout = entityManager.CreateComponentLayout(typeof(LightComponent), typeof(TransformComponent), typeof(AutomaticMovementComponent));
+                    var componentLayout = entityManager.CreateComponentLayout<LightComponent, TransformComponent, AutomaticMovementComponent>();
 
                     for (var j = 0; j < lightGeneratorComponent.LightCount; j++)
                     {

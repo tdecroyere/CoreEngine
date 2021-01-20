@@ -4,7 +4,7 @@ using CoreEngine.Collections;
 
 namespace CoreEngine.Rendering.Components
 {
-    public struct CameraComponent : IComponentData
+    public partial struct CameraComponent : IComponentData
     {
         public Vector3 EyePosition { get; set; }
         public Vector3 LookAtPosition { get; set; }

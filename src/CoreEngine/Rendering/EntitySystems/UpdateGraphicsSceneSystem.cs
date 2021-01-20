@@ -19,7 +19,7 @@ namespace CoreEngine.Rendering.EntitySystems
         {
             var definition = new EntitySystemDefinition("Update Graphics Scene System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(SceneComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<SceneComponent>());
 
             return definition;
         }

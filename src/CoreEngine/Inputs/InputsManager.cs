@@ -15,10 +15,10 @@ namespace CoreEngine.Inputs
         public InputsManager(IInputsService inputsService)
         {
             this.inputsService = inputsService;
-            this.inputsState = new InputsState();
+            this.InputsState = new InputsState();
         }
 
-        public InputsState inputsState
+        public InputsState InputsState
         {
             get;
             private set;
@@ -31,18 +31,23 @@ namespace CoreEngine.Inputs
 
         public override void PreUpdate(CoreEngineContext context)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             // TODO: Implement an input action system to map the controls to actions
             // TODO: Take into account transition count
             // TODO: For the configuration, we should have access to the controller name and vendor
 
             if (context.IsAppActive)
             {
-                this.inputsState = this.inputsService.GetInputsState();
+                this.InputsState = this.inputsService.GetInputsState();
             }
 
             else
             {
-                this.inputsState = new InputsState();
+                this.InputsState = new InputsState();
             }
         }
 
@@ -89,57 +94,57 @@ namespace CoreEngine.Inputs
 
         public float LeftMovementActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickLeft.Value + this.inputsState.Keyboard.KeyQ.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.LeftStickLeft.Value + this.InputsState.Keyboard.KeyQ.Value);
         }
 
         public float RightMovementActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickRight.Value + this.inputsState.Keyboard.KeyD.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.LeftStickRight.Value + this.InputsState.Keyboard.KeyD.Value);
         }
 
         public float UpMovementActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickUp.Value + this.inputsState.Keyboard.KeyZ.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.LeftStickUp.Value + this.InputsState.Keyboard.KeyZ.Value);
         }
 
         public float DownMovementActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.LeftStickDown.Value + this.inputsState.Keyboard.KeyS.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.LeftStickDown.Value + this.InputsState.Keyboard.KeyS.Value);
         }
 
         public float LeftRotationActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickLeft.Value + this.inputsState.Keyboard.LeftArrow.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.RightStickLeft.Value + this.InputsState.Keyboard.LeftArrow.Value);
         }
 
         public float RightRotationActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickRight.Value + this.inputsState.Keyboard.RightArrow.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.RightStickRight.Value + this.InputsState.Keyboard.RightArrow.Value);
         }
 
         public float UpRotationActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickUp.Value + this.inputsState.Keyboard.UpArrow.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.RightStickUp.Value + this.InputsState.Keyboard.UpArrow.Value);
         }
 
         public float DownRotationActionValue()
         {
-            return MathF.Min(1.0f, this.inputsState.Gamepad1.RightStickDown.Value + this.inputsState.Keyboard.DownArrow.Value);
+            return MathF.Min(1.0f, this.InputsState.Gamepad1.RightStickDown.Value + this.InputsState.Keyboard.DownArrow.Value);
         }
 
         public bool IsLeftMousePressed()
         {
-            return (this.inputsState.Mouse.LeftButton.Value == 0.0f && this.inputsState.Mouse.LeftButton.TransitionCount > 0);
+            return (this.InputsState.Mouse.LeftButton.Value == 0.0f && this.InputsState.Mouse.LeftButton.TransitionCount > 0);
         }
 
         public bool IsLeftMouseDown()
         {
-            return (this.inputsState.Mouse.LeftButton.Value > 0.0f);
+            return (this.InputsState.Mouse.LeftButton.Value > 0.0f);
         }
 
         public Vector2 GetMouseDelta()
         {
-            return new Vector2(this.inputsState.Mouse.DeltaX.Value, this.inputsState.Mouse.DeltaY.Value);
+            return new Vector2(this.InputsState.Mouse.DeltaX.Value, this.InputsState.Mouse.DeltaY.Value);
         }
 
         public void SendVibrationCommand(uint playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint duration10ms)

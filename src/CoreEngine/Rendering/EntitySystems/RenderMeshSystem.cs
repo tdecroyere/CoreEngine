@@ -23,8 +23,8 @@ namespace CoreEngine.Rendering.EntitySystems
         {
             var definition = new EntitySystemDefinition("Render Mesh System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
-            definition.Parameters.Add(new EntitySystemParameter(typeof(MeshComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<TransformComponent>());
+            definition.Parameters.Add(new EntitySystemParameter<MeshComponent>());
 
             return definition;
         }

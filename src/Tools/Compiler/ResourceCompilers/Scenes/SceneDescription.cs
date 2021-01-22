@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json.Serialization;
 
 namespace CoreEngine.Tools.Compiler.ResourceCompilers.Scenes
 {
@@ -11,8 +12,9 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Scenes
             this.Entities = entities;
         }
 
+        [JsonIgnore]
         public IList<EntityLayoutDescription> EntityLayouts { get; } = new List<EntityLayoutDescription>();
-        public IList<EntityDescription> Entities { get; }
+        public IList<EntityDescription> Entities { get; } = new List<EntityDescription>();
 
         public int AddEntityLayoutDescription(EntityLayoutDescription entityLayout)
         {

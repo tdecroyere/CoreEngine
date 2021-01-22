@@ -14,6 +14,8 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Scenes
         
         [JsonPropertyName("Entity")]
         public string Name { get; }
+
+        [JsonIgnore]
         public int EntityLayoutIndex { get; set; }
         public IList<ComponentDescription> Components { get; }
     }

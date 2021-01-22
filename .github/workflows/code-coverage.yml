@@ -27,14 +27,25 @@ jobs:
       with:
         dotnet-version: 5.0.200-preview.20601.7
         
-    - name: Generate coverage report
+    - name: Generate coverage report Unit Tests
       run: |
         cd ./tests/CoreEngine.UnitTests/
         dotnet test /p:CollectCoverage=true /p:CoverletOutput=TestResults/ /p:CoverletOutputFormat=lcov
         
-    - name: Codecov
+    - name: Codecov Unit Tests
       uses: codecov/codecov-action@v1.0.7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./tests/CoreEngine.UnitTests/TestResults/coverage.info
+
+    - name: Generate coverage report Integration Tests
+      run: |
+        cd ./tests/CoreEngine.IntegrationTests/
+        dotnet test /p:CollectCoverage=true /p:CoverletOutput=TestResults/ /p:CoverletOutputFormat=lcov
+        
+    - name: Codecov Integration Tests
+      uses: codecov/codecov-action@v1.0.7
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./tests/CoreEngine.IntegrationTests/TestResults/coverage.info
 

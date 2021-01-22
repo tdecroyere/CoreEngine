@@ -41,7 +41,7 @@ namespace CoreEngine.Tools.Compiler
             if (searchPattern != "*")
             {
                 remainingDestinationFiles.Clear();
-            }
+            } 
 
             var inputObjDirectory = Path.Combine(inputDirectory, "obj");
             var fileTrackerPath = Path.Combine(inputObjDirectory, "FileTracker");
@@ -60,11 +60,8 @@ namespace CoreEngine.Tools.Compiler
 
             stopwatch.Stop();
 
-            if (compiledFilesCount > 0)
-            {
-                Logger.WriteLine();
-                Logger.WriteMessage($"Success: Compiled {compiledFilesCount} file(s) in {stopwatch.Elapsed}.", LogMessageTypes.Success);
-            }
+            Logger.WriteLine();
+            Logger.WriteMessage($"Success: Compiled {compiledFilesCount} file(s) in {stopwatch.Elapsed}.", LogMessageTypes.Success);
 
             // TODO: Remove deleted files from file tracker
             CleanupOutputDirectory(outputDirectory, remainingDestinationFiles);

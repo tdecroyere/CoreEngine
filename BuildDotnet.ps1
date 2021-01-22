@@ -22,8 +22,7 @@ function CompileDotnet($projectPath)
     Pop-Location
 
     Push-Location $OutputFolder
-    Copy-Item "$projectPath\bin\Debug\net5.0\*" ".\" -Recurse -Force
-
+    Copy-Item "$projectPath\bin\x64\Debug\net5.0\*" ".\" -Recurse -Force
 
     #dotnet publish /p:NativeLib=Shared -r win-x64 -c release
 

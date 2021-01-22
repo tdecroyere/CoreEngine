@@ -1,6 +1,6 @@
 # Core Engine
 
-![Windows x64](https://github.com/tdecroyere/CoreEngine/workflows/Windows%20x64/badge.svg) ![MacOS x64](https://github.com/tdecroyere/CoreEngine/workflows/MacOS%20x64/badge.svg) [![codecov](https://codecov.io/gh/tdecroyere/CoreEngine/branch/master/graph/badge.svg)](https://codecov.io/gh/tdecroyere/CoreEngine)
+![Windows x64](https://github.com/tdecroyere/CoreEngine/workflows/Windows%20x64/badge.svg) ![MacOS x64](https://github.com/tdecroyere/CoreEngine/workflows/MacOS%20x64/badge.svg) [![codecov](https://codecov.io/gh/tdecroyere/CoreEngine/branch/main/graph/badge.svg)](https://codecov.io/gh/tdecroyere/CoreEngine)
 
 Core Engine is a multi-platform realtime Game Engine written in .NET 5.
 

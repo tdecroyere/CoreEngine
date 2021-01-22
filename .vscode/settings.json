@@ -2,7 +2,10 @@
     "files.exclude": {
         "**/bin": true,
         "**/obj": true,
-        "**/CompilationUnit.cpp": true
+        "**/CompilationUnit.cpp": true,
+        "src/CoreEngine/CoreEngine.SourceGenerators": true,
+        "samples/**/CoreEngine.SourceGenerators": true,
+        "tests/**/CoreEngine.SourceGenerators": true
     },
     "files.associations": {
         "*.ceproj": "jsonc",

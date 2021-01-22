@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,7 +21,7 @@ namespace CoreEngine.SourceGenerators
 
         public void Execute(GeneratorExecutionContext context)
         {
-            if (!(context.SyntaxReceiver is SyntaxReceiver receiver))
+            if (context.SyntaxReceiver is not SyntaxReceiver receiver)
             {
                 return;
             }
@@ -33,7 +34,7 @@ namespace CoreEngine.SourceGenerators
             {
                 var semanticModel = context.Compilation.GetSemanticModel(componentCandidate.SyntaxTree);
                 
-                var typeInfo = semanticModel.GetDeclaredSymbol(componentCandidate) as INamedTypeSymbol;
+                var typeInfo = semanticModel.GetDeclaredSymbol(componentCandidate);
 
                 if (typeInfo != null)
                 {
@@ -63,10 +64,9 @@ namespace CoreEngine.SourceGenerators
                     stringBuilder.AppendLine("}");
                     stringBuilder.AppendLine("}");
 
-                    var fileName = $"{context.Compilation.AssemblyName}_{componentName}.cs";
+                    var fileName = $"{context.Compilation.AssemblyName}_{componentName}.generated.cs";
 
-                    context.AddSource(fileName, stringBuilder.ToString());
-                    File.WriteAllText($"c:\\temp\\{fileName}", $"{stringBuilder}");
+                    Utils.AddSource(context, fileName, stringBuilder.ToString());
                 }
             }
         }

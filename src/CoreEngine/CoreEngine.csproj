@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../CoreEngine.SourceGenerators/CoreEngine.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Compile Remove="**/*.generated.cs" />
   </ItemGroup>
   
 </Project>

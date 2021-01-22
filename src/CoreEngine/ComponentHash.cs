@@ -4,6 +4,7 @@ using System.Text;
 
 namespace CoreEngine
 {
+    // TODO: Store the data in a continuous storage?
     public class ComponentHash : IEquatable<ComponentHash>, IComparable<ComponentHash>
     {
         private readonly ReadOnlyMemory<byte> hash;

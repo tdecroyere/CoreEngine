@@ -15,7 +15,8 @@ namespace CoreEngine.UnitTests
             var componentLayout = entityManager.CreateComponentLayout<TestComponent>();
 
             // Assert
-            Assert.Equal((uint)0, (uint)componentLayout.EntityComponentLayoutId);
+            Assert.Equal(1, componentLayout.Components.Count);
+            Assert.False(componentLayout.IsReadOnly);
         }
 
         [Fact]
@@ -38,7 +39,7 @@ namespace CoreEngine.UnitTests
             var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
 
             // Assert
-            Assert.Equal((uint)0, (uint)componentLayout.EntityComponentLayoutId);
+            Assert.Equal(2, componentLayout.Components.Count);
         }
 
         [Fact]
@@ -52,7 +53,7 @@ namespace CoreEngine.UnitTests
             var componentLayout2 = entityManager.CreateComponentLayout<TestComponent2>();
 
             // Assert
-            Assert.NotEqual(componentLayout.EntityComponentLayoutId, componentLayout2.EntityComponentLayoutId);
+            Assert.NotEqual(componentLayout.LayoutHash, componentLayout2.LayoutHash);
         }
 
         [Fact]

@@ -12,7 +12,7 @@ namespace CoreEngine.Samples.SceneViewer
         {
             var resourcesManager = context.SystemManagerContainer.GetSystemManager<ResourcesManager>();
 
-            context.CurrentScene = resourcesManager.LoadResourceAsync<Scene>("/TestScene.scene");
+            context.CurrentScene = resourcesManager.LoadResourceAsync<Scene>("/Data/TestScene.scene");
             // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Bistro/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/BistroV4/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");

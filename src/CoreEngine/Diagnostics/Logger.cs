@@ -12,9 +12,9 @@ namespace CoreEngine.Diagnostics
     public static class Logger
     {
         // TODO: This code is not thread-safe!
-        private static Stack<string> messageStack = new Stack<string>();
-        private static Stopwatch globalStopwatch = new Stopwatch();
-        private static Stack<long> elapsedTimeStack = new Stack<long>();
+        private static readonly Stack<string> messageStack = new Stack<string>();
+        private static readonly Stopwatch globalStopwatch = new Stopwatch();
+        private static readonly Stack<long> elapsedTimeStack = new Stack<long>();
         private static int currentLevel;
 
         public static void WriteMessage(string message, LogMessageTypes messageType = LogMessageTypes.Normal)
@@ -51,7 +51,7 @@ namespace CoreEngine.Diagnostics
 
             if (messageType != LogMessageTypes.Normal && messageType != LogMessageTypes.Action && messageType != LogMessageTypes.Success && messageType != LogMessageTypes.Important)
             {
-                message = $"{messageType.ToString()}: " + message;
+                message = $"{messageType}: " + message;
             }
 
             Console.WriteLine(message);
@@ -72,7 +72,7 @@ namespace CoreEngine.Diagnostics
 
             elapsedTimeStack.Push(globalStopwatch.ElapsedTicks);
 
-            var absoluteTime = (double)(globalStopwatch.ElapsedTicks) / (double)Stopwatch.Frequency * 1000.0;
+            var absoluteTime = (double)(globalStopwatch.ElapsedTicks) / Stopwatch.Frequency * 1000.0;
 
             messageStack.Push(message);
 

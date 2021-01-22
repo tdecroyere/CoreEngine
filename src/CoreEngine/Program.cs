@@ -52,19 +52,14 @@ public static class Program
         var systemManagerContainer = new SystemManagerContainer();
 
         // Register managers
-        systemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
-        systemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
-        systemManagerContainer.RegisterSystemManager<NativeUIManager>(nativeUIManager);
-        systemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
-        systemManagerContainer.RegisterSystemManager<RenderManager>(renderManager);
-        systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(renderManager.Graphics2DRenderer);
-        systemManagerContainer.RegisterSystemManager<InputsManager>(inputsManager);
-        systemManagerContainer.RegisterSystemManager<PluginManager>(pluginManager);
-
-        var entityManager = new EntityManager();
-        entityManager.CreateComponentLayout<TransformComponent>();
-        entityManager.CreateComponentLayout<TransformComponent>();
-        // entityManager.CreateComponentLayout<TransformComponent, MeshComponent>();
+        systemManagerContainer.RegisterSystemManager(resourcesManager);
+        systemManagerContainer.RegisterSystemManager(sceneManager);
+        systemManagerContainer.RegisterSystemManager(nativeUIManager);
+        systemManagerContainer.RegisterSystemManager(graphicsManager);
+        systemManagerContainer.RegisterSystemManager(renderManager);
+        systemManagerContainer.RegisterSystemManager(renderManager.Graphics2DRenderer);
+        systemManagerContainer.RegisterSystemManager(inputsManager);
+        systemManagerContainer.RegisterSystemManager(pluginManager);
 
         var context = new CoreEngineContext(systemManagerContainer);
         CoreEngineApp? coreEngineApp = null;

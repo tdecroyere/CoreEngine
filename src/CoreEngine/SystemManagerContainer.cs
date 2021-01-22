@@ -5,7 +5,7 @@ namespace CoreEngine
 {
     public class SystemManagerContainer
     {
-        private IDictionary<Type, SystemManager> systemManagerList = new Dictionary<Type, SystemManager>();
+        private readonly IDictionary<Type, SystemManager> systemManagerList = new Dictionary<Type, SystemManager>();
 
         public SystemManagerContainer()
         {
@@ -15,7 +15,7 @@ namespace CoreEngine
         {
             if (this.systemManagerList.ContainsKey(typeof(T)))
             {
-                throw new ArgumentException($"System manager with type '{typeof(T).ToString()}' has already been added.");
+                throw new ArgumentException($"System manager with type '{typeof(T)}' has already been added.");
             }
 
             this.systemManagerList.Add(typeof(T), systemManager);
@@ -25,7 +25,7 @@ namespace CoreEngine
         {
             if (!this.systemManagerList.ContainsKey(typeof(T)))
             {
-                throw new ArgumentException($"System manager with type '{typeof(T).ToString()}' has not been registered.");
+                throw new ArgumentException($"System manager with type '{typeof(T)}' has not been registered.");
             }
 
             return (T)this.systemManagerList[typeof(T)];
@@ -42,7 +42,7 @@ namespace CoreEngine
 
             if (constructorsInfo.Length == 0 || constructorsInfo[0].IsPublic == false)
             {
-                throw new ArgumentException($"Type '{type.ToString()}' has no public constructor.");
+                throw new ArgumentException($"Type '{type}' has no public constructor.");
             }
 
             var constructorInfo = constructorsInfo[0];

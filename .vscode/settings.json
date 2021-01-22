@@ -6,7 +6,7 @@
     },
     "files.associations": {
         "*.ceproj": "jsonc",
-        "*.cescene": "yaml",
+        "*.cescene": "jsonc",
         "*.pipeline": "jsonc",
         "xiosbase": "cpp",
         "algorithm": "cpp",
@@ -78,14 +78,5 @@
     },
     "C_Cpp.default.cppStandard": "c++17",
     "omnisharp.enableRoslynAnalyzers": true,
-    "csharp.referencesCodeLens.enabled": false,
-    "saveAndRunExt": {
-        "commands": [
-            {
-                "match": "\\.cs$",
-                "isShellCommand" : false,
-                "cmd": "csharpFormatUsings.formatUsings"
-            }
-        ]
-    }
+    "csharp.referencesCodeLens.enabled": false
 }

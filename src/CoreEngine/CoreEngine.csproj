@@ -7,7 +7,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618;CS8610;CS8601</WarningsAsErrors>
-    <NoWarn>IDE0003;CA1014;CA1711;CA1303;CA1815;CA2007;CS8604;CA1043;CA1720;CA1307;CS0649</NoWarn>
+    <NoWarn>IDE0003;IDE0090;CA1014;CA1050;CA1024;CA1711;CA1303;CA1815;CA2007;CS8604;CA1043;CA1720;CA1307;CS0649</NoWarn>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>

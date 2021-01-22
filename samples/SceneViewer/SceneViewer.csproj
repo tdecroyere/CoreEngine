@@ -14,5 +14,12 @@
   <ItemGroup>
     <ProjectReference Include="../../src/CoreEngine.SourceGenerators/CoreEngine.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Data/**/*" />
+    <Content Update="Data/UnitCube.obj">
+      <Compress>true</Compress>
+    </Content>
+  </ItemGroup>
   
 </Project>

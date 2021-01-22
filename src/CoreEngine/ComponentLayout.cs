@@ -7,26 +7,16 @@ namespace CoreEngine
 {
     public class ComponentLayout : IEquatable<ComponentLayout>
     {
-        public ComponentLayout(uint id)
+        internal ComponentLayout()
         {
-            this.EntityComponentLayoutId = id;
             this.LayoutHash = new ComponentHash();
-            this.Size = 0;
-            this.ComponentCount = 0;
-            this.ComponentHashs = new List<ComponentHash>();
-            this.ComponentOffsets = new List<int>();
-            this.ComponentSizes = new List<int>();
-            this.ComponentDefaultValues = new List<ReadOnlyMemory<byte>?>();
+            this.SizeInBytes = 0;
+            this.Components = new List<ComponentLayoutItem>();
         }
 
-        public uint EntityComponentLayoutId { get; }
         public ComponentHash LayoutHash { get; private set; }
-        public int Size { get; set; }
-        public int ComponentCount { get; private set; }
-        public IList<ComponentHash> ComponentHashs { get; }
-        public IList<int> ComponentOffsets { get; }
-        public IList<int> ComponentSizes { get; }
-        internal IList<ReadOnlyMemory<byte>?> ComponentDefaultValues { get; }
+        public int SizeInBytes { get; set; }
+        public IList<ComponentLayoutItem> Components { get; }
 
         // TODO: For the moment is it impossible to reorganize the layout after an entity has been created from it
         public bool IsReadOnly { get; internal set; }
@@ -38,36 +28,37 @@ namespace CoreEngine
                 throw new InvalidOperationException("The component layout cannot be changed after an entity has been create from it.");
             }
 
-            if (this.ComponentHashs.Contains(componentHash))
+            for (var i = 0; i < this.Components.Count; i++)
             {
-                throw new ArgumentException("The component has already been added to the component layout.");
+                if (this.Components[i].Hash == componentHash)
+                {
+                    throw new ArgumentException("The component has already been added to the component layout.");
+                }
             }
 
             ComputeComponentLayoutHashCodeAndSort(componentHash, out var index);
 
-            this.ComponentOffsets.Insert(index, this.Size);
-            this.ComponentHashs.Insert(index, componentHash);
-            this.ComponentSizes.Insert(index, componentSize);
-
-            this.Size += componentSize;
-
-            this.ComponentDefaultValues.Insert(index, initialData);
+            this.Components.Insert(index, new ComponentLayoutItem(componentHash, this.SizeInBytes, componentSize, initialData));
+            this.SizeInBytes += componentSize;
 
             // TODO: Performance issue here
-            var tmp = new ComponentHash[ComponentHashs.Count];
-            this.ComponentHashs.CopyTo(tmp, 0);
+            var tmp = new ComponentHash[Components.Count];
+
+            for (var i = 0; i < this.Components.Count; i++)
+            {
+                tmp[i] = this.Components[i].Hash;
+            }
 
             this.LayoutHash = new ComponentHash(tmp);
-            this.ComponentCount++;
         }
 
-        public int? FindComponentOffset(ComponentHash componentTypeHash)
+        public int? FindComponentOffset(ComponentHash componentHash)
         {
             var componentIndex = -1;
 
-            for (var i = 0; i < this.ComponentCount; i++)
+            for (var i = 0; i < this.Components.Count; i++)
             {
-                if (this.ComponentHashs[i] == componentTypeHash)
+                if (this.Components[i].Hash == componentHash)
                 {
                     componentIndex = i;
                     break;
@@ -79,16 +70,16 @@ namespace CoreEngine
                 return null;
             }
 
-            return this.ComponentOffsets[componentIndex];
+            return this.Components[componentIndex].Offset;
         }
 
-        public int FindComponentSize(ComponentHash componentTypeHash)
+        public int FindComponentSizeInBytes(ComponentHash componentHash)
         {
             var componentIndex = -1;
 
-            for (var i = 0; i < this.ComponentCount; i++)
+            for (var i = 0; i < this.Components.Count; i++)
             {
-                if (this.ComponentHashs[i] == componentTypeHash)
+                if (this.Components[i].Hash == componentHash)
                 {
                     componentIndex = i;
                     break;
@@ -100,7 +91,7 @@ namespace CoreEngine
                 // TODO: Throw error
             }
 
-            return this.ComponentSizes[componentIndex];
+            return this.Components[componentIndex].SizeInBytes;
         }
 
         public override bool Equals(object? obj) 
@@ -115,12 +106,17 @@ namespace CoreEngine
 
         public override int GetHashCode() 
         {
-            return this.EntityComponentLayoutId.GetHashCode();
+            return this.LayoutHash.GetHashCode();
         }
 
         public static bool operator ==(ComponentLayout layout1, ComponentLayout layout2) 
         {
-            return layout1.EntityComponentLayoutId == layout2.EntityComponentLayoutId;
+            if (layout1 is not null && layout2 is not null)
+            {
+                return layout1.LayoutHash == layout2.LayoutHash;
+            }
+
+            return false;
         }
 
         public static bool operator !=(ComponentLayout layout1, ComponentLayout layout2) 
@@ -130,16 +126,16 @@ namespace CoreEngine
 
         public override string ToString()
         {
-            return this.EntityComponentLayoutId.ToString(NumberFormatInfo.InvariantInfo);
+            return this.LayoutHash.ToString();
         }
 
         private void ComputeComponentLayoutHashCodeAndSort(ComponentHash componentHash, out int index)
         {
-            index = this.ComponentHashs.Count;
+            index = this.Components.Count;
 
-            for (var i = 0; i < this.ComponentHashs.Count; i++)
+            for (var i = 0; i < this.Components.Count; i++)
             {
-                if (componentHash > this.ComponentHashs[i])
+                if (componentHash > this.Components[i].Hash)
                 {
                     index = i;
                 }

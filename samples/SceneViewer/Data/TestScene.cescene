@@ -4,7 +4,7 @@
       "Entity": "Scene",
       "Components": [
         {
-          "Component": "CoreEngine.Components.SceneComponent",
+          "Component": "CoreEngine.Components.SceneComponent, CoreEngine",
           "Data": {
             "ActiveCamera": "MainCamera"
           }
@@ -15,20 +15,20 @@
       "Entity": "UnitCube",
       "Components": [
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [0, 0.45, -1],
             "Scale": [0.5, 0.5, 0.5]
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MeshComponent",
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
             "MeshResourceId": "resource:/UnitCube.mesh"
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MaterialComponent",
+          "Component": "CoreEngine.Rendering.Components.MaterialComponent, CoreEngine",
           "Data": {
             "MaterialResourceId": "resource:/TestWhiteMaterial.material"
           }
@@ -39,7 +39,7 @@
       "Entity": "Teapot1",
       "Components": [
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [0, 1, 0],
             "Scale": [0.01, 0.01, 0.01],
@@ -47,13 +47,13 @@
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MeshComponent",
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
             "MeshResourceId": "resource:/teapot.mesh"
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MaterialComponent",
+          "Component": "CoreEngine.Rendering.Components.MaterialComponent, CoreEngine",
           "Data": {
             "MaterialResourceId": "resource:/TestRedMaterial.material"
           }
@@ -64,7 +64,7 @@
       "Entity": "Teapot2",
       "Components": [
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [0.5, 1, 0],
             "Scale": [0.01, 0.01, 0.01],
@@ -72,13 +72,13 @@
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MeshComponent",
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
             "MeshResourceId": "resource:/teapot.mesh"
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MaterialComponent",
+          "Component": "CoreEngine.Rendering.Components.MaterialComponent, CoreEngine",
           "Data": {
             "MaterialResourceId": "resource:/TestTextureMaterial.material"
           }
@@ -89,7 +89,7 @@
       "Entity": "Teapot3",
       "Components": [
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [1, 1, 0],
             "Scale": [0.01, 0.01, 0.01],
@@ -97,13 +97,13 @@
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MeshComponent",
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
             "MeshResourceId": "resource:/teapot.mesh"
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MaterialComponent",
+          "Component": "CoreEngine.Rendering.Components.MaterialComponent, CoreEngine",
           "Data": {
             "MaterialResourceId": "resource:/TestWoodMaterial.material"
           }
@@ -114,7 +114,7 @@
       "Entity": "Teapot4",
       "Components": [
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [1.5, 1, 0],
             "Scale": [0.01, 0.01, 0.01],
@@ -122,13 +122,13 @@
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MeshComponent",
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
             "MeshResourceId": "resource:/teapot.mesh"
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MaterialComponent",
+          "Component": "CoreEngine.Rendering.Components.MaterialComponent, CoreEngine",
           "Data": {
             "MaterialResourceId": "resource:/TestTextureMaterial.material"
           }
@@ -139,7 +139,7 @@
       "Entity": "Teapot5",
       "Components": [
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [2, 1, 0],
             "Scale": [0.01, 0.01, 0.01],
@@ -147,13 +147,13 @@
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MeshComponent",
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
             "MeshResourceId": "resource:/teapot.mesh"
           }
         },
         {
-          "Component": "CoreEngine.Rendering.Components.MaterialComponent",
+          "Component": "CoreEngine.Rendering.Components.MaterialComponent, CoreEngine",
           "Data": {
             "MaterialResourceId": "resource:/TestWhiteMaterial.material"
           }
@@ -164,7 +164,7 @@
       "Entity": "LightGenerator",
       "Components": [
         {
-          "Component": "CoreEngine.Samples.SceneViewer.LightGeneratorComponent",
+          "Component": "CoreEngine.Samples.SceneViewer.LightGeneratorComponent, SceneViewer",
           "Data": {
             "Dimensions": [34, 14, 19],
             "LightCount": 5
@@ -176,13 +176,13 @@
       "Entity": "SponzaModel",
       "Components": [
         {
-          "Component": "CoreEngine.Rendering.Components.MeshComponent",
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
             "MeshResourceId": "resource:/Sponza/sponza.mesh"
           }
         },
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Scale": [0.013, 0.013, 0.013]
           }
@@ -193,14 +193,14 @@
       "Entity": "MainLight",
       "Components": [
         {
-          "Component": "CoreEngine.Rendering.Components.LightComponent",
+          "Component": "CoreEngine.Rendering.Components.LightComponent, CoreEngine",
           "Data": {
             "Color": [0.3, 0.3, 1],
             "LightType": 1
           }
         },
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [-0.2, 1, -0.05]
           }
@@ -211,17 +211,17 @@
       "Entity": "MainCamera",
       "Components": [
         {
-          "Component": "CoreEngine.Rendering.Components.CameraComponent"
+          "Component": "CoreEngine.Rendering.Components.CameraComponent, CoreEngine"
         },
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [-1, 1.8, 0],
             "RotationY": 90
           }
         },
         {
-          "Component": "CoreEngine.Samples.SceneViewer.PlayerComponent",
+          "Component": "CoreEngine.Samples.SceneViewer.PlayerComponent, SceneViewer",
           "Data": {
             "MovementAcceleration": 300
           }
@@ -232,10 +232,10 @@
       "Entity": "DebugCamera",
       "Components": [
         {
-          "Component": "CoreEngine.Rendering.Components.CameraComponent"
+          "Component": "CoreEngine.Rendering.Components.CameraComponent, CoreEngine"
         },
         {
-          "Component": "CoreEngine.Components.TransformComponent",
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
             "Position": [-1, 10, 0],
             "RotationY": 90,

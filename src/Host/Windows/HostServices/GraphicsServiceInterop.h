@@ -169,10 +169,16 @@ void* GetSwapChainBackBufferTextureInterop(void* context, void* swapChainPointer
     return contextObject->GetSwapChainBackBufferTexture(swapChainPointer);
 }
 
-unsigned long PresentSwapChainInterop(void* context, void* swapChainPointer)
+void PresentSwapChainInterop(void* context, void* swapChainPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->PresentSwapChain(swapChainPointer);
+    contextObject->PresentSwapChain(swapChainPointer);
+}
+
+void WaitForSwapChainOnCpuInterop(void* context, void* swapChainPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->WaitForSwapChainOnCpu(swapChainPointer);
 }
 
 void* CreateIndirectCommandBufferInterop(void* context, int maxCommandCount)
@@ -411,6 +417,7 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_ResizeSwapChain = ResizeSwapChainInterop;
     service->GraphicsService_GetSwapChainBackBufferTexture = GetSwapChainBackBufferTextureInterop;
     service->GraphicsService_PresentSwapChain = PresentSwapChainInterop;
+    service->GraphicsService_WaitForSwapChainOnCpu = WaitForSwapChainOnCpuInterop;
     service->GraphicsService_CreateIndirectCommandBuffer = CreateIndirectCommandBufferInterop;
     service->GraphicsService_SetIndirectCommandBufferLabel = SetIndirectCommandBufferLabelInterop;
     service->GraphicsService_DeleteIndirectCommandBuffer = DeleteIndirectCommandBufferInterop;

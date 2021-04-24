@@ -402,6 +402,8 @@ void* Direct3D12GraphicsService::CreateTexture(void* graphicsHeapPointer, unsign
 			rawClearValue.Format = ConvertTextureFormat(textureFormat);
 			clearValue = &rawClearValue;
 		}
+
+		initialState = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	}
 
 	ComPtr<ID3D12Resource> gpuTexture;
@@ -495,12 +497,14 @@ void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* comm
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 	swapChainDesc.SampleDesc = { 1, 0 };
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFullScreenDesc = {};
 	swapChainFullScreenDesc.Windowed = true;
 	
 	ComPtr<IDXGISwapChain3> swapChain;
 	AssertIfFailed(dxgiFactory->CreateSwapChainForHwnd(commandQueue->CommandQueueObject.Get(), (HWND)windowPointer, &swapChainDesc, &swapChainFullScreenDesc, nullptr, (IDXGISwapChain1**)swapChain.ReleaseAndGetAddressOf()));
+	swapChain->SetMaximumFrameLatency(1);
 
 	Direct3D12SwapChain* swapChainStructure = new Direct3D12SwapChain();
 	swapChainStructure->SwapChainObject = swapChain;
@@ -543,7 +547,7 @@ void Direct3D12GraphicsService::ResizeSwapChain(void* swapChainPointer, int widt
 	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
 
 	this->WaitForCommandQueueOnCpu(swapChain->CommandQueue, swapChain->CommandQueue->FenceValue - 1);
-
+	
 	D3D12_RESOURCE_DESC backBufferDesc;
 
 	for (int i = 0; i < RenderBuffersCount; i++)
@@ -555,7 +559,7 @@ void Direct3D12GraphicsService::ResizeSwapChain(void* swapChainPointer, int widt
 	backBufferDesc.Width = width;
 	backBufferDesc.Height = height;
 
-	AssertIfFailed(swapChain->SwapChainObject->ResizeBuffers(RenderBuffersCount, width, height, DXGI_FORMAT_UNKNOWN, 0));
+	AssertIfFailed(swapChain->SwapChainObject->ResizeBuffers(RenderBuffersCount, width, height, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT));
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.Format = backBufferDesc.Format;
@@ -593,7 +597,7 @@ void* Direct3D12GraphicsService::GetSwapChainBackBufferTexture(void* swapChainPo
 	return swapChain->BackBufferTextures[swapChain->SwapChainObject->GetCurrentBackBufferIndex()];
 }
 
-unsigned long Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer)
+void Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer)
 {
 	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
 	AssertIfFailed(swapChain->SwapChainObject->Present(1, 0));
@@ -604,9 +608,20 @@ unsigned long Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer
 	swapChain->CommandQueue->FenceValue = fenceValue + 1;
 
 	// TODO: Do something better here
-	this->currentAllocatorIndex = (this->currentAllocatorIndex + 1) % RenderBuffersCount;
+	this->currentAllocatorIndex = (this->currentAllocatorIndex + 1) % FramesCount;
+}
 
-	return fenceValue;
+void Direct3D12GraphicsService::WaitForSwapChainOnCpu(void* swapChainPointer)
+{
+	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
+
+	// TODO: Store that in the swapchain struct
+	auto waitable = swapChain->SwapChainObject->GetFrameLatencyWaitableObject();
+
+	if (WaitForSingleObjectEx(waitable, 1000, true) == WAIT_TIMEOUT)
+	{
+		assert("Wait for SwapChain timeout");
+	}
 }
 
 // TODO: To remove
@@ -897,7 +912,8 @@ void Direct3D12GraphicsService::SetShaderTexture(void* commandListPointer, void*
 
 	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+		// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 		auto descriptorHeapdOffset = texture->SrvTextureDescriptorOffset;
 
@@ -1149,7 +1165,8 @@ void Direct3D12GraphicsService::EndRenderPass(void* commandListPointer)
 
 		if (!texture->IsPresentTexture)
 		{
-			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+			// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 
 		else
@@ -1288,11 +1305,7 @@ void Direct3D12GraphicsService::QueryTimestamp(void* commandListPointer, void* q
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	Direct3D12QueryBuffer* queryBuffer = (Direct3D12QueryBuffer*)queryBufferPointer;
 
-	// TODO: Copy queries are crashing
-	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		commandList->CommandListObject->EndQuery(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
-	}
+	commandList->CommandListObject->EndQuery(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
 }
 
 void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex)
@@ -1308,11 +1321,7 @@ void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void*
 		destinationBuffer->CpuPointer = nullptr;
 	}
 
-	// TODO: Copy queries are crashing
-	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
-	}
+	commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
 }
 
 void Direct3D12GraphicsService::EnableDebugLayer()
@@ -1345,14 +1354,25 @@ ComPtr<IDXGIAdapter4> Direct3D12GraphicsService::FindGraphicsAdapter(const ComPt
 			ComPtr<ID3D12Device> tempDevice;
 			D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(tempDevice.ReleaseAndGetAddressOf()));
 
-			// D3D12_FEATURE_DATA_D3D12_OPTIONS deviceOptions = {};
-			// AssertIfFailed(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &deviceOptions, sizeof(deviceOptions)));
-
-			if (/*deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && */dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+			if (tempDevice != nullptr)
 			{
-				this->adapterName = wstring(dxgiAdapterDesc1.Description) + L" (DirectX 12)";
-				maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
-				dxgiAdapter1.As(&dxgiAdapter4);
+				D3D12_FEATURE_DATA_D3D12_OPTIONS deviceOptions = {};
+				AssertIfFailed(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &deviceOptions, sizeof(deviceOptions)));
+
+				D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = {};
+				shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
+
+				AssertIfFailed(tempDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel)));
+
+				if (deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && 
+					deviceOptions.ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3 && 
+					shaderModel.HighestShaderModel == D3D_SHADER_MODEL_6_6 &&
+					dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+				{
+					this->adapterName = wstring(dxgiAdapterDesc1.Description) + wstring(L" (DirectX 12.1.") + to_wstring(D3D12_SDK_VERSION) + L")";
+					maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
+					dxgiAdapter1.As(&dxgiAdapter4);
+				}
 			}
 		}
 	}
@@ -1363,7 +1383,7 @@ ComPtr<IDXGIAdapter4> Direct3D12GraphicsService::FindGraphicsAdapter(const ComPt
 bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFactory, const ComPtr<IDXGIAdapter4> graphicsAdapter)
 {
 	// Created Direct3D Device
-	HRESULT result = D3D12CreateDevice(graphicsAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf()));
+	HRESULT result = D3D12CreateDevice(graphicsAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result))
 	{
@@ -1373,7 +1393,7 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 		ComPtr<IDXGIAdapter> warpAdapter;
 		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.ReleaseAndGetAddressOf()));
 
-		AssertIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf())));
+		AssertIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf())));
 	}
 
 	this->globalFenceEvent = CreateEventA(nullptr, false, false, nullptr);

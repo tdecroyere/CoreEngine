@@ -5,7 +5,11 @@
 using namespace std;
 using namespace Microsoft::WRL;
 
-static const int RenderBuffersCount = 2;
+extern "C" { _declspec(dllexport) extern const UINT D3D12SDKVersion = 4;}
+extern "C" { _declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
+static const int RenderBuffersCount = 3;
+static const int FramesCount = 2;
 static const int CommandAllocatorsCount = 2;
 static const int QueryHeapMaxSize = 1000;
 
@@ -86,7 +90,7 @@ struct Direct3D12SwapChain
 {
     ComPtr<IDXGISwapChain3> SwapChainObject;
     Direct3D12CommandQueue* CommandQueue;
-    Direct3D12Texture* BackBufferTextures[RenderBuffersCount];
+    Direct3D12Texture* BackBufferTextures[RenderBuffersCount + 1];
 };
 
 class Direct3D12GraphicsService
@@ -129,7 +133,8 @@ class Direct3D12GraphicsService
         void* CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
         void ResizeSwapChain(void* swapChainPointer, int width, int height);
         void* GetSwapChainBackBufferTexture(void* swapChainPointer);
-        unsigned long PresentSwapChain(void* swapChainPointer);
+        void PresentSwapChain(void* swapChainPointer);
+        void WaitForSwapChainOnCpu(void* swapChainPointer);
 
         void* CreateIndirectCommandBuffer(int maxCommandCount);
         void SetIndirectCommandBufferLabel(void* indirectCommandBufferPointer, char* label);

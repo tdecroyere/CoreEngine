@@ -1,5 +1,10 @@
+using System.Numerics;
 using CoreEngine.Components;
 using CoreEngine.Diagnostics;
+using CoreEngine.Graphics;
+using CoreEngine.Resources;
+using CoreEngine.Samples.SuperMario.Components;
+using CoreEngine.Samples.SuperMario.EntitySystems;
 
 namespace CoreEngine.Samples.SuperMario
 {
@@ -14,16 +19,28 @@ namespace CoreEngine.Samples.SuperMario
             context.CurrentScene = new Scene();
             var entityManager = context.CurrentScene.EntityManager;
 
-            var componentLayout = entityManager.CreateComponentLayout<TransformComponent, BlockComponent>();
-            var entity = entityManager.CreateEntity(componentLayout);
+            var playerComponentLayout = entityManager.CreateComponentLayout<TransformComponent, PlayerComponent, SpriteComponent>();
+            var entity = entityManager.CreateEntity(playerComponentLayout);
 
-            Logger.WriteMessage($"{componentLayout}");
-            entityManager.SetComponentData<TransformComponent>(entity, new TransformComponent() { Position = new System.Numerics.Vector3() });
+            entityManager.SetComponentData(entity, new TransformComponent() { Position = new Vector3(800, 400, 0) });
+            entityManager.SetComponentData(entity, new SpriteComponent() {  });
+
+            if (context.CurrentScene != null)
+            {
+                var entitySystemManager = context.CurrentScene.EntitySystemManager;
+
+                entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
+                entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
+                entitySystemManager.RegisterEntitySystem<RenderSpriteSystem>();
+            }
         }
 
         public override void OnUpdate(CoreEngineContext context, float deltaTime)
         {
-            Logger.WriteMessage("Update Super Mario...");
+            if (context.CurrentScene != null)
+            {
+                context.CurrentScene.EntitySystemManager.Process(context.SystemManagerContainer, context.CurrentScene.EntityManager, deltaTime);
+            }
         }
     }
 }

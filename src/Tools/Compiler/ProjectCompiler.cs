@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Runtime.Loader;
 
 namespace CoreEngine.Tools.Compiler
 {
@@ -56,6 +57,19 @@ namespace CoreEngine.Tools.Compiler
             stopwatch.Start();
 
             compiledFilesCount += await BuildDotnet(projectPath, outputDirectory, fileTracker, remainingDestinationFiles);
+
+            foreach (var assemblyLoadContext in AssemblyLoadContext.All)
+            {
+                Logger.BeginAction($"Assembly Load Context: {assemblyLoadContext.Name}");
+
+                foreach (var assembly in assemblyLoadContext.Assemblies)
+                {
+                    Logger.WriteMessage($"Loaded Assembly: {assembly.GetName().FullName}");
+                }
+
+                Logger.EndAction();
+            }
+
             compiledFilesCount += await BuildResources(projectPath, outputDirectory, searchPattern, fileTracker, remainingDestinationFiles);
 
             stopwatch.Stop();
@@ -145,12 +159,18 @@ namespace CoreEngine.Tools.Compiler
 
                         await File.WriteAllBytesAsync(Path.Combine(outputDirectory, project.AssemblyName + ".dll"), stream.ToArray());
                         await File.WriteAllBytesAsync(Path.Combine(outputDirectory, project.AssemblyName + ".pdb"), pdbStream.ToArray());
+
+                        stream.Position = 0;
+                        AssemblyLoadContext.All.First().LoadFromStream(stream);
                     }
 
                     Logger.EndAction();
                     return 1;
                 }
             }
+
+            var assemblyPath = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(projectPath) + ".dll");
+            AssemblyLoadContext.All.First().LoadFromAssemblyPath(assemblyPath);
 
             return 0;
         }

@@ -13,7 +13,7 @@ namespace CoreEngine
 
         public string TypeName { get; }
 
-        public ComponentHash[]? ComponentHashs { get; set; }
+        public Memory<ComponentHash>? ComponentHashs { get; set; }
         public EntitySystem? EntitySystem { get; set; }
     }
 
@@ -93,17 +93,18 @@ namespace CoreEngine
                     // TODO: Be carreful of memory management and small buffers
                     registeredSystem.ComponentHashs = new ComponentHash[systemDefinition.Parameters.Count];
 
-                    for (var j = 0; j < registeredSystem.ComponentHashs.Length; j++)
+                    for (var j = 0; j < registeredSystem.ComponentHashs.Value.Length; j++)
                     {
-                        registeredSystem.ComponentHashs[j] = systemDefinition.Parameters[j].ComponentHash;
+                        registeredSystem.ComponentHashs.Value.Span[j] = systemDefinition.Parameters[j].ComponentHash;
                     }
                 }
 
                 var entitySystem = registeredSystem.EntitySystem;
+                var componentHashs = this.RegisteredSystems[i].ComponentHashs;
 
-                if (entitySystem != null)
+                if (entitySystem != null && componentHashs.HasValue)
                 {
-                    var entitySystemData = entityManager.GetEntitySystemData(this.RegisteredSystems[i].ComponentHashs);
+                    var entitySystemData = entityManager.GetEntitySystemData(componentHashs.Value.Span);
 
                     entitySystem.SetEntitySystemData(entitySystemData);
                     entitySystem.Process(entityManager, deltaTime);

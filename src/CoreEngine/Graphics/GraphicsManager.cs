@@ -443,15 +443,24 @@ namespace CoreEngine.Graphics
             return new Texture(this, new GraphicsMemoryAllocation(), null, textureNativePointer, null, swapChain.TextureFormat, TextureUsage.RenderTarget, swapChain.Width, swapChain.Height, 1, 1, 1, isStatic: true, "BackBuffer");
         }
 
-        public Fence PresentSwapChain(SwapChain swapChain)
+        public void PresentSwapChain(SwapChain swapChain)
         {
             if (swapChain == null)
             {
                 throw new ArgumentNullException(nameof(swapChain));
             }
             
-            var fenceValue = this.graphicsService.PresentSwapChain(swapChain.NativePointer);
-            return new Fence(swapChain.CommandQueue, fenceValue);
+            this.graphicsService.PresentSwapChain(swapChain.NativePointer);
+        }
+
+        public void WaitForSwapChainOnCpu(SwapChain swapChain)
+        {
+            if (swapChain == null)
+            {
+                throw new ArgumentNullException(nameof(swapChain));
+            }
+
+            this.graphicsService.WaitForSwapChainOnCpu(swapChain.NativePointer);
         }
 
         public IndirectCommandBuffer CreateIndirectCommandBuffer(int maxCommandCount, bool isStatic, string label)

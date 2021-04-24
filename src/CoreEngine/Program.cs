@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using CoreEngine;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
@@ -38,7 +39,7 @@ public static class Program
         var inputsManager = new InputsManager(hostPlatform.InputsService);
         var nativeUIManager = new NativeUIManager(hostPlatform.NativeUIService);
 
-        var window = nativeUIManager.CreateWindow("Core Engine", 1280, 720);
+        var window = nativeUIManager.CreateWindow("Core Engine", 1920, 1080);
         inputsManager.AssociateWindow(window);
 
         var sceneQueue = new GraphicsSceneQueue();
@@ -87,6 +88,9 @@ public static class Program
 
         if (coreEngineApp != null)
         {
+            var renderTask = new Task(() => Render(renderManager), new System.Threading.CancellationToken(), TaskCreationOptions.LongRunning);
+            //renderTask.Start();
+
             var appStatus = new AppStatus() { IsActive = true, IsRunning = true };
 
             while (appStatus.IsRunning)
@@ -111,5 +115,10 @@ public static class Program
         }
 
         Logger.WriteMessage("Exiting");
+    }
+
+    private static void Render(RenderManager renderManager)
+    {
+        renderManager.Render();
     }
 }

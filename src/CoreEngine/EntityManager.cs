@@ -67,10 +67,27 @@ namespace CoreEngine
 
         // TODO: Allow the addition of component after component layout
         // When an entity is created with this layout, the layout cannot be modified after that.
+        #pragma warning disable CA1822
         public ComponentLayout CreateComponentLayout()
         {
             return new ComponentLayout();
         }
+        
+        public void RegisterComponentLayoutComponent(ComponentLayout componentLayout, ComponentHash componentHash, int componentSize, ReadOnlyMemory<byte>? initialData)
+        {
+            if (componentLayout is null)
+            {
+                throw new ArgumentNullException(nameof(componentLayout));
+            }
+
+            if (componentHash is null)
+            {
+                throw new ArgumentNullException(nameof(componentHash));
+            }
+
+            componentLayout.RegisterComponent(componentHash, componentSize, initialData);
+        }
+        #pragma warning restore CA1822
 
         public Entity CreateEntity(ComponentLayout componentLayout)
         {
@@ -135,6 +152,7 @@ namespace CoreEngine
             for (int i = 0; i < this.entityComponentLayoutsMapping.Count; i++)
             {
                 var entity = new Entity((uint)i + 1);
+
                 if (this.HasComponent<T>(entity))
                 {
                     entities.Add(entity);
@@ -142,6 +160,11 @@ namespace CoreEngine
             }
             
             return entities.ToArray();
+        }
+
+        public ComponentLayout GetEntityComponentLayout(Entity entity)
+        {
+            return this.entityComponentLayoutsMapping[(int)entity.EntityId - 1];
         }
 
         public void SetComponentData<T>(Entity entity, T component) where T: struct, IComponentData
@@ -249,7 +272,7 @@ namespace CoreEngine
             return false;
         }
 
-        internal EntitySystemData GetEntitySystemData(ComponentHash[] componentHashCodes)
+        internal EntitySystemData GetEntitySystemData(ReadOnlySpan<ComponentHash> componentHashCodes)
         {
             var componentSizes = new int[componentHashCodes.Length];
 

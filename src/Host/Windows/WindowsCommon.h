@@ -16,7 +16,7 @@
 #include <Windows.h>
 #include <Uxtheme.h>
 #include <wrl/client.h>
-#include <d3d12.h>
+#include "d3d12.h"
 #include <d3dcompiler.h>
 
 #if defined(NTDDI_WIN10_RS2)

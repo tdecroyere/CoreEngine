@@ -23,8 +23,6 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Scenes
 
         protected override Task<SceneDescription> ParseSceneFileAsync(ReadOnlyMemory<byte> sourceData)
         {
-            Logger.WriteMessage("JSON PARSING");
-
             var options = new JsonSerializerOptions
             {
                 ReadCommentHandling = JsonCommentHandling.Skip,

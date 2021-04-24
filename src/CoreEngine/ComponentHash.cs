@@ -97,6 +97,11 @@ namespace CoreEngine
             return stringBuilder.ToString();
         }
 
+        public byte[] ToArray()
+        {
+            return this.hash.ToArray();
+        }
+
         public static bool operator ==(ComponentHash layout1, ComponentHash layout2) 
         {
             if (layout1 is null || layout2 is null)

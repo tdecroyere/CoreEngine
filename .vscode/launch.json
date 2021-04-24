@@ -20,8 +20,8 @@
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            "args": ["Tools\\Compiler ../../samples/SceneViewer/SceneViewer.csproj TestScene.cescene"],
-            // "args": ["..\\..\\samples\\SceneViewer"],
+            // "args": ["Tools\\Compiler ../../samples/SceneViewer/SceneViewer.csproj TestScene.cescene"],
+            "args": ["..\\..\\samples\\SuperMario"],
             "stopAtEntry": false,
             "externalConsole": false,
             "osx": {

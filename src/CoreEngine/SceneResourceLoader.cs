@@ -6,6 +6,7 @@ using System.Reflection;
 using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 
 namespace CoreEngine
 {
@@ -26,14 +27,12 @@ namespace CoreEngine
 
         public override Resource LoadResourceData(Resource resource, byte[] data)
         {
-            var scene = resource as Scene;
-            var resourcePrefix = "resource:";
-
-            if (scene == null)
+            if (resource is not Scene scene)
             {
                 throw new ArgumentException("Resource is not a Scene resource.", nameof(resource));
             }
 
+            var resourcePrefix = "resource:";
             scene.Reset();
 
             using var memoryStream = new MemoryStream(data);
@@ -44,56 +43,33 @@ namespace CoreEngine
 
             if (meshSignature.ToString() != "SCENE" && meshVersion != 1)
             {
-                Logger.WriteMessage($"ERROR: Wrong signature or version for scene '{resource.Path}'");
+                Logger.WriteMessage($"ERROR: Wrong signature or version for scene '{scene.Path}'");
                 return resource;
             }
 
             //Logger.WriteMessage("Scene Loading");
 
-            var entityLayoutsCount = reader.ReadInt32();
+            var componentLayoutCount = reader.ReadInt32();
             var entitiesCount = reader.ReadInt32();
 
             //Logger.WriteMessage($"Loading {entitiesCount} entities (Layouts: {entityLayoutsCount})");
 
-            var sceneEntityLayoutsList = new List<ComponentLayout?>();
+            var componentLayouts = new ComponentLayout[componentLayoutCount];
 
-            for (var i = 0; i < entityLayoutsCount; i++)
+            for (var i = 0; i < componentLayoutCount; i++)
             {
-                var typesCount = reader.ReadInt32();
-                var layoutTypes = new IComponentData[typesCount];
-                var isLayoutComplete = true;
+                var componentLayout = scene.EntityManager.CreateComponentLayout();
+                componentLayouts[i] = componentLayout;
 
-                for (var j = 0; j < typesCount; j++)
+                var componentCount = reader.ReadInt32();
+
+                for (var j = 0; j < componentCount; j++)
                 {
-                    var typeFullName = reader.ReadString();
-                    var type = FindType(typeFullName);
-                    //Logger.WriteMessage($"Found Type: {type}");
+                    var componentHashLength = reader.ReadInt32();
+                    var componentHash = reader.ReadBytes(componentHashLength);
+                    var componentSizeInBytes = reader.ReadInt32();
 
-                    if (type == null)
-                    {
-                        isLayoutComplete = false;
-                    }
-
-                    else
-                    {
-                        layoutTypes[j] = (IComponentData)Activator.CreateInstance(type)!;
-                    }
-                }
-
-                if (isLayoutComplete)
-                {
-                    var entityLayout = scene.EntityManager.CreateComponentLayout();
-                    sceneEntityLayoutsList.Add(entityLayout);
-
-                    for (var j = 0; j < typesCount; j++)
-                    {
-                        entityLayout.RegisterComponent(layoutTypes[j].GetComponentHash(), Marshal.SizeOf(layoutTypes[j]), null);
-                    }
-                }
-
-                else
-                {
-                    sceneEntityLayoutsList.Add(null);
+                    componentLayout.RegisterComponent(new ComponentHash(componentHash), componentSizeInBytes, null);
                 }
             }
 
@@ -111,7 +87,7 @@ namespace CoreEngine
                 // Logger.WriteMessage($"Components Count: {componentsCount}");
                 // Logger.WriteMessage($"EntityLayoutIndex: {entityLayoutIndex}");
 
-                var entityLayout = sceneEntityLayoutsList[entityLayoutIndex];
+                var entityLayout = componentLayouts[entityLayoutIndex];
                 var entity = scene.EntityManager.CreateEntity(entityLayout);
                 entitiesMapping.Add(entityName, entity);
 
@@ -127,13 +103,7 @@ namespace CoreEngine
 
                     if (componentType != null)
                     {
-                        component = (IComponentData?)Activator.CreateInstance(componentType);
-
-                        if (component == null)
-                        {
-                            throw new InvalidOperationException("Cannot create component type.");
-                        }
-
+                        component = (IComponentData)Activator.CreateInstance(componentType)!;
                         component.SetDefaultValues();
                     }
 
@@ -164,10 +134,10 @@ namespace CoreEngine
 
                                 if (resourcePathIndex != -1)
                                 {
-                                    var resourcePath = stringValue.Substring(resourcePathIndex + resourcePrefix.Length);
+                                    var resourcePath = stringValue[(resourcePathIndex + resourcePrefix.Length)..];
                                     
                                     var componentResource = this.ResourcesManager.LoadResourceAsync<Resource>(resourcePath);
-                                    resource.DependentResources.Add(componentResource);
+                                    scene.DependentResources.Add(componentResource);
 
                                     propertyInfo.SetValue(component, componentResource.ResourceId);
                                 }
@@ -179,7 +149,7 @@ namespace CoreEngine
                                         entitiesToResolve.Add(stringValue, new List<(Entity entity, Type componentType, IComponentData component, PropertyInfo property)>());
                                     }
 
-                                    if (entity != null && componentType != null && component != null)
+                                    if (componentType != null && component != null)
                                     {
                                         entitiesToResolve[stringValue].Add((entity, componentType, component, propertyInfo));
                                     }
@@ -251,7 +221,7 @@ namespace CoreEngine
                         }
                     }
                 
-                    if (entity != null && component != null && componentType != null)
+                    if (component != null && componentType != null)
                     {
                         var size = Marshal.SizeOf(component);
                         // Both managed and unmanaged buffers required.
@@ -319,20 +289,21 @@ namespace CoreEngine
 
         private static Type? FindType(string fullTypeName)
         {
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-            for (var i = 0; i < assemblies.Length; i++)
+            return Type.GetType(fullTypeName, (assemblyName) =>
             {
-                var assembly = assemblies[i];
-                var type = assembly.GetType(fullTypeName);
-
-                if (type != null)
+                foreach (var assemblyLoadContext in AssemblyLoadContext.All)
                 {
-                    return type;
+                    foreach (var assembly in assemblyLoadContext.Assemblies)
+                    {
+                        if (assembly.GetName().Name == assemblyName.Name)
+                        {
+                            return assembly;
+                        }
+                    }
                 }
-            }
 
-            return null;
+                return null;
+            }, null);
         }
     }
 }

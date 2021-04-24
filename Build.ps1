@@ -5,11 +5,17 @@ $WindowsHostSourceFolder = ".\src\Host\Windows\"
 $GeneratedFilesFolder = ".\src\Host\Windows\Generated Files\"
 $ObjFolder = ".\src\Host\Windows\Generated Files\obj"
 $TempFolder = ".\build\temp"
+$TempD3D12Folder = ".\build\temp\D3D12"
 $OutputFolder = ".\build\Windows"
 
 if (-not(Test-Path -Path $TempFolder))
 {
     New-Item -Path $TempFolder -ItemType "directory" | Out-Null
+}
+
+if (-not(Test-Path -Path $TempD3D12Folder))
+{
+    New-Item -Path $TempD3D12Folder -ItemType "directory" | Out-Null
 }
 
 if (-not(Test-Path -Path $ObjFolder))
@@ -156,7 +162,7 @@ function PreCompileHeader
     if (-Not(Test-Path -Path "WindowsCommon.pch"))
     {
         Write-Output "[93mCompiling Windows Pre-compiled header...[0m"
-        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\inc" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
+        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\include" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
 
         if(-Not $?)
         {
@@ -175,7 +181,7 @@ function CompileWindowsHost
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\inc" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\include" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
 
     if (-Not $?)
     {
@@ -194,7 +200,7 @@ function LinkWindowsHost
 
     # TODO: Copy nethost.dll to outputdir from the package folder
    
-    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.5.0.1\runtimes\win-x64\native\nethost.lib"
+    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.3.21201.4\runtimes\win-x64\native\nethost.lib"
 
     if (-Not $?)
     {
@@ -203,6 +209,7 @@ function LinkWindowsHost
         Exit 1
     }
 
+    Copy-Item "..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\bin\x64\*" "..\..\..\..\..\$TempD3D12Folder" -Recurse -Force
     Pop-Location
 }
 

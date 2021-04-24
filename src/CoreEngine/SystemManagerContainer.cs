@@ -38,6 +38,11 @@ namespace CoreEngine
 
         public T CreateInstance<T>(Type type)
         {
+            if (type is null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
+
             var constructorsInfo = type.GetConstructors();
 
             if (constructorsInfo.Length == 0 || constructorsInfo[0].IsPublic == false)
@@ -55,19 +60,13 @@ namespace CoreEngine
 
                 if (!this.systemManagerList.ContainsKey(parameter.ParameterType))
                 {
-                    throw new InvalidOperationException($"The parameter '{parameter.ParameterType.ToString()}' is not registered.");
+                    throw new InvalidOperationException($"The parameter '{parameter.ParameterType}' is not registered.");
                 }
 
                 resolvedParameters[i] = this.systemManagerList[parameter.ParameterType];
             }
 
-            var instance = Activator.CreateInstance(type, resolvedParameters);
-
-            if (instance == null)
-            {
-                throw new InvalidOperationException("Cannot create instance type.");
-            }
-
+            var instance = Activator.CreateInstance(type, resolvedParameters)!;
             return (T)instance;
         }
 

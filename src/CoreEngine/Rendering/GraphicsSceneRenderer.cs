@@ -735,14 +735,14 @@ namespace CoreEngine.Rendering
             // TODO: Add BlendOperation parameter
 
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget0, renderTarget1, depthBufferTexture, depthBufferOperation, this.backfaceCulling, PrimitiveType.Triangle);
-            var startQueryIndex = renderManager.InsertQueryTimestamp(renderCommandList);
             graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
+            var startQueryIndex = renderManager.InsertQueryTimestamp(renderCommandList);
 
             graphicsManager.SetShader(renderCommandList, this.Shader);
             graphicsManager.ExecuteIndirectCommandBuffer(renderCommandList, indirectCommandBuffer.Value, maxCommandCount);
 
-            graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = renderManager.InsertQueryTimestamp(renderCommandList);
+            graphicsManager.EndRenderPass(renderCommandList);
             graphicsManager.CommitCommandList(renderCommandList);
 
             renderManager.AddGpuTiming(this.Name, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
@@ -1877,16 +1877,15 @@ namespace CoreEngine.Rendering
             var renderTarget = new RenderTargetDescriptor(destinationTexture, null, BlendOperation.None);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.TriangleStrip);
 
-            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
             this.graphicsManager.SetShaderTexture(renderCommandList, sourceTexture, 0);
             this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
-            this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.EndRenderPass(renderCommandList);
 
             this.graphicsManager.CommitCommandList(renderCommandList);
 

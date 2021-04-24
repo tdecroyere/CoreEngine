@@ -8,26 +8,27 @@ class MetalCommandQueue {
     let commandQueueType: GraphicsServiceCommandType
     let fence: MTLSharedEvent
     var fenceValue: UInt64
-    var commandBuffer: MTLCommandBuffer
 
-    init (_ commandQueueObject: MTLCommandQueue, _ commandQueueType: GraphicsServiceCommandType, _ fence: MTLSharedEvent, _ commandBuffer: MTLCommandBuffer) {
+    init (_ commandQueueObject: MTLCommandQueue, _ commandQueueType: GraphicsServiceCommandType, _ fence: MTLSharedEvent) {
         self.commandQueueObject = commandQueueObject
         self.commandQueueType = commandQueueType
         self.fence = fence
         self.fenceValue = 0
-        self.commandBuffer = commandBuffer
     }
 }
 
 class MetalCommandList {
     let commandQueue: MetalCommandQueue
+    var commandBuffer: MTLCommandBuffer
     var commandEncoder: MTLCommandEncoder?
+
     var label: String?
     var renderTargets: [MTLTexture]
     var resourceFences: [MTLFence]
 
-    init (_ commandQueue: MetalCommandQueue, _ commandEncoder: MTLCommandEncoder?) {
+    init (_ commandQueue: MetalCommandQueue, _ commandBuffer: MTLCommandBuffer, _ commandEncoder: MTLCommandEncoder?) {
         self.commandQueue = commandQueue
+        self.commandBuffer = commandBuffer
         self.commandEncoder = commandEncoder
         self.renderTargets = []
         self.resourceFences = []
@@ -50,6 +51,7 @@ class MetalGraphicsBuffer {
     let bufferObject: MTLBuffer
     let type: GraphicsServiceHeapType
     let sizeInBytes: Int
+    var resourceFence: MTLFence?
 
     init (_ bufferObject: MTLBuffer, _ type: GraphicsServiceHeapType, _ sizeInBytes: Int) {
         self.bufferObject = bufferObject
@@ -225,11 +227,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         // TODO: Only create shared event for the present queue?
         guard 
             let commandQueue = self.graphicsDevice.makeCommandQueue(maxCommandBufferCount: 100),
-            let fence = self.graphicsDevice.makeSharedEvent(),
-            let commandBuffer = commandQueue.makeCommandBuffer()
+            let fence = self.graphicsDevice.makeSharedEvent()
         else { return nil }
 
-        let nativeCommandQueue = MetalCommandQueue(commandQueue, commandQueueType, fence, commandBuffer)
+        let nativeCommandQueue = MetalCommandQueue(commandQueue, commandQueueType, fence)
         return Unmanaged.passRetained(nativeCommandQueue).toOpaque()
     }
 
@@ -238,7 +239,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         commandQueue.commandQueueObject.label = label
         commandQueue.fence.label = "\(label)Fence"
-        commandQueue.commandBuffer.label = "\(label)CommandBuffer"
     }
 
     public func deleteCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?) {
@@ -246,18 +246,10 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func resetCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?) {
-        let commandQueue = Unmanaged<MetalCommandQueue>.fromOpaque(commandQueuePointer!).takeUnretainedValue()
-
-        guard let commandBuffer = commandQueue.commandQueueObject.makeCommandBufferWithUnretainedReferences() else {
-            print("resetCommandQueue: Error while creating command buffer object.")
-            return
-        }
-        commandQueue.commandBuffer = commandBuffer
-        commandQueue.commandBuffer.label = "\(commandQueue.commandQueueObject.label!)CommandBuffer"
     }
 
     public func getCommandQueueTimestampFrequency(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UInt {
-        // let timestamps = self.device.sampleTimestamps()
+        let timestamps = self.graphicsDevice.sampleTimestamps()
 
         // if(timestamps.cpu > m_cpu_timestamp && gpu_timestamp > m_gpu_timestamp)
         // {
@@ -277,21 +269,17 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         let commandQueue = Unmanaged<MetalCommandQueue>.fromOpaque(commandQueuePointer!).takeUnretainedValue()
         var fenceValue = UInt64(0)
 
-        if (isAwaitable) {
-            fenceValue = commandQueue.fenceValue
-            commandQueue.commandBuffer.encodeSignalEvent(commandQueue.fence, value: fenceValue)
-            commandQueue.fenceValue = commandQueue.fenceValue + 1
+        for i in 0..<commandLists.count {
+            let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandLists[i]!).takeUnretainedValue()
+
+            if (isAwaitable && i == commandLists.count - 1) {
+                fenceValue = commandQueue.fenceValue
+                commandList.commandBuffer.encodeSignalEvent(commandQueue.fence, value: fenceValue)
+                commandQueue.fenceValue = commandQueue.fenceValue + 1
+            }
+
+            commandList.commandBuffer.commit()
         }
-
-        commandQueue.commandBuffer.commit()
-
-        guard let commandBuffer = commandQueue.commandQueueObject.makeCommandBufferWithUnretainedReferences() else {
-            print("resetCommandQueue: Error while creating command buffer object.")
-            return 0
-        }
-
-        commandQueue.commandBuffer = commandBuffer
-        commandQueue.commandBuffer.label = "\(commandQueue.commandQueueObject.label!)CommandBuffer"
 
         return UInt(fenceValue)
     }
@@ -329,19 +317,25 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
         let commandQueue = Unmanaged<MetalCommandQueue>.fromOpaque(commandQueuePointer!).takeUnretainedValue()
         var commandEncoder: MTLCommandEncoder? = nil
 
-        if (commandQueue.commandQueueType == Copy) {
-            commandEncoder = commandQueue.commandBuffer.makeBlitCommandEncoder()
-        } else if (commandQueue.commandQueueType == Compute) {
-            commandEncoder = commandQueue.commandBuffer.makeComputeCommandEncoder()
+        guard let commandBuffer = commandQueue.commandQueueObject.makeCommandBufferWithUnretainedReferences() else {
+            print("createCommandList: Error while creating command buffer object.")
+            return nil
         }
 
-        let nativeCommandList = MetalCommandList(commandQueue, commandEncoder)
+        if (commandQueue.commandQueueType == Copy) {
+            commandEncoder = commandBuffer.makeBlitCommandEncoder()
+        } else if (commandQueue.commandQueueType == Compute) {
+            commandEncoder = commandBuffer.makeComputeCommandEncoder()
+        }
+
+        let nativeCommandList = MetalCommandList(commandQueue, commandBuffer, commandEncoder)
         return Unmanaged.passRetained(nativeCommandList).toOpaque()
     }
 
     public func setCommandListLabel(_ commandListPointer: UnsafeMutableRawPointer?, _ label: String) {
         let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandListPointer!).takeUnretainedValue()
         commandList.label = label
+        commandList.commandBuffer.label = "\(label)CommandBuffer"
 
         if (commandList.commandEncoder != nil) {
             commandList.commandEncoder!.label = label
@@ -355,10 +349,17 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     public func resetCommandList(_ commandListPointer: UnsafeMutableRawPointer?) {
         let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandListPointer!).takeUnretainedValue()
 
+        guard let commandBuffer = commandList.commandQueue.commandQueueObject.makeCommandBufferWithUnretainedReferences() else {
+            print("createCommandList: Error while creating command buffer object.")
+            return
+        }
+
+        commandList.commandBuffer = commandBuffer
+
         if (commandList.commandQueue.commandQueueType == Copy) {
-            commandList.commandEncoder = commandList.commandQueue.commandBuffer.makeBlitCommandEncoder()
+            commandList.commandEncoder = commandBuffer.makeBlitCommandEncoder()
         } else if (commandList.commandQueue.commandQueueType == Compute) {
-            commandList.commandEncoder = commandList.commandQueue.commandBuffer.makeComputeCommandEncoder()
+            commandList.commandEncoder = commandBuffer.makeComputeCommandEncoder()
         } else {
             commandList.commandEncoder = nil
         }
@@ -521,7 +522,6 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func deleteTexture(_ texturePointer: UnsafeMutableRawPointer?) {
         // TODO: There is a problem here. XCode crash
-
         Unmanaged<MetalTexture>.fromOpaque(texturePointer!).release()
     }
 
@@ -564,21 +564,20 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
     public func presentSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?) -> UInt {
         let swapChain = Unmanaged<MetalSwapChain>.fromOpaque(swapChainPointer!).takeUnretainedValue()
-        swapChain.commandQueue.commandBuffer.present(swapChain.backBufferDrawable!)
 
-        let fenceValue = swapChain.commandQueue.fenceValue
-        swapChain.commandQueue.commandBuffer.encodeSignalEvent(swapChain.commandQueue.fence, value: fenceValue)
-        swapChain.commandQueue.fenceValue = swapChain.commandQueue.fenceValue + 1
-
-        swapChain.commandQueue.commandBuffer.commit()
-
-        guard let commandBuffer = swapChain.commandQueue.commandQueueObject.makeCommandBuffer() else {
-            print("resetCommandQueue: Error while creating command buffer object.")
+        guard let commandBuffer = swapChain.commandQueue.commandQueueObject.makeCommandBufferWithUnretainedReferences() else {
+            print("presentSwapChain: Error while creating command buffer object.")
             return 0
         }
 
-        swapChain.commandQueue.commandBuffer = commandBuffer
-        swapChain.commandQueue.commandBuffer.label = "\(swapChain.commandQueue.commandQueueObject.label!)CommandBuffer"
+        commandBuffer.label = "PresentSwapChainCommandBuffer"
+        commandBuffer.present(swapChain.backBufferDrawable!)
+
+        let fenceValue = swapChain.commandQueue.fenceValue
+        commandBuffer.encodeSignalEvent(swapChain.commandQueue.fence, value: fenceValue)
+        swapChain.commandQueue.fenceValue = swapChain.commandQueue.fenceValue + 1
+
+        commandBuffer.commit()
 
         return UInt(fenceValue)
     }
@@ -785,6 +784,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func setShaderBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?, _ slot: Int, _ isReadOnly: Bool, _ index: Int) {
+        let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandListPointer!).takeUnretainedValue()
         let graphicsBuffer = Unmanaged<MetalGraphicsBuffer>.fromOpaque(graphicsBufferPointer!).takeUnretainedValue()
         
         guard let shader = self.currentShader else {
@@ -795,10 +795,53 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             return
         }
 
+        if (commandList.commandQueue.commandQueueType == Compute) {
+            guard let computeCommandEncoder = commandList.commandEncoder as? MTLComputeCommandEncoder else {
+                print("setShaderBuffer: Wrong encoder type.")
+                return
+            }
+
+            // TODO: Something better here (Manage that like a transition barrier based on the previous state of the resource)
+
+            if (graphicsBuffer.resourceFence != nil) {
+                computeCommandEncoder.waitForFence(graphicsBuffer.resourceFence!)
+                graphicsBuffer.resourceFence = nil
+            }
+
+            if (isReadOnly) {
+                computeCommandEncoder.useResource(graphicsBuffer.bufferObject, usage: .read)
+            } else {
+                computeCommandEncoder.useResource(graphicsBuffer.bufferObject, usage: .write)
+
+                let resourceFence = self.graphicsDevice.makeFence()!
+                graphicsBuffer.resourceFence = resourceFence
+                commandList.resourceFences.append(resourceFence)
+            }
+
+        } else if (commandList.commandQueue.commandQueueType == Render) {
+            guard let renderCommandEncoder = commandList.commandEncoder as? MTLRenderCommandEncoder else {
+                print("setShaderBuffer: Wrong encoder type.")
+                return
+            }
+
+            if (graphicsBuffer.resourceFence != nil) {
+                renderCommandEncoder.waitForFence(graphicsBuffer.resourceFence!, before: .vertex)
+                graphicsBuffer.resourceFence = nil
+            }
+
+            if (isReadOnly) {
+                renderCommandEncoder.useResource(graphicsBuffer.bufferObject, usage: .read)
+            } else {
+                renderCommandEncoder.useResource(graphicsBuffer.bufferObject, usage: .write)
+            }
+        }
+
         argumentEncoder.setBuffer(graphicsBuffer.bufferObject, offset: index, index: slot)
     }
 
     public func setShaderBuffers(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointerList: [UnsafeMutableRawPointer?], _ slot: Int, _ index: Int) {
+        let commandList = Unmanaged<MetalCommandList>.fromOpaque(commandListPointer!).takeUnretainedValue()
+
         guard let shader = self.currentShader else {
             return
         }
@@ -812,6 +855,35 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
 
         for i in 0..<graphicsBufferPointerList.count {
             let graphicsBuffer = Unmanaged<MetalGraphicsBuffer>.fromOpaque(graphicsBufferPointerList[i]!).takeUnretainedValue()
+
+            if (commandList.commandQueue.commandQueueType == Compute) {
+                guard let computeCommandEncoder = commandList.commandEncoder as? MTLComputeCommandEncoder else {
+                    print("setShaderBuffer: Wrong encoder type.")
+                    return
+                }
+
+                // TODO: Something better here (Manage that like a transition barrier based on the previous state of the resource)
+
+                if (graphicsBuffer.resourceFence != nil) {
+                    computeCommandEncoder.waitForFence(graphicsBuffer.resourceFence!)
+                    graphicsBuffer.resourceFence = nil
+                }
+
+                computeCommandEncoder.useResource(graphicsBuffer.bufferObject, usage: .read)
+
+            } else if (commandList.commandQueue.commandQueueType == Render) {
+                guard let renderCommandEncoder = commandList.commandEncoder as? MTLRenderCommandEncoder else {
+                    print("setShaderBuffer: Wrong encoder type.")
+                    return
+                }
+
+                if (graphicsBuffer.resourceFence != nil) {
+                    renderCommandEncoder.waitForFence(graphicsBuffer.resourceFence!, before: .vertex)
+                    graphicsBuffer.resourceFence = nil
+                }
+
+                renderCommandEncoder.useResource(graphicsBuffer.bufferObject, usage: .read)
+            }
 
             graphicsBufferList.append(graphicsBuffer.bufferObject)
             offsets.append(0)
@@ -1027,7 +1099,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
     }
 
     public func copyTexture(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationTexturePointer: UnsafeMutableRawPointer?, _ sourceTexturePointer: UnsafeMutableRawPointer?) {
-
+        print("copyTexture: not implemented")
     }
 
     public func resetIndirectCommandList(_ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int) {
@@ -1181,7 +1253,7 @@ public class MetalGraphicsService: GraphicsServiceProtocol {
             metalRenderPassDescriptor.depthAttachment.storeAction = .dontCare
         }
         
-        guard let renderCommandEncoder = commandList.commandQueue.commandBuffer.makeRenderCommandEncoder(descriptor: metalRenderPassDescriptor) else {
+        guard let renderCommandEncoder = commandList.commandBuffer.makeRenderCommandEncoder(descriptor: metalRenderPassDescriptor) else {
             print("beginRenderPass: Render command encoder creation failed.")
             return
         }

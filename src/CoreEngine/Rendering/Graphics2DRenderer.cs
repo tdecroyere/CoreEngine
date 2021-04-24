@@ -260,8 +260,8 @@ namespace CoreEngine.Rendering
             var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.Triangle);
 
-            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.SetShader(renderCommandList, this.shader);
             this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 0);
@@ -274,8 +274,8 @@ namespace CoreEngine.Rendering
             // Don't use a vertex buffer and an index, use instances instead
             this.graphicsManager.DrawIndexedPrimitives(renderCommandList, PrimitiveType.Triangle, 0, 6, this.currentSurfaceCount, 0);
 
-            this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.EndRenderPass(renderCommandList);
             this.graphicsManager.CommitCommandList(renderCommandList);
             this.renderManager.AddGpuTiming(commandListName, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
             return renderCommandList;

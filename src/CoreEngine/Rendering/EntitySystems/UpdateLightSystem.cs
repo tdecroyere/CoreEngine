@@ -22,8 +22,8 @@ namespace CoreEngine.Rendering.EntitySystems
         {
             var definition = new EntitySystemDefinition("Update Light System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent), true));
-            definition.Parameters.Add(new EntitySystemParameter(typeof(LightComponent), true));
+            definition.Parameters.Add(new EntitySystemParameter<TransformComponent>(isReadOnly: true));
+            definition.Parameters.Add(new EntitySystemParameter<LightComponent>(isReadOnly: true));
 
             return definition;
         }

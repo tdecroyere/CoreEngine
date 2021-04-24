@@ -7,6 +7,12 @@ void* CreateWindowInterop(void* context, char* title, int width, int height, enu
     return contextObject->CreateWindow(title, width, height, windowState);
 }
 
+void SetWindowTitleInterop(void* context, void* windowPointer, char* title)
+{
+    auto contextObject = (WindowsNativeUIService*)context;
+    contextObject->SetWindowTitle(windowPointer, title);
+}
+
 struct Vector2 GetWindowRenderSizeInterop(void* context, void* windowPointer)
 {
     auto contextObject = (WindowsNativeUIService*)context;
@@ -23,6 +29,7 @@ void InitNativeUIService(const WindowsNativeUIService& context, NativeUIService*
 {
     service->Context = (void*)&context;
     service->NativeUIService_CreateWindow = CreateWindowInterop;
+    service->NativeUIService_SetWindowTitle = SetWindowTitleInterop;
     service->NativeUIService_GetWindowRenderSize = GetWindowRenderSizeInterop;
     service->NativeUIService_ProcessSystemMessages = ProcessSystemMessagesInterop;
 }

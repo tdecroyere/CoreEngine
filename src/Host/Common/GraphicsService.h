@@ -140,8 +140,10 @@ typedef void* (*GraphicsService_CreateTexturePtr)(void* context, void* graphicsH
 typedef void (*GraphicsService_SetTextureLabelPtr)(void* context, void* texturePointer, char* label);
 typedef void (*GraphicsService_DeleteTexturePtr)(void* context, void* texturePointer);
 typedef void* (*GraphicsService_CreateSwapChainPtr)(void* context, void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
+typedef void (*GraphicsService_ResizeSwapChainPtr)(void* context, void* swapChainPointer, int width, int height);
 typedef void* (*GraphicsService_GetSwapChainBackBufferTexturePtr)(void* context, void* swapChainPointer);
-typedef unsigned long (*GraphicsService_PresentSwapChainPtr)(void* context, void* swapChainPointer);
+typedef void (*GraphicsService_PresentSwapChainPtr)(void* context, void* swapChainPointer);
+typedef void (*GraphicsService_WaitForSwapChainOnCpuPtr)(void* context, void* swapChainPointer);
 typedef void* (*GraphicsService_CreateIndirectCommandBufferPtr)(void* context, int maxCommandCount);
 typedef void (*GraphicsService_SetIndirectCommandBufferLabelPtr)(void* context, void* indirectCommandBufferPointer, char* label);
 typedef void (*GraphicsService_DeleteIndirectCommandBufferPtr)(void* context, void* indirectCommandBufferPointer);
@@ -206,8 +208,10 @@ struct GraphicsService
     GraphicsService_SetTextureLabelPtr GraphicsService_SetTextureLabel;
     GraphicsService_DeleteTexturePtr GraphicsService_DeleteTexture;
     GraphicsService_CreateSwapChainPtr GraphicsService_CreateSwapChain;
+    GraphicsService_ResizeSwapChainPtr GraphicsService_ResizeSwapChain;
     GraphicsService_GetSwapChainBackBufferTexturePtr GraphicsService_GetSwapChainBackBufferTexture;
     GraphicsService_PresentSwapChainPtr GraphicsService_PresentSwapChain;
+    GraphicsService_WaitForSwapChainOnCpuPtr GraphicsService_WaitForSwapChainOnCpu;
     GraphicsService_CreateIndirectCommandBufferPtr GraphicsService_CreateIndirectCommandBuffer;
     GraphicsService_SetIndirectCommandBufferLabelPtr GraphicsService_SetIndirectCommandBufferLabel;
     GraphicsService_DeleteIndirectCommandBufferPtr GraphicsService_DeleteIndirectCommandBuffer;

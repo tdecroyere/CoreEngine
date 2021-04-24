@@ -8,10 +8,10 @@ namespace CoreEngine.HostServices.Interop
     {
         private IntPtr context { get; }
 
-        private delegate* cdecl<IntPtr, string, int, int, NativeWindowState, IntPtr> nativeUIService_CreateWindowDelegate { get; }
+        private delegate* unmanaged[Cdecl]<IntPtr, string, int, int, NativeWindowState, IntPtr> nativeUIService_CreateWindowDelegate { get; }
         public unsafe IntPtr CreateWindow(string title, int width, int height, NativeWindowState windowState)
         {
-            if (this.context != null && this.nativeUIService_CreateWindowDelegate != null)
+            if (this.nativeUIService_CreateWindowDelegate != null)
             {
                 return this.nativeUIService_CreateWindowDelegate(this.context, title, width, height, windowState);
             }
@@ -19,10 +19,19 @@ namespace CoreEngine.HostServices.Interop
             return default(IntPtr);
         }
 
-        private delegate* cdecl<IntPtr, IntPtr, Vector2> nativeUIService_GetWindowRenderSizeDelegate { get; }
+        private delegate* unmanaged[Cdecl]<IntPtr, IntPtr, string, void> nativeUIService_SetWindowTitleDelegate { get; }
+        public unsafe void SetWindowTitle(IntPtr windowPointer, string title)
+        {
+            if (this.nativeUIService_SetWindowTitleDelegate != null)
+            {
+                this.nativeUIService_SetWindowTitleDelegate(this.context, windowPointer, title);
+            }
+        }
+
+        private delegate* unmanaged[Cdecl]<IntPtr, IntPtr, Vector2> nativeUIService_GetWindowRenderSizeDelegate { get; }
         public unsafe Vector2 GetWindowRenderSize(IntPtr windowPointer)
         {
-            if (this.context != null && this.nativeUIService_GetWindowRenderSizeDelegate != null)
+            if (this.nativeUIService_GetWindowRenderSizeDelegate != null)
             {
                 return this.nativeUIService_GetWindowRenderSizeDelegate(this.context, windowPointer);
             }
@@ -30,10 +39,10 @@ namespace CoreEngine.HostServices.Interop
             return default(Vector2);
         }
 
-        private delegate* cdecl<IntPtr, NativeAppStatus> nativeUIService_ProcessSystemMessagesDelegate { get; }
+        private delegate* unmanaged[Cdecl]<IntPtr, NativeAppStatus> nativeUIService_ProcessSystemMessagesDelegate { get; }
         public unsafe NativeAppStatus ProcessSystemMessages()
         {
-            if (this.context != null && this.nativeUIService_ProcessSystemMessagesDelegate != null)
+            if (this.nativeUIService_ProcessSystemMessagesDelegate != null)
             {
                 return this.nativeUIService_ProcessSystemMessagesDelegate(this.context);
             }

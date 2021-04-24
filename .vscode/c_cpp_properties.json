@@ -13,9 +13,11 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/src/Host/Windows/**"
-            ], 
-            "defines": ["DEBUG"],
-            "intelliSenseMode": "msvc-x64",
+            ],
+            "defines": [
+                "DEBUG"
+            ],
+            "intelliSenseMode": "${default}",
             "cppStandard": "c++17"
         }
     ],

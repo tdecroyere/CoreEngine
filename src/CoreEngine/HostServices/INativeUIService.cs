@@ -18,6 +18,7 @@ namespace CoreEngine.HostServices
     public interface INativeUIService
     {
         IntPtr CreateWindow(string title, int width, int height, NativeWindowState windowState);
+        void SetWindowTitle(IntPtr windowPointer, string title);
         Vector2 GetWindowRenderSize(IntPtr windowPointer);
         NativeAppStatus ProcessSystemMessages();
     }

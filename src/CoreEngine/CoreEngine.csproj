@@ -3,21 +3,20 @@
   <PropertyGroup>
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618;CS8610;CS8601</WarningsAsErrors>
-    <NoWarn>CA1303;CA1815;CA2007;CS8604;CA1043;CA1720;CA1307;CS0649</NoWarn>
+    <NoWarn>IDE0003;IDE0042;IDE0090;CA1014;CA1050;CA1024;CA1711;CA1303;CA1815;CA2007;CS8604;CA1043;CA1720;CA1307;CS0649</NoWarn>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
     <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>
     <!-- <GenerateDocumentationFile>true</GenerateDocumentationFile> -->
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- <ProjectReference Include="../CoreEngine.SourceGenerators/CoreEngine.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" /> -->
-    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
+    <ProjectReference Include="../CoreEngine.SourceGenerators/CoreEngine.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Compile Remove="**/*.generated.cs" />
   </ItemGroup>
   
 </Project>

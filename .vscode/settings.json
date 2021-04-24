@@ -2,11 +2,14 @@
     "files.exclude": {
         "**/bin": true,
         "**/obj": true,
-        "**/CompilationUnit.cpp": true
+        "**/CompilationUnit.cpp": true,
+        "src/CoreEngine/CoreEngine.SourceGenerators": true,
+        "samples/**/CoreEngine.SourceGenerators": true,
+        "tests/**/CoreEngine.SourceGenerators": true
     },
     "files.associations": {
         "*.ceproj": "jsonc",
-        "*.cescene": "yaml",
+        "*.cescene": "jsonc",
         "*.pipeline": "jsonc",
         "xiosbase": "cpp",
         "algorithm": "cpp",
@@ -66,10 +69,18 @@
         "xutility": "cpp",
         "stack": "cpp",
         "deque": "cpp",
-        "*.rh": "cpp"
+        "*.rh": "cpp",
+        "compare": "cpp",
+        "codecvt": "cpp",
+        "ctime": "cpp",
+        "locale": "cpp",
+        "xlocbuf": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xloctime": "cpp",
+        "*.idl": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++17",
-    "omnisharp.enableRoslynAnalyzers": false,
-    "dotnetCoreExplorer.logpanel": true,
+    "omnisharp.enableRoslynAnalyzers": true,
     "csharp.referencesCodeLens.enabled": false
 }

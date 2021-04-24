@@ -157,16 +157,28 @@ void* CreateSwapChainInterop(void* context, void* windowPointer, void* commandQu
     return contextObject->CreateSwapChain(windowPointer, commandQueuePointer, width, height, textureFormat);
 }
 
+void ResizeSwapChainInterop(void* context, void* swapChainPointer, int width, int height)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->ResizeSwapChain(swapChainPointer, width, height);
+}
+
 void* GetSwapChainBackBufferTextureInterop(void* context, void* swapChainPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     return contextObject->GetSwapChainBackBufferTexture(swapChainPointer);
 }
 
-unsigned long PresentSwapChainInterop(void* context, void* swapChainPointer)
+void PresentSwapChainInterop(void* context, void* swapChainPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->PresentSwapChain(swapChainPointer);
+    contextObject->PresentSwapChain(swapChainPointer);
+}
+
+void WaitForSwapChainOnCpuInterop(void* context, void* swapChainPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->WaitForSwapChainOnCpu(swapChainPointer);
 }
 
 void* CreateIndirectCommandBufferInterop(void* context, int maxCommandCount)
@@ -402,8 +414,10 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_SetTextureLabel = SetTextureLabelInterop;
     service->GraphicsService_DeleteTexture = DeleteTextureInterop;
     service->GraphicsService_CreateSwapChain = CreateSwapChainInterop;
+    service->GraphicsService_ResizeSwapChain = ResizeSwapChainInterop;
     service->GraphicsService_GetSwapChainBackBufferTexture = GetSwapChainBackBufferTextureInterop;
     service->GraphicsService_PresentSwapChain = PresentSwapChainInterop;
+    service->GraphicsService_WaitForSwapChainOnCpu = WaitForSwapChainOnCpuInterop;
     service->GraphicsService_CreateIndirectCommandBuffer = CreateIndirectCommandBufferInterop;
     service->GraphicsService_SetIndirectCommandBufferLabel = SetIndirectCommandBufferLabelInterop;
     service->GraphicsService_DeleteIndirectCommandBuffer = DeleteIndirectCommandBufferInterop;

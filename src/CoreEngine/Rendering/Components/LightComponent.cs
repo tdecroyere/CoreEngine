@@ -3,7 +3,7 @@ using CoreEngine.Collections;
 
 namespace CoreEngine.Rendering.Components
 {
-    public struct LightComponent : IComponentData
+    public partial struct LightComponent : IComponentData
     {
         public Vector3 Color { get; set; }
         public float LightType { get; set; }

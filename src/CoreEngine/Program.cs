@@ -1,31 +1,36 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Numerics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using CoreEngine;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
 using CoreEngine.HostServices;
 using CoreEngine.Inputs;
-using CoreEngine.Resources;
 using CoreEngine.Rendering;
+using CoreEngine.Resources;
 using CoreEngine.UI.Native;
-using CoreEngine;
-using System.Runtime.InteropServices;
+using CoreEngine.Components;
+using CoreEngine.Rendering.Components;
 
 [assembly: InternalsVisibleTo("CoreEngine.UnitTests")]
 
 public static class Program
 {
-    [UnmanagedCallersOnlyAttribute]
+    [UnmanagedCallersOnly(EntryPoint = "main")]
     public static void Main(HostPlatform hostPlatform)
     {
-        Logger.BeginAction($"Starting CoreEngine (EcsTest)");
+        Logger.BeginAction($"Starting CoreEngine");
+
+        var args = Utils.GetCommandLineArguments();
+        var appPath = string.Empty;
+
+        if (args.Length > 0)
+        {
+            appPath = args[0];
+        }
 
         var resourcesManager = new ResourcesManager();
-            
+
         // TODO: Get the config from the host using hardcoded values for the moment
         resourcesManager.AddResourceStorage(new FileSystemResourceStorage("../Resources"));
         resourcesManager.AddResourceStorage(new FileSystemResourceStorage("./Resources"));
@@ -34,7 +39,7 @@ public static class Program
         var inputsManager = new InputsManager(hostPlatform.InputsService);
         var nativeUIManager = new NativeUIManager(hostPlatform.NativeUIService);
 
-        var window = nativeUIManager.CreateWindow("Core Engine", 1280, 720);
+        var window = nativeUIManager.CreateWindow("Core Engine", 1920, 1080);
         inputsManager.AssociateWindow(window);
 
         var sceneQueue = new GraphicsSceneQueue();
@@ -43,80 +48,77 @@ public static class Program
         using var graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
         using var renderManager = new RenderManager(window, nativeUIManager, graphicsManager, resourcesManager, sceneQueue);
 
+        var pluginManager = new PluginManager();
+
         var systemManagerContainer = new SystemManagerContainer();
 
         // Register managers
-        systemManagerContainer.RegisterSystemManager<ResourcesManager>(resourcesManager);
-        systemManagerContainer.RegisterSystemManager<GraphicsSceneManager>(sceneManager);
-        systemManagerContainer.RegisterSystemManager<NativeUIManager>(nativeUIManager);
-        systemManagerContainer.RegisterSystemManager<GraphicsManager>(graphicsManager);
-        systemManagerContainer.RegisterSystemManager<RenderManager>(renderManager);
-        systemManagerContainer.RegisterSystemManager<Graphics2DRenderer>(renderManager.Graphics2DRenderer);
-        systemManagerContainer.RegisterSystemManager<InputsManager>(inputsManager);
+        systemManagerContainer.RegisterSystemManager(resourcesManager);
+        systemManagerContainer.RegisterSystemManager(sceneManager);
+        systemManagerContainer.RegisterSystemManager(nativeUIManager);
+        systemManagerContainer.RegisterSystemManager(graphicsManager);
+        systemManagerContainer.RegisterSystemManager(renderManager);
+        systemManagerContainer.RegisterSystemManager(renderManager.Graphics2DRenderer);
+        systemManagerContainer.RegisterSystemManager(inputsManager);
+        systemManagerContainer.RegisterSystemManager(pluginManager);
 
-        Logger.BeginAction($"Loading CoreEngineApp 'EcsTest'");
-        var coreEngineApp = LoadCoreEngineApp("EcsTest", systemManagerContainer).Result;
-        resourcesManager.WaitForPendingResources();
+        var context = new CoreEngineContext(systemManagerContainer);
+        CoreEngineApp? coreEngineApp = null;
 
-        if (coreEngineApp != null)
+        if (!string.IsNullOrEmpty(appPath))
         {
+            Logger.BeginAction($"Loading CoreEngineApp '{appPath}'");
+            coreEngineApp = pluginManager.LoadCoreEngineApp(appPath, context).Result;
+
+            if (coreEngineApp != null)
+            {
+                resourcesManager.WaitForPendingResources();
+                nativeUIManager.SetWindowTitle(window, coreEngineApp.Name);
+
+                Logger.EndAction();
+            }
+
+            else
+            {
+                Logger.EndActionError();
+            }
+
             Logger.EndAction();
         }
 
-        else
+        if (coreEngineApp != null)
         {
-            Logger.EndActionError();
-        }
+            var renderTask = new Task(() => Render(renderManager), new System.Threading.CancellationToken(), TaskCreationOptions.LongRunning);
+            //renderTask.Start();
 
-        Logger.EndAction();
+            var appStatus = new AppStatus() { IsActive = true, IsRunning = true };
 
-        var appStatus = new AppStatus() { IsActive = true, IsRunning = true };
-
-        while (appStatus.IsRunning)
-        {
-            appStatus = nativeUIManager.ProcessSystemMessages();
-
-            if (appStatus.IsActive)
+            while (appStatus.IsRunning)
             {
-                if (coreEngineApp != null)
-                {
-                    coreEngineApp.SystemManagerContainer.PreUpdateSystemManagers();
-                    coreEngineApp.Update(1.0f / 60.0f);
-                    coreEngineApp.SystemManagerContainer.PostUpdateSystemManagers();
-                }
+                var updatedApp = pluginManager.CheckForUpdatedAssemblies(context).Result;
 
-                if (renderManager != null)
+                if (updatedApp != null)
                 {
-                    renderManager.Render();
+                    coreEngineApp = updatedApp;
                 }
+                
+                appStatus = nativeUIManager.ProcessSystemMessages();
+                context.IsAppActive = appStatus.IsActive;
+
+                systemManagerContainer.PreUpdateSystemManagers(context);
+                // TODO: Compute correct delta time
+                coreEngineApp.OnUpdate(context, 1.0f / 60.0f);
+                systemManagerContainer.PostUpdateSystemManagers(context);
+                
+                renderManager.Render();
             }
         }
 
         Logger.WriteMessage("Exiting");
-
     }
 
-    // TODO: Use the isolated app domain new feature to be able to do hot build of the app dll
-    private static async Task<CoreEngineApp?> LoadCoreEngineApp(string appName, SystemManagerContainer systemManagerContainer)
+    private static void Render(RenderManager renderManager)
     {
-        // TODO: Check if dll exists
-        var currentAssemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        var assemblyPath = Path.Combine(currentAssemblyPath, $"{appName}.dll");
-
-        if (File.Exists(assemblyPath))
-        {
-            var assemblyContent = await File.ReadAllBytesAsync(assemblyPath);
-            var assembly = Assembly.Load(assemblyContent);
-
-            foreach (var type in assembly.GetTypes())
-            {
-                if (type.IsSubclassOf(typeof(CoreEngineApp)))
-                {
-                    return (CoreEngineApp?)Activator.CreateInstance(type, systemManagerContainer);
-                }
-            }
-        }
-
-        return null;
+        renderManager.Render();
     }
 }

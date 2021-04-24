@@ -10,7 +10,7 @@ namespace CoreEngine.EntitySystems
         {
             var definition = new EntitySystemDefinition("Compute World Matrix System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<TransformComponent>());
 
             return definition;
         }

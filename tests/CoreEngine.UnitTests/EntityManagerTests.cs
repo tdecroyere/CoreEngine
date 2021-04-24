@@ -5,26 +5,6 @@ namespace CoreEngine.UnitTests
 {
     public class EntityManagerTests
     {
-        struct TestComponent : IComponentData
-        {
-            public int TestField { get; set; }
-
-            public void SetDefaultValues()
-            {
-                this.TestField = 5;
-            }
-        }
-
-        struct TestComponent2 : IComponentData
-        {
-            public int TestField { get; set; }
-
-            public void SetDefaultValues()
-            {
-                
-            }
-        }
-
         [Fact]
         public void CreateComponentLayout_ValidComponentType_IsValid()
         {
@@ -32,20 +12,11 @@ namespace CoreEngine.UnitTests
             var entityManager = new EntityManager();
 
             // Act
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent>();
 
             // Assert
-            Assert.Equal((uint)0, (uint)componentLayout.EntityComponentLayoutId);
-        }
-
-        [Fact]
-        public void CreateComponentLayout_InvalidComponentType_ThrowsArgumentException()
-        {
-            // Arrange
-            var entityManager = new EntityManager();
-
-            // Act / Assert
-            Assert.Throws<ArgumentException>(() => entityManager.CreateComponentLayout(typeof(int)));
+            Assert.Equal(1, componentLayout.Components.Count);
+            Assert.False(componentLayout.IsReadOnly);
         }
 
         [Fact]
@@ -55,7 +26,7 @@ namespace CoreEngine.UnitTests
             var entityManager = new EntityManager();
 
             // Act / Assert
-            Assert.Throws<ArgumentException>(() => entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent)));
+            Assert.Throws<ArgumentException>(() => entityManager.CreateComponentLayout<TestComponent, TestComponent>());
         }
 
         [Fact]
@@ -65,10 +36,10 @@ namespace CoreEngine.UnitTests
             var entityManager = new EntityManager();
 
             // Act
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
 
             // Assert
-            Assert.Equal((uint)0, (uint)componentLayout.EntityComponentLayoutId);
+            Assert.Equal(2, componentLayout.Components.Count);
         }
 
         [Fact]
@@ -78,25 +49,25 @@ namespace CoreEngine.UnitTests
             var entityManager = new EntityManager();
 
             // Act
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent));
-            var componentLayout2 = entityManager.CreateComponentLayout(typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent>();
+            var componentLayout2 = entityManager.CreateComponentLayout<TestComponent2>();
 
             // Assert
-            Assert.NotEqual(componentLayout.EntityComponentLayoutId, componentLayout2.EntityComponentLayoutId);
+            Assert.NotEqual(componentLayout.LayoutHash, componentLayout2.LayoutHash);
         }
 
         [Fact]
-        public void CreateComponentLayout_DifferentComponentTypesOrder_HaveSameLayoutId()
+        public void CreateComponentLayout_DifferentComponentTypesOrder_HaveSameLayoutHash()
         {
             // Arrange
             var entityManager = new EntityManager();
 
             // Act
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
-            var componentLayout2 = entityManager.CreateComponentLayout(typeof(TestComponent2), typeof(TestComponent));
-
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
+            var componentLayout2 = entityManager.CreateComponentLayout<TestComponent2, TestComponent>();
+            
             // Assert
-            Assert.Equal(componentLayout, componentLayout2);
+            Assert.Equal(componentLayout.LayoutHash, componentLayout2.LayoutHash);
         }
 
         [Fact]
@@ -104,7 +75,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
 
             // Act
             var entity = entityManager.CreateEntity(componentLayout);
@@ -118,7 +89,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
 
             // Act
@@ -134,7 +105,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
             var entity2 = entityManager.CreateEntity(componentLayout);
 
@@ -152,11 +123,11 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
-            var componentLayout2 = entityManager.CreateComponentLayout(typeof(TestComponent));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
+            var componentLayout2 = entityManager.CreateComponentLayout<TestComponent>();
             var entity = entityManager.CreateEntity(componentLayout);
             var entity2 = entityManager.CreateEntity(componentLayout);
-            var entity3 = entityManager.CreateEntity(componentLayout2);
+            entityManager.CreateEntity(componentLayout2);
 
             // Act
             var entities = entityManager.GetEntitiesByComponentType<TestComponent2>();
@@ -172,7 +143,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
 
             // Act
@@ -187,7 +158,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
 
             // Act
@@ -203,7 +174,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
 
             // Act / Assert
@@ -215,7 +186,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
 
             // Act / Assert
@@ -227,11 +198,11 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
 
             // Act / Assert
-            Assert.Throws<ArgumentException>(() => entityManager.SetComponentData(entity, typeof(TestComponent), new TestComponent() { TestField = 28 }));
+            Assert.Throws<ArgumentException>(() => entityManager.SetComponentData(entity, new TestComponent() { TestField = 28 }));
         }
 
         [Fact]
@@ -239,7 +210,7 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
             var entity = entityManager.CreateEntity(componentLayout);
             var entity2 = entityManager.CreateEntity(componentLayout);
 
@@ -259,14 +230,14 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent), typeof(TestComponent2));
-            var componentLayout2 = entityManager.CreateComponentLayout(typeof(TestComponent2));
-            var entity = entityManager.CreateEntity(componentLayout);
-            var entity2 = entityManager.CreateEntity(componentLayout2);
-            var entity3 = entityManager.CreateEntity(componentLayout);
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent, TestComponent2>();
+            var componentLayout2 = entityManager.CreateComponentLayout<TestComponent2>();
+            entityManager.CreateEntity(componentLayout);
+            entityManager.CreateEntity(componentLayout2);
+            entityManager.CreateEntity(componentLayout);
 
             // Act
-            var entitySystemData = entityManager.GetEntitySystemData(new Type[] { typeof(TestComponent) });
+            var entitySystemData = entityManager.GetEntitySystemData(new ComponentHash[] { new TestComponent().GetComponentHash() });
 
             // Assert
             Assert.Equal(2, entitySystemData.EntityArray.Length);

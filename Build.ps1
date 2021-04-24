@@ -5,11 +5,17 @@ $WindowsHostSourceFolder = ".\src\Host\Windows\"
 $GeneratedFilesFolder = ".\src\Host\Windows\Generated Files\"
 $ObjFolder = ".\src\Host\Windows\Generated Files\obj"
 $TempFolder = ".\build\temp"
+$TempD3D12Folder = ".\build\temp\D3D12"
 $OutputFolder = ".\build\Windows"
 
 if (-not(Test-Path -Path $TempFolder))
 {
     New-Item -Path $TempFolder -ItemType "directory" | Out-Null
+}
+
+if (-not(Test-Path -Path $TempD3D12Folder))
+{
+    New-Item -Path $TempD3D12Folder -ItemType "directory" | Out-Null
 }
 
 if (-not(Test-Path -Path $ObjFolder))
@@ -35,6 +41,7 @@ function RegisterVisualStudioEnvironment
         $vs2019ComPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019ProfPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019EntPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        $vs2019PreviewPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Preview\VC\Auxiliary\Build\vcvars64.bat"
 
         if (Test-Path -Path $vs2019ComPath)
         {
@@ -51,6 +58,11 @@ function RegisterVisualStudioEnvironment
             $vsPath = $vs2019EntPath
         }
 
+        if (Test-Path -Path $vs2019PreviewPath)
+        {
+            $vsPath = $vs2019PreviewPath
+        }
+
         $batchCommand = "`"$vsPath`" > nul & set"
 
         cmd /c $batchCommand | Foreach-Object {
@@ -60,7 +72,7 @@ function RegisterVisualStudioEnvironment
     }
 }
 
-function GenerateIncludeFiles
+function RestoreNugetPackages
 {
     $nuGetExe = ".\nuget.exe"
     $packagesFile = "..\packages.config"
@@ -131,7 +143,7 @@ function CompileDotnet
 {
     Push-Location $TempFolder
     Write-Output "[93mCompiling CoreEngine Library...[0m"
-    dotnet publish --nologo -r win-x64 -c Debug -v Q --self-contained true -o "." "..\..\src\CoreEngine"
+    dotnet build --nologo -c Debug -v Q -o "." "..\..\src\CoreEngine"
 
     if(-Not $?)
     {
@@ -150,7 +162,7 @@ function PreCompileHeader
     if (-Not(Test-Path -Path "WindowsCommon.pch"))
     {
         Write-Output "[93mCompiling Windows Pre-compiled header...[0m"
-        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\inc" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
+        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\include" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
 
         if(-Not $?)
         {
@@ -169,7 +181,7 @@ function CompileWindowsHost
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\inc" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\include" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
 
     if (-Not $?)
     {
@@ -185,8 +197,10 @@ function LinkWindowsHost
 {
     Push-Location $ObjFolder
     Write-Output "[93mLinking Windows Executable...[0m"
+
+    # TODO: Copy nethost.dll to outputdir from the package folder
    
-    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib
+    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.3.21201.4\runtimes\win-x64\native\nethost.lib"
 
     if (-Not $?)
     {
@@ -195,6 +209,7 @@ function LinkWindowsHost
         Exit 1
     }
 
+    Copy-Item "..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\bin\x64\*" "..\..\..\..\..\$TempD3D12Folder" -Recurse -Force
     Pop-Location
 }
 
@@ -203,14 +218,17 @@ function CopyFiles
     Write-Output "[93mCopy files...[0m"
     Push-Location $TempFolder
 
-    Copy-Item "*.dll" "..\Windows"
-    Copy-Item "*.pdb" "..\Windows"
-    Copy-Item "CoreEngine.exe" "..\Windows"
+    # Copy-Item "*.dll" "..\Windows"
+    # Copy-Item "*.pdb" "..\Windows"
+    # Copy-Item "CoreEngine.exe" "..\Windows"
+
+    Copy-Item "*" "..\Windows" -Recurse -Force
 
     Pop-Location
 }
 
 RegisterVisualStudioEnvironment
+RestoreNugetPackages
 GenerateInteropCode
 CompileDotnet
 PreCompileHeader

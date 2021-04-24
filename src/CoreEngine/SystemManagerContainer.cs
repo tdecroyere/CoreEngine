@@ -5,7 +5,7 @@ namespace CoreEngine
 {
     public class SystemManagerContainer
     {
-        private IDictionary<Type, SystemManager> systemManagerList = new Dictionary<Type, SystemManager>();
+        private readonly IDictionary<Type, SystemManager> systemManagerList = new Dictionary<Type, SystemManager>();
 
         public SystemManagerContainer()
         {
@@ -15,7 +15,7 @@ namespace CoreEngine
         {
             if (this.systemManagerList.ContainsKey(typeof(T)))
             {
-                throw new ArgumentException($"System manager with type '{typeof(T).ToString()}' has already been added.");
+                throw new ArgumentException($"System manager with type '{typeof(T)}' has already been added.");
             }
 
             this.systemManagerList.Add(typeof(T), systemManager);
@@ -25,7 +25,7 @@ namespace CoreEngine
         {
             if (!this.systemManagerList.ContainsKey(typeof(T)))
             {
-                throw new ArgumentException($"System manager with type '{typeof(T).ToString()}' has not been registered.");
+                throw new ArgumentException($"System manager with type '{typeof(T)}' has not been registered.");
             }
 
             return (T)this.systemManagerList[typeof(T)];
@@ -33,12 +33,21 @@ namespace CoreEngine
 
         public T CreateInstance<T>()
         {
-            var type = typeof(T);
+            return CreateInstance<T>(typeof(T));
+        }
+
+        public T CreateInstance<T>(Type type)
+        {
+            if (type is null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
+
             var constructorsInfo = type.GetConstructors();
 
             if (constructorsInfo.Length == 0 || constructorsInfo[0].IsPublic == false)
             {
-                throw new ArgumentException($"Type '{typeof(T).ToString()}' has no public constructor.");
+                throw new ArgumentException($"Type '{type}' has no public constructor.");
             }
 
             var constructorInfo = constructorsInfo[0];
@@ -51,37 +60,31 @@ namespace CoreEngine
 
                 if (!this.systemManagerList.ContainsKey(parameter.ParameterType))
                 {
-                    throw new InvalidOperationException($"The parameter '{parameter.ParameterType.ToString()}' is not registered.");
+                    throw new InvalidOperationException($"The parameter '{parameter.ParameterType}' is not registered.");
                 }
 
                 resolvedParameters[i] = this.systemManagerList[parameter.ParameterType];
             }
 
-            var instance = Activator.CreateInstance(typeof(T), resolvedParameters);
-
-            if (instance == null)
-            {
-                throw new InvalidOperationException("Cannot create instance type.");
-            }
-
+            var instance = Activator.CreateInstance(type, resolvedParameters)!;
             return (T)instance;
         }
 
-        public void PreUpdateSystemManagers()
+        public void PreUpdateSystemManagers(CoreEngineContext context)
         {
             // TODO: Performance issue here?
             foreach (var manager in this.systemManagerList)
             {
-                manager.Value.PreUpdate();
+                manager.Value.PreUpdate(context);
             }
         }
 
-        public void PostUpdateSystemManagers()
+        public void PostUpdateSystemManagers(CoreEngineContext context)
         {
             // TODO: Performance issue here?
             foreach (var manager in this.systemManagerList)
             {
-                manager.Value.PostUpdate();
+                manager.Value.PostUpdate(context);
             }
         }
     }

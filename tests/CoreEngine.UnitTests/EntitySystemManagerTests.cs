@@ -3,26 +3,6 @@ using Xunit;
 
 namespace CoreEngine.UnitTests
 {
-    struct TestComponent : IComponentData
-    {
-        public int TestField { get; set; }
-
-        public void SetDefaultValues()
-        {
-            this.TestField = 5;
-        }
-    }
-
-    struct TestComponent2 : IComponentData
-    {
-        public int TestField { get; set; }
-
-        public void SetDefaultValues()
-        {
-            this.TestField = 10;
-        }
-    }
-
     public class TestSystem : EntitySystem
     {
         public TestSystem()
@@ -36,7 +16,7 @@ namespace CoreEngine.UnitTests
         public override EntitySystemDefinition BuildDefinition()
         {
             var definition = new EntitySystemDefinition("Test");
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TestComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<TestComponent>());
 
             return definition;
         }
@@ -55,8 +35,7 @@ namespace CoreEngine.UnitTests
         public void RegisterEntitySystem_ValidParameter_WasCorrectlyAdded()
         {
             // Arrange
-            var container = new SystemManagerContainer();
-            var entitySystemManager = new EntitySystemManager(container);
+            var entitySystemManager = new EntitySystemManager();
 
             // Act
             entitySystemManager.RegisterEntitySystem<TestSystem>();
@@ -69,8 +48,7 @@ namespace CoreEngine.UnitTests
         public void RegisterEntitySystem_RegisteredTwice_ThrowsInvalidOperationException()
         {
             // Arrange
-            var container = new SystemManagerContainer();
-            var entitySystemManager = new EntitySystemManager(container);
+            var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
 
             // Act / Assert
@@ -83,14 +61,16 @@ namespace CoreEngine.UnitTests
             // Arrange
             var entityManager = new EntityManager();
             var container = new SystemManagerContainer();
-            var entitySystemManager = new EntitySystemManager(container);
+            container.RegisterSystemManager(new PluginManager());
+
+            var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
 
             // Act
-            entitySystemManager.Process(entityManager, 0.0f);
+            entitySystemManager.Process(container, entityManager, 0.0f);
 
             // Assert
-            Assert.True(((TestSystem)entitySystemManager.RegisteredSystems[0]).ProcessCalled);
+            Assert.True(((TestSystem)entitySystemManager.RegisteredSystems[0].EntitySystem!).ProcessCalled);
         }
 
         [Fact]
@@ -98,18 +78,20 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent));
-            var entity = entityManager.CreateEntity(componentLayout);
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent>();
+            entityManager.CreateEntity(componentLayout);
 
             var container = new SystemManagerContainer();
-            var entitySystemManager = new EntitySystemManager(container);
+            container.RegisterSystemManager(new PluginManager());
+
+            var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
 
             // Act
-            entitySystemManager.Process(entityManager, 0.0f);
+            entitySystemManager.Process(container, entityManager, 0.0f);
 
             // Assert
-            Assert.Equal(1, ((TestSystem)entitySystemManager.RegisteredSystems[0]).ProcessEntityCount);
+            Assert.Equal(1, ((TestSystem)entitySystemManager.RegisteredSystems[0].EntitySystem!).ProcessEntityCount);
         }
 
         [Fact]
@@ -117,18 +99,20 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent2));
-            var entity = entityManager.CreateEntity(componentLayout);
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent2>();
+            entityManager.CreateEntity(componentLayout);
 
             var container = new SystemManagerContainer();
-            var entitySystemManager = new EntitySystemManager(container);
+            container.RegisterSystemManager(new PluginManager());
+
+            var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
 
             // Act
-            entitySystemManager.Process(entityManager, 0.0f);
+            entitySystemManager.Process(container, entityManager, 0.0f);
 
             // Assert
-            Assert.Equal(0, ((TestSystem)entitySystemManager.RegisteredSystems[0]).ProcessEntityCount);
+            Assert.Equal(0, ((TestSystem)entitySystemManager.RegisteredSystems[0].EntitySystem!).ProcessEntityCount);
         }
 
         [Fact]
@@ -136,18 +120,20 @@ namespace CoreEngine.UnitTests
         {
             // Arrange
             var entityManager = new EntityManager();
-            var componentLayout = entityManager.CreateComponentLayout(typeof(TestComponent));
-            var entity = entityManager.CreateEntity(componentLayout);
+            var componentLayout = entityManager.CreateComponentLayout<TestComponent>();
+            entityManager.CreateEntity(componentLayout);
 
             var container = new SystemManagerContainer();
-            var entitySystemManager = new EntitySystemManager(container);
+            container.RegisterSystemManager(new PluginManager());
+            
+            var entitySystemManager = new EntitySystemManager();
             entitySystemManager.RegisterEntitySystem<TestSystem>();
 
             // Act
-            entitySystemManager.Process(entityManager, 0.0f);
+            entitySystemManager.Process(container, entityManager, 0.0f);
 
             // Assert
-            Assert.Equal(1, ((TestSystem)entitySystemManager.RegisteredSystems[0]).ProcessComponentCount);
+            Assert.Equal(1, ((TestSystem)entitySystemManager.RegisteredSystems[0].EntitySystem!).ProcessComponentCount);
         }
     }
 }

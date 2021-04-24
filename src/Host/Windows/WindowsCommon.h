@@ -1,8 +1,12 @@
 #pragma once
 
 #include <stdint.h>
+#include <sys/stat.h>
 
+#include <locale>
+#include <codecvt>
 #include <string>
+
 #include <map>
 #include <vector>
 #include <stack>
@@ -10,8 +14,9 @@
 
 #include <ShellScalingAPI.h>
 #include <Windows.h>
+#include <Uxtheme.h>
 #include <wrl/client.h>
-#include <d3d12.h>
+#include "d3d12.h"
 #include <d3dcompiler.h>
 
 #if defined(NTDDI_WIN10_RS2)

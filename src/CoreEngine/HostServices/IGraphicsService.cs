@@ -79,6 +79,12 @@ namespace CoreEngine.HostServices
 
     public readonly struct GraphicsAllocationInfos
     {
+        public GraphicsAllocationInfos(int sizeInBytes, int alignment)
+        {
+            this.SizeInBytes = sizeInBytes;
+            this.Alignment = alignment;
+        }
+
         public int SizeInBytes { get; }
         public int Alignment { get; }
     }
@@ -273,9 +279,10 @@ namespace CoreEngine.HostServices
 
         IntPtr CreateSwapChain(IntPtr windowPointer, IntPtr commandQueuePointer, int width, int height, GraphicsTextureFormat textureFormat);
         // void DeleteSwapChain(uint swapChainId);
-        // void ResizeSwapChain(uint swapChainId, int width, int height);
+        void ResizeSwapChain(IntPtr swapChainPointer, int width, int height);
         IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer);
-        ulong PresentSwapChain(IntPtr swapChainPointer);
+        void PresentSwapChain(IntPtr swapChainPointer);
+        void WaitForSwapChainOnCpu(IntPtr swapChainPointer);
 
         // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
         // TODO: Rework indirect commands creation (Two steps, Command signature that returns the size and buffer creation)

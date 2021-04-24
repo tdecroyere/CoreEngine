@@ -175,7 +175,7 @@ namespace CoreEngine.Resources
             return (T)resource;
         }
 
-        public override void PreUpdate()
+        public override void PreUpdate(CoreEngineContext context)
         {
             // TODO: Deactivated because it took 7 ms !
             

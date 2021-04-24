@@ -140,7 +140,7 @@ namespace CoreEngine.Rendering
             this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Gpu, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer");
         }
 
-        public override void PreUpdate()
+        public override void PreUpdate(CoreEngineContext context)
         {
             this.textures.Clear();
             this.currentSurfaceCount = 0;
@@ -257,7 +257,8 @@ namespace CoreEngine.Rendering
             var commandListName = "Graphics2DRenderer";
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, commandListName);
             
-            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
+            // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
+            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.Triangle);
 
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);

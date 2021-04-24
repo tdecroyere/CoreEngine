@@ -2,15 +2,21 @@ using System;
 
 namespace CoreEngine
 {
-    public class EntitySystemParameter
+    public interface IEntitySystemParameter
     {
-        public EntitySystemParameter(Type componentType, bool isReadOnly = false)
+        ComponentHash ComponentHash { get; }
+        bool IsReadOnly { get; }
+    }
+
+    public class EntitySystemParameter<T> : IEntitySystemParameter where T: struct, IComponentData
+    {
+        public EntitySystemParameter(bool isReadOnly = false)
         {
-            this.ComponentType = componentType;
+            this.ComponentHash = new T().GetComponentHash();
             this.IsReadOnly = isReadOnly;
         }
 
-        public Type ComponentType { get; }
+        public ComponentHash ComponentHash { get; }
         public bool IsReadOnly { get; }
     }
 }

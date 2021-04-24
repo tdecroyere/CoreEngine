@@ -131,14 +131,24 @@ func GraphicsService_createSwapChainInterop(context: UnsafeMutableRawPointer?, _
     return contextObject.createSwapChain(windowPointer, commandQueuePointer, Int(width), Int(height), textureFormat)
 }
 
+func GraphicsService_resizeSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?, _ width: Int32, _ height: Int32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.resizeSwapChain(swapChainPointer, Int(width), Int(height))
+}
+
 func GraphicsService_getSwapChainBackBufferTextureInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.getSwapChainBackBufferTexture(swapChainPointer)
 }
 
-func GraphicsService_presentSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) -> UInt {
+func GraphicsService_presentSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.presentSwapChain(swapChainPointer)
+    contextObject.presentSwapChain(swapChainPointer)
+}
+
+func GraphicsService_waitForSwapChainOnCpuInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.waitForSwapChainOnCpu(swapChainPointer)
 }
 
 func GraphicsService_createIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ maxCommandCount: Int32) -> UnsafeMutableRawPointer? {
@@ -339,8 +349,10 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetTextureLabel = GraphicsService_setTextureLabelInterop
     service.GraphicsService_DeleteTexture = GraphicsService_deleteTextureInterop
     service.GraphicsService_CreateSwapChain = GraphicsService_createSwapChainInterop
+    service.GraphicsService_ResizeSwapChain = GraphicsService_resizeSwapChainInterop
     service.GraphicsService_GetSwapChainBackBufferTexture = GraphicsService_getSwapChainBackBufferTextureInterop
     service.GraphicsService_PresentSwapChain = GraphicsService_presentSwapChainInterop
+    service.GraphicsService_WaitForSwapChainOnCpu = GraphicsService_waitForSwapChainOnCpuInterop
     service.GraphicsService_CreateIndirectCommandBuffer = GraphicsService_createIndirectCommandBufferInterop
     service.GraphicsService_SetIndirectCommandBufferLabel = GraphicsService_setIndirectCommandBufferLabelInterop
     service.GraphicsService_DeleteIndirectCommandBuffer = GraphicsService_deleteIndirectCommandBufferInterop

@@ -22,8 +22,8 @@ namespace CoreEngine.Rendering.EntitySystems
         {
             var definition = new EntitySystemDefinition("Update Camera System");
 
-            definition.Parameters.Add(new EntitySystemParameter(typeof(TransformComponent), true));
-            definition.Parameters.Add(new EntitySystemParameter(typeof(CameraComponent)));
+            definition.Parameters.Add(new EntitySystemParameter<TransformComponent>(isReadOnly: true));
+            definition.Parameters.Add(new EntitySystemParameter<CameraComponent>());
 
             return definition;
         }
@@ -39,8 +39,8 @@ namespace CoreEngine.Rendering.EntitySystems
             var transformArray = this.GetComponentDataArray<TransformComponent>();
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
 
-            Entity? sceneEntity = null;
-            SceneComponent? sceneComponent = null;
+            Entity? sceneEntity;
+            SceneComponent? sceneComponent;
 
             var sceneEntities = entityManager.GetEntitiesByComponentType<SceneComponent>();
 

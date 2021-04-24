@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TargetFramework>net6.0</TargetFramework>
+    <NoWarn>IDE0003;CA1303;CA1815;CA2007;CS8604</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CoreEngine\CoreEngine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/CoreEngine.SourceGenerators/CoreEngine.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Compile Remove="**/*.generated.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="*" />
+    <Content Update="Images/mario_bros.png">
+      <Compress>true</Compress>
+    </Content>
+  </ItemGroup>
+  
+</Project>

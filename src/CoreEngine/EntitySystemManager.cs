@@ -1,65 +1,71 @@
 using System;
 using System.Collections.Generic;
+using CoreEngine.Diagnostics;
 
 namespace CoreEngine
 {
+    public class EntitySystemManagerEntry
+    {
+        public EntitySystemManagerEntry(string typeName)
+        {
+            this.TypeName = typeName;
+        }
+
+        public string TypeName { get; }
+
+        public Memory<ComponentHash>? ComponentHashs { get; set; }
+        public EntitySystem? EntitySystem { get; set; }
+    }
+
     // TODO: Manage exclusive component definitions
     // TODO: Manage entities by grid for large worlds
     // TODO: Allow entity system manager to ask for local queries
 
     public class EntitySystemManager
     {
-        private readonly SystemManagerContainer systemManagerContainer;
-        private IList<EntitySystemDefinition> registeredSystemDefinitions;
-
-        // TODO: Refactor that!
-        private IList<Type> registeredSystemTypes;
-        private IList<Type[]> componentTypes;
+        public IList<EntitySystemManagerEntry> RegisteredSystems { get; private set; }
         
-        public EntitySystemManager(SystemManagerContainer systemManagerContainer)
+        public EntitySystemManager()
         {
-            this.systemManagerContainer = systemManagerContainer;
-            this.registeredSystemDefinitions = new List<EntitySystemDefinition>();
-            this.registeredSystemTypes = new List<Type>();
-            this.componentTypes = new List<Type[]>();
+            this.RegisteredSystems = new List<EntitySystemManagerEntry>();
         }
-
-        public IList<EntitySystem> RegisteredSystems { get; } = new List<EntitySystem>();
 
         // TODO: Try to find a way to avoid reflection with code generator
         public void RegisterEntitySystem<T>() where T : EntitySystem
         {
-            if (this.registeredSystemTypes.Contains(typeof(T)))
+            for (var i = 0; i < this.RegisteredSystems.Count; i++)
             {
-                throw new ArgumentException("The specified entity system has already been registered.");
+                if (this.RegisteredSystems[i].TypeName == typeof(T).AssemblyQualifiedName)
+                {
+                    throw new ArgumentException($"The entity system '{typeof(T).AssemblyQualifiedName}' has already been registered.");
+                }
             }
 
-            this.registeredSystemTypes.Add(typeof(T));
+            this.RegisteredSystems.Add(new EntitySystemManagerEntry(typeof(T).AssemblyQualifiedName));
+        }
 
-            // TODO: Use manager container to create object
-            var entitySystem = this.systemManagerContainer.CreateInstance<T>();
-
-            var systemDefinition = entitySystem.BuildDefinition();
-            this.registeredSystemDefinitions.Add(systemDefinition);
-
-            this.RegisteredSystems.Add(entitySystem);
-
-            // TODO: Be carrefull of memory management and small buffers
-            var componentTypes = new Type[systemDefinition.Parameters.Count];
-            this.componentTypes.Add(componentTypes);
-
-            for (var i = 0; i < componentTypes.Length; i++)
+        public void UnbindRegisteredSystems()
+        {
+            for (var i = 0; i < this.RegisteredSystems.Count; i++)
             {
-                componentTypes[i] = systemDefinition.Parameters[i].ComponentType;
+                this.RegisteredSystems[i].EntitySystem = null;
+                this.RegisteredSystems[i].ComponentHashs = null;
             }
         }
 
-        public void Process(EntityManager entityManager, float deltaTime)
+        public void Process(SystemManagerContainer systemManagerContainer, EntityManager entityManager, float deltaTime)
         {
-            if (entityManager == null)
+            if (systemManagerContainer is null)
+            {
+                throw new ArgumentNullException(nameof(systemManagerContainer));
+            }
+
+            if (entityManager is null)
             {
                 throw new ArgumentNullException(nameof(entityManager));
             }
+
+            var pluginManager = systemManagerContainer.GetSystemManager<PluginManager>();
 
             // TODO: For the moment the systems are executed sequentially
             // TODO: Add multi-thread
@@ -70,14 +76,39 @@ namespace CoreEngine
                 // TODO: The entitymanager method that do the extract, copy the data to a passed array
                 // TODO: The passed array is allocated here
                 // TODO: Use the array pool class because the data is temporary
+
+                var registeredSystem = this.RegisteredSystems[i];
                 
-                var entitySystem = this.RegisteredSystems[i];
-                var entitySystemDefinition = this.registeredSystemDefinitions[i];
+                if (registeredSystem.EntitySystem == null)
+                {
+                    Logger.WriteMessage($"Rebind EntitySystem: '{registeredSystem.TypeName}'...");
 
-                var entitySystemData = entityManager.GetEntitySystemData(this.componentTypes[i]);
+                    // TODO: Use manager container to create object
+                    registeredSystem.EntitySystem = systemManagerContainer.CreateInstance<EntitySystem>(Type.GetType(registeredSystem.TypeName, (assemblyName) => {
+                        return pluginManager.FindLoadedAssembly(assemblyName.FullName);
+                    }, null));
 
-                entitySystem.SetEntitySystemData(entitySystemData);
-                entitySystem.Process(entityManager, deltaTime);
+                    var systemDefinition = registeredSystem.EntitySystem.BuildDefinition();
+
+                    // TODO: Be carreful of memory management and small buffers
+                    registeredSystem.ComponentHashs = new ComponentHash[systemDefinition.Parameters.Count];
+
+                    for (var j = 0; j < registeredSystem.ComponentHashs.Value.Length; j++)
+                    {
+                        registeredSystem.ComponentHashs.Value.Span[j] = systemDefinition.Parameters[j].ComponentHash;
+                    }
+                }
+
+                var entitySystem = registeredSystem.EntitySystem;
+                var componentHashs = this.RegisteredSystems[i].ComponentHashs;
+
+                if (entitySystem != null && componentHashs.HasValue)
+                {
+                    var entitySystemData = entityManager.GetEntitySystemData(componentHashs.Value.Span);
+
+                    entitySystem.SetEntitySystemData(entitySystemData);
+                    entitySystem.Process(entityManager, deltaTime);
+                }
             }
         }
     }

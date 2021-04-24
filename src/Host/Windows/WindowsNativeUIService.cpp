@@ -1,5 +1,6 @@
 #pragma once
 #include "WindowsCommon.h"
+#include "Libs/Win32DarkMode/DarkMode.h"
 #include "WindowsNativeUIService.h"
 #include "WindowsNativeUIServiceUtils.h"
 
@@ -23,6 +24,8 @@ WindowsNativeUIService::WindowsNativeUIService(HINSTANCE applicationInstance)
         this->mainScreenDpi = GetDpiForWindow(GetDesktopWindow());
         this->mainScreenScaling = static_cast<float>(this->mainScreenDpi) / 96.0f;
     }
+
+    InitDarkMode(); 
 }
 
 WindowsNativeUIService::~WindowsNativeUIService()
@@ -70,6 +73,11 @@ void* WindowsNativeUIService::CreateWindow(char* title, int width, int height, e
     }
 
     return window;
+}
+
+void WindowsNativeUIService::SetWindowTitle(void* windowPointer, char* title)
+{
+    SetWindowTextA((HWND)windowPointer, title);
 }
 
 struct Vector2 WindowsNativeUIService::GetWindowRenderSize(void* windowPointer)

@@ -7,18 +7,18 @@ using CoreEngine.UI.Native;
 
 public static class Program
 {
-    [UnmanagedCallersOnlyAttribute]
+    [UnmanagedCallersOnly(EntryPoint = "main")]
     public static void Main(HostPlatform hostPlatform)
     {
         Logger.BeginAction("Starting CoreEngine Editor");
 
-        var resourcesManager = new ResourcesManager();
+        using var resourcesManager = new ResourcesManager();
         resourcesManager.AddResourceStorage(new FileSystemResourceStorage("./Resources"));
 
         var nativeUIManager = new NativeUIManager(hostPlatform.NativeUIService);
         var window = nativeUIManager.CreateWindow("Core Engine Editor", 1280, 720, WindowState.Maximized);
 
-        var graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
+        using var graphicsManager = new GraphicsManager(hostPlatform.GraphicsService, resourcesManager);
 
         Logger.EndAction();
 

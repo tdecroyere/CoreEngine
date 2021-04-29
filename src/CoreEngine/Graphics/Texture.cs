@@ -92,6 +92,24 @@ namespace CoreEngine.Graphics
         public GraphicsMemoryAllocation GraphicsMemoryAllocation { get; }
         public GraphicsMemoryAllocation? GraphicsMemoryAllocation2 { get; }
 
+        public uint ShaderResourceIndex 
+        { 
+            get
+            {
+                var result = this.ShaderResourceIndex1;
+
+                if (!IsStatic && this.ShaderResourceIndex2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                {
+                    result = this.ShaderResourceIndex2.Value;
+                }
+
+                return result;
+            }
+        }
+
+        public uint ShaderResourceIndex1 { get; internal set;}
+        public uint? ShaderResourceIndex2 { get; internal set;}
+
         public string Label
         {
             get;

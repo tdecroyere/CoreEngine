@@ -110,6 +110,11 @@ namespace CoreEngine.Resources
 
         public T LoadResourceAsync<T>(string path, params string[] parameters) where T : Resource
         {
+            if (parameters == null)
+            {
+                throw new ArgumentNullException(nameof(parameters));
+            }
+
             var resourceKey = ConstructResourceKey(path, parameters);
 
             if (this.resources.ContainsKey(resourceKey))

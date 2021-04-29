@@ -11,6 +11,8 @@ class WindowsInputsService
         struct InputsState GetInputsState();
         void SendVibrationCommand(uint32_t playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint32_t duration10ms);
 
+        void UpdateRawInputKeyboardState(UINT message, uint16_t currentVKey);
+
     private:
         InputsState inputState;
 
@@ -19,6 +21,8 @@ class WindowsInputsService
 
         void InitRawInput(HWND window);
         void UpdateRawInputState();
-        void UpdateRawInputKeyboardButtonState(const RAWKEYBOARD& rawKeyboardData, uint16_t vKey, InputsObject* keyboardButtonState);
+        void UpdateRawInputKeyboardButtonState(UINT message, uint16_t currentVKey, uint16_t vKey, InputsObject* keyboardButtonState);
         void UpdateRawInputKeyboardState(const RAWKEYBOARD& rawKeyboardData, InputsKeyboard* keyboardState);
 };
+
+WindowsInputsService* globalInputService;

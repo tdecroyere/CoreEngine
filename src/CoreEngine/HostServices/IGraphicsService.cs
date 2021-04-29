@@ -262,9 +262,18 @@ namespace CoreEngine.HostServices
         void ResetCommandList(IntPtr commandListPointer);
         void CommitCommandList(IntPtr commandListPointer);
         
-        IntPtr CreateGraphicsHeap(GraphicsServiceHeapType type, ulong length);
+        IntPtr CreateGraphicsHeap(GraphicsServiceHeapType type, ulong sizeInBytes);
         void SetGraphicsHeapLabel(IntPtr graphicsHeapPointer, string label);
         void DeleteGraphicsHeap(IntPtr graphicsHeapPointer);
+
+        IntPtr CreateShaderResourceHeap(ulong length);
+        void SetShaderResourceHeapLabel(IntPtr shaderResourceHeapPointer, string label);
+        void DeleteShaderResourceHeap(IntPtr shaderResourceHeapPointer);
+        void CreateShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index, IntPtr texturePointer);
+        void DeleteShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index);
+        void CreateShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index, IntPtr bufferPointer);
+        void DeleteShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index);
+        // TODO: UAV
 
         // TODO: Move make aliasable into a separate method
         IntPtr CreateGraphicsBuffer(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, int sizeInBytes);
@@ -281,7 +290,7 @@ namespace CoreEngine.HostServices
         // void DeleteSwapChain(uint swapChainId);
         void ResizeSwapChain(IntPtr swapChainPointer, int width, int height);
         IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer);
-        void PresentSwapChain(IntPtr swapChainPointer);
+        ulong PresentSwapChain(IntPtr swapChainPointer);
         void WaitForSwapChainOnCpu(IntPtr swapChainPointer);
 
         // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
@@ -305,6 +314,7 @@ namespace CoreEngine.HostServices
 
         // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
         // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
+        // TODO: To Remove
         void SetShaderBuffer(IntPtr commandListPointer, IntPtr graphicsBufferPointer, int slot, bool isReadOnly, int index);
         void SetShaderBuffers(IntPtr commandListPointer, ReadOnlySpan<IntPtr> graphicsBufferPointerList, int slot, int index);
         void SetShaderTexture(IntPtr commandListPointer, IntPtr texturePointer, int slot, bool isReadOnly, int index);
@@ -330,13 +340,21 @@ namespace CoreEngine.HostServices
         // TODO: Add a raytrace command list
 
         // TODO: This function should be removed. Only pipeline states can be set 
+        void SetShaderResourceHeap(IntPtr commandListPointer, IntPtr shaderResourceHeapPointer);
         void SetShader(IntPtr commandListPointer, IntPtr shaderPointer);
+        void SetShaderParameterValues(IntPtr commandListPointer, uint slot, ReadOnlySpan<uint> values);
+
         void ExecuteIndirectCommandBuffer(IntPtr commandListPointer, IntPtr indirectCommandBufferPointer, int maxCommandCount);
 
+        void DispatchMesh(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
+
+        [Obsolete("Use DispatchMesh")]
         void SetIndexBuffer(IntPtr commandListPointer, IntPtr graphicsBufferPointer);
+        [Obsolete("Use DispatchMesh")]
         void DrawIndexedPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
 
         // TODO: Change that to take instances params
+        [Obsolete("Use DispatchMesh")]
         void DrawPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
 
         void QueryTimestamp(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);

@@ -71,23 +71,14 @@ namespace CoreEngine.Rendering
         // TODO: Each Render Manager should use their own Graphics Manager
         public RenderManager(Window window, NativeUIManager nativeUIManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
         {
-            if (nativeUIManager == null)
-            {
-                throw new ArgumentNullException(nameof(nativeUIManager));
-            }
-
-            if (graphicsManager == null)
-            {
-                throw new ArgumentNullException(nameof(graphicsManager));
-            }
+            this.nativeUIManager = nativeUIManager ?? throw new ArgumentNullException(nameof(nativeUIManager));
+            this.graphicsManager = graphicsManager ?? throw new ArgumentNullException(nameof(graphicsManager));
 
             if (resourcesManager == null)
             {
                 throw new ArgumentNullException(nameof(resourcesManager));
             }
 
-            this.graphicsManager = graphicsManager;
-            this.nativeUIManager = nativeUIManager;
             this.window = window;
 
             this.CopyCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Copy, "CopyCommandQueue");
@@ -137,6 +128,9 @@ namespace CoreEngine.Rendering
         {
             if (isDisposing)
             {
+                this.globalCpuCopyQueryBuffer.Dispose();
+                this.globalCpuQueryBuffer.Dispose();
+
                 this.computeDirectTransferShader.Dispose();
                 this.CopyCommandQueue.Dispose();
                 this.ComputeCommandQueue.Dispose();
@@ -192,8 +186,6 @@ namespace CoreEngine.Rendering
 
         internal void Render()
         {
-            this.graphicsManager.WaitForSwapChainOnCpu(this.swapChain);
-
             // TODO: Rename that to Reset
             this.graphicsManager.MoveToNextFrame();
             ResetGpuTimers();
@@ -248,6 +240,8 @@ namespace CoreEngine.Rendering
             this.graphicsManager.ResolveQueryData(resolveCopyCountersCommandList, this.globalCopyQueryBuffer, this.globalCpuCopyQueryBuffer, 0..this.currentCopyQueryIndex);
             this.graphicsManager.CommitCommandList(resolveCopyCountersCommandList);
             this.graphicsManager.ExecuteCommandLists(this.CopyCommandQueue, new CommandList[] { resolveCopyCountersCommandList }, isAwaitable: false);
+
+            this.graphicsManager.WaitForSwapChainOnCpu(this.swapChain);
 
             var presentCommandList = this.graphicsManager.CreateCommandList(this.presentQueue, "PresentScreenBuffer");
 

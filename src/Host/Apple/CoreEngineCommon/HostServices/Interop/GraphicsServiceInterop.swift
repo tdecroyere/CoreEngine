@@ -76,9 +76,9 @@ func GraphicsService_commitCommandListInterop(context: UnsafeMutableRawPointer?,
     contextObject.commitCommandList(commandListPointer)
 }
 
-func GraphicsService_createGraphicsHeapInterop(context: UnsafeMutableRawPointer?, _ type: GraphicsServiceHeapType, _ length: UInt) -> UnsafeMutableRawPointer? {
+func GraphicsService_createGraphicsHeapInterop(context: UnsafeMutableRawPointer?, _ type: GraphicsServiceHeapType, _ sizeInBytes: UInt) -> UnsafeMutableRawPointer? {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.createGraphicsHeap(type, length)
+    return contextObject.createGraphicsHeap(type, sizeInBytes)
 }
 
 func GraphicsService_setGraphicsHeapLabelInterop(context: UnsafeMutableRawPointer?, _ graphicsHeapPointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
@@ -89,6 +89,41 @@ func GraphicsService_setGraphicsHeapLabelInterop(context: UnsafeMutableRawPointe
 func GraphicsService_deleteGraphicsHeapInterop(context: UnsafeMutableRawPointer?, _ graphicsHeapPointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.deleteGraphicsHeap(graphicsHeapPointer)
+}
+
+func GraphicsService_createShaderResourceHeapInterop(context: UnsafeMutableRawPointer?, _ length: UInt) -> UnsafeMutableRawPointer? {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.createShaderResourceHeap(length)
+}
+
+func GraphicsService_setShaderResourceHeapLabelInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setShaderResourceHeapLabel(shaderResourceHeapPointer, String(cString: label!))
+}
+
+func GraphicsService_deleteShaderResourceHeapInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteShaderResourceHeap(shaderResourceHeapPointer)
+}
+
+func GraphicsService_createShaderResourceTextureInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt32, _ texturePointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.createShaderResourceTexture(shaderResourceHeapPointer, UInt(index), texturePointer)
+}
+
+func GraphicsService_deleteShaderResourceTextureInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteShaderResourceTexture(shaderResourceHeapPointer, UInt(index))
+}
+
+func GraphicsService_createShaderResourceBufferInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt32, _ bufferPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.createShaderResourceBuffer(shaderResourceHeapPointer, UInt(index), bufferPointer)
+}
+
+func GraphicsService_deleteShaderResourceBufferInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteShaderResourceBuffer(shaderResourceHeapPointer, UInt(index))
 }
 
 func GraphicsService_createGraphicsBufferInterop(context: UnsafeMutableRawPointer?, _ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ isAliasable: Int32, _ sizeInBytes: Int32) -> UnsafeMutableRawPointer? {
@@ -141,9 +176,9 @@ func GraphicsService_getSwapChainBackBufferTextureInterop(context: UnsafeMutable
     return contextObject.getSwapChainBackBufferTexture(swapChainPointer)
 }
 
-func GraphicsService_presentSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) {
+func GraphicsService_presentSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) -> UInt {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.presentSwapChain(swapChainPointer)
+    return contextObject.presentSwapChain(swapChainPointer)
 }
 
 func GraphicsService_waitForSwapChainOnCpuInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) {
@@ -286,14 +321,29 @@ func GraphicsService_setPipelineStateInterop(context: UnsafeMutableRawPointer?, 
     contextObject.setPipelineState(commandListPointer, pipelineStatePointer)
 }
 
+func GraphicsService_setShaderResourceHeapInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setShaderResourceHeap(commandListPointer, shaderResourceHeapPointer)
+}
+
 func GraphicsService_setShaderInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ shaderPointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.setShader(commandListPointer, shaderPointer)
 }
 
+func GraphicsService_setShaderParameterValuesInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ slot: UInt32, _ values: UnsafeMutablePointer<UInt32>?, _ valuesLength: Int32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setShaderParameterValues(commandListPointer, UInt(slot), Array(UnsafeBufferPointer(start: values, count: Int(valuesLength))))
+}
+
 func GraphicsService_executeIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandBufferPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.executeIndirectCommandBuffer(commandListPointer, indirectCommandBufferPointer, Int(maxCommandCount))
+}
+
+func GraphicsService_dispatchMeshInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt32, _ threadGroupCountY: UInt32, _ threadGroupCountZ: UInt32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.dispatchMesh(commandListPointer, UInt(threadGroupCountX), UInt(threadGroupCountY), UInt(threadGroupCountZ))
 }
 
 func GraphicsService_setIndexBufferInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?) {
@@ -341,6 +391,13 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreateGraphicsHeap = GraphicsService_createGraphicsHeapInterop
     service.GraphicsService_SetGraphicsHeapLabel = GraphicsService_setGraphicsHeapLabelInterop
     service.GraphicsService_DeleteGraphicsHeap = GraphicsService_deleteGraphicsHeapInterop
+    service.GraphicsService_CreateShaderResourceHeap = GraphicsService_createShaderResourceHeapInterop
+    service.GraphicsService_SetShaderResourceHeapLabel = GraphicsService_setShaderResourceHeapLabelInterop
+    service.GraphicsService_DeleteShaderResourceHeap = GraphicsService_deleteShaderResourceHeapInterop
+    service.GraphicsService_CreateShaderResourceTexture = GraphicsService_createShaderResourceTextureInterop
+    service.GraphicsService_DeleteShaderResourceTexture = GraphicsService_deleteShaderResourceTextureInterop
+    service.GraphicsService_CreateShaderResourceBuffer = GraphicsService_createShaderResourceBufferInterop
+    service.GraphicsService_DeleteShaderResourceBuffer = GraphicsService_deleteShaderResourceBufferInterop
     service.GraphicsService_CreateGraphicsBuffer = GraphicsService_createGraphicsBufferInterop
     service.GraphicsService_SetGraphicsBufferLabel = GraphicsService_setGraphicsBufferLabelInterop
     service.GraphicsService_DeleteGraphicsBuffer = GraphicsService_deleteGraphicsBufferInterop
@@ -380,8 +437,11 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_BeginRenderPass = GraphicsService_beginRenderPassInterop
     service.GraphicsService_EndRenderPass = GraphicsService_endRenderPassInterop
     service.GraphicsService_SetPipelineState = GraphicsService_setPipelineStateInterop
+    service.GraphicsService_SetShaderResourceHeap = GraphicsService_setShaderResourceHeapInterop
     service.GraphicsService_SetShader = GraphicsService_setShaderInterop
+    service.GraphicsService_SetShaderParameterValues = GraphicsService_setShaderParameterValuesInterop
     service.GraphicsService_ExecuteIndirectCommandBuffer = GraphicsService_executeIndirectCommandBufferInterop
+    service.GraphicsService_DispatchMesh = GraphicsService_dispatchMeshInterop
     service.GraphicsService_SetIndexBuffer = GraphicsService_setIndexBufferInterop
     service.GraphicsService_DrawIndexedPrimitives = GraphicsService_drawIndexedPrimitivesInterop
     service.GraphicsService_DrawPrimitives = GraphicsService_drawPrimitivesInterop

@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace CoreEngine.Graphics
 {
-    public readonly struct QueryBuffer : IGraphicsResource
+    public class QueryBuffer : IGraphicsResource
     {
         private readonly GraphicsManager graphicsManager;
 

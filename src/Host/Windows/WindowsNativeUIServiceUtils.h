@@ -1,5 +1,6 @@
 #pragma once
 #include "WindowsCommon.h"
+#include "WindowsInputsService.h"
 
 // SetProcessDPIAwareness function pointer definition
 typedef HRESULT WINAPI Set_Process_DPI_Awareness(PROCESS_DPI_AWARENESS value);
@@ -78,7 +79,20 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 			}
 			break;
 		}
-	break;
+
+		if (globalInputService != nullptr)
+		{
+			globalInputService->UpdateRawInputKeyboardState(WM_KEYDOWN, wParam);
+		}
+		break;
+	}
+	case WM_KEYUP:
+	{
+		if (globalInputService != nullptr)
+		{
+			globalInputService->UpdateRawInputKeyboardState(WM_KEYUP, wParam);
+		}
+		break;
 	}
 	case WM_SIZE:
 	{
@@ -132,12 +146,17 @@ bool Win32ProcessPendingMessages()
 
 	// NOTE: The 2 loops are needed only because of RawInput which require that we let the WM_INPUT messages
 	// in the windows message queue...
-	while (PeekMessageA(&message, nullptr, 0, WM_INPUT - 1, PM_REMOVE))
-	{
-		gameRunning = Win32ProcessMessage(message);
-	}
+	// while (PeekMessageA(&message, nullptr, 0, WM_INPUT - 1, PM_REMOVE))
+	// {
+	// 	gameRunning = Win32ProcessMessage(message);
+	// }
 
-	while (PeekMessageA(&message, nullptr, WM_INPUT + 1, 0xFFFFFFFF, PM_REMOVE))
+	// while (PeekMessageA(&message, nullptr, WM_INPUT + 1, 0xFFFFFFFF, PM_REMOVE))
+	// {
+	// 	gameRunning = Win32ProcessMessage(message);
+	// }
+
+	while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE))
 	{
 		gameRunning = Win32ProcessMessage(message);
 	}

@@ -16,6 +16,9 @@ Direct3D12GraphicsService::Direct3D12GraphicsService()
 #ifdef DEBUG
 	EnableDebugLayer();
     createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+
+	// UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
+	// AssertIfFailed(D3D12EnableExperimentalFeatures(1, experimentalFeatures, NULL, NULL));
 #endif
 
 	// this->window = window;
@@ -186,7 +189,7 @@ void* Direct3D12GraphicsService::CreateCommandList(void* commandQueuePointer)
 	auto commandAllocator = commandQueue->CommandAllocators[this->currentAllocatorIndex];
 	auto listType = commandQueue->Type;
 
-	ComPtr<ID3D12GraphicsCommandList> commandList;
+	ComPtr<ID3D12GraphicsCommandList6> commandList;
 	AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
 
 	if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
@@ -237,33 +240,6 @@ void Direct3D12GraphicsService::CommitCommandList(void* commandListPointer)
 	AssertIfFailed(commandList->CommandListObject->Close());
 }
 
-void Direct3D12GraphicsService::SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index)
-{ 
-	if (!this->shaderBound)
-	{
-		return;
-	}
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
-
-	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
-	{
-		commandList->CommandListObject->SetGraphicsRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
-	}
-
-	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-	{
-		// TODO: Remove that hack
-		if (slot == 1)
-		{
-			auto gpuAddress = graphicsBuffer->BufferObject->GetGPUVirtualAddress();
-			commandList->CommandListObject->SetComputeRoot32BitConstants(0, 2, &gpuAddress, 0);
-			commandList->CommandListObject->SetComputeRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
-		}
-	}
-}
-
 void* Direct3D12GraphicsService::CreateGraphicsHeap(enum GraphicsServiceHeapType type, unsigned long sizeInBytes)
 {
 	// Create cpu heap
@@ -312,6 +288,81 @@ void Direct3D12GraphicsService::DeleteGraphicsHeap(void* graphicsHeapPointer)
 {
 	Direct3D12GraphicsHeap* graphicsHeap = (Direct3D12GraphicsHeap*)graphicsHeapPointer;
 	delete graphicsHeap;
+}
+
+void* Direct3D12GraphicsService::CreateShaderResourceHeap(unsigned long length)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
+	descriptorHeapDesc.NumDescriptors = length;
+	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+	ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(descriptorHeap.ReleaseAndGetAddressOf())));
+	auto handleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	Direct3D12ShaderResourceHeap* descriptorHeapStruct = new Direct3D12ShaderResourceHeap();
+	descriptorHeapStruct->HeapObject = descriptorHeap;
+	descriptorHeapStruct->HandleSize = handleSize;
+
+	return descriptorHeapStruct;
+}
+
+void Direct3D12GraphicsService::SetShaderResourceHeapLabel(void* shaderResourceHeapPointer, char* label)
+{
+	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
+	descriptorHeap->HeapObject->SetName(wstring(label, label + strlen(label)).c_str());
+}
+
+void Direct3D12GraphicsService::DeleteShaderResourceHeap(void* shaderResourceHeapPointer)
+{
+	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
+	delete descriptorHeap;
+}
+
+void Direct3D12GraphicsService::CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
+{
+	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
+	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = texture->ResourceDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;//mipLevels;
+
+	auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
+	descriptorHandle.ptr += index * descriptorHeap->HandleSize;
+
+	this->graphicsDevice->CreateShaderResourceView(texture->TextureObject.Get(), &srvDesc, descriptorHandle);
+}
+
+void Direct3D12GraphicsService::DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index)
+{
+	// TODO
+}
+
+void Direct3D12GraphicsService::CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer)
+{
+	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
+	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)bufferPointer;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.NumElements = (UINT)graphicsBuffer->ResourceDesc.Width / 4;
+    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+
+	auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
+	descriptorHandle.ptr += index * descriptorHeap->HandleSize;
+
+	this->graphicsDevice->CreateShaderResourceView(graphicsBuffer->BufferObject.Get(), &srvDesc, descriptorHandle);
+}
+
+void Direct3D12GraphicsService::DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index)
+{
+	// TODO
 }
 
 void* Direct3D12GraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes)
@@ -504,7 +555,7 @@ void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* comm
 	
 	ComPtr<IDXGISwapChain3> swapChain;
 	AssertIfFailed(dxgiFactory->CreateSwapChainForHwnd(commandQueue->CommandQueueObject.Get(), (HWND)windowPointer, &swapChainDesc, &swapChainFullScreenDesc, nullptr, (IDXGISwapChain1**)swapChain.ReleaseAndGetAddressOf()));
-	swapChain->SetMaximumFrameLatency(1);
+	swapChain->SetMaximumFrameLatency(2);
 
 	Direct3D12SwapChain* swapChainStructure = new Direct3D12SwapChain();
 	swapChainStructure->SwapChainObject = swapChain;
@@ -597,7 +648,7 @@ void* Direct3D12GraphicsService::GetSwapChainBackBufferTexture(void* swapChainPo
 	return swapChain->BackBufferTextures[swapChain->SwapChainObject->GetCurrentBackBufferIndex()];
 }
 
-void Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer)
+unsigned long Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer)
 {
 	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
 	AssertIfFailed(swapChain->SwapChainObject->Present(1, 0));
@@ -609,6 +660,8 @@ void Direct3D12GraphicsService::PresentSwapChain(void* swapChainPointer)
 
 	// TODO: Do something better here
 	this->currentAllocatorIndex = (this->currentAllocatorIndex + 1) % FramesCount;
+
+	return fenceValue;
 }
 
 void Direct3D12GraphicsService::WaitForSwapChainOnCpu(void* swapChainPointer)
@@ -761,6 +814,11 @@ void* Direct3D12GraphicsService::CreateShader(char* computeShaderFunction, void*
 			shader->VertexShaderMethod = shaderBlob;
 		}
 
+		else if (entryPointName == "MeshMain")
+		{
+			shader->MeshShaderMethod = shaderBlob;
+		}
+
 		else if (entryPointName == "PixelMain")
 		{
 			shader->PixelShaderMethod = shaderBlob;
@@ -816,60 +874,99 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 			primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 		}
 
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-		psoDesc.pRootSignature = shader->RootSignature.Get();
-
-		psoDesc.VS = { shader->VertexShaderMethod->GetBufferPointer(), shader->VertexShaderMethod->GetBufferSize() };
-		psoDesc.PS = { shader->PixelShaderMethod->GetBufferPointer(), shader->PixelShaderMethod->GetBufferSize() };
-
-		psoDesc.SampleMask = 0xFFFFFF;
-		psoDesc.PrimitiveTopologyType = primitiveTopologyType;
-
+		D3D12_RT_FORMAT_ARRAY renderTargets = {};
+		
 		if (!renderPassDescriptor.RenderTarget1TexturePointer.HasValue && !renderPassDescriptor.DepthTexturePointer.HasValue)
 		{
-			psoDesc.NumRenderTargets = 1;
-			psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB; // TODO: Fill Correct Back Buffer Format
+			renderTargets.NumRenderTargets = 1;
+			renderTargets.RTFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB; // TODO: Fill Correct Back Buffer Format
 		}
 
 		else
 		{
-			psoDesc.NumRenderTargets = 1;
-			psoDesc.RTVFormats[0] = ConvertTextureFormat(renderPassDescriptor.RenderTarget1TextureFormat.Value);
+			renderTargets.NumRenderTargets = 1;
+			renderTargets.RTFormats[0] = ConvertTextureFormat(renderPassDescriptor.RenderTarget1TextureFormat.Value);
 		}
 
-		psoDesc.SampleDesc.Count = 1;
-		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-		psoDesc.RasterizerState.FrontCounterClockwise = false;
-		psoDesc.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-		psoDesc.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-		psoDesc.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-		psoDesc.RasterizerState.DepthClipEnable = true;
-		psoDesc.RasterizerState.MultisampleEnable = false;
-		psoDesc.RasterizerState.AntialiasedLineEnable = false;
-		psoDesc.RasterizerState.ForcedSampleCount = 0;
-		psoDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-		psoDesc.DepthStencilState.DepthEnable = false;
-		psoDesc.DepthStencilState.StencilEnable = false;
-		psoDesc.BlendState.AlphaToCoverageEnable = false;
-		psoDesc.BlendState.IndependentBlendEnable = false;
+		DXGI_SAMPLE_DESC sampleDesc = {};
+		sampleDesc.Count = 1;
+		sampleDesc.Quality = 0;
+
+		D3D12_RASTERIZER_DESC rasterizerState = {};
+		rasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		rasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		rasterizerState.FrontCounterClockwise = false;
+		rasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+		rasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+		rasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+		rasterizerState.DepthClipEnable = true;
+		rasterizerState.MultisampleEnable = false;
+		rasterizerState.AntialiasedLineEnable = false;
+		rasterizerState.ForcedSampleCount = 0;
+		rasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+		D3D12_DEPTH_STENCIL_DESC depthStencilState = {};
+		depthStencilState.DepthEnable = false;
+		depthStencilState.StencilEnable = false;
+
+		D3D12_BLEND_DESC blendState = {};
+		blendState.AlphaToCoverageEnable = false;
+		blendState.IndependentBlendEnable = false;
 
 		if (renderPassDescriptor.RenderTarget1BlendOperation.HasValue)
 		{
 			auto blendOperation = renderPassDescriptor.RenderTarget1BlendOperation.Value;
-			psoDesc.BlendState.RenderTarget[0] = InitBlendState(blendOperation);
+			blendState.RenderTarget[0] = InitBlendState(blendOperation);
 		}
 
 		else
 		{
-			psoDesc.BlendState.RenderTarget[0] = InitBlendState(GraphicsBlendOperation::None);
+			blendState.RenderTarget[0] = InitBlendState(GraphicsBlendOperation::None);
 		}
 
-		AssertIfFailed(this->graphicsDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
+		D3D12_PIPELINE_STATE_STREAM_DESC psoStream = {};
+
+		if (shader->MeshShaderMethod == nullptr)
+		{
+			GraphicsPsoLegacy psoDesc = {};
+			
+			psoDesc.RootSignature = shader->RootSignature.Get();
+			psoDesc.VS = { shader->VertexShaderMethod->GetBufferPointer(), shader->VertexShaderMethod->GetBufferSize() };
+			psoDesc.PS = { shader->PixelShaderMethod->GetBufferPointer(), shader->PixelShaderMethod->GetBufferSize() };
+			psoDesc.PrimitiveTopologyType = primitiveTopologyType;
+			psoDesc.RenderTargets = renderTargets;
+			psoDesc.SampleDesc = sampleDesc;
+			psoDesc.RasterizerState = rasterizerState;
+			psoDesc.DepthStencilState = depthStencilState;
+			psoDesc.BlendState = blendState;
+
+			psoStream.SizeInBytes = sizeof(GraphicsPsoLegacy);
+			psoStream.pPipelineStateSubobjectStream = &psoDesc;
+		}
+
+		else
+		{
+			GraphicsPso psoDesc = {};
+			
+			psoDesc.RootSignature = shader->RootSignature.Get();
+			psoDesc.MS = { shader->MeshShaderMethod->GetBufferPointer(), shader->MeshShaderMethod->GetBufferSize() };
+			psoDesc.PS = { shader->PixelShaderMethod->GetBufferPointer(), shader->PixelShaderMethod->GetBufferSize() };
+			psoDesc.RenderTargets = renderTargets;
+			psoDesc.SampleDesc = sampleDesc;
+			psoDesc.RasterizerState = rasterizerState;
+			psoDesc.DepthStencilState = depthStencilState;
+			psoDesc.BlendState = blendState;
+
+			psoStream.SizeInBytes = sizeof(GraphicsPso);
+			psoStream.pPipelineStateSubobjectStream = &psoDesc;
+		}
+
+		AssertIfFailed(this->graphicsDevice->CreatePipelineState(&psoStream, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
 	}
 
 	else
 	{
+		// TODO: Switch to CreatePipelineState
 		D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.pRootSignature = shader->RootSignature.Get();
 		psoDesc.CS = { shader->ComputeShaderMethod->GetBufferPointer(), shader->ComputeShaderMethod->GetBufferSize() };
@@ -895,6 +992,33 @@ void Direct3D12GraphicsService::DeletePipelineState(void* pipelineStatePointer)
 	delete pipelineState;
 }
 
+void Direct3D12GraphicsService::SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index)
+{ 
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
+
+	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{
+		commandList->CommandListObject->SetGraphicsRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
+	}
+
+	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		// TODO: Remove that hack
+		if (slot == 1)
+		{
+			auto gpuAddress = graphicsBuffer->BufferObject->GetGPUVirtualAddress();
+			commandList->CommandListObject->SetComputeRoot32BitConstants(0, 2, &gpuAddress, 0);
+			commandList->CommandListObject->SetComputeRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
+		}
+	}
+}
+
 void Direct3D12GraphicsService::SetShaderBuffers(void* commandListPointer, void** graphicsBufferPointerList, int graphicsBufferPointerListLength, int slot, int index)
 { 
 	
@@ -909,7 +1033,7 @@ void Direct3D12GraphicsService::SetShaderTexture(void* commandListPointer, void*
 	
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
-
+	
 	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
 		// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -1189,6 +1313,15 @@ void Direct3D12GraphicsService::SetPipelineState(void* commandListPointer, void*
 	commandList->CommandListObject->SetPipelineState(pipelineState->PipelineStateObject.Get());
 }
 
+void Direct3D12GraphicsService::SetShaderResourceHeap(void* commandListPointer, void* shaderResourceHeapPointer)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap->HeapObject.Get() };
+	commandList->CommandListObject->SetDescriptorHeaps(1, descriptorHeaps);
+}
+
 void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shaderPointer)
 { 
 	if (shaderPointer == nullptr)
@@ -1210,6 +1343,21 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 	}
 
 	this->shaderBound = true;
+}
+
+void Direct3D12GraphicsService::SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+
+	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{
+		commandList->CommandListObject->SetGraphicsRoot32BitConstants(slot, valuesLength, values, 0);
+	}
+
+	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		commandList->CommandListObject->SetComputeRoot32BitConstants(slot, valuesLength, values, 0);
+	}
 }
 
 void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount)
@@ -1300,6 +1448,17 @@ void Direct3D12GraphicsService::DrawPrimitives(void* commandListPointer, enum Gr
 	commandList->CommandListObject->DrawInstanced(vertexCount, 1, startVertex, 0);
 }
 
+void Direct3D12GraphicsService::DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
+{
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	commandList->CommandListObject->DispatchMesh(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+}
+
 void Direct3D12GraphicsService::QueryTimestamp(void* commandListPointer, void* queryBufferPointer, int index)
 {
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
@@ -1359,13 +1518,22 @@ ComPtr<IDXGIAdapter4> Direct3D12GraphicsService::FindGraphicsAdapter(const ComPt
 				D3D12_FEATURE_DATA_D3D12_OPTIONS deviceOptions = {};
 				AssertIfFailed(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &deviceOptions, sizeof(deviceOptions)));
 
+				D3D12_FEATURE_DATA_D3D12_OPTIONS7 deviceOptions7 = {};
+				AssertIfFailed(tempDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &deviceOptions7, sizeof(deviceOptions7)));
+
 				D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = {};
 				shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
+
+				// if (dxgiAdapterDesc1.VendorId != 32902)
+				// {
+				// 	continue;
+				// }
 
 				AssertIfFailed(tempDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel)));
 
 				if (deviceOptions.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2 && 
 					deviceOptions.ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3 && 
+					deviceOptions7.MeshShaderTier == D3D12_MESH_SHADER_TIER_1 &&
 					shaderModel.HighestShaderModel == D3D_SHADER_MODEL_6_6 &&
 					dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
 				{
@@ -1393,7 +1561,7 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 		ComPtr<IDXGIAdapter> warpAdapter;
 		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.ReleaseAndGetAddressOf()));
 
-		AssertIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf())));
+		AssertIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(this->graphicsDevice.ReleaseAndGetAddressOf())));
 	}
 
 	this->globalFenceEvent = CreateEventA(nullptr, false, false, nullptr);

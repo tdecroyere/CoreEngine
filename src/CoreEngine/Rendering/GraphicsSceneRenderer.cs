@@ -1420,7 +1420,7 @@ namespace CoreEngine.Rendering
 
             var materialList = this.graphicsManager.GetCpuGraphicsBufferPointer<ShaderMaterial>(this.cpuMaterialsBuffer);
 
-            materialList[this.currentMaterialIndex].MaterialBufferIndex = AddGraphicsBuffer(material.MaterialData.Value);
+            materialList[this.currentMaterialIndex].MaterialBufferIndex = AddGraphicsBuffer(material.MaterialData);
             materialList[this.currentMaterialIndex].MaterialTextureOffset = this.currentTextureIndex;
             materialList[this.currentMaterialIndex].IsTransparent = material.IsTransparent;
 

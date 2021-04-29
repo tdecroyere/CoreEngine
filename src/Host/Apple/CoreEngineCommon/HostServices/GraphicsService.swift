@@ -16,9 +16,16 @@ public protocol GraphicsServiceProtocol {
     func deleteCommandList(_ commandListPointer: UnsafeMutableRawPointer?)
     func resetCommandList(_ commandListPointer: UnsafeMutableRawPointer?)
     func commitCommandList(_ commandListPointer: UnsafeMutableRawPointer?)
-    func createGraphicsHeap(_ type: GraphicsServiceHeapType, _ length: UInt) -> UnsafeMutableRawPointer?
+    func createGraphicsHeap(_ type: GraphicsServiceHeapType, _ sizeInBytes: UInt) -> UnsafeMutableRawPointer?
     func setGraphicsHeapLabel(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteGraphicsHeap(_ graphicsHeapPointer: UnsafeMutableRawPointer?)
+    func createShaderResourceHeap(_ length: UInt) -> UnsafeMutableRawPointer?
+    func setShaderResourceHeapLabel(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ label: String)
+    func deleteShaderResourceHeap(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?)
+    func createShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ texturePointer: UnsafeMutableRawPointer?)
+    func deleteShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)
+    func createShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ bufferPointer: UnsafeMutableRawPointer?)
+    func deleteShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)
     func createGraphicsBuffer(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ isAliasable: Bool, _ sizeInBytes: Int) -> UnsafeMutableRawPointer?
     func setGraphicsBufferLabel(_ graphicsBufferPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteGraphicsBuffer(_ graphicsBufferPointer: UnsafeMutableRawPointer?)
@@ -29,7 +36,7 @@ public protocol GraphicsServiceProtocol {
     func createSwapChain(_ windowPointer: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ width: Int, _ height: Int, _ textureFormat: GraphicsTextureFormat) -> UnsafeMutableRawPointer?
     func resizeSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?, _ width: Int, _ height: Int)
     func getSwapChainBackBufferTexture(_ swapChainPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
-    func presentSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?)
+    func presentSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?) -> UInt
     func waitForSwapChainOnCpu(_ swapChainPointer: UnsafeMutableRawPointer?)
     func createIndirectCommandBuffer(_ maxCommandCount: Int) -> UnsafeMutableRawPointer?
     func setIndirectCommandBufferLabel(_ indirectCommandBufferPointer: UnsafeMutableRawPointer?, _ label: String)
@@ -58,8 +65,11 @@ public protocol GraphicsServiceProtocol {
     func beginRenderPass(_ commandListPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor)
     func endRenderPass(_ commandListPointer: UnsafeMutableRawPointer?)
     func setPipelineState(_ commandListPointer: UnsafeMutableRawPointer?, _ pipelineStatePointer: UnsafeMutableRawPointer?)
+    func setShaderResourceHeap(_ commandListPointer: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?)
     func setShader(_ commandListPointer: UnsafeMutableRawPointer?, _ shaderPointer: UnsafeMutableRawPointer?)
+    func setShaderParameterValues(_ commandListPointer: UnsafeMutableRawPointer?, _ slot: UInt, _ values: [UInt32])
     func executeIndirectCommandBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandBufferPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int)
+    func dispatchMesh(_ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt)
     func setIndexBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?)
     func drawIndexedPrimitives(_ commandListPointer: UnsafeMutableRawPointer?, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ instanceCount: Int, _ baseInstanceId: Int)
     func drawPrimitives(_ commandListPointer: UnsafeMutableRawPointer?, _ primitiveType: GraphicsPrimitiveType, _ startVertex: Int, _ vertexCount: Int)

@@ -39,9 +39,9 @@ namespace CoreEngine.Samples.SuperMario.EntitySystems
             for (var i = 0; i < entityArray.Length; i++)
             {
                 ref var playerComponent = ref playerArray[i];
-                var movementVector = this.inputsManager.GetRotationVector();
+                var movementVector = this.inputsManager.GetMovementVector();
 
-                playerComponent.MovementVector = new Vector3(movementVector.Y, movementVector.X, 0.0f);
+                playerComponent.MovementVector = new Vector3(movementVector.X, -movementVector.Y, 0.0f);
             }
         }
     }

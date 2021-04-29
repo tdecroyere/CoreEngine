@@ -87,6 +87,8 @@ namespace CoreEngine.Rendering
             var createdTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, texture.TextureFormat, TextureUsage.ShaderRead, texture.Width, texture.Height, texture.FaceCount, texture.MipLevels, 1, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(texture.Path)}Texture");
             texture.NativePointer1 = createdTexture.NativePointer1;
             texture.NativePointer2 = createdTexture.NativePointer2;
+            texture.ShaderResourceIndex1 = createdTexture.ShaderResourceIndex1;
+            texture.ShaderResourceIndex2 = createdTexture.ShaderResourceIndex2;
 
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "TextureLoader");
 

@@ -15,6 +15,7 @@ namespace CoreEngine.Graphics
     {
         private readonly IGraphicsService graphicsService;
         private readonly GraphicsMemoryManager graphicsMemoryManager;
+        private readonly ShaderResourceManager shaderResourceManager;
 
         private readonly bool logResourceAllocationInfos;
 
@@ -51,6 +52,7 @@ namespace CoreEngine.Graphics
 
             this.graphicsService = graphicsService;
             this.graphicsMemoryManager = new GraphicsMemoryManager(graphicsService);
+            this.shaderResourceManager = new ShaderResourceManager(graphicsService);
 
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
             this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
@@ -282,11 +284,21 @@ namespace CoreEngine.Graphics
             var graphicsBuffer = new GraphicsBuffer(this, allocation, allocation2, nativePointer1, nativePointer2, cpuPointer, cpuPointer2, sizeInBytes, isStatic, label);
             this.graphicsBuffers.Add(graphicsBuffer);
 
+            if (heapType == GraphicsHeapType.Gpu)
+            {
+                this.shaderResourceManager.CreateShaderResourceBuffer(graphicsBuffer);
+            }
+
             return graphicsBuffer;
         }
 
         public unsafe Span<T> GetCpuGraphicsBufferPointer<T>(GraphicsBuffer graphicsBuffer) where T : struct
         {
+            if (graphicsBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsBuffer));
+            }
+
             // TODO: Check if the buffer is allocated in a CPU Heap
             var cpuPointer = graphicsBuffer.CpuPointer;
 
@@ -328,6 +340,7 @@ namespace CoreEngine.Graphics
 
             // TODO: Use something faster here
             this.graphicsBuffers.Remove(graphicsBuffer);
+            this.shaderResourceManager.DeleteShaderResourceBuffer(graphicsBuffer);
         }
 
         // TODO: Do not forget to find a way to delete the transient resource
@@ -362,6 +375,11 @@ namespace CoreEngine.Graphics
             var texture = new Texture(this, allocation, allocation2, nativePointer1, nativePointer2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
             this.textures.Add(texture);
 
+            if (heapType == GraphicsHeapType.Gpu)
+            {
+                this.shaderResourceManager.CreateShaderResourceTexture(texture);
+            }
+            
             if (allocation.IsAliasable)
             {
                 aliasableTextures.Add(texture);
@@ -403,6 +421,8 @@ namespace CoreEngine.Graphics
                 }
             }
 
+            this.shaderResourceManager.DeleteShaderResourceTexture(texture);
+
             // TODO: Use something faster here
             this.textures.Remove(texture);
         }
@@ -443,14 +463,15 @@ namespace CoreEngine.Graphics
             return new Texture(this, new GraphicsMemoryAllocation(), null, textureNativePointer, null, swapChain.TextureFormat, TextureUsage.RenderTarget, swapChain.Width, swapChain.Height, 1, 1, 1, isStatic: true, "BackBuffer");
         }
 
-        public void PresentSwapChain(SwapChain swapChain)
+        public Fence PresentSwapChain(SwapChain swapChain)
         {
             if (swapChain == null)
             {
                 throw new ArgumentNullException(nameof(swapChain));
             }
             
-            this.graphicsService.PresentSwapChain(swapChain.NativePointer);
+            var fenceValue = this.graphicsService.PresentSwapChain(swapChain.NativePointer);
+            return new Fence(swapChain.CommandQueue, fenceValue);
         }
 
         public void WaitForSwapChainOnCpu(SwapChain swapChain)
@@ -516,6 +537,11 @@ namespace CoreEngine.Graphics
 
         public void DeleteQueryBuffer(QueryBuffer queryBuffer)
         {
+            if (queryBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(queryBuffer));
+            }
+
             this.graphicsService.DeleteQueryBuffer(queryBuffer.NativePointer1);
 
             if (queryBuffer.NativePointer2 != null)
@@ -585,6 +611,16 @@ namespace CoreEngine.Graphics
 
         public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, int length) where T : struct
         {
+            if (destination == null)
+            {
+                throw new ArgumentNullException(nameof(destination));
+            }
+
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
             // TODO: Check that the source was allocated in a cpu heap
 
             var sizeInBytes = length * Marshal.SizeOf(typeof(T));
@@ -599,6 +635,11 @@ namespace CoreEngine.Graphics
             if (destination == null)
             {
                 throw new ArgumentNullException(nameof(destination));
+            }
+
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
             }
 
             this.graphicsService.CopyDataToTexture(commandList.NativePointer, destination.NativePointer, source.NativePointer, (GraphicsTextureFormat)destination.TextureFormat, width, height, slice, mipLevel);
@@ -676,7 +717,7 @@ namespace CoreEngine.Graphics
             this.renderPassDescriptors.Remove(commandList.NativePointer);
         }
 
-        public void SetShader(CommandList commandList, Shader shader)
+        public void SetShader(CommandList commandList, Shader shader, bool newShader = false)
         {
             if (shader == null)
             {
@@ -687,6 +728,9 @@ namespace CoreEngine.Graphics
             {
                 return;
             }
+
+            if (newShader)
+                this.shaderResourceManager.SetShaderResourceHeap(commandList);
 
             this.graphicsService.SetShader(commandList.NativePointer, shader.NativePointer);
 
@@ -718,8 +762,18 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetPipelineState(commandList.NativePointer, shader.PipelineStates[renderPassDescriptor].NativePointer);
         }
 
+        public void SetShaderParameterValues(CommandList commandList, uint slot, ReadOnlySpan<uint> values)
+        {
+            this.graphicsService.SetShaderParameterValues(commandList.NativePointer, slot, values);
+        }
+
         public void SetShaderBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, int slot, bool isReadOnly = true, int index = 0)
         {
+            if (graphicsBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsBuffer));
+            }
+
             this.graphicsService.SetShaderBuffer(commandList.NativePointer, graphicsBuffer.NativePointer, slot, isReadOnly, index);
         }
 
@@ -805,11 +859,44 @@ namespace CoreEngine.Graphics
             this.graphicsService.ExecuteIndirectCommandBuffer(commandList.NativePointer, indirectCommandBuffer.NativePointer, maxCommandCount);
         }
 
+        public void DispatchMesh(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        {
+            if (commandList.Type != CommandType.Render)
+            {
+                throw new InvalidOperationException("The specified command list is not a render command list.");
+            }
+
+            if (threadGroupCountX == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(threadGroupCountX));
+            }
+
+            if (threadGroupCountY == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(threadGroupCountY));
+            }
+
+            if (threadGroupCountZ == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(threadGroupCountZ));
+            }
+
+            this.graphicsService.DispatchMesh(commandList.NativePointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+            this.cpuDrawCount++;
+        }
+
+        [Obsolete("Use DispatchMesh")]
         public void SetIndexBuffer(CommandList commandList, GraphicsBuffer indexBuffer)
         {
+            if (indexBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(indexBuffer));
+            }
+
             this.graphicsService.SetIndexBuffer(commandList.NativePointer, indexBuffer.NativePointer);
         }
 
+        [Obsolete("Use DispatchMesh")]
         public void DrawIndexedPrimitives(CommandList commandList, PrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
         {
             if (commandList.Type != CommandType.Render)
@@ -827,6 +914,7 @@ namespace CoreEngine.Graphics
             this.cpuDrawCount++;
         }
 
+        [Obsolete("Use DispatchMesh")]
         public void DrawPrimitives(CommandList commandList, PrimitiveType primitiveType, int startVertex, int vertexCount)
         {
             if (commandList.Type != CommandType.Render)
@@ -844,11 +932,26 @@ namespace CoreEngine.Graphics
 
         public void QueryTimestamp(CommandList commandList, QueryBuffer queryBuffer, int index)
         {
+            if (queryBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(queryBuffer));
+            }
+
             this.graphicsService.QueryTimestamp(commandList.NativePointer, queryBuffer.NativePointer, index);
         }
 
         public void ResolveQueryData(CommandList commandList, QueryBuffer queryBuffer, GraphicsBuffer destinationBuffer, Range range)
         {
+            if (queryBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(queryBuffer));
+            }
+
+            if (destinationBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(destinationBuffer));
+            }
+
             var offsetAndLength = range.GetOffsetAndLength(queryBuffer.Length);
             this.graphicsService.ResolveQueryData(commandList.NativePointer, queryBuffer.NativePointer, destinationBuffer.NativePointer, offsetAndLength.Offset, offsetAndLength.Length);
         }

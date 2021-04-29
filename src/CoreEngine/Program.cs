@@ -16,6 +16,8 @@ using CoreEngine.Rendering.Components;
 
 public static class Program
 {
+    private static Task? renderTask;
+
     [UnmanagedCallersOnly(EntryPoint = "main")]
     public static void Main(HostPlatform hostPlatform)
     {
@@ -88,19 +90,19 @@ public static class Program
 
         if (coreEngineApp != null)
         {
-            var renderTask = new Task(() => Render(renderManager), new System.Threading.CancellationToken(), TaskCreationOptions.LongRunning);
-            //renderTask.Start();
+            renderTask = new Task(() => Render(context, coreEngineApp, renderManager, systemManagerContainer), new System.Threading.CancellationToken(), TaskCreationOptions.LongRunning);
+            // renderTask.Start();
 
             var appStatus = new AppStatus() { IsActive = true, IsRunning = true };
 
             while (appStatus.IsRunning)
             {
-                var updatedApp = pluginManager.CheckForUpdatedAssemblies(context).Result;
+                // var updatedApp = pluginManager.CheckForUpdatedAssemblies(context).Result;
 
-                if (updatedApp != null)
-                {
-                    coreEngineApp = updatedApp;
-                }
+                // if (updatedApp != null)
+                // {
+                //     coreEngineApp = updatedApp;
+                // }
                 
                 appStatus = nativeUIManager.ProcessSystemMessages();
                 context.IsAppActive = appStatus.IsActive;
@@ -117,8 +119,13 @@ public static class Program
         Logger.WriteMessage("Exiting");
     }
 
-    private static void Render(RenderManager renderManager)
+    private static void Render(CoreEngineContext context, CoreEngineApp coreEngineApp, RenderManager renderManager, SystemManagerContainer systemManagerContainer)
     {
+        systemManagerContainer.PreUpdateSystemManagers(context);
+                // TODO: Compute correct delta time
+                coreEngineApp.OnUpdate(context, 1.0f / 60.0f);
+                systemManagerContainer.PostUpdateSystemManagers(context);
+
         renderManager.Render();
     }
 }

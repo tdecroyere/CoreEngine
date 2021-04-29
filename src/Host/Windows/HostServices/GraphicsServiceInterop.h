@@ -91,10 +91,10 @@ void CommitCommandListInterop(void* context, void* commandListPointer)
     contextObject->CommitCommandList(commandListPointer);
 }
 
-void* CreateGraphicsHeapInterop(void* context, enum GraphicsServiceHeapType type, unsigned long length)
+void* CreateGraphicsHeapInterop(void* context, enum GraphicsServiceHeapType type, unsigned long sizeInBytes)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateGraphicsHeap(type, length);
+    return contextObject->CreateGraphicsHeap(type, sizeInBytes);
 }
 
 void SetGraphicsHeapLabelInterop(void* context, void* graphicsHeapPointer, char* label)
@@ -107,6 +107,48 @@ void DeleteGraphicsHeapInterop(void* context, void* graphicsHeapPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     contextObject->DeleteGraphicsHeap(graphicsHeapPointer);
+}
+
+void* CreateShaderResourceHeapInterop(void* context, unsigned long length)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->CreateShaderResourceHeap(length);
+}
+
+void SetShaderResourceHeapLabelInterop(void* context, void* shaderResourceHeapPointer, char* label)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetShaderResourceHeapLabel(shaderResourceHeapPointer, label);
+}
+
+void DeleteShaderResourceHeapInterop(void* context, void* shaderResourceHeapPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteShaderResourceHeap(shaderResourceHeapPointer);
+}
+
+void CreateShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->CreateShaderResourceTexture(shaderResourceHeapPointer, index, texturePointer);
+}
+
+void DeleteShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteShaderResourceTexture(shaderResourceHeapPointer, index);
+}
+
+void CreateShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->CreateShaderResourceBuffer(shaderResourceHeapPointer, index, bufferPointer);
+}
+
+void DeleteShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteShaderResourceBuffer(shaderResourceHeapPointer, index);
 }
 
 void* CreateGraphicsBufferInterop(void* context, void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes)
@@ -169,10 +211,10 @@ void* GetSwapChainBackBufferTextureInterop(void* context, void* swapChainPointer
     return contextObject->GetSwapChainBackBufferTexture(swapChainPointer);
 }
 
-void PresentSwapChainInterop(void* context, void* swapChainPointer)
+unsigned long PresentSwapChainInterop(void* context, void* swapChainPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->PresentSwapChain(swapChainPointer);
+    return contextObject->PresentSwapChain(swapChainPointer);
 }
 
 void WaitForSwapChainOnCpuInterop(void* context, void* swapChainPointer)
@@ -343,16 +385,34 @@ void SetPipelineStateInterop(void* context, void* commandListPointer, void* pipe
     contextObject->SetPipelineState(commandListPointer, pipelineStatePointer);
 }
 
+void SetShaderResourceHeapInterop(void* context, void* commandListPointer, void* shaderResourceHeapPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetShaderResourceHeap(commandListPointer, shaderResourceHeapPointer);
+}
+
 void SetShaderInterop(void* context, void* commandListPointer, void* shaderPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     contextObject->SetShader(commandListPointer, shaderPointer);
 }
 
+void SetShaderParameterValuesInterop(void* context, void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetShaderParameterValues(commandListPointer, slot, values, valuesLength);
+}
+
 void ExecuteIndirectCommandBufferInterop(void* context, void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     contextObject->ExecuteIndirectCommandBuffer(commandListPointer, indirectCommandBufferPointer, maxCommandCount);
+}
+
+void DispatchMeshInterop(void* context, void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DispatchMesh(commandListPointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
 void SetIndexBufferInterop(void* context, void* commandListPointer, void* graphicsBufferPointer)
@@ -406,6 +466,13 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_CreateGraphicsHeap = CreateGraphicsHeapInterop;
     service->GraphicsService_SetGraphicsHeapLabel = SetGraphicsHeapLabelInterop;
     service->GraphicsService_DeleteGraphicsHeap = DeleteGraphicsHeapInterop;
+    service->GraphicsService_CreateShaderResourceHeap = CreateShaderResourceHeapInterop;
+    service->GraphicsService_SetShaderResourceHeapLabel = SetShaderResourceHeapLabelInterop;
+    service->GraphicsService_DeleteShaderResourceHeap = DeleteShaderResourceHeapInterop;
+    service->GraphicsService_CreateShaderResourceTexture = CreateShaderResourceTextureInterop;
+    service->GraphicsService_DeleteShaderResourceTexture = DeleteShaderResourceTextureInterop;
+    service->GraphicsService_CreateShaderResourceBuffer = CreateShaderResourceBufferInterop;
+    service->GraphicsService_DeleteShaderResourceBuffer = DeleteShaderResourceBufferInterop;
     service->GraphicsService_CreateGraphicsBuffer = CreateGraphicsBufferInterop;
     service->GraphicsService_SetGraphicsBufferLabel = SetGraphicsBufferLabelInterop;
     service->GraphicsService_DeleteGraphicsBuffer = DeleteGraphicsBufferInterop;
@@ -445,8 +512,11 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_BeginRenderPass = BeginRenderPassInterop;
     service->GraphicsService_EndRenderPass = EndRenderPassInterop;
     service->GraphicsService_SetPipelineState = SetPipelineStateInterop;
+    service->GraphicsService_SetShaderResourceHeap = SetShaderResourceHeapInterop;
     service->GraphicsService_SetShader = SetShaderInterop;
+    service->GraphicsService_SetShaderParameterValues = SetShaderParameterValuesInterop;
     service->GraphicsService_ExecuteIndirectCommandBuffer = ExecuteIndirectCommandBufferInterop;
+    service->GraphicsService_DispatchMesh = DispatchMeshInterop;
     service->GraphicsService_SetIndexBuffer = SetIndexBufferInterop;
     service->GraphicsService_DrawIndexedPrimitives = DrawIndexedPrimitivesInterop;
     service->GraphicsService_DrawPrimitives = DrawPrimitivesInterop;

@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace CoreEngine.Graphics
 {
-    public readonly struct GraphicsBuffer : IGraphicsResource, IDisposable
+    public class GraphicsBuffer : IGraphicsResource, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
 
@@ -25,8 +25,16 @@ namespace CoreEngine.Graphics
 
         public void Dispose()
         {
-            this.graphicsManager.ScheduleDeleteGraphicsBuffer(this);
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                this.graphicsManager.ScheduleDeleteGraphicsBuffer(this);
+            }
         }
 
         public IntPtr NativePointer 
@@ -78,6 +86,24 @@ namespace CoreEngine.Graphics
 
         public IntPtr CpuPointer1 { get; }
         public IntPtr CpuPointer2 { get; }
+
+        public uint ShaderResourceIndex 
+        { 
+            get
+            {
+                var result = this.ShaderResourceIndex1;
+
+                if (!IsStatic && this.ShaderResourceIndex2 != null && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+                {
+                    result = this.ShaderResourceIndex2.Value;
+                }
+
+                return result;
+            }
+        }
+
+        public uint ShaderResourceIndex1 { get; internal set;}
+        public uint? ShaderResourceIndex2 { get; internal set;}
 
         public string Label
         {

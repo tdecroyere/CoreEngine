@@ -10,6 +10,7 @@ WindowsInputsService::WindowsInputsService()
     this->rawInputBuffer = nullptr;
     this->rawInputBufferSize = 0;
 
+	globalInputService = this;
 }
 
 void WindowsInputsService::AssociateWindow(void* windowPointer)
@@ -30,6 +31,8 @@ void WindowsInputsService::SendVibrationCommand(uint32_t playerId, float leftTri
 
 void WindowsInputsService::InitRawInput(HWND window)
 {
+	// TODO: RawInput is disabled for now...
+	
 	RAWINPUTDEVICE rawInputDevices[2];
 
 	rawInputDevices[0].usUsagePage = 0x01;
@@ -42,7 +45,7 @@ void WindowsInputsService::InitRawInput(HWND window)
 	rawInputDevices[1].dwFlags = RIDEV_INPUTSINK;
 	rawInputDevices[1].hwndTarget = window;
 
-	AssertIfFailed(RegisterRawInputDevices(rawInputDevices, 2, sizeof(RAWINPUTDEVICE)));
+	// AssertIfFailed(RegisterRawInputDevices(rawInputDevices, 2, sizeof(RAWINPUTDEVICE)));
 }
 
 void WindowsInputsService::UpdateRawInputState()
@@ -103,65 +106,74 @@ void WindowsInputsService::UpdateRawInputState()
     }
 }
 
-void WindowsInputsService::UpdateRawInputKeyboardButtonState(const RAWKEYBOARD& rawKeyboardData, uint16_t vKey, InputsObject* keyboardButtonState)
+void WindowsInputsService::UpdateRawInputKeyboardButtonState(UINT message, uint16_t currentVKey, uint16_t vKey, InputsObject* keyboardButtonState)
 {
-	if (rawKeyboardData.VKey == vKey)
+	if (currentVKey == vKey)
 	{
-		auto newValue = (rawKeyboardData.Message == WM_KEYDOWN) ? 1.0f : 0.0f;
+		auto newValue = (message == WM_KEYDOWN) ? 1.0f : 0.0f;
 
 		keyboardButtonState->TransitionCount += (keyboardButtonState->Value != newValue) ? 1 : 0;
 		keyboardButtonState->Value = newValue;
 	}
 }
 
+void WindowsInputsService::UpdateRawInputKeyboardState(UINT message, uint16_t currentVKey)
+{
+	RAWKEYBOARD raw = {};
+	raw.Message = message;
+	raw.VKey = currentVKey;
+
+	UpdateRawInputKeyboardState(raw, &this->inputState.Keyboard);
+}
+
 void WindowsInputsService::UpdateRawInputKeyboardState(const RAWKEYBOARD& rawKeyboardData, InputsKeyboard* keyboardState)
 {
 	// TODO: Handle all the keys in the real production code
 
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'A', &keyboardState->KeyA);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'B', &keyboardState->KeyB);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'C', &keyboardState->KeyC);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'D', &keyboardState->KeyD);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'E', &keyboardState->KeyE);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'F', &keyboardState->KeyF);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'G', &keyboardState->KeyG);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'H', &keyboardState->KeyH);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'I', &keyboardState->KeyI);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'J', &keyboardState->KeyJ);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'K', &keyboardState->KeyK);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'L', &keyboardState->KeyL);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'M', &keyboardState->KeyM);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'N', &keyboardState->KeyN);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'O', &keyboardState->KeyO);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'P', &keyboardState->KeyP);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'Q', &keyboardState->KeyQ);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'R', &keyboardState->KeyR);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'S', &keyboardState->KeyS);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'T', &keyboardState->KeyT);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'U', &keyboardState->KeyU);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'V', &keyboardState->KeyV);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'W', &keyboardState->KeyW);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'X', &keyboardState->KeyX);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'Y', &keyboardState->KeyY);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, 'Z', &keyboardState->KeyZ);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_LEFT, &keyboardState->LeftArrow);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_RIGHT, &keyboardState->RightArrow);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_UP, &keyboardState->UpArrow);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_DOWN, &keyboardState->DownArrow);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_SPACE, &keyboardState->Space);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_MENU, &keyboardState->AlternateKey);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_RETURN, &keyboardState->Enter);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F1, &keyboardState->F1);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F2, &keyboardState->F2);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F3, &keyboardState->F3);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F4, &keyboardState->F4);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F5, &keyboardState->F5);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F6, &keyboardState->F6);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F7, &keyboardState->F7);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F8, &keyboardState->F8);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F9, &keyboardState->F9);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F10, &keyboardState->F10);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F11, &keyboardState->F11);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_F12, &keyboardState->F12);
-	UpdateRawInputKeyboardButtonState(rawKeyboardData, VK_SHIFT, &keyboardState->Shift);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'A', &keyboardState->KeyA);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'B', &keyboardState->KeyB);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'C', &keyboardState->KeyC);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'D', &keyboardState->KeyD);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'E', &keyboardState->KeyE);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'F', &keyboardState->KeyF);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'G', &keyboardState->KeyG);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'H', &keyboardState->KeyH);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'I', &keyboardState->KeyI);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'J', &keyboardState->KeyJ);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'K', &keyboardState->KeyK);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'L', &keyboardState->KeyL);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'M', &keyboardState->KeyM);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'N', &keyboardState->KeyN);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'O', &keyboardState->KeyO);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'P', &keyboardState->KeyP);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'Q', &keyboardState->KeyQ);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'R', &keyboardState->KeyR);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'S', &keyboardState->KeyS);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'T', &keyboardState->KeyT);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'U', &keyboardState->KeyU);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'V', &keyboardState->KeyV);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'W', &keyboardState->KeyW);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'X', &keyboardState->KeyX);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'Y', &keyboardState->KeyY);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, 'Z', &keyboardState->KeyZ);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_LEFT, &keyboardState->LeftArrow);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_RIGHT, &keyboardState->RightArrow);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_UP, &keyboardState->UpArrow);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_DOWN, &keyboardState->DownArrow);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_SPACE, &keyboardState->Space);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_MENU, &keyboardState->AlternateKey);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_RETURN, &keyboardState->Enter);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F1, &keyboardState->F1);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F2, &keyboardState->F2);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F3, &keyboardState->F3);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F4, &keyboardState->F4);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F5, &keyboardState->F5);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F6, &keyboardState->F6);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F7, &keyboardState->F7);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F8, &keyboardState->F8);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F9, &keyboardState->F9);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F10, &keyboardState->F10);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F11, &keyboardState->F11);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_F12, &keyboardState->F12);
+	UpdateRawInputKeyboardButtonState(rawKeyboardData.Message, rawKeyboardData.VKey, VK_SHIFT, &keyboardState->Shift);
 }

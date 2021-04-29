@@ -29,7 +29,7 @@ struct Direct3D12CommandQueue
 
 struct Direct3D12CommandList
 {
-    ComPtr<ID3D12GraphicsCommandList> CommandListObject;
+    ComPtr<ID3D12GraphicsCommandList6> CommandListObject;
     D3D12_COMMAND_LIST_TYPE Type;
     Direct3D12CommandQueue* CommandQueue;
     GraphicsRenderPassDescriptor RenderPassDescriptor;
@@ -39,6 +39,12 @@ struct Direct3D12GraphicsHeap
 {
     ComPtr<ID3D12Heap> HeapObject;
     GraphicsServiceHeapType Type;
+};
+
+struct Direct3D12ShaderResourceHeap
+{
+    ComPtr<ID3D12DescriptorHeap> HeapObject;
+    UINT HandleSize;
 };
 
 struct Direct3D12GraphicsBuffer
@@ -76,6 +82,7 @@ struct Direct3D12QueryBuffer
 struct Direct3D12Shader
 {
     ComPtr<ID3DBlob> VertexShaderMethod;
+    ComPtr<ID3DBlob> MeshShaderMethod;
     ComPtr<ID3DBlob> PixelShaderMethod;
     ComPtr<ID3DBlob> ComputeShaderMethod;
     ComPtr<ID3D12RootSignature> RootSignature;
@@ -121,6 +128,14 @@ class Direct3D12GraphicsService
         void SetGraphicsHeapLabel(void* graphicsHeapPointer, char* label);
         void DeleteGraphicsHeap(void* graphicsHeapPointer);
 
+        void* CreateShaderResourceHeap(unsigned long length);
+        void SetShaderResourceHeapLabel(void* shaderResourceHeapPointer, char* label);
+        void DeleteShaderResourceHeap(void* shaderResourceHeapPointer);
+        void CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer);
+        void DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index);
+        void CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer);
+        void DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index);
+
         void* CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes);
         void SetGraphicsBufferLabel(void* graphicsBufferPointer, char* label);
         void DeleteGraphicsBuffer(void* graphicsBufferPointer);
@@ -133,7 +148,7 @@ class Direct3D12GraphicsService
         void* CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
         void ResizeSwapChain(void* swapChainPointer, int width, int height);
         void* GetSwapChainBackBufferTexture(void* swapChainPointer);
-        void PresentSwapChain(void* swapChainPointer);
+        unsigned long PresentSwapChain(void* swapChainPointer);
         void WaitForSwapChainOnCpu(void* swapChainPointer);
 
         void* CreateIndirectCommandBuffer(int maxCommandCount);
@@ -171,11 +186,16 @@ class Direct3D12GraphicsService
         void EndRenderPass(void* commandListPointer);
 
         void SetPipelineState(void* commandListPointer, void* pipelineStatePointer);
+        void SetShaderResourceHeap(void* commandListPointer, void* shaderResourceHeapPointer);
         void SetShader(void* commandListPointer, void* shaderPointer);
+        void SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
+
         void ExecuteIndirectCommandBuffer(void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount);
         void SetIndexBuffer(void* commandListPointer, void* graphicsBufferPointer);
         void DrawIndexedPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
         void DrawPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
+
+        void DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 
         void QueryTimestamp(void* commandListPointer, void* queryBufferPointer, int index);
         void ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex);

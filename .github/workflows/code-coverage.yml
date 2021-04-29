@@ -25,7 +25,7 @@ jobs:
     - name: Setup .NET Core SDK
       uses: actions/setup-dotnet@v1.7.2
       with:
-        dotnet-version: 5.0.200-preview.20601.7
+        dotnet-version: 6.0.100-preview.3.21202.5
         
     - name: Generate coverage report Unit Tests
       run: |

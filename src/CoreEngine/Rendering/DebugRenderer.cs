@@ -199,7 +199,6 @@ namespace CoreEngine.Rendering
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, true, PrimitiveType.Line);
 
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
-
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.SetShader(renderCommandList, this.shader);
@@ -209,9 +208,9 @@ namespace CoreEngine.Rendering
             this.graphicsManager.SetIndexBuffer(renderCommandList, this.indexBuffer);
             this.graphicsManager.DrawIndexedPrimitives(renderCommandList, PrimitiveType.Line, 0, this.currentDebugLineIndex * 2, 1, 0);
 
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.EndRenderPass(renderCommandList);
 
-            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.CommitCommandList(renderCommandList);
             this.renderManager.AddGpuTiming("DebugRenderer", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 

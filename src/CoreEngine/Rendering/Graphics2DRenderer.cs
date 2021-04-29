@@ -192,8 +192,8 @@ namespace CoreEngine.Rendering
             var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.Triangle);
 
-            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             // this.graphicsManager.SetShader(renderCommandList, this.shader, newShader: true);
             this.graphicsManager.SetShader(renderCommandList, this.shader, newShader: false);
@@ -204,8 +204,8 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSurfaceCount / maxSurfaceCountPerThreadGroup), 1, 1);
 
-            this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.EndRenderPass(renderCommandList);
             this.graphicsManager.CommitCommandList(renderCommandList);
             this.renderManager.AddGpuTiming(commandListName, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
             return renderCommandList;

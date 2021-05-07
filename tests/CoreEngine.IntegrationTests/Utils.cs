@@ -1,13 +1,42 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CoreEngine.HostServices;
+using CoreEngine.Resources;
 using Moq;
 
 namespace CoreEngine.IntegrationTests
 {
+    public class TestGraphicsBuffer
+    {
+        public IntPtr Pointer {get ; set; }
+        public int SizeInBytes { get; set; }
+    }
+
+    public class TestResource : Resource
+    {
+        public TestResource(string path) : base(0, path)
+        {
+
+        }
+    }
+
+    public class TestResourcesManager : ResourcesManager
+    {
+        public IList<string> LoadedResources { get; } = new List<string>();
+
+        public new T LoadResourceAsync<T>(string path, params string[] parameters) where T : Resource
+        {
+            this.LoadedResources.Add(path);
+            return (T)(Resource)new TestResource(path);
+        }
+    }
+
     public class TestGraphicsService : IGraphicsService
     {
+        private Dictionary<IntPtr, TestGraphicsBuffer> graphicsBuffers { get; } = new Dictionary<IntPtr, TestGraphicsBuffer>();
+
         public string GetGraphicsAdapterName() { return "TestAdapter"; }
         
         public GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
@@ -54,14 +83,41 @@ namespace CoreEngine.IntegrationTests
         public void SetGraphicsHeapLabel(IntPtr graphicsHeapPointer, string label) {}
         public void DeleteGraphicsHeap(IntPtr graphicsHeapPointer) {}
 
+        public IntPtr CreateShaderResourceHeap(ulong length) 
+        { 
+            return new IntPtr(1); 
+        }
+
+        public void SetShaderResourceHeapLabel(IntPtr shaderResourceHeapPointer, string label) {}
+        public void DeleteShaderResourceHeap(IntPtr shaderResourceHeapPointer) {}
+        public void CreateShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index, IntPtr texturePointer) {}
+        public void DeleteShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index) {}
+        public void CreateShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index, IntPtr bufferPointer) {}
+        public void DeleteShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index) {}
+
         public IntPtr CreateGraphicsBuffer(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, int sizeInBytes) 
         {
-            return new IntPtr(1);
+            var graphicsBuffer = new TestGraphicsBuffer();
+            graphicsBuffer.Pointer = new IntPtr(this.graphicsBuffers.Count + 1);
+            graphicsBuffer.SizeInBytes = sizeInBytes;
+
+            this.graphicsBuffers.Add(graphicsBuffer.Pointer, graphicsBuffer);
+
+            return graphicsBuffer.Pointer;
         }
 
         public void SetGraphicsBufferLabel(IntPtr graphicsBufferPointer, string label) {}
         public void DeleteGraphicsBuffer(IntPtr graphicsBufferPointer) {}
-        public IntPtr GetGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer) {}
+        
+        public IntPtr GetGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer) 
+        { 
+            if (graphicsBuffers.ContainsKey(graphicsBufferPointer))
+            {
+                return Marshal.AllocHGlobal(graphicsBuffers[graphicsBufferPointer].SizeInBytes);
+            }
+
+            return Marshal.AllocHGlobal(1024);
+        }
 
         public IntPtr CreateTexture(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount) 
         {
@@ -76,8 +132,9 @@ namespace CoreEngine.IntegrationTests
             return new IntPtr(1);
         }
         public void ResizeSwapChain(IntPtr swapChainPointer, int width, int height) {}
-        public IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer) {}
-        public ulong PresentSwapChain(IntPtr swapChainPointer) {}
+        public IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer) { return IntPtr.Zero; }
+        public ulong PresentSwapChain(IntPtr swapChainPointer) { return 0; }
+        public void WaitForSwapChainOnCpu(IntPtr swapChainPointer) {}
 
         public IntPtr CreateIndirectCommandBuffer(int maxCommandCount) 
         {
@@ -131,8 +188,13 @@ namespace CoreEngine.IntegrationTests
 
         public void SetPipelineState(IntPtr commandListPointer, IntPtr pipelineStatePointer) {}
 
+        public void SetShaderResourceHeap(IntPtr commandListPointer, IntPtr shaderResourceHeapPointer) {}
         public void SetShader(IntPtr commandListPointer, IntPtr shaderPointer) {}
+        public void SetShaderParameterValues(IntPtr commandListPointer, uint slot, ReadOnlySpan<uint> values) {}
+
         public void ExecuteIndirectCommandBuffer(IntPtr commandListPointer, IntPtr indirectCommandBufferPointer, int maxCommandCount) {}
+
+        public void DispatchMesh(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ) {}
 
         public void SetIndexBuffer(IntPtr commandListPointer, IntPtr graphicsBufferPointer) {}
         public void DrawIndexedPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId) {}

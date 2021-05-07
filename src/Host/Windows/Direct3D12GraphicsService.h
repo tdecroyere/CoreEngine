@@ -82,6 +82,7 @@ struct Direct3D12QueryBuffer
 struct Direct3D12Shader
 {
     ComPtr<ID3DBlob> VertexShaderMethod;
+    ComPtr<ID3DBlob> AmplificationShaderMethod;
     ComPtr<ID3DBlob> MeshShaderMethod;
     ComPtr<ID3DBlob> PixelShaderMethod;
     ComPtr<ID3DBlob> ComputeShaderMethod;
@@ -205,6 +206,7 @@ class Direct3D12GraphicsService
         wstring adapterName;
         ComPtr<IDXGIFactory4> dxgiFactory; 
         ComPtr<ID3D12Device3> graphicsDevice;
+        ComPtr<IDXGIDebug> dxgiDebug;
         
         // Command Objects
         int32_t currentAllocatorIndex = 0;

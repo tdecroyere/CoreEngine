@@ -38,11 +38,11 @@ namespace CoreEngine.Rendering
 
     public class Graphics2DRenderer : SystemManager
     {
-        private readonly RenderManager renderManager;
-        private readonly GraphicsManager graphicsManager;
-
         private const uint maxSurfaceCountPerThreadGroup = 32;  
         private const float scaleFactor = 1.0f;
+
+        private readonly RenderManager renderManager;
+        private readonly GraphicsManager graphicsManager;
 
         private readonly Shader shader;
         private readonly Font systemFont;
@@ -188,8 +188,8 @@ namespace CoreEngine.Rendering
             var commandListName = "Graphics2DRenderer_Render";
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, commandListName);
             
-            // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
-            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
+            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
+            // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.Triangle);
 
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);

@@ -37,7 +37,7 @@ namespace CoreEngine.Graphics
 
             var allocation = new GraphicsMemoryAllocation(this, this.GraphicsHeap, alignedHeapOffset, sizeInBytes, isAliasable: false);
 
-            this.AllocatedMemory += (alignedHeapOffset - this.AllocatedMemory) + (ulong)sizeInBytes;
+            this.AllocatedMemory += (ulong)sizeInBytes;
             this.CurrentOffset = alignedHeapOffset + (ulong)sizeInBytes;
 
             return allocation;
@@ -45,7 +45,7 @@ namespace CoreEngine.Graphics
 
         public void FreeMemory(GraphicsMemoryAllocation allocation)
         {
-
+            //this.AllocatedMemory -= (ulong)allocation.SizeInBytes;
         }
 
         public void Reset(uint frameNumber)

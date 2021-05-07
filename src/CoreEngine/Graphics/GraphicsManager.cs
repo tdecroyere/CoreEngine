@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
@@ -32,11 +33,13 @@ namespace CoreEngine.Graphics
         private List<Texture> textures = new List<Texture>();
         private List<PipelineState> pipelineStates = new List<PipelineState>();
         private List<Shader> shaders = new List<Shader>();
+        private List<QueryBuffer> queryBuffers = new List<QueryBuffer>();
 
         private List<GraphicsBuffer>[] graphicsBuffersToDelete = new List<GraphicsBuffer>[2];
         private List<Texture>[] texturesToDelete = new List<Texture>[2];
         private List<PipelineState>[] pipelineStatesToDelete = new List<PipelineState>[2];
         private List<Shader>[] shadersToDelete = new List<Shader>[2];
+        private List<QueryBuffer>[] queryBuffersToDelete = new List<QueryBuffer>[2];
 
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
@@ -71,6 +74,9 @@ namespace CoreEngine.Graphics
             shadersToDelete[0] = new List<Shader>();
             shadersToDelete[1] = new List<Shader>();
 
+            queryBuffersToDelete[0] = new List<QueryBuffer>();
+            queryBuffersToDelete[1] = new List<QueryBuffer>();
+
             InitResourceLoaders(resourcesManager);
         }
 
@@ -103,9 +109,12 @@ namespace CoreEngine.Graphics
                 {
                     DeleteShader(this.shaders[i]);
                 }
-            }
 
-            
+                for (var i = 0; i < this.queryBuffers.Count; i++)
+                {
+                    DeleteQueryBuffer(this.queryBuffers[i]);
+                }
+            }
         }
 
         // TODO: Move that method
@@ -532,7 +541,10 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.SetQueryBufferLabel(nativePointer2, label);
 
-            return new QueryBuffer(this, nativePointer1, nativePointer2, length, label);
+            var queryBuffer = new QueryBuffer(this, nativePointer1, nativePointer2, length, label);
+            this.queryBuffers.Add(queryBuffer);
+
+            return queryBuffer;
         }
 
         public void DeleteQueryBuffer(QueryBuffer queryBuffer)
@@ -548,6 +560,14 @@ namespace CoreEngine.Graphics
             {
                 this.graphicsService.DeleteQueryBuffer(queryBuffer.NativePointer2.Value);
             }
+
+            // TODO: Use something faster here
+            this.queryBuffers.Remove(queryBuffer);
+        }
+
+        internal void ScheduleDeleteQueryBuffer(QueryBuffer queryBuffer)
+        {
+            this.queryBuffersToDelete[this.CurrentFrameNumber % 2].Add(queryBuffer);
         }
 
         internal Shader CreateShader(string? computeShaderFunction, ReadOnlySpan<byte> shaderByteCode, string label)
@@ -592,7 +612,6 @@ namespace CoreEngine.Graphics
                 this.ScheduleDeletePipelineState(pipelineState);
             }
 
-            shader.PipelineStates.Clear();
             this.shadersToDelete[this.CurrentFrameNumber % 2].Add(shader);
         }
 
@@ -603,6 +622,7 @@ namespace CoreEngine.Graphics
                 Logger.WriteMessage($"Deleting Shader {shader.Label}...");
             }
 
+            shader.PipelineStates.Clear();
             this.graphicsService.DeleteShader(shader.NativePointer);
 
             // TODO: Use something faster here
@@ -980,6 +1000,13 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsBuffersToDelete[this.CurrentFrameNumber % 2].Clear();
+
+            for (var i = 0; i < this.queryBuffersToDelete[this.CurrentFrameNumber % 2].Count; i++)
+            {
+                this.DeleteQueryBuffer(this.queryBuffersToDelete[this.CurrentFrameNumber % 2][i]);
+            }
+
+            this.queryBuffersToDelete[this.CurrentFrameNumber % 2].Clear();
 
             for (var i = 0; i < this.texturesToDelete[this.CurrentFrameNumber % 2].Count; i++)
             {

@@ -47,7 +47,9 @@ namespace CoreEngine.Rendering
         private Stopwatch globalStopwatch;
         private uint startMeasureFrameNumber;
         private int framePerSeconds;
+        private int unlockedFramePerSeconds;
         private int gpuMemoryUploadedPerSeconds;
+        private double lastGpuDuration;
 
         private Shader computeDirectTransferShader;
 
@@ -80,6 +82,8 @@ namespace CoreEngine.Rendering
             }
 
             this.window = window;
+            this.lastGpuDuration = 0.0;
+            this.unlockedFramePerSeconds = 0;
 
             this.CopyCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Copy, "CopyCommandQueue");
             this.ComputeCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Compute, "ComputeCommandQueue");
@@ -130,6 +134,9 @@ namespace CoreEngine.Rendering
             {
                 this.globalCpuCopyQueryBuffer.Dispose();
                 this.globalCpuQueryBuffer.Dispose();
+
+                this.globalCopyQueryBuffer.Dispose();
+                this.globalQueryBuffer.Dispose();
 
                 this.computeDirectTransferShader.Dispose();
                 this.CopyCommandQueue.Dispose();
@@ -187,6 +194,7 @@ namespace CoreEngine.Rendering
         internal void Render()
         {
             // TODO: Rename that to Reset
+            this.graphicsManager.WaitForSwapChainOnCpu(this.swapChain);
             this.graphicsManager.MoveToNextFrame();
             ResetGpuTimers();
 
@@ -209,7 +217,7 @@ namespace CoreEngine.Rendering
             this.currentFrameSize = GetRenderSize();
 
             // TODO: Resize the swap chain
-            var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
+            using var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
             if (logFrameTime)
             {
@@ -240,8 +248,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.ResolveQueryData(resolveCopyCountersCommandList, this.globalCopyQueryBuffer, this.globalCpuCopyQueryBuffer, 0..this.currentCopyQueryIndex);
             this.graphicsManager.CommitCommandList(resolveCopyCountersCommandList);
             this.graphicsManager.ExecuteCommandLists(this.CopyCommandQueue, new CommandList[] { resolveCopyCountersCommandList }, isAwaitable: false);
-
-            this.graphicsManager.WaitForSwapChainOnCpu(this.swapChain);
 
             var presentCommandList = this.graphicsManager.CreateCommandList(this.presentQueue, "PresentScreenBuffer");
 
@@ -314,14 +320,16 @@ namespace CoreEngine.Rendering
             if (this.globalStopwatch.ElapsedMilliseconds > 1000)
             {
                 this.framePerSeconds = (int)(this.graphicsManager.CurrentFrameNumber - startMeasureFrameNumber - 1);
+                this.unlockedFramePerSeconds = (int)(1000.0 / (this.lastGpuDuration / this.framePerSeconds));
                 this.globalStopwatch.Restart();
                 this.startMeasureFrameNumber = this.graphicsManager.CurrentFrameNumber;
 
                 this.gpuMemoryUploadedPerSeconds = this.graphicsManager.gpuMemoryUploaded;
                 this.graphicsManager.gpuMemoryUploaded = 0;
+                this.lastGpuDuration = 0.0;
             }
 
-            this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {this.currentFrameSize.X}x{this.currentFrameSize.Y} - FPS: {framePerSeconds}", new Vector2(10, 10));
+            this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {this.currentFrameSize.X}x{this.currentFrameSize.Y} - FPS: {framePerSeconds} (Unlocked: {unlockedFramePerSeconds})", new Vector2(10, 10));
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory + this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB (Static: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}, Transient: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)})", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {Utils.BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
@@ -344,22 +352,8 @@ namespace CoreEngine.Rendering
             //     return result;
             // });
 
-            if (this.currentGpuTimings.Count < this.previousGpuTiming.Count)
-            {
-                Logger.WriteMessage($"Error GPU Timings {this.currentGpuTimings.Count}/{this.previousGpuTiming.Count}");
-
-                foreach (var timing in this.previousGpuTiming)
-                {
-                    var foundTiming = this.currentGpuTimings.Find(x => x.Name == timing.Name);
-
-                    if (foundTiming != null && foundTiming.StartTiming == 0.0)
-                    {
-                        Logger.WriteMessage($"Gpu timing: {timing.Name}");
-                    }
-                }
-            }
-
             var startGpuTiming = 0.0;
+            var endGpuTiming = 0.0;
             var previousEndGpuTiming = 0.0;
             var gpuExecutionTime = 0.0;
 
@@ -370,6 +364,11 @@ namespace CoreEngine.Rendering
                 if (startGpuTiming == 0.0)
                 {
                     startGpuTiming = gpuTiming.StartTiming;
+                }
+
+                if (gpuTiming.EndTiming > endGpuTiming)
+                {
+                    endGpuTiming = gpuTiming.EndTiming;
                 }
 
                 var duration = gpuTiming.EndTiming - gpuTiming.StartTiming;
@@ -387,6 +386,9 @@ namespace CoreEngine.Rendering
 
                 previousEndGpuTiming = gpuTiming.EndTiming;
             }
+
+            gpuExecutionTime = endGpuTiming - startGpuTiming;
+            this.lastGpuDuration += gpuExecutionTime;
 
             this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {gpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));
 

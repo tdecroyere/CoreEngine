@@ -37,12 +37,14 @@ namespace CoreEngine.Graphics
 
             if ((alignedHeapOffset + (ulong)sizeInBytes) > this.GraphicsHeap.SizeInBytes)
             {
-                throw new InvalidOperationException($"The are not enough free memory on graphics heap '{this.GraphicsHeap.Label}'.");
+                this.CurrentOffset = 0;
+                alignedHeapOffset = Utils.AlignValue(this.CurrentOffset, alignment);
+                // throw new InvalidOperationException($"The are not enough free memory on graphics heap '{this.GraphicsHeap.Label}'.");
             }
 
             var allocation = new GraphicsMemoryAllocation(this, this.GraphicsHeap, alignedHeapOffset, sizeInBytes, isAliasable: true);
 
-            this.AllocatedMemory += (alignedHeapOffset - this.AllocatedMemory) + (ulong)sizeInBytes;
+            this.AllocatedMemory += (ulong)sizeInBytes;
             this.CurrentOffset = alignedHeapOffset + (ulong)sizeInBytes;
 
             return allocation;
@@ -55,11 +57,10 @@ namespace CoreEngine.Graphics
 
         public void Reset(uint frameNumber)
         {
-            this.CurrentOffset = 0;
             this.AllocatedMemory = 0;
+            this.StartOffset = this.CurrentOffset;
 
             // this.GraphicsHeap = ((frameNumber % 2) == 1) ? this.GraphicsHeap1 : this.GraphicsHeap0;
-
         }
 
         public GraphicsHeap GraphicsHeap { get; private set; }
@@ -67,5 +68,6 @@ namespace CoreEngine.Graphics
         public GraphicsHeap GraphicsHeap1 { get; }
         public ulong CurrentOffset { get; private set; }
         public ulong AllocatedMemory { get; private set; }
+        public ulong StartOffset { get; private set; }
     }
 }

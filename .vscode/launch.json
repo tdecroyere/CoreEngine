@@ -21,7 +21,7 @@
             "type": "coreclr",
             "request": "launch",
             // "args": ["Tools\\Compiler ../../samples/SceneViewer/SceneViewer.csproj TestScene.cescene"],
-            "args": ["..\\..\\samples\\SuperMario"],
+            "args": ["..\\..\\samples\\SceneViewer"],
             "stopAtEntry": false,
             "externalConsole": false,
             "osx": {
@@ -50,7 +50,8 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "./CoreEngine.exe",
-            "args": ["..\\..\\samples\\SuperMario"],
+            // "args": ["..\\..\\samples\\SuperMario"],
+            "args": ["..\\..\\samples\\SceneViewer"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Windows/",
             // "environment": [{"name": "COREHOST_TRACE", "value": "1"}],

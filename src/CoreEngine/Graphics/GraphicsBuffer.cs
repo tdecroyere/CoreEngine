@@ -7,6 +7,7 @@ namespace CoreEngine.Graphics
     public class GraphicsBuffer : IGraphicsResource, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
+        private bool isDisposed;
 
         internal GraphicsBuffer(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, IntPtr nativePointer1, IntPtr? nativePointer2, IntPtr cpuPointer, IntPtr cpuPointer2, int length, bool isStatic, string label)
         {
@@ -31,9 +32,10 @@ namespace CoreEngine.Graphics
 
         protected virtual void Dispose(bool isDisposing)
         {
-            if (isDisposing)
+            if (isDisposing && !this.isDisposed)
             {
                 this.graphicsManager.ScheduleDeleteGraphicsBuffer(this);
+                this.isDisposed = true;
             }
         }
 

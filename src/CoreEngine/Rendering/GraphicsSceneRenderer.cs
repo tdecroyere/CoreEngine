@@ -10,8 +10,7 @@ namespace CoreEngine.Rendering
 {
     public struct RenderPassConstants
     {
-        public Matrix4x4 ViewMatrix { get; set; }
-        public Matrix4x4 ProjectionMatrix { get; set; }
+        public Matrix4x4 ViewProjMatrix { get; set; }
     }
 
     public struct ObjectProperties
@@ -1242,6 +1241,8 @@ namespace CoreEngine.Rendering
             // TODO: Move that to render pipeline
             this.debugRenderer.ClearDebugLines();
 
+            this.debugRenderer.DrawLine(new Vector3(3, -4, 6), new Vector3(10, 7, -10), new Vector3(0, 0.5f, 1.0f));
+
             if (this.renderManager.logFrameTime)
             {
                 Logger.BeginAction("InitGpuData");
@@ -1312,15 +1313,15 @@ namespace CoreEngine.Rendering
 
         private int AddShadowMap(int shadowMapSize, bool isMomentShadowMap)
         {
-            if (!isMomentShadowMap)
-            {
-                this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, shadowMapSize, shadowMapSize, 1, 1, 1, isStatic: true, label: "ShadowMapDepth");
-            }
+            // if (!isMomentShadowMap)
+            // {
+            //     this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, shadowMapSize, shadowMapSize, 1, 1, 1, isStatic: true, label: "ShadowMapDepth");
+            // }
 
-            else
-            {
-                this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Unorm, TextureUsage.ShaderWrite, shadowMapSize, shadowMapSize, 1, 1, 1, isStatic: true, label: "ShadowMapMoment");
-            }
+            // else
+            // {
+            //     this.shadowMaps[this.currentShadowMapIndex] = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Unorm, TextureUsage.ShaderWrite, shadowMapSize, shadowMapSize, 1, 1, 1, isStatic: true, label: "ShadowMapMoment");
+            // }
 
             return this.currentShadowMapIndex++;
         }
@@ -1542,7 +1543,7 @@ namespace CoreEngine.Rendering
 
                 if (light.LightType == LightType.Point)
                 {
-                    this.debugRenderer.DrawSphere(light.WorldPosition, 2.0f, 50, new Vector3(1, 0.2f, 0));
+                    this.debugRenderer.DrawSphere(light.WorldPosition, 2.0f, new Vector3(1, 0.2f, 0));
                 }
 
                 AddLight(shaderLight);
@@ -1636,13 +1637,13 @@ namespace CoreEngine.Rendering
             this.previousCopyGpuDataIds.Enqueue(copyCommandList.NativePointer);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
 
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(copyCommandList, this.camerasBuffer, this.cpuCamerasBuffer, this.currentCameraIndex);
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, this.cpuScenePropertiesBuffer, 1);
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(copyCommandList, this.lightsBuffer, this.cpuLightsBuffer, this.currentLightIndex);
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMaterial>(copyCommandList, this.materialsBuffer, this.cpuMaterialsBuffer, this.currentMaterialIndex);
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.cpuGeometryPacketsBuffer, this.currentGeometryPacketIndex);
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, this.cpuGeometryInstancesBuffer, this.currentGeometryInstanceIndex);
-            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indirectCommandBufferCounters, this.cpuIndirectCommandBufferCounters, 100);
+            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(copyCommandList, this.camerasBuffer, this.cpuCamerasBuffer, this.currentCameraIndex);
+            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, this.cpuScenePropertiesBuffer, 1);
+            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(copyCommandList, this.lightsBuffer, this.cpuLightsBuffer, this.currentLightIndex);
+            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMaterial>(copyCommandList, this.materialsBuffer, this.cpuMaterialsBuffer, this.currentMaterialIndex);
+            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.cpuGeometryPacketsBuffer, this.currentGeometryPacketIndex);
+            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, this.cpuGeometryInstancesBuffer, this.currentGeometryInstanceIndex);
+            // this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indirectCommandBufferCounters, this.cpuIndirectCommandBufferCounters, 100);
             this.graphicsManager.CopyDataToGraphicsBuffer<RenderPassConstants>(copyCommandList, this.renderPassParametersGraphicsBuffer, this.cpuRenderPassParametersGraphicsBuffer, 1);
 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
@@ -1819,17 +1820,18 @@ namespace CoreEngine.Rendering
             // this.currentMomentCommandBuffer = 0;
 
             var copyCommandList = CreateCopyCommandList();
-            var resetIcbCommandList = CreateResetIcbCommandList();
-            var generateIcbCommandList = CreateGenerateIcbCommandList(1);
-            var optimizeIcbCommandList = CreateOptimizeIcbCommandList(1);
+            // var resetIcbCommandList = CreateResetIcbCommandList();
+            // var generateIcbCommandList = CreateGenerateIcbCommandList(1);
+            // var optimizeIcbCommandList = CreateOptimizeIcbCommandList(1);
 
-            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList, resetIcbCommandList }, isAwaitable: true);
+            // var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList, resetIcbCommandList }, isAwaitable: true);
+            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
 
-            this.graphicsManager.WaitForCommandQueue(this.renderManager.ComputeCommandQueue, copyFence);
-            var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { generateIcbCommandList }, true);
+            // this.graphicsManager.WaitForCommandQueue(this.renderManager.ComputeCommandQueue, copyFence);
+            // var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { generateIcbCommandList }, true);
             
-            this.graphicsManager.WaitForCommandQueue(this.renderManager.CopyCommandQueue, computeFence);
-            var optimizeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { optimizeIcbCommandList }, true);
+            // this.graphicsManager.WaitForCommandQueue(this.renderManager.CopyCommandQueue, computeFence);
+            // var optimizeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { optimizeIcbCommandList }, true);
 
             // Generate Main Camera Depth Buffer
             //commandList = GenerateDepthBuffer(mainCamera, commandList);
@@ -1849,28 +1851,29 @@ namespace CoreEngine.Rendering
             // }
 
     
-            var graphicsPipelineParameters = new GraphicsPipelineParameter[]
-            {
-                new ResourceGraphicsPipelineParameter("MainRenderTarget", mainRenderTargetTexture),
-                new ResourceGraphicsPipelineParameter("MainCameraIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.OpaqueCommandListIndex]),
-                new ResourceGraphicsPipelineParameter("MainCameraDepthIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.OpaqueDepthCommandListIndex]),
-                new ResourceGraphicsPipelineParameter("MainCameraTransparentIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.TransparentCommandListIndex]),
-                new ResourceGraphicsPipelineParameter("MainCameraTransparentDepthIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.TransparentDepthCommandListIndex]),
-                new Vector4GraphicsPipelineParameter("ClearColor", new Vector4(65 * 50, 135 * 50, 255 * 50, 1.0f) / 255.0f),
-                new IntGraphicsPipelineParameter("GeometryInstanceCount", this.currentGeometryInstanceIndex),
-                new ResourceGraphicsPipelineParameter("MinMaxDepthComputeBuffer", this.minMaxDepthComputeBuffer),
-                new ResourceGraphicsPipelineParameter("CamerasBuffer", this.camerasBuffer)
-            };
+            // var graphicsPipelineParameters = new GraphicsPipelineParameter[]
+            // {
+            //     new ResourceGraphicsPipelineParameter("MainRenderTarget", mainRenderTargetTexture),
+            //     new ResourceGraphicsPipelineParameter("MainCameraIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.OpaqueCommandListIndex]),
+            //     new ResourceGraphicsPipelineParameter("MainCameraDepthIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.OpaqueDepthCommandListIndex]),
+            //     new ResourceGraphicsPipelineParameter("MainCameraTransparentIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.TransparentCommandListIndex]),
+            //     new ResourceGraphicsPipelineParameter("MainCameraTransparentDepthIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.TransparentDepthCommandListIndex]),
+            //     new Vector4GraphicsPipelineParameter("ClearColor", new Vector4(65 * 50, 135 * 50, 255 * 50, 1.0f) / 255.0f),
+            //     new IntGraphicsPipelineParameter("GeometryInstanceCount", this.currentGeometryInstanceIndex),
+            //     new ResourceGraphicsPipelineParameter("MinMaxDepthComputeBuffer", this.minMaxDepthComputeBuffer),
+            //     new ResourceGraphicsPipelineParameter("CamerasBuffer", this.camerasBuffer)
+            // };
 
-            var pipelineFence = this.graphicsPipeline.Process(graphicsPipelineParameters, optimizeFence);
-            var toneMapRenderTarget = this.graphicsPipeline.ResolveResource("ToneMapRenderTarget") as Texture;
+            // var pipelineFence = this.graphicsPipeline.Process(graphicsPipelineParameters, optimizeFence);
+            // var toneMapRenderTarget = this.graphicsPipeline.ResolveResource("ToneMapRenderTarget") as Texture;
 
-            var transferCommandList = TransferTextureToRenderTarget(toneMapRenderTarget, mainRenderTargetTexture);
+            // var transferCommandList = TransferTextureToRenderTarget(toneMapRenderTarget, mainRenderTargetTexture);
 
-            // TODO: Skip the wait if the last step of the pipeline was on the render queue
-            this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, pipelineFence);
-            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { transferCommandList }, isAwaitable: false);
+            // // TODO: Skip the wait if the last step of the pipeline was on the render queue
+            // this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, pipelineFence);
+            // this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { transferCommandList }, isAwaitable: false);
 
+            this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, copyFence);
             this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, mainRenderTargetTexture, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture);
 
             // var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;
@@ -1910,8 +1913,7 @@ namespace CoreEngine.Rendering
             var renderPassConstants = this.graphicsManager.GetCpuGraphicsBufferPointer<RenderPassConstants>(this.cpuRenderPassParametersGraphicsBuffer);
             var value = new RenderPassConstants();
 
-            value.ViewMatrix = camera.ViewMatrix;
-            value.ProjectionMatrix = camera.ProjectionMatrix;
+            value.ViewProjMatrix = camera.ViewMatrix * camera.ProjectionMatrix;
 
             renderPassConstants[0] = value;
         }

@@ -35,6 +35,8 @@ Direct3D12GraphicsService::~Direct3D12GraphicsService()
 	// Ensure that the GPU is no longer referencing resources that are about to be
 	// cleaned up by the destructor.
 	CloseHandle(this->globalFenceEvent);
+
+	this->dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_SUMMARY);
 }
 
 void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
@@ -263,7 +265,9 @@ void* Direct3D12GraphicsService::CreateGraphicsHeap(enum GraphicsServiceHeapType
 
 	else
 	{
-		heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+		heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_CUSTOM;
+		heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
+		heapDescriptor.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_L1;
 		heapDescriptor.SizeInBytes = sizeInBytes;
 		heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
 	}
@@ -555,7 +559,7 @@ void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* comm
 	
 	ComPtr<IDXGISwapChain3> swapChain;
 	AssertIfFailed(dxgiFactory->CreateSwapChainForHwnd(commandQueue->CommandQueueObject.Get(), (HWND)windowPointer, &swapChainDesc, &swapChainFullScreenDesc, nullptr, (IDXGISwapChain1**)swapChain.ReleaseAndGetAddressOf()));
-	swapChain->SetMaximumFrameLatency(2);
+	swapChain->SetMaximumFrameLatency(1);
 
 	Direct3D12SwapChain* swapChainStructure = new Direct3D12SwapChain();
 	swapChainStructure->SwapChainObject = swapChain;
@@ -814,6 +818,11 @@ void* Direct3D12GraphicsService::CreateShader(char* computeShaderFunction, void*
 			shader->VertexShaderMethod = shaderBlob;
 		}
 
+		else if (entryPointName == "AmplificationMain")
+		{
+			shader->AmplificationShaderMethod = shaderBlob;
+		}
+
 		else if (entryPointName == "MeshMain")
 		{
 			shader->MeshShaderMethod = shaderBlob;
@@ -949,6 +958,12 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 			GraphicsPso psoDesc = {};
 			
 			psoDesc.RootSignature = shader->RootSignature.Get();
+
+			if (shader->AmplificationShaderMethod != nullptr)
+			{
+				psoDesc.AS = { shader->AmplificationShaderMethod->GetBufferPointer(), shader->AmplificationShaderMethod->GetBufferSize() };
+			}
+
 			psoDesc.MS = { shader->MeshShaderMethod->GetBufferPointer(), shader->MeshShaderMethod->GetBufferSize() };
 			psoDesc.PS = { shader->PixelShaderMethod->GetBufferPointer(), shader->PixelShaderMethod->GetBufferSize() };
 			psoDesc.RenderTargets = renderTargets;
@@ -1004,7 +1019,16 @@ void Direct3D12GraphicsService::SetShaderBuffer(void* commandListPointer, void* 
 
 	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-		commandList->CommandListObject->SetGraphicsRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
+		if (isReadOnly)
+		{
+			TransitionBufferToState(commandList, graphicsBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+			commandList->CommandListObject->SetGraphicsRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
+		}
+
+		else
+		{
+			commandList->CommandListObject->SetGraphicsRootUnorderedAccessView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
+		}
 	}
 
 	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
@@ -1036,8 +1060,8 @@ void Direct3D12GraphicsService::SetShaderTexture(void* commandListPointer, void*
 	
 	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-		// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
-		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+		// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 		auto descriptorHeapdOffset = texture->SrvTextureDescriptorOffset;
 
@@ -1171,6 +1195,7 @@ void Direct3D12GraphicsService::SetShaderIndirectCommandLists(void* commandListP
 
 void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes)
 { 
+	// TODO: Transition buffer to copy dest first?
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	Direct3D12GraphicsBuffer* destinationGraphicsBuffer = (Direct3D12GraphicsBuffer*)destinationGraphicsBufferPointer;
 	Direct3D12GraphicsBuffer* sourceGraphicsBuffer = (Direct3D12GraphicsBuffer*)sourceGraphicsBufferPointer;
@@ -1183,6 +1208,8 @@ void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointe
 	}
 
 	commandList->CommandListObject->CopyBufferRegion(destinationGraphicsBuffer->BufferObject.Get(), 0, sourceGraphicsBuffer->BufferObject.Get(), 0, sizeInBytes);
+
+	// TODO: Transition buffer to generic read?
 }
 
 void Direct3D12GraphicsService::CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)
@@ -1210,6 +1237,8 @@ void Direct3D12GraphicsService::CopyDataToTexture(void* commandListPointer, void
 	sourceLocation.PlacedFootprint = destinationTexture->FootPrint;
 
 	commandList->CommandListObject->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
+
+	// TODO: Transition texture to generic read?
 }
 
 void Direct3D12GraphicsService::CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer)
@@ -1289,8 +1318,8 @@ void Direct3D12GraphicsService::EndRenderPass(void* commandListPointer)
 
 		if (!texture->IsPresentTexture)
 		{
-			// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
-			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+			// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 
 		else
@@ -1494,6 +1523,8 @@ void Direct3D12GraphicsService::EnableDebugLayer()
 	{
 		debugController->EnableDebugLayer();
 	}
+
+	AssertIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(this->dxgiDebug.ReleaseAndGetAddressOf())));
 }
 
 ComPtr<IDXGIAdapter4> Direct3D12GraphicsService::FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory)

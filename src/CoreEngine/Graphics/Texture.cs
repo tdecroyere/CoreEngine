@@ -6,6 +6,7 @@ namespace CoreEngine.Graphics
     public class Texture : Resource, IGraphicsResource, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
+        private bool isDisposed;
 
         internal Texture(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, IntPtr nativePointer1, IntPtr? nativePointer2, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multiSampleCount, bool isStatic, string label) : base(0, string.Empty)
         {
@@ -47,9 +48,10 @@ namespace CoreEngine.Graphics
 
         protected virtual void Dispose(bool isDisposing)
         {
-            if (isDisposing)
+            if (isDisposing && !this.isDisposed)
             {
                 this.graphicsManager.ScheduleDeleteTexture(this);
+                this.isDisposed = true;
             }
         }
 

@@ -4,9 +4,10 @@ using System.Numerics;
 
 namespace CoreEngine.Graphics
 {
-    public class QueryBuffer : IGraphicsResource
+    public class QueryBuffer : IGraphicsResource, IDisposable
     {
         private readonly GraphicsManager graphicsManager;
+        private bool isDisposed;
 
         internal QueryBuffer(GraphicsManager graphicsManager, IntPtr nativePointer1, IntPtr nativePointer2, int length, string label)
         {
@@ -16,6 +17,21 @@ namespace CoreEngine.Graphics
             this.Length = length;
             this.ResourceType = GraphicsResourceType.QueryBuffer;
             this.Label = label;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing && !this.isDisposed)
+            {
+                this.graphicsManager.ScheduleDeleteQueryBuffer(this);
+                this.isDisposed = true;
+            }
         }
 
         public IntPtr NativePointer 

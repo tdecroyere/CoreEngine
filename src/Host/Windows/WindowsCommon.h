@@ -21,6 +21,7 @@
 
 #if defined(NTDDI_WIN10_RS2)
 #include <dxgi1_6.h>
+#include <dxgidebug.h>
 #else
 #include <dxgi1_5.h>
 #endif

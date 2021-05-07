@@ -86,8 +86,6 @@ namespace CoreEngine.IntegrationTests
             var nativeUIManager = new NativeUIManager(nativeUIServiceMock.Object);
             var renderManager = new RenderManager(new Window(), nativeUIManager, graphicsManager, resourcesManager, new GraphicsSceneQueue());
 
-            resourcesManager.AddResourceLoader(new MeshResourceLoader(resourcesManager, renderManager, graphicsManager));
-
             return new SceneResourceLoader(resourcesManager);
         }
 
@@ -183,7 +181,7 @@ namespace CoreEngine.IntegrationTests
         public async Task CompileScene_LoadScene_LoadDependentResource()
         {
             // Arrange
-            var resourcesManager = new ResourcesManager();
+            var resourcesManager = new TestResourcesManager();
             var outputData = await SetupOutputData();
             var sceneLoader = SetupSceneLoader(resourcesManager);
             var scene = new Scene();
@@ -192,7 +190,7 @@ namespace CoreEngine.IntegrationTests
             sceneLoader.LoadResourceData(scene, outputData);
 
             // Assert
-            Assert.Equal("/teapot.mesh", resourcesManager.GetResourceById<Resource>(0).Path);
+            Assert.True(resourcesManager.LoadedResources.Contains("/teapot.mesh"));
         }
     }
 }

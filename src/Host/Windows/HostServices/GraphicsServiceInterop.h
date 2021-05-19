@@ -295,42 +295,6 @@ void DeletePipelineStateInterop(void* context, void* pipelineStatePointer)
     contextObject->DeletePipelineState(pipelineStatePointer);
 }
 
-void SetShaderBufferInterop(void* context, void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->SetShaderBuffer(commandListPointer, graphicsBufferPointer, slot, isReadOnly, index);
-}
-
-void SetShaderBuffersInterop(void* context, void* commandListPointer, void** graphicsBufferPointerList, int graphicsBufferPointerListLength, int slot, int index)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->SetShaderBuffers(commandListPointer, graphicsBufferPointerList, graphicsBufferPointerListLength, slot, index);
-}
-
-void SetShaderTextureInterop(void* context, void* commandListPointer, void* texturePointer, int slot, int isReadOnly, int index)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->SetShaderTexture(commandListPointer, texturePointer, slot, isReadOnly, index);
-}
-
-void SetShaderTexturesInterop(void* context, void* commandListPointer, void** texturePointerList, int texturePointerListLength, int slot, int index)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->SetShaderTextures(commandListPointer, texturePointerList, texturePointerListLength, slot, index);
-}
-
-void SetShaderIndirectCommandListInterop(void* context, void* commandListPointer, void* indirectCommandListPointer, int slot, int index)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->SetShaderIndirectCommandList(commandListPointer, indirectCommandListPointer, slot, index);
-}
-
-void SetShaderIndirectCommandListsInterop(void* context, void* commandListPointer, void** indirectCommandListPointerList, int indirectCommandListPointerListLength, int slot, int index)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->SetShaderIndirectCommandLists(commandListPointer, indirectCommandListPointerList, indirectCommandListPointerListLength, slot, index);
-}
-
 void CopyDataToGraphicsBufferInterop(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int length)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -415,24 +379,6 @@ void DispatchMeshInterop(void* context, void* commandListPointer, unsigned int t
     contextObject->DispatchMesh(commandListPointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
-void SetIndexBufferInterop(void* context, void* commandListPointer, void* graphicsBufferPointer)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->SetIndexBuffer(commandListPointer, graphicsBufferPointer);
-}
-
-void DrawIndexedPrimitivesInterop(void* context, void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->DrawIndexedPrimitives(commandListPointer, primitiveType, startIndex, indexCount, instanceCount, baseInstanceId);
-}
-
-void DrawPrimitivesInterop(void* context, void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount)
-{
-    auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->DrawPrimitives(commandListPointer, primitiveType, startVertex, vertexCount);
-}
-
 void QueryTimestampInterop(void* context, void* commandListPointer, void* queryBufferPointer, int index)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -497,12 +443,6 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_CreatePipelineState = CreatePipelineStateInterop;
     service->GraphicsService_SetPipelineStateLabel = SetPipelineStateLabelInterop;
     service->GraphicsService_DeletePipelineState = DeletePipelineStateInterop;
-    service->GraphicsService_SetShaderBuffer = SetShaderBufferInterop;
-    service->GraphicsService_SetShaderBuffers = SetShaderBuffersInterop;
-    service->GraphicsService_SetShaderTexture = SetShaderTextureInterop;
-    service->GraphicsService_SetShaderTextures = SetShaderTexturesInterop;
-    service->GraphicsService_SetShaderIndirectCommandList = SetShaderIndirectCommandListInterop;
-    service->GraphicsService_SetShaderIndirectCommandLists = SetShaderIndirectCommandListsInterop;
     service->GraphicsService_CopyDataToGraphicsBuffer = CopyDataToGraphicsBufferInterop;
     service->GraphicsService_CopyDataToTexture = CopyDataToTextureInterop;
     service->GraphicsService_CopyTexture = CopyTextureInterop;
@@ -517,9 +457,6 @@ void InitGraphicsService(const Direct3D12GraphicsService& context, GraphicsServi
     service->GraphicsService_SetShaderParameterValues = SetShaderParameterValuesInterop;
     service->GraphicsService_ExecuteIndirectCommandBuffer = ExecuteIndirectCommandBufferInterop;
     service->GraphicsService_DispatchMesh = DispatchMeshInterop;
-    service->GraphicsService_SetIndexBuffer = SetIndexBufferInterop;
-    service->GraphicsService_DrawIndexedPrimitives = DrawIndexedPrimitivesInterop;
-    service->GraphicsService_DrawPrimitives = DrawPrimitivesInterop;
     service->GraphicsService_QueryTimestamp = QueryTimestampInterop;
     service->GraphicsService_ResolveQueryData = ResolveQueryDataInterop;
 }

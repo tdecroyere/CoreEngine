@@ -29,7 +29,7 @@ namespace CoreEngine.Resources
         private IDictionary<string, Resource> resources;
         private IDictionary<uint, Resource> resourceIdList;
         private Task? resourceLoadingRunner;
-        private Task resourceUpdateCheckRunner;
+        // private Task resourceUpdateCheckRunner;
         private uint currentResourceId;
 
         public ResourcesManager()
@@ -42,8 +42,8 @@ namespace CoreEngine.Resources
 
             this.resourceLoadingRunner = null;
 
-            this.resourceUpdateCheckRunner = CheckForUpdatedResources();
-            this.resourceUpdateCheckRunner.Start();
+            // this.resourceUpdateCheckRunner = CheckForUpdatedResources();
+            // this.resourceUpdateCheckRunner.Start();
         }
 
         public void Dispose()
@@ -186,7 +186,7 @@ namespace CoreEngine.Resources
             
             //CheckResourceLoadingTasks();
             //WaitForPendingResources();
-            CheckForUpdatedResources();
+            //CheckForUpdatedResources();
             // RemoveUnusedResources();
         }
 

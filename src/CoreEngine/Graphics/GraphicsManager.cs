@@ -301,14 +301,18 @@ namespace CoreEngine.Graphics
             return graphicsBuffer;
         }
 
-        public unsafe Span<T> GetCpuGraphicsBufferPointer<T>(GraphicsBuffer graphicsBuffer) where T : struct
+        public unsafe void CopyDataToGraphicsBuffer<T>(GraphicsBuffer graphicsBuffer, int destinationOffset, ReadOnlySpan<T> data) where T : struct
         {
             if (graphicsBuffer == null)
             {
                 throw new ArgumentNullException(nameof(graphicsBuffer));
             }
 
-            // TODO: Check if the buffer is allocated in a CPU Heap
+            if (graphicsBuffer.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.Upload)
+            {
+                throw new InvalidOperationException($"Graphics buffer '{graphicsBuffer.Label}' is not an upload buffer.");
+            }
+
             var cpuPointer = graphicsBuffer.CpuPointer;
 
             if (cpuPointer == IntPtr.Zero)
@@ -316,7 +320,37 @@ namespace CoreEngine.Graphics
                 cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
             }
 
-            return new Span<T>(cpuPointer.ToPointer(), graphicsBuffer.Length / Marshal.SizeOf(typeof(T)));
+            var elementCount = graphicsBuffer.Length / Marshal.SizeOf(typeof(T));
+            var cpuSpan = new Span<T>(cpuPointer.ToPointer(), elementCount).Slice(destinationOffset);
+            data.CopyTo(cpuSpan);
+        }
+
+        public unsafe ReadOnlySpan<T> CopyDataFromGraphicsBuffer<T>(GraphicsBuffer graphicsBuffer) where T : struct
+        {
+            if (graphicsBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(graphicsBuffer));
+            }
+
+            if (graphicsBuffer.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.ReadBack)
+            {
+                throw new InvalidOperationException($"Graphics buffer '{graphicsBuffer.Label}' is not a readback buffer.");
+            }
+            
+            var cpuPointer = graphicsBuffer.CpuPointer;
+
+            if (cpuPointer == IntPtr.Zero)
+            {
+                cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
+            }
+
+            var elementCount = graphicsBuffer.Length / Marshal.SizeOf(typeof(T));
+
+            var cpuSpan = new Span<T>(cpuPointer.ToPointer(), elementCount);
+            var outputData = new T[elementCount];
+            cpuSpan.CopyTo(outputData);
+
+            return outputData;
         }
 
         internal void ScheduleDeleteGraphicsBuffer(GraphicsBuffer graphicsBuffer)
@@ -384,7 +418,7 @@ namespace CoreEngine.Graphics
             var texture = new Texture(this, allocation, allocation2, nativePointer1, nativePointer2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
             this.textures.Add(texture);
 
-            if (heapType == GraphicsHeapType.Gpu)
+            if (heapType == GraphicsHeapType.Gpu || heapType == GraphicsHeapType.TransientGpu)
             {
                 this.shaderResourceManager.CreateShaderResourceTexture(texture);
             }
@@ -737,7 +771,7 @@ namespace CoreEngine.Graphics
             this.renderPassDescriptors.Remove(commandList.NativePointer);
         }
 
-        public void SetShader(CommandList commandList, Shader shader, bool newShader = false)
+        public void SetShader(CommandList commandList, Shader shader)
         {
             if (shader == null)
             {
@@ -749,9 +783,7 @@ namespace CoreEngine.Graphics
                 return;
             }
 
-            if (newShader)
-                this.shaderResourceManager.SetShaderResourceHeap(commandList);
-
+            this.shaderResourceManager.SetShaderResourceHeap(commandList);
             this.graphicsService.SetShader(commandList.NativePointer, shader.NativePointer);
 
             var renderPassDescriptor = new GraphicsRenderPassDescriptor();
@@ -763,7 +795,7 @@ namespace CoreEngine.Graphics
 
             if (!shader.PipelineStates.ContainsKey(renderPassDescriptor))
             {
-                Logger.WriteMessage($"Create Pipeline State for shader {shader.NativePointer}...");
+                Logger.WriteMessage($"Create Pipeline State for shader {shader.Label}...");
 
                 var nativePointer = this.graphicsService.CreatePipelineState(shader.NativePointer, renderPassDescriptor);
 
@@ -785,88 +817,6 @@ namespace CoreEngine.Graphics
         public void SetShaderParameterValues(CommandList commandList, uint slot, ReadOnlySpan<uint> values)
         {
             this.graphicsService.SetShaderParameterValues(commandList.NativePointer, slot, values);
-        }
-
-        public void SetShaderBuffer(CommandList commandList, GraphicsBuffer graphicsBuffer, int slot, bool isReadOnly = true, int index = 0)
-        {
-            if (graphicsBuffer == null)
-            {
-                throw new ArgumentNullException(nameof(graphicsBuffer));
-            }
-
-            this.graphicsService.SetShaderBuffer(commandList.NativePointer, graphicsBuffer.NativePointer, slot, isReadOnly, index);
-        }
-
-        public void SetShaderBuffers(CommandList commandList, ReadOnlySpan<GraphicsBuffer> graphicsBuffers, int slot, int index = 0)
-        {
-            if (graphicsBuffers == null)
-            {
-                throw new ArgumentNullException(nameof(graphicsBuffers));
-            }
-
-            var graphicsBufferIdsList = new IntPtr[graphicsBuffers.Length];
-
-            for (var i = 0; i < graphicsBuffers.Length; i++)
-            {
-                graphicsBufferIdsList[i] = graphicsBuffers[i].NativePointer;
-            }
-
-            this.graphicsService.SetShaderBuffers(commandList.NativePointer, graphicsBufferIdsList.AsSpan(), slot, index);
-        }
-
-        public void SetShaderTexture(CommandList commandList, Texture texture, int slot, bool isReadOnly = true, int index = 0)
-        {
-            if (texture == null)
-            {
-                throw new ArgumentNullException(nameof(texture));
-            }
-
-            if (texture.Usage == TextureUsage.RenderTarget && !isReadOnly)
-            {
-                throw new InvalidOperationException("A Render Target cannot be set as a write shader resource.");
-            }
-
-            this.graphicsService.SetShaderTexture(commandList.NativePointer, texture.NativePointer, slot, isReadOnly, index);
-        }
-
-        public void SetShaderTextures(CommandList commandList, ReadOnlySpan<Texture> textures, int slot, int index = 0)
-        {
-            if (textures == null)
-            {
-                throw new ArgumentNullException(nameof(textures));
-            }
-
-            var textureIdsList = new IntPtr[textures.Length];
-
-            for (var i = 0; i < textures.Length; i++)
-            {
-                var texture = textures[i];
-                textureIdsList[i] = texture.NativePointer;
-            }
-
-            this.graphicsService.SetShaderTextures(commandList.NativePointer, textureIdsList.AsSpan(), slot, index);
-        }
-
-        public void SetShaderIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandBuffer, int slot, int index = 0)
-        {
-            this.graphicsService.SetShaderIndirectCommandList(commandList.NativePointer, indirectCommandBuffer.NativePointer, slot, index);
-        }
-
-        public void SetShaderIndirectCommandBuffers(CommandList commandList, ReadOnlySpan<IndirectCommandBuffer> indirectCommandBuffers, int slot, int index = 0)
-        {
-            if (indirectCommandBuffers == null)
-            {
-                throw new ArgumentNullException(nameof(indirectCommandBuffers));
-            }
-
-            var list = new IntPtr[indirectCommandBuffers.Length];
-
-            for (var i = 0; i < indirectCommandBuffers.Length; i++)
-            {
-                list[i] = indirectCommandBuffers[i].NativePointer;
-            }
-
-            this.graphicsService.SetShaderIndirectCommandLists(commandList.NativePointer, list.AsSpan(), slot, index);
         }
 
         public void ExecuteIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandBuffer, int maxCommandCount)
@@ -902,51 +852,6 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService.DispatchMesh(commandList.NativePointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
-            this.cpuDrawCount++;
-        }
-
-        [Obsolete("Use DispatchMesh")]
-        public void SetIndexBuffer(CommandList commandList, GraphicsBuffer indexBuffer)
-        {
-            if (indexBuffer == null)
-            {
-                throw new ArgumentNullException(nameof(indexBuffer));
-            }
-
-            this.graphicsService.SetIndexBuffer(commandList.NativePointer, indexBuffer.NativePointer);
-        }
-
-        [Obsolete("Use DispatchMesh")]
-        public void DrawIndexedPrimitives(CommandList commandList, PrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
-        {
-            if (commandList.Type != CommandType.Render)
-            {
-                throw new InvalidOperationException("The specified command list is not a render command list.");
-            }
-
-            this.graphicsService.DrawIndexedPrimitives(commandList.NativePointer, 
-                                                (GraphicsPrimitiveType)(int)primitiveType, 
-                                                startIndex, 
-                                                indexCount,
-                                                instanceCount,
-                                                baseInstanceId);
-
-            this.cpuDrawCount++;
-        }
-
-        [Obsolete("Use DispatchMesh")]
-        public void DrawPrimitives(CommandList commandList, PrimitiveType primitiveType, int startVertex, int vertexCount)
-        {
-            if (commandList.Type != CommandType.Render)
-            {
-                throw new InvalidOperationException("The specified command list is not a render command list.");
-            }
-
-            this.graphicsService.DrawPrimitives(commandList.NativePointer, 
-                                                (GraphicsPrimitiveType)(int)primitiveType, 
-                                                startVertex, 
-                                                vertexCount);
-
             this.cpuDrawCount++;
         }
 

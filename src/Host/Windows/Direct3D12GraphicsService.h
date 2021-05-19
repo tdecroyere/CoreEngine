@@ -168,13 +168,6 @@ class Direct3D12GraphicsService
         void SetPipelineStateLabel(void* pipelineStatePointer, char* label);
         void DeletePipelineState(void* pipelineStatePointer);
 
-        void SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index);
-        void SetShaderBuffers(void* commandListPointer, void** graphicsBufferPointerList, int graphicsBufferPointerListLength, int slot, int index);
-        void SetShaderTexture(void* commandListPointer, void* texturePointer, int slot, int isReadOnly, int index);
-        void SetShaderTextures(void* commandListPointer, void** texturePointerList, int texturePointerListLength, int slot, int index);
-        void SetShaderIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int slot, int index);
-        void SetShaderIndirectCommandLists(void* commandListPointer, void** indirectCommandListPointerList, int indirectCommandListPointerListLength, int slot, int index);
-
         void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes);
         void CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
@@ -192,10 +185,6 @@ class Direct3D12GraphicsService
         void SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
 
         void ExecuteIndirectCommandBuffer(void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount);
-        void SetIndexBuffer(void* commandListPointer, void* graphicsBufferPointer);
-        void DrawIndexedPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
-        void DrawPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
-
         void DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 
         void QueryTimestamp(void* commandListPointer, void* queryBufferPointer, int index);
@@ -216,23 +205,17 @@ class Direct3D12GraphicsService
         bool isWaitingForGlobalFence;
 
         // Heap objects
-        ComPtr<ID3D12DescriptorHeap> globalDescriptorHeap;
-        uint32_t globalDescriptorHandleSize;
-        uint32_t currentGlobalDescriptorOffset;
-
         ComPtr<ID3D12DescriptorHeap> globalRtvDescriptorHeap;
         uint32_t globalRtvDescriptorHandleSize;
         uint32_t currentGlobalRtvDescriptorOffset;
 
-        // Buffers        
-        map<uint32_t, ComPtr<ID3D12DescriptorHeap>> bufferDescriptorHeaps;
-        map<uint32_t, uint32_t> uavBufferDescriptorOffets;
+        ComPtr<ID3D12DescriptorHeap> globalDsvDescriptorHeap;
+        uint32_t globalDsvDescriptorHandleSize;
+        uint32_t currentGlobalDsvDescriptorOffset;
 
         // Shaders
         bool shaderBound;
         Direct3D12Shader currentShaderIndirectCommand = {}; // TODO: To remove
-
-        map<uint32_t, ComPtr<ID3D12DescriptorHeap>> debugDescriptorHeaps;
 
         void EnableDebugLayer();
         ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);

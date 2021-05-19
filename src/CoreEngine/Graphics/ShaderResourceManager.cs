@@ -33,15 +33,21 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(texture));
             }
 
-            // TODO: Scan the available indexes first
+            if (texture.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.Gpu && texture.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.TransientGpu)
+            {
+                return;
+            }
 
-            this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, currentIndex, texture.NativePointer1);
-            texture.ShaderResourceIndex1 = currentIndex++;
+            var index = GetIndex();
+
+            this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, index, texture.NativePointer1);
+            texture.ShaderResourceIndex1 = index;
 
             if (texture.NativePointer2 != null)
             {
-                this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, currentIndex, texture.NativePointer2.Value);
-                texture.ShaderResourceIndex2 = currentIndex++;
+                index = GetIndex();
+                this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, index, texture.NativePointer2.Value);
+                texture.ShaderResourceIndex2 = index;
             }
         }
 
@@ -67,15 +73,22 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(buffer));
             }
 
-            // TODO: Scan the available indexes first
+            if (buffer.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.Gpu && buffer.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.TransientGpu)
+            {
+                return;
+            }
 
-            this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, currentIndex, buffer.NativePointer1);
-            buffer.ShaderResourceIndex1 = currentIndex++;
+            var index = GetIndex();
+
+            this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, index, buffer.NativePointer1);
+            buffer.ShaderResourceIndex1 = index;
 
             if (buffer.NativePointer2 != null)
             {
-                this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, currentIndex, buffer.NativePointer2.Value);
-                buffer.ShaderResourceIndex2 = currentIndex++;
+                index = GetIndex();
+
+                this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, index, buffer.NativePointer2.Value);
+                buffer.ShaderResourceIndex2 = index;
             }
         }
 
@@ -84,6 +97,11 @@ namespace CoreEngine.Graphics
             if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (buffer.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.Gpu && buffer.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.TransientGpu)
+            {
+                return;
             }
 
             this.availableIndexes.Enqueue(buffer.ShaderResourceIndex1);
@@ -97,6 +115,16 @@ namespace CoreEngine.Graphics
         public void SetShaderResourceHeap(CommandList commandList)
         {
             this.graphicsService.SetShaderResourceHeap(commandList.NativePointer, this.shaderResourceHeap.NativePointer);
+        }
+
+        private uint GetIndex()
+        {
+            if (this.availableIndexes.Count > 0)
+            {
+                return this.availableIndexes.Dequeue();
+            }
+            
+            return currentIndex++;
         }
     }
 }

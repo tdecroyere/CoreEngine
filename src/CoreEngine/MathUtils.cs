@@ -7,12 +7,12 @@ namespace CoreEngine
     {
         public static float DegreesToRad(float angle)
         {
-            return (angle * MathF.PI) / 180.0f;
+            return angle * MathF.PI / 180.0f;
         }
 
         public static float RadToDegrees(float angle)
         {
-            return (angle * 180.0f) / MathF.PI;
+            return angle * 180.0f / MathF.PI;
         }
         
         public static Matrix4x4 CreateLookAtMatrix(Vector3 cameraPosition, Vector3 cameraTarget, Vector3 cameraUpVector)
@@ -84,17 +84,20 @@ namespace CoreEngine
             return result;
         }
 
+        public static Matrix4x4 CreateScaleTranslation(Vector3 scale, Vector3 translationVector)
+		{
+			return new Matrix4x4(scale.X, 0, 0, 0,
+                                 0, scale.Y, 0, 0,
+                                 0, 0, scale.Z, 0,
+                                 translationVector.X, translationVector.Y, translationVector.Z, 1);
+		}
+
         public static Matrix4x4 CreateTranslation(Vector3 translationVector)
 		{
-            var row1 = new Vector4(1, 0, 0, 0);
-            var row2 = new Vector4(0, 1, 0, 0);
-            var row3 = new Vector4(0, 0, 1, 0);
-            var row4 = new Vector4(translationVector.X, translationVector.Y, translationVector.Z, 1);
-
-			return new Matrix4x4(row1.X, row1.Y, row1.Z, row1.W,
-                                 row2.X, row2.Y, row2.Z, row2.W,
-                                 row3.X, row3.Y, row3.Z, row3.W,
-                                 row4.X, row4.Y, row4.Z, row4.W);
+			return new Matrix4x4(1, 0, 0, 0,
+                                 0, 1, 0, 0,
+                                 0, 0, 1, 0,
+                                 translationVector.X, translationVector.Y, translationVector.Z, 1);
 		}
     }
 }

@@ -38,7 +38,7 @@ namespace CoreEngine.Rendering
 
     public class Graphics2DRenderer : SystemManager
     {
-        private const uint maxSurfaceCountPerThreadGroup = 32;  
+        private const uint maxSurfaceCountPerThreadGroup = 64;  
         private const float scaleFactor = 1.0f;
 
         private readonly RenderManager renderManager;
@@ -48,12 +48,10 @@ namespace CoreEngine.Rendering
         private readonly Font systemFont;
         private readonly GraphicsBuffer cpuRectangleSurfacesGraphicsBuffer;
         private readonly GraphicsBuffer rectangleSurfacesGraphicsBuffer;
+        private readonly RectangleSurface[] rectangleSurfaces;
 
         private int currentSurfaceCount;
         private Matrix4x4 projectionMatrix;
-
-        // TODO: To Remove
-        private List<Texture> textures;
 
         public Graphics2DRenderer(RenderManager renderManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager)
         {
@@ -68,18 +66,17 @@ namespace CoreEngine.Rendering
             // this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/Graphics2DRender.shader");
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/Graphics2DRender_Old.shader");
             this.systemFont = resourcesManager.LoadResourceAsync<Font>("/System/Fonts/SystemFont.font");
-            this.textures = new List<Texture>();
             this.projectionMatrix = Matrix4x4.Identity;
 
             var maxSurfaceCount = 10000;
 
+            this.rectangleSurfaces = new RectangleSurface[maxSurfaceCount];
             this.cpuRectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Upload, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer_Cpu");
             this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Gpu, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer_Gpu");
         }
 
         public override void PreUpdate(CoreEngineContext context)
         {
-            this.textures.Clear();
             this.currentSurfaceCount = 0;
             
             var renderSize = this.renderManager.GetRenderSize();
@@ -138,19 +135,11 @@ namespace CoreEngine.Rendering
             maxPoint *= scaleFactor;
 
             var size = maxPoint - minPoint;
+            // TODO: Create an util method CreateScaleTranslation
             var worldMatrix = Matrix4x4.CreateScale(new Vector3(size, 0)) * Matrix4x4.CreateTranslation(new Vector3(minPoint, 0));
 
-            var textureIndex = this.textures.IndexOf(texture);
-
-            if (textureIndex == -1)
-            {
-                textureIndex = this.textures.Count;
-                this.textures.Add(texture);
-            }
-
-            var rectangleSurfaces = this.graphicsManager.GetCpuGraphicsBufferPointer<RectangleSurface>(this.cpuRectangleSurfacesGraphicsBuffer);
-            // rectangleSurfaces[this.currentSurfaceCount++] = new RectangleSurface(worldMatrix, textureMinPoint, textureMaxPoint, texture.ShaderResourceIndex, isOpaque);
-            rectangleSurfaces[this.currentSurfaceCount++] = new RectangleSurface(worldMatrix * this.projectionMatrix, textureMinPoint, textureMaxPoint, (uint)textureIndex, isOpaque);
+            // TODO: Move the matrix mul into an amplification shader?
+            this.rectangleSurfaces[this.currentSurfaceCount++] = new RectangleSurface(worldMatrix * this.projectionMatrix, textureMinPoint, textureMaxPoint, texture.ShaderResourceIndex, isOpaque);
         }
 
         public Fence? Render(Texture renderTargetTexture)
@@ -170,6 +159,8 @@ namespace CoreEngine.Rendering
 
         private CommandList CreateCopyCommandList()
         {
+            this.graphicsManager.CopyDataToGraphicsBuffer<RectangleSurface>(this.cpuRectangleSurfacesGraphicsBuffer, 0, this.rectangleSurfaces.AsSpan().Slice(0, this.currentSurfaceCount));
+
             var commandListName = "Graphics2DRenderer_Copy";
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);
 
@@ -190,22 +181,18 @@ namespace CoreEngine.Rendering
             
             var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
             // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.Triangle);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true);
 
-            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
-            // this.graphicsManager.SetShader(renderCommandList, this.shader, newShader: true);
-            this.graphicsManager.SetShader(renderCommandList, this.shader, newShader: false);
-            this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSurfaceCount });
-            // this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { this.vertexBuffer.ShaderResourceIndex, this.rectangleSurfacesGraphicsBuffer.ShaderResourceIndex, this.renderPassParametersGraphicsBuffer.ShaderResourceIndex });
-            this.graphicsManager.SetShaderBuffer(renderCommandList, this.rectangleSurfacesGraphicsBuffer, 1);
-            this.graphicsManager.SetShaderTextures(renderCommandList, this.textures.ToArray(), 2);
+            this.graphicsManager.SetShader(renderCommandList, this.shader);
+            this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSurfaceCount, this.rectangleSurfacesGraphicsBuffer.ShaderResourceIndex });
 
             this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSurfaceCount / maxSurfaceCountPerThreadGroup), 1, 1);
 
-            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.EndRenderPass(renderCommandList);
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.CommitCommandList(renderCommandList);
             this.renderManager.AddGpuTiming(commandListName, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
             return renderCommandList;

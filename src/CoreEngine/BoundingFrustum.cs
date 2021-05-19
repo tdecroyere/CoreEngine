@@ -9,6 +9,8 @@ namespace CoreEngine
         {
             ExtractMatrix(matrix);
 
+            this.Matrix = matrix;
+
             this.LeftTopNearPoint = IntersectionPoint(this.LeftPlane, this.TopPlane, this.NearPlane);
             this.LeftTopFarPoint = IntersectionPoint(this.LeftPlane, this.TopPlane, this.FarPlane);
             this.LeftBottomNearPoint = IntersectionPoint(this.LeftPlane, this.BottomPlane, this.NearPlane);
@@ -34,6 +36,8 @@ namespace CoreEngine
         public Vector3 RightTopFarPoint { get; private set; }
         public Vector3 RightBottomNearPoint { get; private set; }
         public Vector3 RightBottomFarPoint { get; private set; }
+
+        public Matrix4x4 Matrix { get; private set; }
 
         public Vector3 GetCenterPoint()
         {

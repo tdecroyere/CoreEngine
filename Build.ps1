@@ -8,6 +8,14 @@ $TempFolder = ".\build\temp"
 $TempD3D12Folder = ".\build\temp\D3D12"
 $OutputFolder = ".\build\Windows"
 
+$DirectX12Version = "Microsoft.Direct3D.D3D12.1.4.10"
+$Configuration = "Release"
+
+if ($args.length -gt 0 -And $args[0] -eq "debug")
+{
+    $Configuration = "Debug"
+}
+
 if (-not(Test-Path -Path $TempFolder))
 {
     New-Item -Path $TempFolder -ItemType "directory" | Out-Null
@@ -143,7 +151,7 @@ function CompileDotnet
 {
     Push-Location $TempFolder
     Write-Output "[93mCompiling CoreEngine Library...[0m"
-    dotnet build --nologo -c Debug -v Q -o "." "..\..\src\CoreEngine"
+    dotnet build --nologo -c $Configuration -v Q -o "." "..\..\src\CoreEngine"
 
     if(-Not $?)
     {
@@ -162,7 +170,7 @@ function PreCompileHeader
     if (-Not(Test-Path -Path "WindowsCommon.pch"))
     {
         Write-Output "[93mCompiling Windows Pre-compiled header...[0m"
-        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\include" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
+        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\packages\$DirectX12Version\build\native\include" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
 
         if(-Not $?)
         {
@@ -181,7 +189,7 @@ function CompileWindowsHost
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\include" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
+    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\packages\$DirectX12Version\build\native\include" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
 
     if (-Not $?)
     {
@@ -209,7 +217,7 @@ function LinkWindowsHost
         Exit 1
     }
 
-    Copy-Item "..\packages\Microsoft.Direct3D.D3D12.1.4.9\build\native\bin\x64\*" "..\..\..\..\..\$TempD3D12Folder" -Recurse -Force
+    Copy-Item "..\packages\$DirectX12Version\build\native\bin\x64\*" "..\..\..\..\..\$TempD3D12Folder" -Recurse -Force
     Pop-Location
 }
 

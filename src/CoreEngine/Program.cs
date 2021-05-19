@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using CoreEngine;
 using CoreEngine.Diagnostics;
@@ -30,6 +31,8 @@ public static class Program
         {
             appPath = args[0];
         }
+
+        Thread.CurrentThread.Name = "Main Engine Thread";
 
         var resourcesManager = new ResourcesManager();
 
@@ -97,6 +100,8 @@ public static class Program
 
             while (appStatus.IsRunning)
             {
+                renderManager.WaitForSwapChainOnCpu();
+
                 // var updatedApp = pluginManager.CheckForUpdatedAssemblies(context).Result;
 
                 // if (updatedApp != null)

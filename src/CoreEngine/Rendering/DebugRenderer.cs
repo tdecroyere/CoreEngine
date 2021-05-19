@@ -1,22 +1,17 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Numerics;
 using CoreEngine.Graphics;
+using CoreEngine.Diagnostics;
 using CoreEngine.Resources;
 
 namespace CoreEngine.Rendering
 {
-    enum DebugPrimitiveType : uint
-    {
-        Line,
-        Cube,
-        Sphere
-    }
-
     // TODO: Find a way to auto align fields to 16 Bytes (Required by shaders)
     readonly struct DebugPrimitive
     {
-        private DebugPrimitive(Matrix4x4 worldMatrix, Vector4 color)
+        private DebugPrimitive(in Matrix4x4 worldMatrix, in Vector4 color)
         {
             this.WorldMatrix = worldMatrix;
             this.Color = color;
@@ -36,15 +31,22 @@ namespace CoreEngine.Rendering
             return new DebugPrimitive(worldMatrix, new Vector4(color, 1));
         }
 
-        public static DebugPrimitive CreateBoundingBox(BoundingBox boundingBox, Vector3 color)
+        public static DebugPrimitive CreateBoundingBox(in BoundingBox boundingBox, Vector3 color)
         {
-            var worldMatrix = Matrix4x4.CreateScale(boundingBox.Size) * MathUtils.CreateTranslation(boundingBox.Center);
+            var worldMatrix = MathUtils.CreateScaleTranslation(boundingBox.Size, boundingBox.Center);
             return new DebugPrimitive(worldMatrix, new Vector4(color, 1));
+        }
+
+        public static DebugPrimitive CreateBoundingFrustum(BoundingFrustum boundingFrustum, Vector3 color)
+        {
+            Matrix4x4.Invert(boundingFrustum.Matrix, out var transformMatrix);
+            return new DebugPrimitive(transformMatrix, new Vector4(color, 1));
         }
 
         public static DebugPrimitive CreateSphere(Vector3 position, float radius, Vector3 color)
         {
-            var worldMatrix = Matrix4x4.CreateScale(new Vector3(radius * 2, radius * 2, radius * 2)) * MathUtils.CreateTranslation(position);
+            var diameter = radius * 2.0f;
+            var worldMatrix = MathUtils.CreateScaleTranslation(new Vector3(diameter), position);
             return new DebugPrimitive(worldMatrix, new Vector4(color, 1));
         }
     }
@@ -63,15 +65,20 @@ namespace CoreEngine.Rendering
         private readonly GraphicsBuffer vertexBuffer;
         private readonly GraphicsBuffer indexBuffer;
 
-        private readonly List<DebugPrimitive> linePrimitives;
-        private readonly List<DebugPrimitive> cubePrimitives;
-        private readonly List<DebugPrimitive> spherePrimitives;
+        private readonly DebugPrimitive[] linePrimitives;
+        private readonly DebugPrimitive[] cubePrimitives;
+        private readonly DebugPrimitive[] spherePrimitives;
 
-        private int currentPrimitiveCount;
+        private int currentLinePrimitiveCount;
+        private int currentCubePrimitiveCount;
+        private int currentSpherePrimitiveCount;
+
+
         private int sphereVertexBufferOffset;
         private int sphereIndexBufferOffset;
         private int lineVertexBufferOffset;
         private int lineIndexBufferOffset;
+        private readonly int maxPrimitiveCount = 10000;
 
         public DebugRenderer(GraphicsManager graphicsManager, RenderManager renderManager, ResourcesManager resourcesManager)
         {
@@ -85,29 +92,27 @@ namespace CoreEngine.Rendering
 
             this.shader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/DebugRender.shader");
 
-            var maxPrimitiveCount = 10000;
+            // TODO: Change that
+            this.linePrimitives = new DebugPrimitive[maxPrimitiveCount];
+            this.cubePrimitives = new DebugPrimitive[maxPrimitiveCount];
+            this.spherePrimitives = new DebugPrimitive[maxPrimitiveCount];
 
-            this.linePrimitives = new List<DebugPrimitive>();
-            this.cubePrimitives = new List<DebugPrimitive>();
-            this.spherePrimitives = new List<DebugPrimitive>();
-
-            this.cpuPrimitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Upload, maxPrimitiveCount * 4, isStatic: false, label: "DebugPrimitiveBuffer_Cpu");
-            this.primitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Gpu, maxPrimitiveCount * 4, isStatic: false, label: "DebugPrimitiveBuffer_Gpu");
+            this.cpuPrimitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Upload, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Cpu");
+            this.primitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Gpu, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Gpu");
             
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Gpu, 100, isStatic: true, "DebugVertexBuffer_Gpu");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, 300, isStatic: true, "DebugIndexBuffer_Gpu");
 
             InitGeometryBuffers();
-            this.currentPrimitiveCount = 0;
+            this.currentLinePrimitiveCount = 0;
+            this.currentCubePrimitiveCount = 0;
+            this.currentSpherePrimitiveCount = 0;
         }
 
         private void InitGeometryBuffers()
         {
-            var vertexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Upload, 100, isStatic: true, "DebugVertexBuffer_Cpu");
-            var indexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 300, isStatic: true, "DebugIndexBuffer_Cpu");
-
-            var vertexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<Vector3>(vertexBufferCpu);
-            var indexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<uint>(indexBufferCpu);
+            var vertexBufferData = new Vector3[100];
+            var indexBufferData = new uint[300];
 
             // Init Cube
             var minPoint = new Vector3(-0.5f, -0.5f, -0.5f);
@@ -200,6 +205,12 @@ namespace CoreEngine.Rendering
             indexBufferData[currentIndexCount++] = 0;
             indexBufferData[currentIndexCount++] = 1;
 
+            using var vertexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Upload, 100, isStatic: true, "DebugVertexBuffer_Cpu");
+            using var indexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 300, isStatic: true, "DebugIndexBuffer_Cpu");
+
+            this.graphicsManager.CopyDataToGraphicsBuffer<Vector3>(vertexBufferCpu, 0, vertexBufferData);
+            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(indexBufferCpu, 0, indexBufferData);
+
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "DebugRendererCopy");
             this.graphicsManager.CopyDataToGraphicsBuffer<Vector3>(copyCommandList, this.vertexBuffer, vertexBufferCpu, currentVertexCount);
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexBufferCpu, currentIndexCount);
@@ -210,11 +221,9 @@ namespace CoreEngine.Rendering
 
         public void ClearDebugLines()
         {
-            this.currentPrimitiveCount = 0;
-
-            this.linePrimitives.Clear();
-            this.cubePrimitives.Clear();
-            this.spherePrimitives.Clear();
+            this.currentLinePrimitiveCount = 0;
+            this.currentCubePrimitiveCount = 0;
+            this.currentSpherePrimitiveCount = 0;
         }
 
         public void DrawLine(Vector3 point1, Vector3 point2)
@@ -224,48 +233,37 @@ namespace CoreEngine.Rendering
 
         public void DrawLine(Vector3 point1, Vector3 point2, Vector3 color)
         {
-            this.linePrimitives.Add(DebugPrimitive.CreateLine(point1, point2, color));
-            this.currentPrimitiveCount++;
+            this.linePrimitives[this.currentLinePrimitiveCount++] = DebugPrimitive.CreateLine(point1, point2, color);
         }
 
-        public void DrawBoundingFrustum(BoundingFrustum boundingFrustum, Vector3 color)
+        public void DrawBoundingFrustum(in BoundingFrustum boundingFrustum, Vector3 color)
         {
             if (boundingFrustum == null)
             {
                 throw new ArgumentNullException(nameof(boundingFrustum));
             }
-            
-            DrawLine(boundingFrustum.LeftTopNearPoint, boundingFrustum.LeftTopFarPoint, color);
-            DrawLine(boundingFrustum.LeftBottomNearPoint, boundingFrustum.LeftBottomFarPoint, color);
-            DrawLine(boundingFrustum.RightTopNearPoint, boundingFrustum.RightTopFarPoint, color);
-            DrawLine(boundingFrustum.RightBottomNearPoint, boundingFrustum.RightBottomFarPoint, color);
 
-            DrawLine(boundingFrustum.LeftTopNearPoint, boundingFrustum.RightTopNearPoint, color);
-            DrawLine(boundingFrustum.LeftBottomNearPoint, boundingFrustum.RightBottomNearPoint, color);
-            DrawLine(boundingFrustum.LeftTopNearPoint, boundingFrustum.LeftBottomNearPoint, color);
-            DrawLine(boundingFrustum.RightTopNearPoint, boundingFrustum.RightBottomNearPoint, color);
-
-            DrawLine(boundingFrustum.LeftTopFarPoint, boundingFrustum.RightTopFarPoint, color);
-            DrawLine(boundingFrustum.LeftBottomFarPoint, boundingFrustum.RightBottomFarPoint, color);
-            DrawLine(boundingFrustum.LeftTopFarPoint, boundingFrustum.LeftBottomFarPoint, color);
-            DrawLine(boundingFrustum.RightTopFarPoint, boundingFrustum.RightBottomFarPoint, color);
+            this.cubePrimitives[this.currentCubePrimitiveCount++] = DebugPrimitive.CreateBoundingFrustum(boundingFrustum, color);
         }
 
-        public void DrawBoundingBox(BoundingBox boundingBox, Vector3 color)
+        public void DrawBoundingBox(in BoundingBox boundingBox, in Vector3 color)
         {
-            this.cubePrimitives.Add(DebugPrimitive.CreateBoundingBox(boundingBox, color));
-            this.currentPrimitiveCount++;
+            this.cubePrimitives[this.currentCubePrimitiveCount++] = DebugPrimitive.CreateBoundingBox(boundingBox, color);
         }
 
         public void DrawSphere(Vector3 position, float radius, Vector3 color)
         {
-            this.spherePrimitives.Add(DebugPrimitive.CreateSphere(position, radius, color));
-            this.currentPrimitiveCount++;
+            this.spherePrimitives[this.currentSpherePrimitiveCount++] = DebugPrimitive.CreateSphere(position, radius, color);
         }
 
         public void Render(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture renderTargetTexture, Texture? depthTexture)
         {
-            if (this.currentPrimitiveCount > 0)
+            if (renderPassParametersGraphicsBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(renderPassParametersGraphicsBuffer));
+            }
+
+            if (this.currentLinePrimitiveCount > 0 || this.currentCubePrimitiveCount > 0 || this.currentSpherePrimitiveCount > 0)
             {
                 var copyCommandList = CreateCopyCommandList();
                 var renderCommandList = CreateRenderCommandList(renderPassParametersGraphicsBuffer, renderTargetTexture, depthTexture);
@@ -279,28 +277,20 @@ namespace CoreEngine.Rendering
 
         private CommandList CreateCopyCommandList()
         {
-            var cpuPrimitiveData = this.graphicsManager.GetCpuGraphicsBufferPointer<DebugPrimitive>(this.cpuPrimitiveBuffer);
-            var currentInstanceIndex = 0;
+            var tempArray = ArrayPool<DebugPrimitive>.Shared.Rent(maxPrimitiveCount);
 
-            for (var i = 0; i < this.linePrimitives.Count; i++)
-            {
-                cpuPrimitiveData[currentInstanceIndex++] = this.linePrimitives[i];
-            }
+            this.linePrimitives.AsSpan().Slice(0, this.currentLinePrimitiveCount).CopyTo(tempArray);
+            this.cubePrimitives.AsSpan().Slice(0, this.currentCubePrimitiveCount).CopyTo(tempArray.AsSpan().Slice(this.currentLinePrimitiveCount));
+            this.spherePrimitives.AsSpan().Slice(0, this.currentSpherePrimitiveCount).CopyTo(tempArray.AsSpan().Slice(this.currentLinePrimitiveCount + this.currentCubePrimitiveCount));
 
-            for (var i = 0; i < this.cubePrimitives.Count; i++)
-            {
-                cpuPrimitiveData[currentInstanceIndex++] = this.cubePrimitives[i];
-            }
+            this.graphicsManager.CopyDataToGraphicsBuffer<DebugPrimitive>(this.cpuPrimitiveBuffer, 0, tempArray.AsSpan().Slice(0, this.currentLinePrimitiveCount + this.currentCubePrimitiveCount + this.currentSpherePrimitiveCount));
 
-            for (var i = 0; i < this.spherePrimitives.Count; i++)
-            {
-                cpuPrimitiveData[currentInstanceIndex++] = this.spherePrimitives[i];
-            }
+            ArrayPool<DebugPrimitive>.Shared.Return(tempArray);
 
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "DebugRendererCopy");
 
             var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-            this.graphicsManager.CopyDataToGraphicsBuffer<DebugPrimitive>(copyCommandList, this.primitiveBuffer, this.cpuPrimitiveBuffer, this.currentPrimitiveCount);
+            this.graphicsManager.CopyDataToGraphicsBuffer<DebugPrimitive>(copyCommandList, this.primitiveBuffer, this.cpuPrimitiveBuffer, this.currentLinePrimitiveCount + this.currentCubePrimitiveCount + this.currentSpherePrimitiveCount);
             var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
 
             this.graphicsManager.CommitCommandList(copyCommandList);
@@ -313,39 +303,34 @@ namespace CoreEngine.Rendering
         {
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "DebugRenderer");
 
-            // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
-            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, true, 0);
+            var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, backfaceCulling: true);
 
-            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
             this.graphicsManager.SetShader(renderCommandList, this.shader);
-            this.graphicsManager.SetShaderBuffer(renderCommandList, this.primitiveBuffer, 1);
-            this.graphicsManager.SetShaderBuffer(renderCommandList, renderPassParametersGraphicsBuffer, 2);
-            this.graphicsManager.SetShaderBuffer(renderCommandList, this.vertexBuffer, 3);
-            this.graphicsManager.SetShaderBuffer(renderCommandList, this.indexBuffer, 4);
 
-            if (this.linePrimitives.Count > 0)
+            if (this.currentLinePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.linePrimitives.Count, 0, (uint)this.lineVertexBufferOffset, (uint)this.lineIndexBufferOffset / 2, (uint)DebugPrimitiveType.Line });
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.linePrimitives.Count / maxPrimitiveCountPerThreadGroup), 1, 1);
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentLinePrimitiveCount, 0, (uint)this.lineVertexBufferOffset, (uint)this.lineIndexBufferOffset / 2, 128, 2, 1, this.primitiveBuffer.ShaderResourceIndex, renderPassParametersGraphicsBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentLinePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
-            if (this.cubePrimitives.Count > 0)
+            if (this.currentCubePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.cubePrimitives.Count, (uint)this.linePrimitives.Count, 0, 0, (uint)DebugPrimitiveType.Cube });
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.cubePrimitives.Count / maxPrimitiveCountPerThreadGroup), 1, 1);
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentCubePrimitiveCount, (uint)this.currentLinePrimitiveCount, 0, 0, 20, 8, 12, this.primitiveBuffer.ShaderResourceIndex, renderPassParametersGraphicsBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentCubePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
-            if (this.spherePrimitives.Count > 0)
+            if (this.currentSpherePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.spherePrimitives.Count, (uint)this.linePrimitives.Count + (uint)this.cubePrimitives.Count, (uint)this.sphereVertexBufferOffset, (uint)this.sphereIndexBufferOffset / 2, (uint)DebugPrimitiveType.Sphere });
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.spherePrimitives.Count / maxPrimitiveCountPerThreadGroup), 1, 1);
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSpherePrimitiveCount, (uint)this.currentLinePrimitiveCount + (uint)this.currentCubePrimitiveCount, (uint)this.sphereVertexBufferOffset, (uint)this.sphereIndexBufferOffset / 2, 2, 90, 90, this.primitiveBuffer.ShaderResourceIndex, renderPassParametersGraphicsBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSpherePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
-            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.EndRenderPass(renderCommandList);
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.CommitCommandList(renderCommandList);
             this.renderManager.AddGpuTiming("DebugRenderer", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);

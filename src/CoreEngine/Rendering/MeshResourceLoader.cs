@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -61,14 +62,18 @@ namespace CoreEngine.Rendering
             var cpuVertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, vertexBufferSize, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
             var cpuIndexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, indexBufferSize, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
 
-            var vertexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuVertexBuffer);
-            reader.Read(vertexBufferData);
+            var vertexBufferData = ArrayPool<byte>.Shared.Rent(vertexBufferSize);
+            reader.Read(vertexBufferData, 0, vertexBufferSize);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuVertexBuffer, 0, vertexBufferData.AsSpan().Slice(0, vertexBufferSize));
+            ArrayPool<byte>.Shared.Return(vertexBufferData);
 
-            var indexBufferData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuIndexBuffer);
-            reader.Read(indexBufferData);
+            var indexBufferData = ArrayPool<byte>.Shared.Rent(indexBufferSize);
+            reader.Read(indexBufferData, 0, indexBufferSize);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuIndexBuffer, 0, indexBufferData.AsSpan().Slice(0, indexBufferSize));
+            ArrayPool<byte>.Shared.Return(indexBufferData);
 
-            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, vertexBufferData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
-            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, indexBufferData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
+            var vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, vertexBufferSize, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexBuffer");
+            var indexBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, indexBufferSize, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(mesh.Path)}IndexBuffer");
 
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "MeshLoader");
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, vertexBuffer, cpuVertexBuffer, vertexBufferSize);
@@ -88,6 +93,9 @@ namespace CoreEngine.Rendering
                 var materialPath = reader.ReadString();
                 var startIndex = reader.ReadInt32();
                 var indexCount = reader.ReadInt32();
+
+                // TODO: Hack
+                var vertexCount = indexCount;
 
                 var x = reader.ReadSingle();
                 var y = reader.ReadSingle();
@@ -110,7 +118,7 @@ namespace CoreEngine.Rendering
                     resource.DependentResources.Add(material);
                 }
 
-                var geometryInstance = new GeometryInstance(geometryPacket, material, startIndex, indexCount, boundingBox);
+                var geometryInstance = new GeometryInstance(geometryPacket, material, startIndex, indexCount, vertexCount, boundingBox);
                 mesh.GeometryInstances.Add(geometryInstance);
             }
 

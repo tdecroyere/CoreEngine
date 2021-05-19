@@ -42,6 +42,7 @@ public:
 	PsoSubObject(RenderTargets, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS, D3D12_RT_FORMAT_ARRAY);
 	PsoSubObject(SampleDesc, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC, DXGI_SAMPLE_DESC);
 	PsoSubObject(RasterizerState, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER, D3D12_RASTERIZER_DESC);
+	PsoSubObject(DepthStencilFormat, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT, DXGI_FORMAT);
 	PsoSubObject(DepthStencilState, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL, D3D12_DEPTH_STENCIL_DESC);
 	PsoSubObject(BlendState, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND, D3D12_BLEND_DESC);
 };
@@ -104,6 +105,17 @@ DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat, bool noSrg
 	return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 }
 
+DXGI_FORMAT ConvertSRVTextureFormat(DXGI_FORMAT textureFormat) 
+{
+	switch (textureFormat)
+	{
+		case DXGI_FORMAT_D32_FLOAT:
+			return DXGI_FORMAT_R32_FLOAT;
+	}
+        
+	return textureFormat;
+}
+
 D3D12_RESOURCE_DESC CreateTextureResourceDescription(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
 	// TODO: Support mip levels
@@ -120,7 +132,12 @@ D3D12_RESOURCE_DESC CreateTextureResourceDescription(enum GraphicsTextureFormat 
 	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-	if (usage == GraphicsTextureUsage::RenderTarget) 
+	if (usage == GraphicsTextureUsage::RenderTarget && textureFormat == GraphicsTextureFormat::Depth32Float)
+	{
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	}
+
+	else if (usage == GraphicsTextureUsage::RenderTarget) 
 	{
 		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	}

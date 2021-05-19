@@ -194,12 +194,6 @@ void* Direct3D12GraphicsService::CreateCommandList(void* commandQueuePointer)
 	ComPtr<ID3D12GraphicsCommandList6> commandList;
 	AssertIfFailed(this->graphicsDevice->CreateCommandList(0, listType, commandAllocator.Get(), nullptr, IID_PPV_ARGS(commandList.ReleaseAndGetAddressOf())));
 
-	if (listType != D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		ID3D12DescriptorHeap* descriptorHeaps[] = { this->globalDescriptorHeap.Get() };
-		commandList->SetDescriptorHeaps(1, descriptorHeaps);
-	}
-
 	Direct3D12CommandList* commandListStruct = new Direct3D12CommandList();
 	commandListStruct->CommandListObject = commandList;
 	commandListStruct->Type = listType;
@@ -226,12 +220,6 @@ void Direct3D12GraphicsService::ResetCommandList(void* commandListPointer)
 	auto commandAllocator = commandList->CommandQueue->CommandAllocators[this->currentAllocatorIndex];
 
 	commandList->CommandListObject->Reset(commandAllocator.Get(), nullptr);
-
-	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_COPY)
-	{
-		ID3D12DescriptorHeap* descriptorHeaps[] = { this->globalDescriptorHeap.Get() };
-		commandList->CommandListObject->SetDescriptorHeaps(1, descriptorHeaps);
-	}
 }
 
 void Direct3D12GraphicsService::CommitCommandList(void* commandListPointer)
@@ -265,9 +253,8 @@ void* Direct3D12GraphicsService::CreateGraphicsHeap(enum GraphicsServiceHeapType
 
 	else
 	{
-		heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_CUSTOM;
-		heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
-		heapDescriptor.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_L1;
+		heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+		heapDescriptor.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 		heapDescriptor.SizeInBytes = sizeInBytes;
 		heapDescriptor.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
 	}
@@ -326,17 +313,21 @@ void Direct3D12GraphicsService::DeleteShaderResourceHeap(void* shaderResourceHea
 
 void Direct3D12GraphicsService::CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
 {
+	// TODO: To remove when SM6.6 is stable
+
+	int textureOffset = 500;
+
 	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
 	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = texture->ResourceDesc.Format;
+	srvDesc.Format = ConvertSRVTextureFormat(texture->ResourceDesc.Format);
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Texture2D.MipLevels = 1;//mipLevels;
 
 	auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
-	descriptorHandle.ptr += index * descriptorHeap->HandleSize;
+	descriptorHandle.ptr += (textureOffset + index) * descriptorHeap->HandleSize;
 
 	this->graphicsDevice->CreateShaderResourceView(texture->TextureObject.Get(), &srvDesc, descriptorHandle);
 }
@@ -429,8 +420,8 @@ void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(void* graphicsBuffe
 	}
 
 	void* pointer = nullptr;
-	D3D12_RANGE range = { 0, 0 };
-	graphicsBuffer->BufferObject->Map(0, &range, &pointer);
+	D3D12_RANGE readRange = { 0, 0 };
+	graphicsBuffer->BufferObject->Map(0, &readRange, &pointer);
 	graphicsBuffer->CpuPointer = pointer;
 
 	return pointer;
@@ -449,14 +440,16 @@ void* Direct3D12GraphicsService::CreateTexture(void* graphicsHeapPointer, unsign
 
 	D3D12_RESOURCE_STATES initialState = usage == GraphicsTextureUsage::ShaderRead ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
 
-	if (usage == GraphicsTextureUsage::RenderTarget)
+	if (usage == GraphicsTextureUsage::RenderTarget && textureFormat == GraphicsTextureFormat::Depth32Float)
 	{
-		if (textureFormat != GraphicsTextureFormat::Depth32Float)
-		{
-			D3D12_CLEAR_VALUE rawClearValue = {};
-			rawClearValue.Format = ConvertTextureFormat(textureFormat);
-			clearValue = &rawClearValue;
-		}
+		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;	
+	}
+
+	else if (usage == GraphicsTextureUsage::RenderTarget)
+	{
+		D3D12_CLEAR_VALUE rawClearValue = {};
+		rawClearValue.Format = ConvertTextureFormat(textureFormat);
+		clearValue = &rawClearValue;
 
 		initialState = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	}
@@ -473,51 +466,50 @@ void* Direct3D12GraphicsService::CreateTexture(void* graphicsHeapPointer, unsign
 	textureStruct->FootPrint = footPrint;
 
 	// TODO: Move descriptors creation from here
-	if (textureFormat != GraphicsTextureFormat::Depth32Float)
+	// TODO: Handle in DirectX the create of the RTV and DSV if needed with a slot available list
+	if (usage == GraphicsTextureUsage::RenderTarget && textureFormat == GraphicsTextureFormat::Depth32Float)
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = ConvertTextureFormat(textureFormat);
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Texture2D.MipLevels = 1;//mipLevels;
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+		dsvDesc.Format = ConvertTextureFormat(textureFormat);
+		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
-		auto globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-		globalDescriptorHeapHandle.ptr += this->currentGlobalDescriptorOffset;
+		auto globalDsvDescriptorHeapHandle = this->globalDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		globalDsvDescriptorHeapHandle.ptr += this->currentGlobalDsvDescriptorOffset;
 
-		this->graphicsDevice->CreateShaderResourceView(gpuTexture.Get(), &srvDesc, globalDescriptorHeapHandle);
-		textureStruct->SrvTextureDescriptorOffset = this->currentGlobalDescriptorOffset;
-		this->currentGlobalDescriptorOffset += this->globalDescriptorHandleSize;
-
-		if (usage == GraphicsTextureUsage::RenderTarget)
-		{
-			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-			rtvDesc.Format = ConvertTextureFormat(textureFormat);
-			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-			auto globalRtvDescriptorHeapHandle = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-			globalRtvDescriptorHeapHandle.ptr += this->currentGlobalRtvDescriptorOffset;
-
-			this->graphicsDevice->CreateRenderTargetView(gpuTexture.Get(), &rtvDesc, globalRtvDescriptorHeapHandle);
-			textureStruct->TextureDescriptorOffset = this->currentGlobalRtvDescriptorOffset;
-			this->currentGlobalRtvDescriptorOffset += this->globalRtvDescriptorHandleSize;
-		}
-
-		else if (usage == GraphicsTextureUsage::ShaderWrite)
-		{
-			// UAV View
-			D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
-			uavDesc.Format = ConvertTextureFormat(textureFormat);
-			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-			uavDesc.Texture2D.MipSlice = 0;
-
-			globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-			globalDescriptorHeapHandle.ptr += this->currentGlobalDescriptorOffset;
-
-			this->graphicsDevice->CreateUnorderedAccessView(gpuTexture.Get(), nullptr, &uavDesc, globalDescriptorHeapHandle);
-			textureStruct->UavTextureDescriptorOffset = this->currentGlobalDescriptorOffset;
-			this->currentGlobalDescriptorOffset += this->globalDescriptorHandleSize;
-		}
+		this->graphicsDevice->CreateDepthStencilView(gpuTexture.Get(), &dsvDesc, globalDsvDescriptorHeapHandle);
+		textureStruct->TextureDescriptorOffset = this->currentGlobalDsvDescriptorOffset;
+		this->currentGlobalDsvDescriptorOffset += this->globalDsvDescriptorHandleSize;
 	}
+
+	else if (usage == GraphicsTextureUsage::RenderTarget)
+	{
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.Format = ConvertTextureFormat(textureFormat);
+		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+		auto globalRtvDescriptorHeapHandle = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		globalRtvDescriptorHeapHandle.ptr += this->currentGlobalRtvDescriptorOffset;
+
+		this->graphicsDevice->CreateRenderTargetView(gpuTexture.Get(), &rtvDesc, globalRtvDescriptorHeapHandle);
+		textureStruct->TextureDescriptorOffset = this->currentGlobalRtvDescriptorOffset;
+		this->currentGlobalRtvDescriptorOffset += this->globalRtvDescriptorHandleSize;
+	}
+
+	// else if (usage == GraphicsTextureUsage::ShaderWrite)
+	// {
+	// 	// UAV View
+	// 	D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
+	// 	uavDesc.Format = ConvertTextureFormat(textureFormat);
+	// 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	// 	uavDesc.Texture2D.MipSlice = 0;
+
+	// 	globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	// 	globalDescriptorHeapHandle.ptr += this->currentGlobalDescriptorOffset;
+
+	// 	this->graphicsDevice->CreateUnorderedAccessView(gpuTexture.Get(), nullptr, &uavDesc, globalDescriptorHeapHandle);
+	// 	textureStruct->UavTextureDescriptorOffset = this->currentGlobalDescriptorOffset;
+	// 	this->currentGlobalDescriptorOffset += this->globalDescriptorHandleSize;
+	// }
 
 	return textureStruct;
 }
@@ -711,7 +703,7 @@ void* Direct3D12GraphicsService::CreateIndirectCommandBuffer(int maxCommandCount
 	commandSignatureDesc.ByteStride = sizeof(IndirectCommand);
 
 	ComPtr<ID3D12CommandSignature> commandSignature;
-	AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, indirectCommandShader.RootSignature.Get(), IID_PPV_ARGS(&commandSignature)));
+	//AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, indirectCommandShader.RootSignature.Get(), IID_PPV_ARGS(&commandSignature)));
 	// AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(&commandSignature)));
 
 	// int Direct3D12GraphicsService::CreateGraphicsBufferOld(unsigned int graphicsBufferId, int sizeInBytes, int isWriteOnly, char* label)
@@ -876,13 +868,6 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 
 	if (shader->ComputeShaderMethod == nullptr)
 	{
-		auto primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-		if (renderPassDescriptor.PrimitiveType == GraphicsPrimitiveType::Line)
-		{
-			primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-		}
-
 		D3D12_RT_FORMAT_ARRAY renderTargets = {};
 		
 		if (!renderPassDescriptor.RenderTarget1TexturePointer.HasValue && !renderPassDescriptor.DepthTexturePointer.HasValue)
@@ -895,6 +880,14 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 		{
 			renderTargets.NumRenderTargets = 1;
 			renderTargets.RTFormats[0] = ConvertTextureFormat(renderPassDescriptor.RenderTarget1TextureFormat.Value);
+		}
+
+		DXGI_FORMAT depthFormat = DXGI_FORMAT_UNKNOWN;
+
+		if (renderPassDescriptor.DepthTexturePointer.HasValue)
+		{
+			// TODO: Change that
+			depthFormat = DXGI_FORMAT_D32_FLOAT;
 		}
 
 		DXGI_SAMPLE_DESC sampleDesc = {};
@@ -915,8 +908,33 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 		rasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
 		D3D12_DEPTH_STENCIL_DESC depthStencilState = {};
-		depthStencilState.DepthEnable = false;
-		depthStencilState.StencilEnable = false;
+
+		if (renderPassDescriptor.DepthBufferOperation != GraphicsDepthBufferOperation::DepthNone)
+		{
+			depthStencilState.DepthEnable = true;
+			depthStencilState.StencilEnable = false;
+
+			if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::ClearWrite ||
+				renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::Write)
+			{
+				depthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			}
+
+			if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::CompareEqual)
+			{
+				depthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+			}
+
+			else if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::CompareGreater)
+			{
+				depthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+			}
+
+			else
+			{
+				depthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+			}
+		}
 
 		D3D12_BLEND_DESC blendState = {};
 		blendState.AlphaToCoverageEnable = false;
@@ -934,47 +952,26 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 		}
 
 		D3D12_PIPELINE_STATE_STREAM_DESC psoStream = {};
+		GraphicsPso psoDesc = {};
+		
+		psoDesc.RootSignature = shader->RootSignature.Get();
 
-		if (shader->MeshShaderMethod == nullptr)
+		if (shader->AmplificationShaderMethod != nullptr)
 		{
-			GraphicsPsoLegacy psoDesc = {};
-			
-			psoDesc.RootSignature = shader->RootSignature.Get();
-			psoDesc.VS = { shader->VertexShaderMethod->GetBufferPointer(), shader->VertexShaderMethod->GetBufferSize() };
-			psoDesc.PS = { shader->PixelShaderMethod->GetBufferPointer(), shader->PixelShaderMethod->GetBufferSize() };
-			psoDesc.PrimitiveTopologyType = primitiveTopologyType;
-			psoDesc.RenderTargets = renderTargets;
-			psoDesc.SampleDesc = sampleDesc;
-			psoDesc.RasterizerState = rasterizerState;
-			psoDesc.DepthStencilState = depthStencilState;
-			psoDesc.BlendState = blendState;
-
-			psoStream.SizeInBytes = sizeof(GraphicsPsoLegacy);
-			psoStream.pPipelineStateSubobjectStream = &psoDesc;
+			psoDesc.AS = { shader->AmplificationShaderMethod->GetBufferPointer(), shader->AmplificationShaderMethod->GetBufferSize() };
 		}
 
-		else
-		{
-			GraphicsPso psoDesc = {};
-			
-			psoDesc.RootSignature = shader->RootSignature.Get();
+		psoDesc.MS = { shader->MeshShaderMethod->GetBufferPointer(), shader->MeshShaderMethod->GetBufferSize() };
+		psoDesc.PS = { shader->PixelShaderMethod->GetBufferPointer(), shader->PixelShaderMethod->GetBufferSize() };
+		psoDesc.RenderTargets = renderTargets;
+		psoDesc.SampleDesc = sampleDesc;
+		psoDesc.RasterizerState = rasterizerState;
+		psoDesc.DepthStencilFormat = depthFormat;
+		psoDesc.DepthStencilState = depthStencilState;
+		psoDesc.BlendState = blendState;
 
-			if (shader->AmplificationShaderMethod != nullptr)
-			{
-				psoDesc.AS = { shader->AmplificationShaderMethod->GetBufferPointer(), shader->AmplificationShaderMethod->GetBufferSize() };
-			}
-
-			psoDesc.MS = { shader->MeshShaderMethod->GetBufferPointer(), shader->MeshShaderMethod->GetBufferSize() };
-			psoDesc.PS = { shader->PixelShaderMethod->GetBufferPointer(), shader->PixelShaderMethod->GetBufferSize() };
-			psoDesc.RenderTargets = renderTargets;
-			psoDesc.SampleDesc = sampleDesc;
-			psoDesc.RasterizerState = rasterizerState;
-			psoDesc.DepthStencilState = depthStencilState;
-			psoDesc.BlendState = blendState;
-
-			psoStream.SizeInBytes = sizeof(GraphicsPso);
-			psoStream.pPipelineStateSubobjectStream = &psoDesc;
-		}
+		psoStream.SizeInBytes = sizeof(GraphicsPso);
+		psoStream.pPipelineStateSubobjectStream = &psoDesc;
 
 		AssertIfFailed(this->graphicsDevice->CreatePipelineState(&psoStream, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
 	}
@@ -1005,192 +1002,6 @@ void Direct3D12GraphicsService::DeletePipelineState(void* pipelineStatePointer)
 { 
 	Direct3D12PipelineState* pipelineState = (Direct3D12PipelineState*)pipelineStatePointer;
 	delete pipelineState;
-}
-
-void Direct3D12GraphicsService::SetShaderBuffer(void* commandListPointer, void* graphicsBufferPointer, int slot, int isReadOnly, int index)
-{ 
-	if (!this->shaderBound)
-	{
-		return;
-	}
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
-
-	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
-	{
-		if (isReadOnly)
-		{
-			TransitionBufferToState(commandList, graphicsBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
-			commandList->CommandListObject->SetGraphicsRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
-		}
-
-		else
-		{
-			commandList->CommandListObject->SetGraphicsRootUnorderedAccessView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
-		}
-	}
-
-	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-	{
-		// TODO: Remove that hack
-		if (slot == 1)
-		{
-			auto gpuAddress = graphicsBuffer->BufferObject->GetGPUVirtualAddress();
-			commandList->CommandListObject->SetComputeRoot32BitConstants(0, 2, &gpuAddress, 0);
-			commandList->CommandListObject->SetComputeRootShaderResourceView(slot, graphicsBuffer->BufferObject->GetGPUVirtualAddress());
-		}
-	}
-}
-
-void Direct3D12GraphicsService::SetShaderBuffers(void* commandListPointer, void** graphicsBufferPointerList, int graphicsBufferPointerListLength, int slot, int index)
-{ 
-	
-}
-
-void Direct3D12GraphicsService::SetShaderTexture(void* commandListPointer, void* texturePointer, int slot, int isReadOnly, int index)
-{ 
-	if (!this->shaderBound)
-	{
-		return;
-	}
-	
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
-	
-	if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
-	{
-		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
-		// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-		auto descriptorHeapdOffset = texture->SrvTextureDescriptorOffset;
-
-		D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
-		descriptorHeapHandle.ptr = this->globalDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr + descriptorHeapdOffset;
-
-		commandList->CommandListObject->SetGraphicsRootDescriptorTable(slot, descriptorHeapHandle);
-	}
-
-	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-	{
-		if (isReadOnly)
-		{
-			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
-			
-			auto descriptorHeapdOffset = texture->SrvTextureDescriptorOffset;
-
-			D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
-			descriptorHeapHandle.ptr = this->globalDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr + descriptorHeapdOffset;
-
-			commandList->CommandListObject->SetComputeRootDescriptorTable(slot, descriptorHeapHandle);
-		}
-
-		else
-		{
-			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
-			
-			auto descriptorHeapdOffset = texture->UavTextureDescriptorOffset;
-
-			D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
-			descriptorHeapHandle.ptr = this->globalDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr + descriptorHeapdOffset;
-
-			commandList->CommandListObject->SetComputeRootDescriptorTable(slot, descriptorHeapHandle);
-		}
-	}
-}
-
-int currentDebugDescriptorIndex = 0;
-
-void Direct3D12GraphicsService::SetShaderTextures(void* commandListPointer, void** texturePointerList, int texturePointerListLength, int slot, int index)
-{ 
-	if (!this->shaderBound)
-	{
-		return;
-	}
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-
-	// TODO: Remove that hack
-
-	if (commandList->Type != D3D12_COMMAND_LIST_TYPE_DIRECT)
-	{
-		return;
-	}
-
-	ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
-
-	// Create Descriptor heap
-	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-	descriptorHeapDesc.NumDescriptors = texturePointerListLength;
-	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(srvDescriptorHeap.ReleaseAndGetAddressOf())));
-
-	this->debugDescriptorHeaps[currentDebugDescriptorIndex++] = srvDescriptorHeap;
-
-	int srvDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	auto heapPtr = srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	
-	for (int i = 0; i < texturePointerListLength; i++)
-	{
-		Direct3D12Texture* texture = (Direct3D12Texture*)texturePointerList[i];
-
-		if (texture->ResourceDesc.Format == DXGI_FORMAT_D32_FLOAT)
-		{
-			return;
-		}
-
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = texture->ResourceDesc.Format;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Texture2D.MipLevels = texture->ResourceDesc.MipLevels;
-		this->graphicsDevice->CreateShaderResourceView(texture->TextureObject.Get(), &srvDesc, heapPtr);
-
-		heapPtr.ptr += srvDescriptorHandleSize;
-
-		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
-	}
-
-	// TODO: Change that because if the next shader invoke needs the global heap it will not work
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
-	commandList->CommandListObject->SetDescriptorHeaps(1, descriptorHeaps);
-	commandList->CommandListObject->SetGraphicsRootDescriptorTable(slot, srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-}
-
-void Direct3D12GraphicsService::SetShaderIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int slot, int index){ }
-void Direct3D12GraphicsService::SetShaderIndirectCommandLists(void* commandListPointer, void** indirectCommandListPointerList, int indirectCommandListPointerListLength, int slot, int index)
-{ 
-	return;
-	/*
-	if (!this->shaderBound)
-	{
-		return;
-	}
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-
-	// TODO: Remove that hack
-	if (slot != 30006)
-	{
-		return;
-	}
-
-	auto bufferId = indirectCommandListIdList[3];
-	auto gpuBuffer = this->graphicsBuffers[bufferId];
-
-	TransitionBufferToState(commandList, bufferId, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-	auto descriptorHeapdOffset = this->uavBufferDescriptorOffets[bufferId];
-
-	D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
-	descriptorHeapHandle.ptr = this->globalDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr + descriptorHeapdOffset;
-
-	commandList->CommandListObject->SetComputeRootDescriptorTable(2, descriptorHeapHandle);
-
-	*/
 }
 
 void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes)
@@ -1238,7 +1049,7 @@ void Direct3D12GraphicsService::CopyDataToTexture(void* commandListPointer, void
 
 	commandList->CommandListObject->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
 
-	// TODO: Transition texture to generic read?
+	// TODO: When to Transition texture to generic read?
 }
 
 void Direct3D12GraphicsService::CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer)
@@ -1270,8 +1081,6 @@ struct Vector3 Direct3D12GraphicsService::DispatchThreads(void* commandListPoint
 
 void Direct3D12GraphicsService::BeginRenderPass(void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 {
-	// TODO: Switch to DX12 render passes
-
 	auto renderDescriptor = renderPassDescriptor;
 
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
@@ -1281,22 +1090,61 @@ void Direct3D12GraphicsService::BeginRenderPass(void* commandListPointer, struct
 	{
 		Direct3D12Texture* texture = (Direct3D12Texture*)renderDescriptor.RenderTarget1TexturePointer.Value;
 
+		// TODO: Refactor that
 		D3D12_CPU_DESCRIPTOR_HANDLE descriptorHeapHandle = {};
 		descriptorHeapHandle.ptr = this->globalRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + texture->TextureDescriptorOffset;
 
 		TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		commandList->CommandListObject->OMSetRenderTargets(1, &descriptorHeapHandle, false, nullptr);
+
+		D3D12_RENDER_PASS_RENDER_TARGET_DESC renderTargetDesc = {};
+		renderTargetDesc.cpuDescriptor = descriptorHeapHandle;
+		renderTargetDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
 
 		if (renderDescriptor.RenderTarget1ClearColor.HasValue)
 		{
-			// float clearColor[4] = { renderDescriptor.RenderTarget1ClearColor.Value.X, renderDescriptor.RenderTarget1ClearColor.Value.Y, renderDescriptor.RenderTarget1ClearColor.Value.Z, renderDescriptor.RenderTarget1ClearColor.Value.W };
-			float clearColor[4] = {};
-			commandList->CommandListObject->ClearRenderTargetView(descriptorHeapHandle, clearColor, 0, nullptr);
+			float clearColor[4] = { renderDescriptor.RenderTarget1ClearColor.Value.X, renderDescriptor.RenderTarget1ClearColor.Value.Y, renderDescriptor.RenderTarget1ClearColor.Value.Z, renderDescriptor.RenderTarget1ClearColor.Value.W };
+
+			renderTargetDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+			renderTargetDesc.BeginningAccess.Clear.ClearValue.Format = texture->ResourceDesc.Format;
+			// renderTargetDesc.BeginningAccess.Clear.ClearValue.Color = clearColor;
 		}
+
+		renderTargetDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC* depthStencilDesc = nullptr;
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC tmpDepthDesc = {};
+
+		if (renderDescriptor.DepthTexturePointer.HasValue)
+		{
+			Direct3D12Texture* depthTexture = (Direct3D12Texture*)renderDescriptor.DepthTexturePointer.Value;
+
+			D3D12_CPU_DESCRIPTOR_HANDLE depthDescriptorHeapHandle = {};
+			depthDescriptorHeapHandle.ptr = this->globalDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + depthTexture->TextureDescriptorOffset;
+
+			tmpDepthDesc.cpuDescriptor = depthDescriptorHeapHandle;
+			tmpDepthDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
+
+			if (renderDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::ClearWrite)
+			{
+				D3D12_DEPTH_STENCIL_VALUE clearValue = {};
+				clearValue.Depth = 0.0f;
+
+				tmpDepthDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+				tmpDepthDesc.DepthBeginningAccess.Clear.ClearValue.Format = texture->ResourceDesc.Format;
+				tmpDepthDesc.DepthBeginningAccess.Clear.ClearValue.DepthStencil = clearValue;
+			}
+
+			tmpDepthDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
+			depthStencilDesc = &tmpDepthDesc;
+		}
+
+		commandList->CommandListObject->BeginRenderPass(1, &renderTargetDesc, depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
 
 		D3D12_VIEWPORT viewport = {};
 		viewport.Width = (float)texture->ResourceDesc.Width;
 		viewport.Height = (float)texture->ResourceDesc.Height;
+		viewport.MinDepth = 0.0f;
 		viewport.MaxDepth = 1.0f;
 		commandList->CommandListObject->RSSetViewports(1, &viewport);
 
@@ -1310,6 +1158,8 @@ void Direct3D12GraphicsService::BeginRenderPass(void* commandListPointer, struct
 void Direct3D12GraphicsService::EndRenderPass(void* commandListPointer)
 {
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	commandList->CommandListObject->EndRenderPass();
+	
 	auto renderDescriptor = commandList->RenderPassDescriptor;
 
 	if (renderDescriptor.RenderTarget1TexturePointer.HasValue)
@@ -1318,7 +1168,7 @@ void Direct3D12GraphicsService::EndRenderPass(void* commandListPointer)
 
 		if (!texture->IsPresentTexture)
 		{
-			TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
+			// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_GENERIC_READ);
 			// TransitionTextureToState(commandList, texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 
@@ -1342,6 +1192,9 @@ void Direct3D12GraphicsService::SetPipelineState(void* commandListPointer, void*
 	commandList->CommandListObject->SetPipelineState(pipelineState->PipelineStateObject.Get());
 }
 
+// TODO: To remove when sm6.6 is stable
+Direct3D12ShaderResourceHeap* currentDescriptorHeap;
+
 void Direct3D12GraphicsService::SetShaderResourceHeap(void* commandListPointer, void* shaderResourceHeapPointer)
 {
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
@@ -1349,6 +1202,9 @@ void Direct3D12GraphicsService::SetShaderResourceHeap(void* commandListPointer, 
 
 	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap->HeapObject.Get() };
 	commandList->CommandListObject->SetDescriptorHeaps(1, descriptorHeaps);
+
+	// TODO: To remove when sm6.6 is stable
+	currentDescriptorHeap = descriptorHeap;
 }
 
 void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shaderPointer)
@@ -1369,6 +1225,18 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 	else if (commandList->Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 	{
 		commandList->CommandListObject->SetComputeRootSignature(shader->RootSignature.Get());
+	}
+
+	// TODO: To remove when sm6.6 is stable
+	if (currentDescriptorHeap != nullptr)
+	{
+		commandList->CommandListObject->SetGraphicsRootDescriptorTable(1, currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart());
+
+		D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle = currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart();
+		texturesHandle.ptr += (500 * currentDescriptorHeap->HandleSize);
+
+		commandList->CommandListObject->SetGraphicsRootDescriptorTable(2, texturesHandle);
+		currentDescriptorHeap = nullptr;
 	}
 
 	this->shaderBound = true;
@@ -1408,73 +1276,6 @@ void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(void* commandListPo
 
 	// // TODO: Compute the count in the shader?
 	// commandList->CommandListObject->ExecuteIndirect(signature.Get(), 1, indirectCommandBuffer.Get(), 0, nullptr, 0);
-}
-
-void Direct3D12GraphicsService::SetIndexBuffer(void* commandListPointer, void* graphicsBufferPointer)
-{ 
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
-
-	D3D12_INDEX_BUFFER_VIEW indexBufferView = {};
-	indexBufferView.BufferLocation = graphicsBuffer->BufferObject->GetGPUVirtualAddress();
-	indexBufferView.SizeInBytes = graphicsBuffer->ResourceDesc.Width;
-	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-
-	commandList->CommandListObject->IASetIndexBuffer(&indexBufferView);
-}
-
-void Direct3D12GraphicsService::DrawIndexedPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId)
-{ 
-	if (!this->shaderBound)
-	{
-		return;
-	}
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-
-	if (primitiveType == GraphicsPrimitiveType::TriangleStrip)
-	{
-		commandList->CommandListObject->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	}
-
-	else if (primitiveType == GraphicsPrimitiveType::Line)
-	{
-		commandList->CommandListObject->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-	}
-
-	else
-	{
-		commandList->CommandListObject->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	}
-
-	commandList->CommandListObject->DrawIndexedInstanced(indexCount, instanceCount, startIndex, 0, baseInstanceId);
-}
-
-void Direct3D12GraphicsService::DrawPrimitives(void* commandListPointer, enum GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount)
-{ 
-	if (!this->shaderBound)
-	{
-		return;
-	}
-
-	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-
-	if (primitiveType == GraphicsPrimitiveType::TriangleStrip)
-	{
-		commandList->CommandListObject->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	}
-
-	else if (primitiveType == GraphicsPrimitiveType::Line)
-	{
-		commandList->CommandListObject->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-	}
-
-	else
-	{
-		commandList->CommandListObject->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	}
-
-	commandList->CommandListObject->DrawInstanced(vertexCount, 1, startVertex, 0);
 }
 
 void Direct3D12GraphicsService::DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
@@ -1602,16 +1403,6 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 
 bool Direct3D12GraphicsService::CreateHeaps()
 {
-	// Create global Descriptor heap
-	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-	descriptorHeapDesc.NumDescriptors = 100000; //TODO: Change that
-	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(this->globalDescriptorHeap.ReleaseAndGetAddressOf())));
-	this->globalDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	this->currentGlobalDescriptorOffset = 0;
-
 	// Create global RTV Descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc = {};
 	rtvDescriptorHeapDesc.NumDescriptors = 100000; //TODO: Change that
@@ -1621,6 +1412,16 @@ bool Direct3D12GraphicsService::CreateHeaps()
 	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&rtvDescriptorHeapDesc, IID_PPV_ARGS(this->globalRtvDescriptorHeap.ReleaseAndGetAddressOf())));
 	this->globalRtvDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	this->currentGlobalRtvDescriptorOffset = 0;
+
+	// Create global DSV Descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC dsvDescriptorHeapDesc = {};
+	rtvDescriptorHeapDesc.NumDescriptors = 100000; //TODO: Change that
+	rtvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	rtvDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	AssertIfFailed(this->graphicsDevice->CreateDescriptorHeap(&rtvDescriptorHeapDesc, IID_PPV_ARGS(this->globalDsvDescriptorHeap.ReleaseAndGetAddressOf())));
+	this->globalDsvDescriptorHandleSize = this->graphicsDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	this->currentGlobalDsvDescriptorOffset = 0;
 
 	return true;
 }

@@ -22,8 +22,6 @@ namespace CoreEngine.Rendering
     {
         public Vector3 MinPoint;
         public Vector3 MaxPoint;
-        public float Reserved1;
-        public float Reserved2;
     }
 
     internal struct ShaderBoundingFrustum
@@ -111,8 +109,9 @@ namespace CoreEngine.Rendering
     {
         public int GeometryPacketIndex;
         public int StartIndex;
+        public int VertexCount;
         public int IndexCount;
-        public int MaterialIndex;
+        // public int MaterialIndex;
         public Matrix4x4 WorldMatrix;
         public ShaderBoundingBox WorldBoundingBox;
     }
@@ -487,7 +486,7 @@ namespace CoreEngine.Rendering
                     {
                         case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
                             depthBuffer = (Texture)pipelineResource;
-                            graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            // graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                             break;
 
                         case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
@@ -498,7 +497,7 @@ namespace CoreEngine.Rendering
                                 camerasBuffer = (GraphicsBuffer)pipelineResource;
                             }
 
-                            graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            // graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                             break;
                     }
                 }
@@ -514,7 +513,7 @@ namespace CoreEngine.Rendering
                     switch (resourceBinding)
                     {
                         case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
-                            graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            // graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                             break;
 
                         case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
@@ -525,7 +524,7 @@ namespace CoreEngine.Rendering
                                 camerasBuffer = (GraphicsBuffer)pipelineResource;
                             }
 
-                            graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                            // graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                             break;
                     }
                 }
@@ -573,11 +572,11 @@ namespace CoreEngine.Rendering
                         switch (resourceBinding)
                         {
                             case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
-                                graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                // graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                                 break;
 
                             case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
-                                graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                // graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                                 break;
                         }
                     }
@@ -593,11 +592,11 @@ namespace CoreEngine.Rendering
                         switch (resourceBinding)
                         {
                             case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Texture:
-                                graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                // graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                                 break;
 
                             case ShaderGraphicsPipelineResourceBinding shaderResourceBinding when pipelineResource.ResourceType == GraphicsResourceType.Buffer:
-                                graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                                // graphicsManager.SetShaderBuffer(computeCommandList, (GraphicsBuffer)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                                 break;
                         }
                     }
@@ -733,7 +732,7 @@ namespace CoreEngine.Rendering
             // TODO: Add Backface Culling parameter
             // TODO: Add BlendOperation parameter
 
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget0, renderTarget1, depthBufferTexture, depthBufferOperation, this.backfaceCulling, PrimitiveType.Triangle);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget0, renderTarget1, depthBufferTexture, depthBufferOperation, this.backfaceCulling);
             graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
             var startQueryIndex = renderManager.InsertQueryTimestamp(renderCommandList);
 
@@ -786,7 +785,7 @@ namespace CoreEngine.Rendering
                     // TODO: Evaluate is performance is it using reflection? Will it cause issues with CoreRT?
                     if (resourceBinding is ShaderGraphicsPipelineResourceBinding shaderResourceBinding && pipelineResource.ResourceType == GraphicsResourceType.Texture)
                     {
-                        graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
+                        // graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline));
                     }
                 }
             }
@@ -800,7 +799,7 @@ namespace CoreEngine.Rendering
                     
                     if (resourceBinding is ShaderGraphicsPipelineResourceBinding shaderResourceBinding && pipelineResource.ResourceType == GraphicsResourceType.Texture)
                     {
-                        graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline), isReadOnly: false);
+                        // graphicsManager.SetShaderTexture(computeCommandList, (Texture)pipelineResource, shaderResourceBinding.ShaderBindingSlot.Evaluate(pipeline), isReadOnly: false);
                     }
                 }
             }
@@ -1016,6 +1015,8 @@ namespace CoreEngine.Rendering
         private Shader convertToMomentShadowMapShader;
         private Shader computeDirectTransferShader;
 
+        private Shader renderMeshInstanceShader;
+
         private GraphicsBuffer cpuRenderPassParametersGraphicsBuffer;
         private GraphicsBuffer renderPassParametersGraphicsBuffer;
 
@@ -1066,6 +1067,8 @@ namespace CoreEngine.Rendering
             this.computeLightCamerasShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeLightCameras.shader", "ComputeLightCameras");
             this.convertToMomentShadowMapShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ConvertToMomentShadowMap.shader");
             this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
+
+            this.renderMeshInstanceShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
 
             this.minMaxDepthComputeBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector2>(GraphicsHeapType.Gpu, 10000, isStatic: true, label: "ComputeMinMaxDepthWorkingBuffer");
 
@@ -1140,17 +1143,19 @@ namespace CoreEngine.Rendering
                 new GraphicsPipelineTextureResourceDeclaration("ToneMapRenderTarget", TextureFormat.Rgba16Float, TextureUsage.ShaderWrite, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height"))
             };
 
-            var graphicsPipelineSteps = new GraphicsPipelineStep[]
-            {
-                new ExecutePipelineStep("GenerateDepthBuffer",
-                                        this.depthGraphicsPipeline,
-                                        new GraphicsPipelineParameter[]
-                                        {
-                                            new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer")),
-                                            new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer")),
-                                            new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer")),
-                                            new BindingGraphicsPipelineParameter<int>("GeometryInstanceCount", new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
-                                        }),
+            var graphicsPipelineSteps = Array.Empty<GraphicsPipelineStep>();
+            
+            // var graphicsPipelineSteps = new GraphicsPipelineStep[]
+            // {
+                // new ExecutePipelineStep("GenerateDepthBuffer",
+                //                         this.depthGraphicsPipeline,
+                //                         new GraphicsPipelineParameter[]
+                //                         {
+                //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer")),
+                //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer")),
+                //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer")),
+                //                             new BindingGraphicsPipelineParameter<int>("GeometryInstanceCount", new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
+                //                         }),
                 // new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
                 //                                 resourcesManager,
                 //                                 new GraphicsPipelineResourceBinding[]
@@ -1162,63 +1167,63 @@ namespace CoreEngine.Rendering
                 //                                 {
                 //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
                 //                                 }),
-                new RenderIndirectCommandBufferPipelineStep("RenderOpaqueGeometry",
-                                                            "/System/Shaders/RenderMeshInstance.shader",
-                                                            new GraphicsPipelineResourceBinding[]
-                                                            {
-                                                                new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareEqual)),
-                                                                new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
-                                                            },
-                                                            new GraphicsPipelineResourceBinding[]
-                                                            {
-                                                                new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new GraphicsPipelineParameterBinding<Vector4>("ClearColor"))
-                                                            }),
-                new RenderIndirectCommandBufferPipelineStep("RenderTransparentGeometry",
-                                                            "/System/Shaders/RenderMeshInstanceTransparent.shader",
-                                                            new GraphicsPipelineResourceBinding[]
-                                                            {
-                                                                new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareGreater)),
-                                                                new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
-                                                            },
-                                                            new GraphicsPipelineResourceBinding[]
-                                                            {
-                                                                new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new ConstantPipelineParameterBinding<Vector4>(new Vector4(0, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneOne)),
-                                                                new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(1), new ConstantPipelineParameterBinding<Vector4>(new Vector4(1, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneMinusSourceColor))
-                                                            },
-                                                            backfaceCulling: false),
-                new ComputeGraphicsPipelineStep("Resolve", 
-                                                "/System/Shaders/ResolveCompute.shader@Resolve",
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0)),
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(1)),
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(2))
-                                                }, 
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(3))
-                                                }, 
-                                                new GraphicsPipelineParameterBinding<int>[]
-                                                {  
-                                                    new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Width"),
-                                                    new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Height")
-                                                }),
-                new ComputeGraphicsPipelineStep("ToneMap", 
-                                                "/System/Shaders/ToneMapCompute.shader@ToneMap",
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(0))
-                                                }, 
-                                                new GraphicsPipelineResourceBinding[]
-                                                {
-                                                    new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ToneMapRenderTarget"), new ConstantPipelineParameterBinding<int>(1))
-                                                }, 
-                                                new GraphicsPipelineParameterBinding<int>[]
-                                                {  
-                                                    new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"),
-                                                    new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")
-                                                })
-            };
+                // new RenderIndirectCommandBufferPipelineStep("RenderOpaqueGeometry",
+                //                                             "/System/Shaders/RenderMeshInstance.shader",
+                //                                             new GraphicsPipelineResourceBinding[]
+                //                                             {
+                //                                                 new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareEqual)),
+                //                                                 new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
+                //                                             },
+                //                                             new GraphicsPipelineResourceBinding[]
+                //                                             {
+                //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new GraphicsPipelineParameterBinding<Vector4>("ClearColor"))
+                //                                             }),
+                // new RenderIndirectCommandBufferPipelineStep("RenderTransparentGeometry",
+                //                                             "/System/Shaders/RenderMeshInstanceTransparent.shader",
+                //                                             new GraphicsPipelineResourceBinding[]
+                //                                             {
+                //                                                 new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareGreater)),
+                //                                                 new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
+                //                                             },
+                //                                             new GraphicsPipelineResourceBinding[]
+                //                                             {
+                //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new ConstantPipelineParameterBinding<Vector4>(new Vector4(0, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneOne)),
+                //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(1), new ConstantPipelineParameterBinding<Vector4>(new Vector4(1, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneMinusSourceColor))
+                //                                             },
+                //                                             backfaceCulling: false),
+                // new ComputeGraphicsPipelineStep("Resolve", 
+                //                                 "/System/Shaders/ResolveCompute.shader@Resolve",
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0)),
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(1)),
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(2))
+                //                                 }, 
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(3))
+                //                                 }, 
+                //                                 new GraphicsPipelineParameterBinding<int>[]
+                //                                 {  
+                //                                     new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Width"),
+                //                                     new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Height")
+                //                                 }),
+                // new ComputeGraphicsPipelineStep("ToneMap", 
+                //                                 "/System/Shaders/ToneMapCompute.shader@ToneMap",
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(0))
+                //                                 }, 
+                //                                 new GraphicsPipelineResourceBinding[]
+                //                                 {
+                //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ToneMapRenderTarget"), new ConstantPipelineParameterBinding<int>(1))
+                //                                 }, 
+                //                                 new GraphicsPipelineParameterBinding<int>[]
+                //                                 {  
+                //                                     new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"),
+                //                                     new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")
+                //                                 })
+            // };
 
             this.graphicsPipeline = new GraphicsPipeline(this.renderManager, this.graphicsManager, resourcesManager, graphicsPipelineResourceDeclarations, graphicsPipelineSteps);
         }
@@ -1241,8 +1246,6 @@ namespace CoreEngine.Rendering
             // TODO: Move that to render pipeline
             this.debugRenderer.ClearDebugLines();
 
-            this.debugRenderer.DrawLine(new Vector3(3, -4, 6), new Vector3(10, 7, -10), new Vector3(0, 0.5f, 1.0f));
-
             if (this.renderManager.logFrameTime)
             {
                 Logger.BeginAction("InitGpuData");
@@ -1264,23 +1267,22 @@ namespace CoreEngine.Rendering
             }
         }
 
-        GraphicsBuffer[] graphicsBufferList = new GraphicsBuffer[10000];
-        int currentGraphicsBufferIndex;
-
         int currentCameraIndex;
         int currentLightIndex;
-        int currentMaterialIndex;
+        // int currentMaterialIndex;
         int currentGeometryPacketIndex;
         int currentGeometryInstanceIndex;
 
         ShaderCamera mainCamera;
 
-        Dictionary<uint, int> materialListIndexes = new Dictionary<uint, int>();
-        Texture[] textureList = new Texture[10000];
-        int currentTextureIndex;
+        ShaderGeometryPacket[] geometryPacketList = new ShaderGeometryPacket[10000];
+        ShaderGeometryInstance[] geometryInstanceList = new ShaderGeometryInstance[100000];
+        ShaderCamera[] cameraList = new ShaderCamera[10000];
+        ShaderLight[] lightList = new ShaderLight[10000];
+        // ShaderMaterial[] materialList = new ShaderMaterial[10000];
+        ShaderSceneProperties[] sceneProperties = new ShaderSceneProperties[1];
 
-        Texture[] cubeTextureList = new Texture[10000];
-        int currentCubeTextureIndex;
+        // Dictionary<uint, int> materialListIndexes = new Dictionary<uint, int>();
 
         Texture[] shadowMaps = new Texture[100];
         int currentShadowMapIndex;
@@ -1297,18 +1299,6 @@ namespace CoreEngine.Rendering
             }
 
             return this.currentIndirectCommandBufferIndex++;
-        }
-
-        private int AddTexture(Texture texture)
-        {
-            this.textureList[this.currentTextureIndex] = texture;
-            return this.currentTextureIndex++;
-        }
-
-        private int AddCubeTexture(Texture texture)
-        {
-            this.cubeTextureList[this.currentCubeTextureIndex] = texture;
-            return this.currentCubeTextureIndex++;
         }
 
         private int AddShadowMap(int shadowMapSize, bool isMomentShadowMap)
@@ -1335,17 +1325,17 @@ namespace CoreEngine.Rendering
 
             if (depthTexture != null)
             {
-                camera.DepthBufferTextureIndex = AddTexture(depthTexture);
+                camera.DepthBufferTextureIndex = (int)depthTexture.ShaderResourceIndex;
             }
 
             if (momentShadowMap != null)
             {
-                camera.MomentShadowMapIndex = AddTexture(momentShadowMap);
+                camera.MomentShadowMapIndex = (int)momentShadowMap.ShaderResourceIndex;
             }
 
             if (occlusionDepthTexture != null)
             {
-                camera.OcclusionDepthTextureIndex = AddTexture(occlusionDepthTexture);
+                camera.OcclusionDepthTextureIndex = (int)occlusionDepthTexture.ShaderResourceIndex;
             }
 
             camera.OpaqueDepthCommandListIndex = AddIndirectCommandBuffer("OpaqueDepthICB");
@@ -1358,7 +1348,6 @@ namespace CoreEngine.Rendering
                 camera.TransparentCommandListIndex = AddIndirectCommandBuffer("TransparentICB");
             }
 
-            var cameraList = this.graphicsManager.GetCpuGraphicsBufferPointer<ShaderCamera>(this.cpuCamerasBuffer);
             cameraList[this.currentCameraIndex] = camera;
 
             return this.currentCameraIndex++;
@@ -1402,77 +1391,56 @@ namespace CoreEngine.Rendering
                 }
             }
 
-            var lightList = this.graphicsManager.GetCpuGraphicsBufferPointer<ShaderLight>(this.cpuLightsBuffer);
             lightList[this.currentLightIndex] = light;
             return this.currentLightIndex++;
         }
 
-        private int AddMaterial(Material material)
-        {
-            if (material.MaterialData == null)
-            {
-                return -1;
-            }
+        // private int AddMaterial(Material material)
+        // {
+        //     if (material.MaterialData == null)
+        //     {
+        //         return -1;
+        //     }
 
-            if (this.materialListIndexes.ContainsKey(material.ResourceId))
-            {
-                return this.materialListIndexes[material.ResourceId];
-            }
+        //     if (this.materialListIndexes.ContainsKey(material.ResourceId))
+        //     {
+        //         return this.materialListIndexes[material.ResourceId];
+        //     }
 
-            var materialList = this.graphicsManager.GetCpuGraphicsBufferPointer<ShaderMaterial>(this.cpuMaterialsBuffer);
+        //     materialList[this.currentMaterialIndex].MaterialBufferIndex = (int)material.MaterialData.ShaderResourceIndex;
+        //     materialList[this.currentMaterialIndex].IsTransparent = material.IsTransparent;
 
-            materialList[this.currentMaterialIndex].MaterialBufferIndex = AddGraphicsBuffer(material.MaterialData);
-            materialList[this.currentMaterialIndex].MaterialTextureOffset = this.currentTextureIndex;
-            materialList[this.currentMaterialIndex].IsTransparent = material.IsTransparent;
-
-            var textureList = material.TextureList.Span;
-
-            for (var i = 0; i < textureList.Length; i++)
-            {
-                AddTexture(textureList[i]);
-            }
-
-            this.materialListIndexes.Add(material.ResourceId, this.currentMaterialIndex);
-            return this.currentMaterialIndex++;
-        }
-
-        private int AddGraphicsBuffer(GraphicsBuffer graphicsBuffer)
-        {
-            this.graphicsBufferList[this.currentGraphicsBufferIndex] = graphicsBuffer;
-            return this.currentGraphicsBufferIndex++;
-        }
+        //     this.materialListIndexes.Add(material.ResourceId, this.currentMaterialIndex);
+        //     return this.currentMaterialIndex++;
+        // }
 
         private int AddGeometryPacket(GeometryPacket geometryPacket)
         {
             var shaderGeometryPacket = new ShaderGeometryPacket()
             {
-                VertexBufferIndex = AddGraphicsBuffer(geometryPacket.VertexBuffer),
-                IndexBufferIndex = AddGraphicsBuffer(geometryPacket.IndexBuffer)
+                VertexBufferIndex = (int)geometryPacket.VertexBuffer.ShaderResourceIndex,
+                IndexBufferIndex = (int)geometryPacket.IndexBuffer.ShaderResourceIndex
             };
 
-            var geometryPacketList = this.graphicsManager.GetCpuGraphicsBufferPointer<ShaderGeometryPacket>(this.cpuGeometryPacketsBuffer);
-            geometryPacketList[this.currentGeometryPacketIndex] = shaderGeometryPacket;
+            this.geometryPacketList[this.currentGeometryPacketIndex] = shaderGeometryPacket;
             return this.currentGeometryPacketIndex++;
         }
 
         private void InitializeGpuData(GraphicsScene scene)
         {
-            this.currentGraphicsBufferIndex = 0;
             this.currentGeometryPacketIndex = 0;
             this.currentCameraIndex = 0;
             this.currentLightIndex = 0;
-            this.currentMaterialIndex = 0;
-            this.materialListIndexes.Clear();
+            // this.currentMaterialIndex = 0;
+            // this.materialListIndexes.Clear();
             this.currentGeometryInstanceIndex = 0;
 
-            this.currentTextureIndex = 0;
-            this.currentCubeTextureIndex = 0;
             this.currentShadowMapIndex = 0;
 
             this.currentIndirectCommandBufferIndex = 0;
 
-            var currentMeshMaterialIndex = -1;
-            var currentGeometryInstanceMaterialIndex = -1;
+            // var currentMeshMaterialIndex = -1;
+            // var currentGeometryInstanceMaterialIndex = -1;
             var currentVertexBufferId = IntPtr.Zero;
 
             var scenePropertyObject = new ShaderSceneProperties();
@@ -1522,8 +1490,8 @@ namespace CoreEngine.Rendering
             scenePropertyObject.IsDebugCameraActive = (scene.DebugCamera != null);
 
             // TEST LIGHT BUFFER
-            AddCubeTexture(this.cubeMap);
-            AddCubeTexture(this.irradianceCubeMap);
+            // AddCubeTexture(this.cubeMap);
+            // AddCubeTexture(this.irradianceCubeMap);
 
             // var lightDirection = Vector3.Normalize(-new Vector3(0.172f, -0.818f, -0.549f));
             // shaderLight.WorldSpacePosition = Vector3.Normalize(new Vector3(-0.2f, 1.0f, -0.05f));
@@ -1559,25 +1527,20 @@ namespace CoreEngine.Rendering
                     this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBoxList[j], new Vector3(0, 1, 0));
                 }
 
-                if (meshInstance.Material != null)
-                {
-                    currentMeshMaterialIndex = AddMaterial(meshInstance.Material);
-                }
+                // if (meshInstance.Material != null)
+                // {
+                //     currentMeshMaterialIndex = AddMaterial(meshInstance.Material);
+                // }
 
                 for (var j = 0; j < mesh.GeometryInstances.Count; j++)
                 {
-                    if (this.currentGeometryInstanceIndex > 2000)
-                    {
-                        break;
-                    }
-
                     var geometryInstance = mesh.GeometryInstances[j];
                     var geometryPacket = geometryInstance.GeometryPacket;
 
-                    if (geometryInstance.Material != null)
-                    {
-                        currentGeometryInstanceMaterialIndex = AddMaterial(geometryInstance.Material);
-                    }
+                    // if (geometryInstance.Material != null)
+                    // {
+                    //     currentGeometryInstanceMaterialIndex = AddMaterial(geometryInstance.Material);
+                    // }
 
                     if (currentVertexBufferId != geometryPacket.VertexBuffer.NativePointer)
                     {
@@ -1596,22 +1559,22 @@ namespace CoreEngine.Rendering
                         };
                     }
 
+                    // TODO: Split mesh instance from geometry instance
                     var shaderGeometryInstance = new ShaderGeometryInstance()
                     {
                         GeometryPacketIndex = this.currentGeometryPacketIndex - 1,
                         StartIndex = geometryInstance.StartIndex,
                         IndexCount = geometryInstance.IndexCount,
-                        MaterialIndex = (meshInstance.Material != null) ? currentMeshMaterialIndex : ((geometryInstance.Material != null) ? (currentGeometryInstanceMaterialIndex) : -1),
+                        VertexCount = geometryInstance.VertexCount,
+                        // MaterialIndex = (meshInstance.Material != null) ? currentMeshMaterialIndex : ((geometryInstance.Material != null) ? (currentGeometryInstanceMaterialIndex) : -1),
                         WorldMatrix = meshInstance.WorldMatrix,
                         WorldBoundingBox = worldBoundingBox
                     };
 
-                    var geometryInstanceList = this.graphicsManager.GetCpuGraphicsBufferPointer<ShaderGeometryInstance>(this.cpuGeometryInstancesBuffer);
                     geometryInstanceList[this.currentGeometryInstanceIndex++] = shaderGeometryInstance;
                 }
             }
 
-            var sceneProperties = this.graphicsManager.GetCpuGraphicsBufferPointer<ShaderSceneProperties>(this.cpuScenePropertiesBuffer);
             sceneProperties[0] = scenePropertyObject;
         }
 
@@ -1619,15 +1582,27 @@ namespace CoreEngine.Rendering
 
         private CommandList CreateCopyCommandList()
         {
+            if (renderManager.logFrameTime)
+            {
+                Logger.BeginAction("CreateCopyCommandList");
+            }
+
             // Copy buffers
-            var counters = this.graphicsManager.GetCpuGraphicsBufferPointer<uint>(this.readBackIndirectCommandBufferCounters);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryPacket>(this.cpuGeometryPacketsBuffer, 0, this.geometryPacketList.AsSpan().Slice(0, this.currentGeometryPacketIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryInstance>(this.cpuGeometryInstancesBuffer, 0, this.geometryInstanceList.AsSpan().Slice(0, this.currentGeometryInstanceIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(this.cpuCamerasBuffer, 0, this.cameraList.AsSpan().Slice(0, this.currentCameraIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(this.cpuLightsBuffer, 0, this.lightList.AsSpan().Slice(0, this.currentLightIndex));
+            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMaterial>(this.cpuMaterialsBuffer, 0, this.materialList.AsSpan().Slice(0, this.currentMaterialIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderSceneProperties>(this.cpuScenePropertiesBuffer, 0, this.sceneProperties);
+
+            var counters = this.graphicsManager.CopyDataFromGraphicsBuffer<uint>(this.readBackIndirectCommandBufferCounters);
             var opaqueCounterIndex = this.mainCamera.OpaqueCommandListIndex;
             var transparentCounterIndex = this.mainCamera.TransparentCommandListIndex;
 
             this.renderManager.CulledGeometryInstancesCount = (int)counters[opaqueCounterIndex];
 
-            var indirectCounters = this.graphicsManager.GetCpuGraphicsBufferPointer<uint>(this.cpuIndirectCommandBufferCounters);
-            indirectCounters.Fill(0);
+            // var indirectCounters = this.graphicsManager.CopyDataFromGraphicsBuffer<uint>(this.cpuIndirectCommandBufferCounters);
+            // indirectCounters.Fill(0);
 
             this.renderManager.MainCameraDepth = new Vector2(this.mainCamera.MinDepth, this.mainCamera.MaxDepth);
 
@@ -1637,12 +1612,12 @@ namespace CoreEngine.Rendering
             this.previousCopyGpuDataIds.Enqueue(copyCommandList.NativePointer);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
 
-            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(copyCommandList, this.camerasBuffer, this.cpuCamerasBuffer, this.currentCameraIndex);
-            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, this.cpuScenePropertiesBuffer, 1);
-            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(copyCommandList, this.lightsBuffer, this.cpuLightsBuffer, this.currentLightIndex);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.cpuGeometryPacketsBuffer, this.currentGeometryPacketIndex);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, this.cpuGeometryInstancesBuffer, this.currentGeometryInstanceIndex);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(copyCommandList, this.camerasBuffer, this.cpuCamerasBuffer, this.currentCameraIndex);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(copyCommandList, this.lightsBuffer, this.cpuLightsBuffer, this.currentLightIndex);
             // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMaterial>(copyCommandList, this.materialsBuffer, this.cpuMaterialsBuffer, this.currentMaterialIndex);
-            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.cpuGeometryPacketsBuffer, this.currentGeometryPacketIndex);
-            // this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, this.cpuGeometryInstancesBuffer, this.currentGeometryInstanceIndex);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderSceneProperties>(copyCommandList, this.scenePropertiesBuffer, this.cpuScenePropertiesBuffer, 1);
             // this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indirectCommandBufferCounters, this.cpuIndirectCommandBufferCounters, 100);
             this.graphicsManager.CopyDataToGraphicsBuffer<RenderPassConstants>(copyCommandList, this.renderPassParametersGraphicsBuffer, this.cpuRenderPassParametersGraphicsBuffer, 1);
 
@@ -1652,9 +1627,13 @@ namespace CoreEngine.Rendering
             this.renderManager.AddGpuTiming(commandListName, QueryBufferType.CopyTimestamp, startQueryIndex, endQueryIndex);
 
             this.renderManager.GeometryInstancesCount = this.currentGeometryInstanceIndex;
-            this.renderManager.MaterialsCount = this.currentMaterialIndex;
-            this.renderManager.TexturesCount = this.currentTextureIndex;
+            // this.renderManager.MaterialsCount = this.currentMaterialIndex;
             this.renderManager.LightsCount = this.currentLightIndex;
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+            }
 
             return copyCommandList;
         }
@@ -1686,17 +1665,17 @@ namespace CoreEngine.Rendering
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(computeCommandList);
 
             this.graphicsManager.SetShader(computeCommandList, this.drawMeshInstancesComputeShader);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.scenePropertiesBuffer, 0);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.camerasBuffer, 1);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.lightsBuffer, 2);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.materialsBuffer, 3);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryPacketsBuffer, 4);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryInstancesBuffer, 5);
-            this.graphicsManager.SetShaderBuffers(computeCommandList, this.graphicsBufferList.AsSpan().Slice(0, this.currentGraphicsBufferIndex), 6);
-            this.graphicsManager.SetShaderTextures(computeCommandList, this.textureList.AsSpan().Slice(0, this.currentTextureIndex), 10006);
-            this.graphicsManager.SetShaderTextures(computeCommandList, this.cubeTextureList.AsSpan().Slice(0, this.currentCubeTextureIndex), 20006);
-            this.graphicsManager.SetShaderIndirectCommandBuffers(computeCommandList, this.indirectCommandBufferList.AsSpan().Slice(0, this.currentIndirectCommandBufferIndex), 30006);
-            this.graphicsManager.SetShaderBuffer(computeCommandList, this.indirectCommandBufferCounters, 30106);
+            // this.graphicsManager.SetShaderBuffer(computeCommandList, this.scenePropertiesBuffer, 0);
+            // this.graphicsManager.SetShaderBuffer(computeCommandList, this.camerasBuffer, 1);
+            // this.graphicsManager.SetShaderBuffer(computeCommandList, this.lightsBuffer, 2);
+            // this.graphicsManager.SetShaderBuffer(computeCommandList, this.materialsBuffer, 3);
+            // this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryPacketsBuffer, 4);
+            // this.graphicsManager.SetShaderBuffer(computeCommandList, this.geometryInstancesBuffer, 5);
+            // this.graphicsManager.SetShaderBuffers(computeCommandList, this.graphicsBufferList.AsSpan().Slice(0, this.currentGraphicsBufferIndex), 6);
+            // this.graphicsManager.SetShaderTextures(computeCommandList, this.textureList.AsSpan().Slice(0, this.currentTextureIndex), 10006);
+            // this.graphicsManager.SetShaderTextures(computeCommandList, this.cubeTextureList.AsSpan().Slice(0, this.currentCubeTextureIndex), 20006);
+            // this.graphicsManager.SetShaderIndirectCommandBuffers(computeCommandList, this.indirectCommandBufferList.AsSpan().Slice(0, this.currentIndirectCommandBufferIndex), 30006);
+            // this.graphicsManager.SetShaderBuffer(computeCommandList, this.indirectCommandBufferCounters, 30106);
 
             this.graphicsManager.DispatchThreads(computeCommandList, (uint)this.currentGeometryInstanceIndex, cameraCount, 1);
             
@@ -1811,6 +1790,11 @@ namespace CoreEngine.Rendering
 
         private void RunRenderPipeline(Texture mainRenderTargetTexture)
         {
+            if (mainRenderTargetTexture is null)
+            {
+                throw new ArgumentNullException(nameof(mainRenderTargetTexture));
+            }
+
             if (this.currentGeometryInstanceIndex == 0)
             {
                 return;
@@ -1872,9 +1856,53 @@ namespace CoreEngine.Rendering
             // // TODO: Skip the wait if the last step of the pipeline was on the render queue
             // this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, pipelineFence);
             // this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { transferCommandList }, isAwaitable: false);
+            
+            if (renderManager.logFrameTime)
+            {
+                Logger.BeginAction("Create Depth Buffer");
+            }
+
+            var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
+            
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+                Logger.BeginAction("Execute Command List");
+            }
+
+            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "TestRender");
+
+            var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, Vector4.Zero, BlendOperation.None);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true);
+
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
+
+            this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstanceShader);
+            this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { this.geometryInstancesBuffer.ShaderResourceIndex, this.geometryPacketsBuffer.ShaderResourceIndex, this.camerasBuffer.ShaderResourceIndex });
+            this.graphicsManager.DispatchMesh(renderCommandList, (uint)this.currentGeometryInstanceIndex, 1, 1);
+        
+            this.graphicsManager.EndRenderPass(renderCommandList);
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+
+            this.graphicsManager.CommitCommandList(renderCommandList);
+            this.renderManager.AddGpuTiming("TestRender", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
             this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, copyFence);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] {renderCommandList}, isAwaitable: false);
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+                Logger.BeginAction("DebugRenderer");
+            }
+
             this.debugRenderer.Render(this.renderPassParametersGraphicsBuffer, mainRenderTargetTexture, this.graphicsPipeline.ResolveResource("MainCameraDepthBuffer") as Texture);
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+            }
 
             // var debugXOffset = this.graphicsManager.GetRenderSize().X - 256;
 
@@ -1890,14 +1918,14 @@ namespace CoreEngine.Rendering
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "TransferTextureCommandList");
 
             var renderTarget = new RenderTargetDescriptor(destinationTexture, null, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.TriangleStrip);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true);
 
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.SetShader(renderCommandList, this.computeDirectTransferShader);
-            this.graphicsManager.SetShaderTexture(renderCommandList, sourceTexture, 0);
-            this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
+            // this.graphicsManager.SetShaderTexture(renderCommandList, sourceTexture, 0);
+            // this.graphicsManager.DrawPrimitives(renderCommandList, PrimitiveType.TriangleStrip, 0, 4);
 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.EndRenderPass(renderCommandList);
@@ -1910,12 +1938,10 @@ namespace CoreEngine.Rendering
 
         private void SetupCamera(Camera camera)
         {
-            var renderPassConstants = this.graphicsManager.GetCpuGraphicsBufferPointer<RenderPassConstants>(this.cpuRenderPassParametersGraphicsBuffer);
-            var value = new RenderPassConstants();
+            var value = new RenderPassConstants[1];
+            value[0].ViewProjMatrix = camera.ViewMatrix * camera.ProjectionMatrix;
 
-            value.ViewProjMatrix = camera.ViewMatrix * camera.ProjectionMatrix;
-
-            renderPassConstants[0] = value;
+            this.graphicsManager.CopyDataToGraphicsBuffer<RenderPassConstants>(this.cpuRenderPassParametersGraphicsBuffer, 0, value);
         }
     }
 }

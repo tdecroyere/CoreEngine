@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Numerics;
 using CoreEngine.Diagnostics;
@@ -76,9 +77,11 @@ namespace CoreEngine.Rendering
             
             var textureDataLength = reader.ReadInt32();
 
+            var textureData = ArrayPool<byte>.Shared.Rent(textureDataLength);
+            reader.Read(textureData, 0, textureDataLength);
             using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
-            var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
-            reader.Read(textureData);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuBuffer, 0, textureData.AsSpan().Slice(0, textureDataLength));
+            ArrayPool<byte>.Shared.Return(textureData);
 
             if (font.Texture.NativePointer != IntPtr.Zero)
             {

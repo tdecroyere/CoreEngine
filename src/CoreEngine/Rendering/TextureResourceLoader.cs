@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
@@ -29,9 +30,14 @@ namespace CoreEngine.Rendering
             this.emptyTexture = graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba8UnormSrgb, TextureUsage.ShaderRead, 256, 256, 1, 1, 1, isStatic: true, label: "EmptyTexture");
             Logger.EndAction();
 
-            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, 256 * 256 * 4, isStatic: true, label: "TextureCpuBuffer");
-            var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
-            textureData.Fill(255);
+            var sizeInBytes = 256 * 256 * 4;
+            var textureData = ArrayPool<byte>.Shared.Rent(sizeInBytes);
+            Array.Fill<byte>(textureData, 255);
+
+            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, sizeInBytes, isStatic: true, label: "TextureCpuBuffer");
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuBuffer, 0, textureData.AsSpan().Slice(0, sizeInBytes));
+
+            ArrayPool<byte>.Shared.Return(textureData);
 
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "TextureLoaderCommandList");
             this.graphicsManager.CopyDataToTexture<byte>(copyCommandList, this.emptyTexture, cpuBuffer, 256, 256, 0, 0);
@@ -101,10 +107,13 @@ namespace CoreEngine.Rendering
                 {
                     var textureDataLength = reader.ReadInt32();
                  
+                    var textureData = ArrayPool<byte>.Shared.Rent(textureDataLength);
+                    reader.Read(textureData, 0, textureDataLength);
+
                     using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
-                    var textureData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
-                    
-                    reader.Read(textureData);
+                    this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuBuffer, 0, textureData.AsSpan().Slice(0, textureDataLength));
+
+                    ArrayPool<byte>.Shared.Return(textureData);
 
                     if (j > 0)
                     {

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
@@ -64,10 +65,11 @@ namespace CoreEngine.Rendering
             }
 
             var materialDataLength = reader.ReadInt32();
-
+            var materialData = ArrayPool<byte>.Shared.Rent(materialDataLength);
+            reader.Read(materialData, 0, materialDataLength);
             using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, materialDataLength, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
-            var materialData = this.graphicsManager.GetCpuGraphicsBufferPointer<byte>(cpuBuffer);
-            reader.Read(materialData);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuBuffer, 0, materialData.AsSpan().Slice(0, materialDataLength));
+            ArrayPool<byte>.Shared.Return(materialData);
 
             material.MaterialData = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, materialData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
 

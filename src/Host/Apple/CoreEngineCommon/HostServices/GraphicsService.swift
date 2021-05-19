@@ -50,12 +50,6 @@ public protocol GraphicsServiceProtocol {
     func createPipelineState(_ shaderPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> UnsafeMutableRawPointer?
     func setPipelineStateLabel(_ pipelineStatePointer: UnsafeMutableRawPointer?, _ label: String)
     func deletePipelineState(_ pipelineStatePointer: UnsafeMutableRawPointer?)
-    func setShaderBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
-    func setShaderBuffers(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointerList: [UnsafeMutableRawPointer?], _ slot: Int, _ index: Int)
-    func setShaderTexture(_ commandListPointer: UnsafeMutableRawPointer?, _ texturePointer: UnsafeMutableRawPointer?, _ slot: Int, _ isReadOnly: Bool, _ index: Int)
-    func setShaderTextures(_ commandListPointer: UnsafeMutableRawPointer?, _ texturePointerList: [UnsafeMutableRawPointer?], _ slot: Int, _ index: Int)
-    func setShaderIndirectCommandList(_ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandListPointer: UnsafeMutableRawPointer?, _ slot: Int, _ index: Int)
-    func setShaderIndirectCommandLists(_ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandListPointerList: [UnsafeMutableRawPointer?], _ slot: Int, _ index: Int)
     func copyDataToGraphicsBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationGraphicsBufferPointer: UnsafeMutableRawPointer?, _ sourceGraphicsBufferPointer: UnsafeMutableRawPointer?, _ length: Int)
     func copyDataToTexture(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationTexturePointer: UnsafeMutableRawPointer?, _ sourceGraphicsBufferPointer: UnsafeMutableRawPointer?, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int)
     func copyTexture(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationTexturePointer: UnsafeMutableRawPointer?, _ sourceTexturePointer: UnsafeMutableRawPointer?)
@@ -70,9 +64,6 @@ public protocol GraphicsServiceProtocol {
     func setShaderParameterValues(_ commandListPointer: UnsafeMutableRawPointer?, _ slot: UInt, _ values: [UInt32])
     func executeIndirectCommandBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandBufferPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int)
     func dispatchMesh(_ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt)
-    func setIndexBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?)
-    func drawIndexedPrimitives(_ commandListPointer: UnsafeMutableRawPointer?, _ primitiveType: GraphicsPrimitiveType, _ startIndex: Int, _ indexCount: Int, _ instanceCount: Int, _ baseInstanceId: Int)
-    func drawPrimitives(_ commandListPointer: UnsafeMutableRawPointer?, _ primitiveType: GraphicsPrimitiveType, _ startVertex: Int, _ vertexCount: Int)
     func queryTimestamp(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int)
     func resolveQueryData(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ destinationBufferPointer: UnsafeMutableRawPointer?, _ startIndex: Int, _ endIndex: Int)
 }

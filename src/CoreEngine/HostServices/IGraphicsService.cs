@@ -22,13 +22,6 @@ namespace CoreEngine.HostServices
         Compute
     }
 
-    public enum GraphicsPrimitiveType
-    {
-        Triangle,
-        TriangleStrip,
-        Line,
-    }
-
     public enum GraphicsTextureFormat
     {
         Rgba8UnormSrgb,
@@ -173,7 +166,6 @@ namespace CoreEngine.HostServices
             this.DepthTexturePointer = renderPassDescriptor.DepthTexture?.NativePointer;
             this.DepthBufferOperation = (GraphicsDepthBufferOperation)renderPassDescriptor.DepthBufferOperation;
             this.BackfaceCulling = renderPassDescriptor.BackfaceCulling;
-            this.PrimitiveType = (GraphicsPrimitiveType)renderPassDescriptor.PrimitiveType;
         }
 
         public readonly bool IsRenderShader { get; }
@@ -197,7 +189,6 @@ namespace CoreEngine.HostServices
         public readonly IntPtr? DepthTexturePointer { get; }
         public readonly GraphicsDepthBufferOperation DepthBufferOperation { get; }
         public readonly bool BackfaceCulling { get; }
-        public readonly GraphicsPrimitiveType PrimitiveType { get; }
 
         public override int GetHashCode() 
         {
@@ -211,8 +202,7 @@ namespace CoreEngine.HostServices
                    this.RenderTarget4BlendOperation.GetHashCode() ^ 
                    this.MultiSampleCount.GetHashCode() ^ 
                    this.DepthBufferOperation.GetHashCode() ^ 
-                   this.BackfaceCulling.GetHashCode() ^
-                   this.PrimitiveType.GetHashCode();
+                   this.BackfaceCulling.GetHashCode();
         }
 
         public override bool Equals(Object? obj) 
@@ -266,6 +256,7 @@ namespace CoreEngine.HostServices
         void SetGraphicsHeapLabel(IntPtr graphicsHeapPointer, string label);
         void DeleteGraphicsHeap(IntPtr graphicsHeapPointer);
 
+        // TODO: Try to make a cache system for transient resources that are always created with the same descriptors
         IntPtr CreateShaderResourceHeap(ulong length);
         void SetShaderResourceHeapLabel(IntPtr shaderResourceHeapPointer, string label);
         void DeleteShaderResourceHeap(IntPtr shaderResourceHeapPointer);
@@ -312,16 +303,6 @@ namespace CoreEngine.HostServices
         void SetPipelineStateLabel(IntPtr pipelineStatePointer, string label);
         void DeletePipelineState(IntPtr pipelineStatePointer);
 
-        // TODO: Shader parameters is a separate resource that we can bind it is allocated in a heap and can be dynamic and is set in one call in a command list
-        // TODO: Each shader parameter set correspond in DX12 to a descriptorTable and to an argument buffer in Metal
-        // TODO: To Remove
-        void SetShaderBuffer(IntPtr commandListPointer, IntPtr graphicsBufferPointer, int slot, bool isReadOnly, int index);
-        void SetShaderBuffers(IntPtr commandListPointer, ReadOnlySpan<IntPtr> graphicsBufferPointerList, int slot, int index);
-        void SetShaderTexture(IntPtr commandListPointer, IntPtr texturePointer, int slot, bool isReadOnly, int index);
-        void SetShaderTextures(IntPtr commandListPointer, ReadOnlySpan<IntPtr> texturePointerList, int slot, int index);
-        void SetShaderIndirectCommandList(IntPtr commandListPointer, IntPtr indirectCommandListPointer, int slot, int index);
-        void SetShaderIndirectCommandLists(IntPtr commandListPointer, ReadOnlySpan<IntPtr> indirectCommandListPointerList, int slot, int index);
-
         void CopyDataToGraphicsBuffer(IntPtr commandListPointer, IntPtr destinationGraphicsBufferPointer, IntPtr sourceGraphicsBufferPointer, int length);
         void CopyDataToTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceGraphicsBufferPointer, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceTexturePointer);
@@ -337,6 +318,8 @@ namespace CoreEngine.HostServices
 
         void SetPipelineState(IntPtr commandListPointer, IntPtr pipelineStatePointer);
 
+        // TODO: Add resource barrier management
+        
         // TODO: Add a raytrace command list
 
         // TODO: This function should be removed. Only pipeline states can be set 
@@ -347,15 +330,6 @@ namespace CoreEngine.HostServices
         void ExecuteIndirectCommandBuffer(IntPtr commandListPointer, IntPtr indirectCommandBufferPointer, int maxCommandCount);
 
         void DispatchMesh(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
-
-        [Obsolete("Use DispatchMesh")]
-        void SetIndexBuffer(IntPtr commandListPointer, IntPtr graphicsBufferPointer);
-        [Obsolete("Use DispatchMesh")]
-        void DrawIndexedPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startIndex, int indexCount, int instanceCount, int baseInstanceId);
-
-        // TODO: Change that to take instances params
-        [Obsolete("Use DispatchMesh")]
-        void DrawPrimitives(IntPtr commandListPointer, GraphicsPrimitiveType primitiveType, int startVertex, int vertexCount);
 
         void QueryTimestamp(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);
         void ResolveQueryData(IntPtr commandListPointer, IntPtr queryBufferPointer, IntPtr destinationBufferPointer, int startIndex, int endIndex);

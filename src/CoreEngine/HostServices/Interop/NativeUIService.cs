@@ -8,7 +8,7 @@ namespace CoreEngine.HostServices.Interop
     {
         private IntPtr context { get; }
 
-        private delegate* unmanaged[Cdecl]<IntPtr, string, int, int, NativeWindowState, IntPtr> nativeUIService_CreateWindowDelegate { get; }
+        private delegate* unmanaged[Cdecl, SuppressGCTransition]<IntPtr, string, int, int, NativeWindowState, IntPtr> nativeUIService_CreateWindowDelegate { get; }
         public unsafe IntPtr CreateWindow(string title, int width, int height, NativeWindowState windowState)
         {
             if (this.nativeUIService_CreateWindowDelegate != null)
@@ -19,7 +19,7 @@ namespace CoreEngine.HostServices.Interop
             return default(IntPtr);
         }
 
-        private delegate* unmanaged[Cdecl]<IntPtr, IntPtr, string, void> nativeUIService_SetWindowTitleDelegate { get; }
+        private delegate* unmanaged[Cdecl, SuppressGCTransition]<IntPtr, IntPtr, string, void> nativeUIService_SetWindowTitleDelegate { get; }
         public unsafe void SetWindowTitle(IntPtr windowPointer, string title)
         {
             if (this.nativeUIService_SetWindowTitleDelegate != null)
@@ -28,7 +28,7 @@ namespace CoreEngine.HostServices.Interop
             }
         }
 
-        private delegate* unmanaged[Cdecl]<IntPtr, IntPtr, Vector2> nativeUIService_GetWindowRenderSizeDelegate { get; }
+        private delegate* unmanaged[Cdecl, SuppressGCTransition]<IntPtr, IntPtr, Vector2> nativeUIService_GetWindowRenderSizeDelegate { get; }
         public unsafe Vector2 GetWindowRenderSize(IntPtr windowPointer)
         {
             if (this.nativeUIService_GetWindowRenderSizeDelegate != null)
@@ -39,7 +39,7 @@ namespace CoreEngine.HostServices.Interop
             return default(Vector2);
         }
 
-        private delegate* unmanaged[Cdecl]<IntPtr, NativeAppStatus> nativeUIService_ProcessSystemMessagesDelegate { get; }
+        private delegate* unmanaged[Cdecl, SuppressGCTransition]<IntPtr, NativeAppStatus> nativeUIService_ProcessSystemMessagesDelegate { get; }
         public unsafe NativeAppStatus ProcessSystemMessages()
         {
             if (this.nativeUIService_ProcessSystemMessagesDelegate != null)

@@ -122,6 +122,19 @@ namespace CoreEngine.Rendering
                 mesh.GeometryInstances.Add(geometryInstance);
             }
 
+            var xBoundingBox = reader.ReadSingle();
+            var yBoundingBox = reader.ReadSingle();
+            var zBoundingBox = reader.ReadSingle();
+
+            var minPointBoundingBox = new Vector3(xBoundingBox, yBoundingBox, zBoundingBox);
+
+            xBoundingBox = reader.ReadSingle();
+            yBoundingBox = reader.ReadSingle();
+            zBoundingBox = reader.ReadSingle();
+
+            var maxPointBoundingBox = new Vector3(xBoundingBox, yBoundingBox, zBoundingBox);
+            mesh.BoundingBox = new BoundingBox(minPointBoundingBox, maxPointBoundingBox);
+
             return mesh;
         }
 

@@ -152,10 +152,6 @@ class Direct3D12GraphicsService
         unsigned long PresentSwapChain(void* swapChainPointer);
         void WaitForSwapChainOnCpu(void* swapChainPointer);
 
-        void* CreateIndirectCommandBuffer(int maxCommandCount);
-        void SetIndirectCommandBufferLabel(void* indirectCommandBufferPointer, char* label);
-        void DeleteIndirectCommandBuffer(void* indirectCommandBufferPointer);
-
         void* CreateQueryBuffer(enum GraphicsQueryBufferType queryBufferType, int length);
         void SetQueryBufferLabel(void* queryBufferPointer, char* label);
         void DeleteQueryBuffer(void* queryBufferPointer);
@@ -171,10 +167,8 @@ class Direct3D12GraphicsService
         void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes);
         void CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
-        void ResetIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount);
-        void OptimizeIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount);
 
-        struct Vector3 DispatchThreads(void* commandListPointer, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ);
+        void DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 
         void BeginRenderPass(void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
         void EndRenderPass(void* commandListPointer);
@@ -184,10 +178,10 @@ class Direct3D12GraphicsService
         void SetShader(void* commandListPointer, void* shaderPointer);
         void SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
 
-        void ExecuteIndirectCommandBuffer(void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount);
         void DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 
-        void QueryTimestamp(void* commandListPointer, void* queryBufferPointer, int index);
+        void BeginQuery(void* commandListPointer, void* queryBufferPointer, int index);
+        void EndQuery(void* commandListPointer, void* queryBufferPointer, int index);
         void ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex);
 
     private:

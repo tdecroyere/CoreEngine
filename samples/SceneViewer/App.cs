@@ -22,7 +22,7 @@ namespace CoreEngine.Samples.SceneViewer
                 var entitySystemManager = context.CurrentScene.EntitySystemManager;
 
                 entitySystemManager.RegisterEntitySystem<InputsUpdateSystem>();
-                // entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
+                entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
                 entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
                 entitySystemManager.RegisterEntitySystem<LightGeneratorSystem>();
                 entitySystemManager.RegisterEntitySystem<AutomaticMovementSystem>();

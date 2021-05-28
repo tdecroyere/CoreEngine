@@ -8,46 +8,62 @@ using CoreEngine.Resources;
 
 namespace CoreEngine.Rendering
 {
+    enum DebugPrimitiveType
+    {
+        Line = 0,
+        Cube = 1,
+        Sphere = 2,
+        BoundingFrustum = 3
+    }
+
     // TODO: Find a way to auto align fields to 16 Bytes (Required by shaders)
     readonly struct DebugPrimitive
     {
-        private DebugPrimitive(in Matrix4x4 worldMatrix, in Vector4 color)
+        private DebugPrimitive(Vector4 parameter1, Vector4 parameter2, Vector4 parameter3, Vector4 parameter4, Vector4 colorAndPrimitiveType)
         {
-            this.WorldMatrix = worldMatrix;
-            this.Color = color;
+            this.Parameter1 = parameter1;
+            this.Parameter2 = parameter2;
+            this.Parameter3 = parameter3;
+            this.Parameter4 = parameter4;
+            this.ColorAndPrimitiveType = colorAndPrimitiveType;
         }
 
-        public readonly Matrix4x4 WorldMatrix { get; }
-        public readonly Vector4 Color { get; }
+        public readonly Vector4 Parameter1 { get; }
+        public readonly Vector4 Parameter2 { get; }
+        public readonly Vector4 Parameter3 { get; }
+        public readonly Vector4 Parameter4 { get; }
+        public readonly Vector4 ColorAndPrimitiveType { get; }
 
         public static DebugPrimitive CreateLine(Vector3 point1, Vector3 point2, Vector3 color)
         {
-            var directionVector = point2 - point1;
-            var scale = new Vector3(1, 1, directionVector.Length());
+            // var directionVector = point2 - point1;
+            // var scale = new Vector3(1, 1, directionVector.Length());
 
-            Matrix4x4.Invert(MathUtils.CreateLookAtMatrix(point1, point2, new Vector3(0, 1, 0)), out var transformMatrix);
+            // Matrix4x4.Invert(MathUtils.CreateLookAtMatrix(point1, point2, new Vector3(0, 1, 0)), out var transformMatrix);
 
-            var worldMatrix = Matrix4x4.CreateScale(scale) * transformMatrix;
-            return new DebugPrimitive(worldMatrix, new Vector4(color, 1));
+            // var worldMatrix = Matrix4x4.CreateScale(scale) * transformMatrix;
+            return new DebugPrimitive(new Vector4(point1, 0.0f), new Vector4(point2, 0.0f), Vector4.Zero, Vector4.Zero, new Vector4(color, (float)DebugPrimitiveType.Line));
         }
 
         public static DebugPrimitive CreateBoundingBox(in BoundingBox boundingBox, Vector3 color)
         {
-            var worldMatrix = MathUtils.CreateScaleTranslation(boundingBox.Size, boundingBox.Center);
-            return new DebugPrimitive(worldMatrix, new Vector4(color, 1));
+            return new DebugPrimitive(new Vector4(boundingBox.Size, 0.0f), new Vector4(boundingBox.Center, 0.0f), Vector4.Zero, Vector4.Zero, new Vector4(color, (float)DebugPrimitiveType.Cube));
         }
 
         public static DebugPrimitive CreateBoundingFrustum(BoundingFrustum boundingFrustum, Vector3 color)
         {
             Matrix4x4.Invert(boundingFrustum.Matrix, out var transformMatrix);
-            return new DebugPrimitive(transformMatrix, new Vector4(color, 1));
+
+            return new DebugPrimitive(new Vector4(transformMatrix.M11, transformMatrix.M12, transformMatrix.M13, transformMatrix.M14), 
+                                      new Vector4(transformMatrix.M21, transformMatrix.M22, transformMatrix.M23, transformMatrix.M24), 
+                                      new Vector4(transformMatrix.M31, transformMatrix.M32, transformMatrix.M33, transformMatrix.M34), 
+                                      new Vector4(transformMatrix.M41, transformMatrix.M42, transformMatrix.M43, transformMatrix.M44), 
+                                      new Vector4(color, (float)DebugPrimitiveType.BoundingFrustum));
         }
 
         public static DebugPrimitive CreateSphere(Vector3 position, float radius, Vector3 color)
         {
-            var diameter = radius * 2.0f;
-            var worldMatrix = MathUtils.CreateScaleTranslation(new Vector3(diameter), position);
-            return new DebugPrimitive(worldMatrix, new Vector4(color, 1));
+            return new DebugPrimitive(new Vector4(position, 0.0f), new Vector4(radius, 0.0f, 0.0f, 0.0f), Vector4.Zero, Vector4.Zero, new Vector4(color, (float)DebugPrimitiveType.Sphere));
         }
     }
 
@@ -246,7 +262,7 @@ namespace CoreEngine.Rendering
             this.cubePrimitives[this.currentCubePrimitiveCount++] = DebugPrimitive.CreateBoundingFrustum(boundingFrustum, color);
         }
 
-        public void DrawBoundingBox(in BoundingBox boundingBox, in Vector3 color)
+        public void DrawBoundingBox(in BoundingBox boundingBox, Vector3 color)
         {
             this.cubePrimitives[this.currentCubePrimitiveCount++] = DebugPrimitive.CreateBoundingBox(boundingBox, color);
         }
@@ -299,7 +315,7 @@ namespace CoreEngine.Rendering
             return copyCommandList;
         }
 
-        private CommandList CreateRenderCommandList(GraphicsBuffer renderPassParametersGraphicsBuffer, Texture renderTargetTexture, Texture? depthTexture)
+        private CommandList CreateRenderCommandList(GraphicsBuffer cameraBuffer, Texture renderTargetTexture, Texture? depthTexture)
         {
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "DebugRenderer");
 
@@ -313,19 +329,19 @@ namespace CoreEngine.Rendering
 
             if (this.currentLinePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentLinePrimitiveCount, 0, (uint)this.lineVertexBufferOffset, (uint)this.lineIndexBufferOffset / 2, 128, 2, 1, this.primitiveBuffer.ShaderResourceIndex, renderPassParametersGraphicsBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentLinePrimitiveCount, 0, (uint)this.lineVertexBufferOffset, (uint)this.lineIndexBufferOffset / 2, 128, 2, 1, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
                 this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentLinePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
             if (this.currentCubePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentCubePrimitiveCount, (uint)this.currentLinePrimitiveCount, 0, 0, 20, 8, 12, this.primitiveBuffer.ShaderResourceIndex, renderPassParametersGraphicsBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentCubePrimitiveCount, (uint)this.currentLinePrimitiveCount, 0, 0, 20, 8, 12, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
                 this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentCubePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
             if (this.currentSpherePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSpherePrimitiveCount, (uint)this.currentLinePrimitiveCount + (uint)this.currentCubePrimitiveCount, (uint)this.sphereVertexBufferOffset, (uint)this.sphereIndexBufferOffset / 2, 2, 90, 90, this.primitiveBuffer.ShaderResourceIndex, renderPassParametersGraphicsBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSpherePrimitiveCount, (uint)this.currentLinePrimitiveCount + (uint)this.currentCubePrimitiveCount, (uint)this.sphereVertexBufferOffset, (uint)this.sphereIndexBufferOffset / 2, 2, 90, 90, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
                 this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSpherePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 

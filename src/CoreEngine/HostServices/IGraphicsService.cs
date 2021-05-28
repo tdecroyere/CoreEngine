@@ -67,7 +67,8 @@ namespace CoreEngine.HostServices
     public enum GraphicsQueryBufferType
     {
         Timestamp,
-        CopyTimestamp
+        CopyTimestamp,
+        GraphicsPipelineStats
     }
 
     public readonly struct GraphicsAllocationInfos
@@ -284,13 +285,6 @@ namespace CoreEngine.HostServices
         ulong PresentSwapChain(IntPtr swapChainPointer);
         void WaitForSwapChainOnCpu(IntPtr swapChainPointer);
 
-        // TODO: Pass a shader Id so that we can create an indirect argument buffer from the shader definition
-        // TODO: Rework indirect commands creation (Two steps, Command signature that returns the size and buffer creation)
-        // IntPtr CreateIndirectCommandBufferSignature();
-        IntPtr CreateIndirectCommandBuffer(int maxCommandCount);
-        void SetIndirectCommandBufferLabel(IntPtr indirectCommandBufferPointer, string label);
-        void DeleteIndirectCommandBuffer(IntPtr indirectCommandBufferPointer);
-
         IntPtr CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length);
         void SetQueryBufferLabel(IntPtr queryBufferPointer, string label);
         void DeleteQueryBuffer(IntPtr queryBufferPointer);
@@ -307,11 +301,7 @@ namespace CoreEngine.HostServices
         void CopyDataToTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceGraphicsBufferPointer, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceTexturePointer);
 
-        // TODO: Rename that to IndirectCommandBuffer
-        void ResetIndirectCommandList(IntPtr commandListPointer, IntPtr indirectCommandListPointer, int maxCommandCount);
-        void OptimizeIndirectCommandList(IntPtr commandListPointer, IntPtr indirectCommandListPointer, int maxCommandCount);
-
-        Vector3 DispatchThreads(IntPtr commandListPointer, uint threadCountX, uint threadCountY, uint threadCountZ);
+        void DispatchThreads(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
 
         void BeginRenderPass(IntPtr commandListPointer, GraphicsRenderPassDescriptor renderPassDescriptor);
         void EndRenderPass(IntPtr commandListPointer);
@@ -327,11 +317,12 @@ namespace CoreEngine.HostServices
         void SetShader(IntPtr commandListPointer, IntPtr shaderPointer);
         void SetShaderParameterValues(IntPtr commandListPointer, uint slot, ReadOnlySpan<uint> values);
 
-        void ExecuteIndirectCommandBuffer(IntPtr commandListPointer, IntPtr indirectCommandBufferPointer, int maxCommandCount);
-
         void DispatchMesh(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
 
-        void QueryTimestamp(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);
+        // TODO: Find a way to map opaque datastructures like the pipeline stats to a generic one to make this portable
+        // TODO: IS the pipeline state usefull?
+        void BeginQuery(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);
+        void EndQuery(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);
         void ResolveQueryData(IntPtr commandListPointer, IntPtr queryBufferPointer, IntPtr destinationBufferPointer, int startIndex, int endIndex);
     }
 }

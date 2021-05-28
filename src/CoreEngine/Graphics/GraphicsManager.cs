@@ -527,34 +527,6 @@ namespace CoreEngine.Graphics
             this.graphicsService.WaitForSwapChainOnCpu(swapChain.NativePointer);
         }
 
-        public IndirectCommandBuffer CreateIndirectCommandBuffer(int maxCommandCount, bool isStatic, string label)
-        {
-            var nativePointer1 = this.graphicsService.CreateIndirectCommandBuffer(maxCommandCount);
-
-            if (nativePointer1 == IntPtr.Zero)
-            {
-                throw new InvalidOperationException("There was an error while creating the indirect command buffer resource.");
-            }
-
-            this.graphicsService.SetIndirectCommandBufferLabel(nativePointer1, $"{label}{(isStatic ? string.Empty : "0") }");
-
-            IntPtr? nativePointer2 = null;
-
-            if (!isStatic)
-            {
-                nativePointer2 = this.graphicsService.CreateIndirectCommandBuffer(maxCommandCount);
-
-                if (nativePointer2.Value == IntPtr.Zero)
-                {
-                    throw new InvalidOperationException("There was an error while creating the indirect command buffer resource.");
-                }
-
-                this.graphicsService.SetIndirectCommandBufferLabel(nativePointer2.Value, $"{label}1");
-            }
-
-            return new IndirectCommandBuffer(this, nativePointer1, nativePointer2, maxCommandCount, isStatic, label);
-        }
-
         public QueryBuffer CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length, string label)
         {
             var nativePointer1 = this.graphicsService.CreateQueryBuffer((GraphicsQueryBufferType)queryBufferType, length);
@@ -715,40 +687,30 @@ namespace CoreEngine.Graphics
             this.graphicsService.CopyTexture(commandList.NativePointer, destination.NativePointer, source.NativePointer);
         }
 
-        public void ResetIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
-        {
-            this.graphicsService.ResetIndirectCommandList(commandList.NativePointer, indirectCommandList.NativePointer, maxCommandCount);
-        }
-
-        public void OptimizeIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandList, int maxCommandCount)
-        {
-            this.graphicsService.OptimizeIndirectCommandList(commandList.NativePointer, indirectCommandList.NativePointer, maxCommandCount);
-        }
-
-        public Vector3 DispatchThreads(CommandList commandList, uint threadCountX, uint threadCountY, uint threadCountZ)
+        public void DispatchThreads(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
             if (commandList.Type != CommandType.Compute)
             {
                 throw new InvalidOperationException("The specified command list is not a compute command list.");
             }
 
-            if (threadCountX == 0)
+            if (threadGroupCountX == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(threadCountX));
+                throw new ArgumentOutOfRangeException(nameof(threadGroupCountX));
             }
 
-            if (threadCountY == 0)
+            if (threadGroupCountY == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(threadCountY));
+                throw new ArgumentOutOfRangeException(nameof(threadGroupCountY));
             }
 
-            if (threadCountZ == 0)
+            if (threadGroupCountZ == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(threadCountZ));
+                throw new ArgumentOutOfRangeException(nameof(threadGroupCountZ));
             }
 
             this.cpuDispatchCount++;
-            return this.graphicsService.DispatchThreads(commandList.NativePointer, threadCountX, threadCountY, threadCountZ);
+            this.graphicsService.DispatchThreads(commandList.NativePointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
         }
 
         // TODO: Add checks to all render functins to see if a render pass has been started
@@ -819,16 +781,6 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetShaderParameterValues(commandList.NativePointer, slot, values);
         }
 
-        public void ExecuteIndirectCommandBuffer(CommandList commandList, IndirectCommandBuffer indirectCommandBuffer, int maxCommandCount)
-        {
-            if (commandList.Type != CommandType.Render)
-            {
-                throw new InvalidOperationException("The specified command list is not a render command list.");
-            }
-
-            this.graphicsService.ExecuteIndirectCommandBuffer(commandList.NativePointer, indirectCommandBuffer.NativePointer, maxCommandCount);
-        }
-
         public void DispatchMesh(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
             if (commandList.Type != CommandType.Render)
@@ -855,14 +807,24 @@ namespace CoreEngine.Graphics
             this.cpuDrawCount++;
         }
 
-        public void QueryTimestamp(CommandList commandList, QueryBuffer queryBuffer, int index)
+        public void BeginQuery(CommandList commandList, QueryBuffer queryBuffer, int index)
         {
             if (queryBuffer == null)
             {
                 throw new ArgumentNullException(nameof(queryBuffer));
             }
 
-            this.graphicsService.QueryTimestamp(commandList.NativePointer, queryBuffer.NativePointer, index);
+            this.graphicsService.BeginQuery(commandList.NativePointer, queryBuffer.NativePointer, index);
+        }
+
+        public void EndQuery(CommandList commandList, QueryBuffer queryBuffer, int index)
+        {
+            if (queryBuffer == null)
+            {
+                throw new ArgumentNullException(nameof(queryBuffer));
+            }
+
+            this.graphicsService.EndQuery(commandList.NativePointer, queryBuffer.NativePointer, index);
         }
 
         public void ResolveQueryData(CommandList commandList, QueryBuffer queryBuffer, GraphicsBuffer destinationBuffer, Range range)

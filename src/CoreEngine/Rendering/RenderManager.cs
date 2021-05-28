@@ -138,6 +138,8 @@ namespace CoreEngine.Rendering
                 this.globalCopyQueryBuffer.Dispose();
                 this.globalQueryBuffer.Dispose();
 
+                this.globalCpuQueryBuffer.Dispose();
+
                 this.computeDirectTransferShader.Dispose();
                 this.CopyCommandQueue.Dispose();
                 this.ComputeCommandQueue.Dispose();
@@ -169,7 +171,7 @@ namespace CoreEngine.Rendering
             if (commandList.Type == CommandType.Copy)
             {
                 var queryIndex = this.currentCopyQueryIndex;
-                this.graphicsManager.QueryTimestamp(commandList, this.globalCopyQueryBuffer, this.currentCopyQueryIndex++);
+                this.graphicsManager.EndQuery(commandList, this.globalCopyQueryBuffer, this.currentCopyQueryIndex++);
 
                 return queryIndex;
             }
@@ -177,7 +179,7 @@ namespace CoreEngine.Rendering
             else
             {
                 var queryIndex = this.currentQueryIndex;
-                this.graphicsManager.QueryTimestamp(commandList, this.globalQueryBuffer, this.currentQueryIndex++);
+                this.graphicsManager.EndQuery(commandList, this.globalQueryBuffer, this.currentQueryIndex++);
 
                 return queryIndex;
             }
@@ -343,7 +345,7 @@ namespace CoreEngine.Rendering
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory + this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB (Static: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}, Transient: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)})", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {Utils.BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
-            this.Graphics2DRenderer.DrawText($"    GeometryInstances: {this.CulledGeometryInstancesCount}/{this.GeometryInstancesCount}", new Vector2(10, 210));
+            this.Graphics2DRenderer.DrawText($"    Meshlets: {this.GeometryInstancesCount}", new Vector2(10, 210));
             this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
             this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
             this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 330));

@@ -186,21 +186,6 @@ func GraphicsService_waitForSwapChainOnCpuInterop(context: UnsafeMutableRawPoint
     contextObject.waitForSwapChainOnCpu(swapChainPointer)
 }
 
-func GraphicsService_createIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ maxCommandCount: Int32) -> UnsafeMutableRawPointer? {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.createIndirectCommandBuffer(Int(maxCommandCount))
-}
-
-func GraphicsService_setIndirectCommandBufferLabelInterop(context: UnsafeMutableRawPointer?, _ indirectCommandBufferPointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.setIndirectCommandBufferLabel(indirectCommandBufferPointer, String(cString: label!))
-}
-
-func GraphicsService_deleteIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ indirectCommandBufferPointer: UnsafeMutableRawPointer?) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.deleteIndirectCommandBuffer(indirectCommandBufferPointer)
-}
-
 func GraphicsService_createQueryBufferInterop(context: UnsafeMutableRawPointer?, _ queryBufferType: GraphicsQueryBufferType, _ length: Int32) -> UnsafeMutableRawPointer? {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.createQueryBuffer(queryBufferType, Int(length))
@@ -261,19 +246,9 @@ func GraphicsService_copyTextureInterop(context: UnsafeMutableRawPointer?, _ com
     contextObject.copyTexture(commandListPointer, destinationTexturePointer, sourceTexturePointer)
 }
 
-func GraphicsService_resetIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int32) {
+func GraphicsService_dispatchThreadsInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt32, _ threadGroupCountY: UInt32, _ threadGroupCountZ: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.resetIndirectCommandList(commandListPointer, indirectCommandListPointer, Int(maxCommandCount))
-}
-
-func GraphicsService_optimizeIndirectCommandListInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int32) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.optimizeIndirectCommandList(commandListPointer, indirectCommandListPointer, Int(maxCommandCount))
-}
-
-func GraphicsService_dispatchThreadsInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ threadCountX: UInt32, _ threadCountY: UInt32, _ threadCountZ: UInt32) -> Vector3 {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.dispatchThreads(commandListPointer, UInt(threadCountX), UInt(threadCountY), UInt(threadCountZ))
+    contextObject.dispatchThreads(commandListPointer, UInt(threadGroupCountX), UInt(threadGroupCountY), UInt(threadGroupCountZ))
 }
 
 func GraphicsService_beginRenderPassInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor) {
@@ -306,19 +281,19 @@ func GraphicsService_setShaderParameterValuesInterop(context: UnsafeMutableRawPo
     contextObject.setShaderParameterValues(commandListPointer, UInt(slot), Array(UnsafeBufferPointer(start: values, count: Int(valuesLength))))
 }
 
-func GraphicsService_executeIndirectCommandBufferInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ indirectCommandBufferPointer: UnsafeMutableRawPointer?, _ maxCommandCount: Int32) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.executeIndirectCommandBuffer(commandListPointer, indirectCommandBufferPointer, Int(maxCommandCount))
-}
-
 func GraphicsService_dispatchMeshInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt32, _ threadGroupCountY: UInt32, _ threadGroupCountZ: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.dispatchMesh(commandListPointer, UInt(threadGroupCountX), UInt(threadGroupCountY), UInt(threadGroupCountZ))
 }
 
-func GraphicsService_queryTimestampInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int32) {
+func GraphicsService_beginQueryInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.queryTimestamp(commandListPointer, queryBufferPointer, Int(index))
+    contextObject.beginQuery(commandListPointer, queryBufferPointer, Int(index))
+}
+
+func GraphicsService_endQueryInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int32) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.endQuery(commandListPointer, queryBufferPointer, Int(index))
 }
 
 func GraphicsService_resolveQueryDataInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ destinationBufferPointer: UnsafeMutableRawPointer?, _ startIndex: Int32, _ endIndex: Int32) {
@@ -365,9 +340,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_GetSwapChainBackBufferTexture = GraphicsService_getSwapChainBackBufferTextureInterop
     service.GraphicsService_PresentSwapChain = GraphicsService_presentSwapChainInterop
     service.GraphicsService_WaitForSwapChainOnCpu = GraphicsService_waitForSwapChainOnCpuInterop
-    service.GraphicsService_CreateIndirectCommandBuffer = GraphicsService_createIndirectCommandBufferInterop
-    service.GraphicsService_SetIndirectCommandBufferLabel = GraphicsService_setIndirectCommandBufferLabelInterop
-    service.GraphicsService_DeleteIndirectCommandBuffer = GraphicsService_deleteIndirectCommandBufferInterop
     service.GraphicsService_CreateQueryBuffer = GraphicsService_createQueryBufferInterop
     service.GraphicsService_SetQueryBufferLabel = GraphicsService_setQueryBufferLabelInterop
     service.GraphicsService_DeleteQueryBuffer = GraphicsService_deleteQueryBufferInterop
@@ -380,8 +352,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CopyDataToGraphicsBuffer = GraphicsService_copyDataToGraphicsBufferInterop
     service.GraphicsService_CopyDataToTexture = GraphicsService_copyDataToTextureInterop
     service.GraphicsService_CopyTexture = GraphicsService_copyTextureInterop
-    service.GraphicsService_ResetIndirectCommandList = GraphicsService_resetIndirectCommandListInterop
-    service.GraphicsService_OptimizeIndirectCommandList = GraphicsService_optimizeIndirectCommandListInterop
     service.GraphicsService_DispatchThreads = GraphicsService_dispatchThreadsInterop
     service.GraphicsService_BeginRenderPass = GraphicsService_beginRenderPassInterop
     service.GraphicsService_EndRenderPass = GraphicsService_endRenderPassInterop
@@ -389,8 +359,8 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetShaderResourceHeap = GraphicsService_setShaderResourceHeapInterop
     service.GraphicsService_SetShader = GraphicsService_setShaderInterop
     service.GraphicsService_SetShaderParameterValues = GraphicsService_setShaderParameterValuesInterop
-    service.GraphicsService_ExecuteIndirectCommandBuffer = GraphicsService_executeIndirectCommandBufferInterop
     service.GraphicsService_DispatchMesh = GraphicsService_dispatchMeshInterop
-    service.GraphicsService_QueryTimestamp = GraphicsService_queryTimestampInterop
+    service.GraphicsService_BeginQuery = GraphicsService_beginQueryInterop
+    service.GraphicsService_EndQuery = GraphicsService_endQueryInterop
     service.GraphicsService_ResolveQueryData = GraphicsService_resolveQueryDataInterop
 }

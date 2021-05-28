@@ -21,7 +21,13 @@ void WindowsInputsService::AssociateWindow(void* windowPointer)
 InputsState WindowsInputsService::GetInputsState()
 {
     UpdateRawInputState();
-    return this->inputState;
+    InputsState output = this->inputState;
+	
+	// TODO: Reset transition for other inputs
+	this->inputState.Keyboard.Space.TransitionCount = 0;
+	this->inputState.Keyboard.F1.TransitionCount = 0;
+		
+	return output;
 }
 
 void WindowsInputsService::SendVibrationCommand(uint32_t playerId, float leftTriggerMotor, float rightTriggerMotor, float leftStickMotor, float rightStickMotor, uint32_t duration10ms)

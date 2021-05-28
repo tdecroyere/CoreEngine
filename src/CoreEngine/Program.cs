@@ -17,8 +17,6 @@ using CoreEngine.Rendering.Components;
 
 public static class Program
 {
-    private static Task? renderTask;
-
     [UnmanagedCallersOnly(EntryPoint = "main")]
     public static void Main(HostPlatform hostPlatform)
     {
@@ -93,13 +91,15 @@ public static class Program
 
         if (coreEngineApp != null)
         {
-            renderTask = new Task(() => Render(context, coreEngineApp, renderManager, systemManagerContainer), new System.Threading.CancellationToken(), TaskCreationOptions.LongRunning);
-            // renderTask.Start();
-
             var appStatus = new AppStatus() { IsActive = true, IsRunning = true };
 
             while (appStatus.IsRunning)
             {
+                // TODO: How to reduce latency? Implement a sleep function that analyse the timing of the update and present 
+                // timings, so that the cpu update part can start sooner than the wait for swapchain on cpu. Then
+                // wait for swap chain. With that, the gpu work will be ready when the swap chain is available. 
+                // (For this, the swapchain latency should be 1 but the frames in flight should be 2)
+
                 renderManager.WaitForSwapChainOnCpu();
 
                 // var updatedApp = pluginManager.CheckForUpdatedAssemblies(context).Result;
@@ -122,15 +122,5 @@ public static class Program
         }
 
         Logger.WriteMessage("Exiting");
-    }
-
-    private static void Render(CoreEngineContext context, CoreEngineApp coreEngineApp, RenderManager renderManager, SystemManagerContainer systemManagerContainer)
-    {
-        systemManagerContainer.PreUpdateSystemManagers(context);
-                // TODO: Compute correct delta time
-                coreEngineApp.OnUpdate(context, 1.0f / 60.0f);
-                systemManagerContainer.PostUpdateSystemManagers(context);
-
-        renderManager.Render();
     }
 }

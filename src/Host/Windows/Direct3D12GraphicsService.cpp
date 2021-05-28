@@ -313,8 +313,9 @@ void Direct3D12GraphicsService::DeleteShaderResourceHeap(void* shaderResourceHea
 
 void Direct3D12GraphicsService::CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
 {
-	// TODO: To remove when SM6.6 is stable
+	// TODO: Create also RTV and DSV when appropriate so that we can remove the other global heaps
 
+	// TODO: To remove when SM6.6 is stable
 	int textureOffset = 500;
 
 	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
@@ -673,63 +674,6 @@ void Direct3D12GraphicsService::WaitForSwapChainOnCpu(void* swapChainPointer)
 	}
 }
 
-// TODO: To remove
-struct IndirectCommand
-{
-	D3D12_GPU_VIRTUAL_ADDRESS cbv;
-	D3D12_DRAW_ARGUMENTS drawArguments;
-};
-
-void* Direct3D12GraphicsService::CreateIndirectCommandBuffer(int maxCommandCount)
-{ 
-	if (this->currentShaderIndirectCommand.RootSignature == nullptr)
-	{
-		// TODO: This is a hack
-		return nullptr;
-	}
-
-	// TODO: Remove that hack, we need to pass the shader definition to the create method
-	auto indirectCommandShader = this->currentShaderIndirectCommand;
-	
-	// Each command consists of a CBV update and a DrawInstanced call.
-	D3D12_INDIRECT_ARGUMENT_DESC argumentDescs[2] = {};
-	argumentDescs[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW;
-	argumentDescs[0].ShaderResourceView.RootParameterIndex = 0;
-	argumentDescs[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
-
-	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
-	commandSignatureDesc.pArgumentDescs = argumentDescs;
-	commandSignatureDesc.NumArgumentDescs = 2;
-	commandSignatureDesc.ByteStride = sizeof(IndirectCommand);
-
-	ComPtr<ID3D12CommandSignature> commandSignature;
-	//AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, indirectCommandShader.RootSignature.Get(), IID_PPV_ARGS(&commandSignature)));
-	// AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(&commandSignature)));
-
-	// int Direct3D12GraphicsService::CreateGraphicsBufferOld(unsigned int graphicsBufferId, int sizeInBytes, int isWriteOnly, char* label)
-	// return CreateGraphicsBufferOld(indirectCommandBufferId, maxCommandCount * sizeof(IndirectCommand), false, "");
-
-	Direct3D12IndirectCommandBuffer* indirectCommandBufferStruct = new Direct3D12IndirectCommandBuffer();
-	indirectCommandBufferStruct->CommandSignature = commandSignature;
-
-	return indirectCommandBufferStruct;
-}
-
-void Direct3D12GraphicsService::SetIndirectCommandBufferLabel(void* indirectCommandBufferPointer, char* label)
-{
-	// if (!this->graphicsBuffers.count(indirectCommandBufferId))
-	// {
-	// 	return;
-	// }
-
-	// this->graphicsBuffers[indirectCommandBufferId]->SetName(wstring(label, label + strlen(label)).c_str());
-}
-
-void Direct3D12GraphicsService::DeleteIndirectCommandBuffer(void* indirectCommandBufferPointer)
-{
-
-}
-
 void* Direct3D12GraphicsService::CreateQueryBuffer(enum GraphicsQueryBufferType queryBufferType, int length)
 {
 	auto type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -737,6 +681,11 @@ void* Direct3D12GraphicsService::CreateQueryBuffer(enum GraphicsQueryBufferType 
 	if (queryBufferType == GraphicsQueryBufferType::CopyTimestamp)
 	{
 		type = D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP;
+	}
+
+	else if (queryBufferType == GraphicsQueryBufferType::GraphicsPipelineStats)
+	{
+		type = D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS1;
 	}
 
 	D3D12_QUERY_HEAP_DESC heapDesc = {};
@@ -1061,22 +1010,15 @@ void Direct3D12GraphicsService::CopyTexture(void* commandListPointer, void* dest
 	commandList->CommandListObject->CopyResource(destinationTexture->TextureObject.Get(), sourceTexture->TextureObject.Get());
 }
 
-void Direct3D12GraphicsService::ResetIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount){ }
-void Direct3D12GraphicsService::OptimizeIndirectCommandList(void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount){ }
-
-struct Vector3 Direct3D12GraphicsService::DispatchThreads(void* commandListPointer, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ)
+void Direct3D12GraphicsService::DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
 { 
 	if (!this->shaderBound)
 	{
-		return Vector3 { 32, 32, 1 };
+		return;
 	}
 
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-
-	// TODO: Change that
-	commandList->CommandListObject->Dispatch(ceil(threadCountX / 32.0f), ceil(threadCountY / 32.0f), 1);
-
-    return Vector3 { 32, 32, 1 };
+	commandList->CommandListObject->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
 void Direct3D12GraphicsService::BeginRenderPass(void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
@@ -1257,27 +1199,6 @@ void Direct3D12GraphicsService::SetShaderParameterValues(void* commandListPointe
 	}
 }
 
-void Direct3D12GraphicsService::ExecuteIndirectCommandBuffer(void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount)
-{ 
-	return;
-
-	// if (!this->shaderBound)
-	// {
-	// 	return;
-	// }
-
-	// Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
-	// auto indirectCommandBuffer = this->graphicsBuffers[indirectCommandBufferId];
-	// TransitionBufferToState(commandList, indirectCommandBufferId, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-
-	// auto signature = this->indirectCommandBufferSignatures[indirectCommandBufferId];
-
-	// commandList->CommandListObject->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// // TODO: Compute the count in the shader?
-	// commandList->CommandListObject->ExecuteIndirect(signature.Get(), 1, indirectCommandBuffer.Get(), 0, nullptr, 0);
-}
-
 void Direct3D12GraphicsService::DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
 {
 	if (!this->shaderBound)
@@ -1289,12 +1210,34 @@ void Direct3D12GraphicsService::DispatchMesh(void* commandListPointer, unsigned 
 	commandList->CommandListObject->DispatchMesh(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
-void Direct3D12GraphicsService::QueryTimestamp(void* commandListPointer, void* queryBufferPointer, int index)
+void Direct3D12GraphicsService::BeginQuery(void* commandListPointer, void* queryBufferPointer, int index)
 {
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	Direct3D12QueryBuffer* queryBuffer = (Direct3D12QueryBuffer*)queryBufferPointer;
 
-	commandList->CommandListObject->EndQuery(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
+	D3D12_QUERY_TYPE queryType = D3D12_QUERY_TYPE_PIPELINE_STATISTICS1;
+
+	if (queryBuffer->Type == D3D12_QUERY_HEAP_TYPE_TIMESTAMP)
+	{
+		return;
+	}
+
+	commandList->CommandListObject->BeginQuery(queryBuffer->QueryBufferObject.Get(), queryType, index);
+}
+
+void Direct3D12GraphicsService::EndQuery(void* commandListPointer, void* queryBufferPointer, int index)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12QueryBuffer* queryBuffer = (Direct3D12QueryBuffer*)queryBufferPointer;
+
+	D3D12_QUERY_TYPE queryType = D3D12_QUERY_TYPE_TIMESTAMP;
+
+	if (queryBuffer->Type == D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS1)
+	{
+		queryType = D3D12_QUERY_TYPE_PIPELINE_STATISTICS1;
+	}
+
+	commandList->CommandListObject->EndQuery(queryBuffer->QueryBufferObject.Get(), queryType, index);
 }
 
 void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex)
@@ -1310,7 +1253,14 @@ void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void*
 		destinationBuffer->CpuPointer = nullptr;
 	}
 
-	commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
+	D3D12_QUERY_TYPE queryType = D3D12_QUERY_TYPE_TIMESTAMP;
+
+	if (queryBuffer->Type == D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS1)
+	{
+		queryType = D3D12_QUERY_TYPE_PIPELINE_STATISTICS1;
+	}
+
+	commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), queryType, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
 }
 
 void Direct3D12GraphicsService::EnableDebugLayer()

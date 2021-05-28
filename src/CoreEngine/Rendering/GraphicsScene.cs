@@ -1,14 +1,15 @@
 using CoreEngine.Collections;
+using System.Numerics;
 
 namespace CoreEngine.Rendering
 {
     public class GraphicsScene
     {
-        private Camera? activeCamera;
-
         public GraphicsScene()
         {
-            this.activeCamera = null;
+            // TODO: Create a valid default camera
+            this.ActiveCamera = new Camera(Vector3.Zero, new Vector3(0, 0, 1), 0, 1000, Matrix4x4.Identity, Matrix4x4.Identity, Matrix4x4.Identity);
+
             this.Cameras = new ItemCollection<Camera>();
             this.Lights = new ItemCollection<Light>();
             this.MeshInstances = new ItemCollection<MeshInstance>();
@@ -18,24 +19,7 @@ namespace CoreEngine.Rendering
         public ItemCollection<Light> Lights { get; }
         public ItemCollection<MeshInstance> MeshInstances { get; }
 
-        public Camera? ActiveCamera 
-        { 
-            get
-            {
-                if (this.activeCamera == null && this.Cameras.Count > 0)
-                {
-                    return this.Cameras[0];
-                }
-
-                return this.activeCamera;
-            }
-
-            set
-            {
-                this.activeCamera = value;
-            } 
-        }
-
+        public Camera ActiveCamera { get; set; }
         public Camera? DebugCamera { get; set; }
 
         public void CleanItems()
@@ -81,10 +65,7 @@ namespace CoreEngine.Rendering
                 result.MeshInstances.Add(meshInstanceCopy);
             }
 
-            if (this.activeCamera != null)
-            {
-                result.ActiveCamera = result.Cameras[this.Cameras.IndexOf(this.activeCamera)];
-            }
+            result.ActiveCamera = result.Cameras[this.Cameras.IndexOf(this.ActiveCamera)];
 
             if (this.DebugCamera != null)
             {

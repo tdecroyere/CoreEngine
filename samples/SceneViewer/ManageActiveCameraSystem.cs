@@ -20,6 +20,7 @@ namespace CoreEngine.Samples.SceneViewer
         {
             var definition = new EntitySystemDefinition("Manage Camera System");
 
+            definition.Parameters.Add(new EntitySystemParameter<PlayerComponent>());
             definition.Parameters.Add(new EntitySystemParameter<CameraComponent>());
 
             return definition;
@@ -31,9 +32,13 @@ namespace CoreEngine.Samples.SceneViewer
             {
                 return;
             }
+        
+            var changeCamera = this.inputsManager.InputsState.Keyboard.Space.Value == 0.0f && this.inputsManager.InputsState.Keyboard.Space.TransitionCount > 0;
+            var changePlayer = this.inputsManager.InputsState.Keyboard.F1.Value == 0.0f && this.inputsManager.InputsState.Keyboard.F1.TransitionCount > 0;
 
             var entityArray = this.GetEntityArray();
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
+            var playerArray = this.GetComponentDataArray<PlayerComponent>();
 
             Entity? sceneEntity = null;
             SceneComponent? sceneComponent = null;
@@ -45,65 +50,94 @@ namespace CoreEngine.Samples.SceneViewer
                 sceneEntity = sceneEntities[0];
                 sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
             }
-        
-            var changeCamera = (this.inputsManager.InputsState.Keyboard.Space.Value == 0.0f && this.inputsManager.InputsState.Keyboard.Space.TransitionCount > 0);
-            // var activeCameraIndex = -1;
 
-            for (var i = 0; i < entityArray.Length; i++)
+            if (changeCamera)
             {
-                ref var cameraComponent = ref cameraArray[i];
+                if (sceneComponent.HasValue)
+                {
+                    // var activeCameraIndex = -1;
 
-                // if(sceneComponent.HasValue)
-                // {
-                //     if (changeCamera && sceneComponent.Value.ActiveCamera == entityArray[i])
-                //     {
-                //         activeCameraIndex = i;
-                //     }
+                    // for (var i = 0; i < entityArray.Length; i++)
+                    // {
+                    //     ref var cameraComponent = ref cameraArray[i];
 
-                //     if (changeCamera && activeCameraIndex != -1 && activeCameraIndex + 1 == i)
-                //     {
-                //         var temp = sceneComponent.Value;
-                //         temp.ActiveCamera = entityArray[i];
-                //         sceneComponent = temp;
-                //     }
-                // }
-                // if (this.inputsManager.IsLeftMouseDown())
-                // {
-                //     this.inputsManager.SendVibrationCommand(1, 1.0f, 0.0f, 0.0f, 0.0f, 1);
-                //     var mouseVector = this.inputsManager.GetMouseDelta();
-                //     playerArray[i].RotationVector = new Vector3(mouseVector.X, mouseVector.Y, 0.0f);
-                // }
+                    //     if (sceneComponent.Value.ActiveCamera == entityArray[i])
+                    //     {
+                    //         activeCameraIndex = i;
+                    //         break;
+                    //     }
 
-                //Logger.WriteMessage($"InputVector: {playerArray[i].InputVector}");
+                    //     // if (this.inputsManager.IsLeftMouseDown())
+                    //     // {
+                    //     //     this.inputsManager.SendVibrationCommand(1, 1.0f, 0.0f, 0.0f, 0.0f, 1);
+                    //     //     var mouseVector = this.inputsManager.GetMouseDelta();
+                    //     //     playerArray[i].RotationVector = new Vector3(mouseVector.X, mouseVector.Y, 0.0f);
+                    //     // }
+
+                    //     //Logger.WriteMessage($"InputVector: {playerArray[i].InputVector}");
+                    // }
+
+                    // if (activeCameraIndex != -1)
+                    // {
+                    //     activeCameraIndex = (activeCameraIndex + 1) % entityArray.Length;
+                    //     var temp = sceneComponent.Value;
+                    //     temp.ActiveCamera = entityArray[activeCameraIndex];
+                    //     sceneComponent = temp;
+                    // }
+
+                    if (entityArray.Length > 1)
+                    {
+                        var temp = sceneComponent.Value;
+
+                        if (temp.DebugCamera == null)
+                        {
+                            temp.DebugCamera = entityArray[1];
+                        }
+
+                        else
+                        {
+                            temp.DebugCamera = null;
+
+                            ref var playerComponent = ref playerArray[1];
+                            playerComponent.IsActive = false;
+                            entityManager.SetComponentData(entityArray[1], playerComponent);
+
+                            playerComponent = ref playerArray[0];
+                            playerComponent.IsActive = true;
+                            entityManager.SetComponentData(entityArray[0], playerComponent);
+                        }
+
+                        sceneComponent = temp;
+                    }
+
+                    // else if (sceneComponent.HasValue && ((activeCameraIndex == -1 && changeCamera) || activeCameraIndex >= (entityArray.Length - 1)))
+                    // {
+                    //     var temp = sceneComponent.Value;
+                    //     temp.ActiveCamera = entityArray[0];
+                    //     sceneComponent = temp;
+                    // }
+
+                    if (sceneEntity.HasValue)
+                    {
+                        entityManager.SetComponentData(sceneEntity.Value, sceneComponent.Value);
+                    }
+                }
             }
 
-            if (sceneComponent.HasValue && changeCamera && entityArray.Length > 1)
+            if (changePlayer && sceneComponent.HasValue && entityArray.Length > 1)
             {
                 var temp = sceneComponent.Value;
 
-                if (temp.DebugCamera == null)
+                if (temp.DebugCamera != null)
                 {
-                    temp.DebugCamera = entityArray[1];
+                    ref var playerComponent = ref playerArray[1];
+                    playerComponent.IsActive = !playerComponent.IsActive;
+                    entityManager.SetComponentData(entityArray[1], playerComponent);
+
+                    playerComponent = ref playerArray[0];
+                    playerComponent.IsActive = !playerComponent.IsActive;
+                    entityManager.SetComponentData(entityArray[0], playerComponent);
                 }
-
-                else
-                {
-                    temp.DebugCamera = null;
-                }
-
-                sceneComponent = temp;
-            }
-
-            // else if (sceneComponent.HasValue && ((activeCameraIndex == -1 && changeCamera) || activeCameraIndex >= (entityArray.Length - 1)))
-            // {
-            //     var temp = sceneComponent.Value;
-            //     temp.ActiveCamera = entityArray[0];
-            //     sceneComponent = temp;
-            // }
-
-            if (sceneEntity.HasValue && sceneComponent.HasValue)
-            {
-                entityManager.SetComponentData(sceneEntity.Value, sceneComponent.Value);
             }
         }
     }

@@ -33,8 +33,6 @@ namespace CoreEngine.Rendering.EntitySystems
             
             var sceneArray = this.GetComponentDataArray<SceneComponent>();
            
-            sceneManager.CurrentScene.ActiveCamera = null;
-
             for (var i = 0; i < sceneArray.Length; i++)
             {
                 var sceneComponent = sceneArray[i];

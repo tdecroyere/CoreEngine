@@ -16,6 +16,7 @@ namespace CoreEngine.Rendering
 
         }
 
+        public BoundingBox BoundingBox { get; set; }
         public IList<GeometryInstance> GeometryInstances { get; } = new List<GeometryInstance>();
     }
 }

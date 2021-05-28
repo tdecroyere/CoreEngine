@@ -60,7 +60,8 @@ enum GraphicsBlendOperation : int
 enum GraphicsQueryBufferType : int
 {
     Timestamp, 
-    CopyTimestamp
+    CopyTimestamp, 
+    GraphicsPipelineStats
 };
 
 struct GraphicsAllocationInfos
@@ -143,9 +144,6 @@ typedef void (*GraphicsService_ResizeSwapChainPtr)(void* context, void* swapChai
 typedef void* (*GraphicsService_GetSwapChainBackBufferTexturePtr)(void* context, void* swapChainPointer);
 typedef unsigned long (*GraphicsService_PresentSwapChainPtr)(void* context, void* swapChainPointer);
 typedef void (*GraphicsService_WaitForSwapChainOnCpuPtr)(void* context, void* swapChainPointer);
-typedef void* (*GraphicsService_CreateIndirectCommandBufferPtr)(void* context, int maxCommandCount);
-typedef void (*GraphicsService_SetIndirectCommandBufferLabelPtr)(void* context, void* indirectCommandBufferPointer, char* label);
-typedef void (*GraphicsService_DeleteIndirectCommandBufferPtr)(void* context, void* indirectCommandBufferPointer);
 typedef void* (*GraphicsService_CreateQueryBufferPtr)(void* context, enum GraphicsQueryBufferType queryBufferType, int length);
 typedef void (*GraphicsService_SetQueryBufferLabelPtr)(void* context, void* queryBufferPointer, char* label);
 typedef void (*GraphicsService_DeleteQueryBufferPtr)(void* context, void* queryBufferPointer);
@@ -158,18 +156,16 @@ typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, void* pipe
 typedef void (*GraphicsService_CopyDataToGraphicsBufferPtr)(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int length);
 typedef void (*GraphicsService_CopyDataToTexturePtr)(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
 typedef void (*GraphicsService_CopyTexturePtr)(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
-typedef void (*GraphicsService_ResetIndirectCommandListPtr)(void* context, void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount);
-typedef void (*GraphicsService_OptimizeIndirectCommandListPtr)(void* context, void* commandListPointer, void* indirectCommandListPointer, int maxCommandCount);
-typedef struct Vector3 (*GraphicsService_DispatchThreadsPtr)(void* context, void* commandListPointer, unsigned int threadCountX, unsigned int threadCountY, unsigned int threadCountZ);
+typedef void (*GraphicsService_DispatchThreadsPtr)(void* context, void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 typedef void (*GraphicsService_BeginRenderPassPtr)(void* context, void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_EndRenderPassPtr)(void* context, void* commandListPointer);
 typedef void (*GraphicsService_SetPipelineStatePtr)(void* context, void* commandListPointer, void* pipelineStatePointer);
 typedef void (*GraphicsService_SetShaderResourceHeapPtr)(void* context, void* commandListPointer, void* shaderResourceHeapPointer);
 typedef void (*GraphicsService_SetShaderPtr)(void* context, void* commandListPointer, void* shaderPointer);
 typedef void (*GraphicsService_SetShaderParameterValuesPtr)(void* context, void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
-typedef void (*GraphicsService_ExecuteIndirectCommandBufferPtr)(void* context, void* commandListPointer, void* indirectCommandBufferPointer, int maxCommandCount);
 typedef void (*GraphicsService_DispatchMeshPtr)(void* context, void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
-typedef void (*GraphicsService_QueryTimestampPtr)(void* context, void* commandListPointer, void* queryBufferPointer, int index);
+typedef void (*GraphicsService_BeginQueryPtr)(void* context, void* commandListPointer, void* queryBufferPointer, int index);
+typedef void (*GraphicsService_EndQueryPtr)(void* context, void* commandListPointer, void* queryBufferPointer, int index);
 typedef void (*GraphicsService_ResolveQueryDataPtr)(void* context, void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex);
 
 struct GraphicsService
@@ -212,9 +208,6 @@ struct GraphicsService
     GraphicsService_GetSwapChainBackBufferTexturePtr GraphicsService_GetSwapChainBackBufferTexture;
     GraphicsService_PresentSwapChainPtr GraphicsService_PresentSwapChain;
     GraphicsService_WaitForSwapChainOnCpuPtr GraphicsService_WaitForSwapChainOnCpu;
-    GraphicsService_CreateIndirectCommandBufferPtr GraphicsService_CreateIndirectCommandBuffer;
-    GraphicsService_SetIndirectCommandBufferLabelPtr GraphicsService_SetIndirectCommandBufferLabel;
-    GraphicsService_DeleteIndirectCommandBufferPtr GraphicsService_DeleteIndirectCommandBuffer;
     GraphicsService_CreateQueryBufferPtr GraphicsService_CreateQueryBuffer;
     GraphicsService_SetQueryBufferLabelPtr GraphicsService_SetQueryBufferLabel;
     GraphicsService_DeleteQueryBufferPtr GraphicsService_DeleteQueryBuffer;
@@ -227,8 +220,6 @@ struct GraphicsService
     GraphicsService_CopyDataToGraphicsBufferPtr GraphicsService_CopyDataToGraphicsBuffer;
     GraphicsService_CopyDataToTexturePtr GraphicsService_CopyDataToTexture;
     GraphicsService_CopyTexturePtr GraphicsService_CopyTexture;
-    GraphicsService_ResetIndirectCommandListPtr GraphicsService_ResetIndirectCommandList;
-    GraphicsService_OptimizeIndirectCommandListPtr GraphicsService_OptimizeIndirectCommandList;
     GraphicsService_DispatchThreadsPtr GraphicsService_DispatchThreads;
     GraphicsService_BeginRenderPassPtr GraphicsService_BeginRenderPass;
     GraphicsService_EndRenderPassPtr GraphicsService_EndRenderPass;
@@ -236,8 +227,8 @@ struct GraphicsService
     GraphicsService_SetShaderResourceHeapPtr GraphicsService_SetShaderResourceHeap;
     GraphicsService_SetShaderPtr GraphicsService_SetShader;
     GraphicsService_SetShaderParameterValuesPtr GraphicsService_SetShaderParameterValues;
-    GraphicsService_ExecuteIndirectCommandBufferPtr GraphicsService_ExecuteIndirectCommandBuffer;
     GraphicsService_DispatchMeshPtr GraphicsService_DispatchMesh;
-    GraphicsService_QueryTimestampPtr GraphicsService_QueryTimestamp;
+    GraphicsService_BeginQueryPtr GraphicsService_BeginQuery;
+    GraphicsService_EndQueryPtr GraphicsService_EndQuery;
     GraphicsService_ResolveQueryDataPtr GraphicsService_ResolveQueryData;
 };

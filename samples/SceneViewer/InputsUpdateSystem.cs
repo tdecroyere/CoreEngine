@@ -39,8 +39,11 @@ namespace CoreEngine.Samples.SceneViewer
             {
                 ref var playerComponent = ref playerArray[i];
 
-                playerComponent.MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
-                playerComponent.RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
+                if (playerComponent.IsActive)
+                {
+                    playerComponent.MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
+                    playerComponent.RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
+                }
             }
         }
     }

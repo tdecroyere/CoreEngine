@@ -37,6 +37,7 @@ namespace CoreEngine.Rendering
             }
         }
         
+        internal BoundingBox WorldBoundingBox { get; set; }
         internal IList<BoundingBox> WorldBoundingBoxList { get; }
     }
 }

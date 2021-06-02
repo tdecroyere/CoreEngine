@@ -37,6 +37,8 @@ namespace CoreEngine.Rendering.EntitySystems
             {
                 var sceneComponent = sceneArray[i];
 
+                sceneManager.CurrentScene.ShowMeshlets = sceneComponent.ShowMeshlets;
+
                 if (sceneComponent.ActiveCamera != null)
                 {
                     var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.ActiveCamera.Value);

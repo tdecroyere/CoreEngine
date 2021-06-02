@@ -94,7 +94,7 @@ namespace CoreEngine.Rendering
         private int sphereIndexBufferOffset;
         private int lineVertexBufferOffset;
         private int lineIndexBufferOffset;
-        private readonly int maxPrimitiveCount = 10000;
+        private readonly int maxPrimitiveCount = 100000;
 
         public DebugRenderer(GraphicsManager graphicsManager, RenderManager renderManager, ResourcesManager resourcesManager)
         {

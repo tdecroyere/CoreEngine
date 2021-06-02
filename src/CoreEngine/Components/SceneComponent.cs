@@ -6,6 +6,7 @@ namespace CoreEngine.Components
     {
         public Entity? ActiveCamera { get; set; }
         public Entity? DebugCamera { get; set; }
+        public uint ShowMeshlets { get; set; }
 
         public void SetDefaultValues()
         {

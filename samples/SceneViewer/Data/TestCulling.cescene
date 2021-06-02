@@ -1,0 +1,70 @@
+{
+  "Entities": [
+    {
+      "Entity": "Scene",
+      "Components": [
+        {
+          "Component": "CoreEngine.Components.SceneComponent, CoreEngine",
+          "Data": {
+            "ActiveCamera": "MainCamera"
+          }
+        }
+      ]
+    },
+    {
+      "Entity": "MeshInstanceGenerator",
+      "Components": [
+        {
+          "Component": "CoreEngine.Samples.SceneViewer.MeshInstanceGeneratorComponent, SceneViewer",
+          "Data": {
+            "MeshInstanceCountWidth": 100
+          }
+        }
+      ]
+    },
+    {
+      "Entity": "MainCamera",
+      "Components": [
+        {
+          "Component": "CoreEngine.Rendering.Components.CameraComponent, CoreEngine"
+        },
+        {
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
+          "Data": {
+            "Position": [5, 1.8, 0],
+            "RotationY": 45
+          }
+        },
+        {
+          "Component": "CoreEngine.Samples.SceneViewer.PlayerComponent, SceneViewer",
+          "Data": {
+            "MovementAcceleration": 300
+          }
+        }
+      ]
+    },
+    {
+      "Entity": "DebugCamera",
+      "Components": [
+        {
+          "Component": "CoreEngine.Rendering.Components.CameraComponent, CoreEngine"
+        },
+        {
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
+          "Data": {
+            "Position": [-1, 10, 0],
+            "RotationY": 90,
+            "RotationX": 45
+          }
+        },
+        {
+          "Component": "CoreEngine.Samples.SceneViewer.PlayerComponent, SceneViewer",
+          "Data": {
+            "MovementAcceleration": 300,
+            "IsActive": false
+          }
+        }
+      ]
+    }
+  ]
+}

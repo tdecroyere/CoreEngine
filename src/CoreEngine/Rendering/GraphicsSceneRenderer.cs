@@ -32,8 +32,8 @@ namespace CoreEngine.Rendering
     readonly struct ShaderCamera
     {
         public Vector3 WorldPosition { get; init; }
-        public Matrix4x4 ViewMatrix { get; init; }
-        public Matrix4x4 ViewProjectionMatrix { get; init; }
+        public ShaderMatrix4x4 ViewMatrix { get; init; }
+        public ShaderMatrix4x4 ViewProjectionMatrix { get; init; }
         public ShaderBoundingFrustum BoundingFrustum { get; init; }
     }
 
@@ -44,6 +44,30 @@ namespace CoreEngine.Rendering
         public int LightType { get; init; }
     }
 
+    readonly struct ShaderMesh
+    {
+        public uint MeshletCount { get; init; }
+        public uint MeshletOffset { get; init; }
+    }
+
+    readonly struct ShaderMeshlet
+    {
+        public uint VertexBufferIndex { get; init; }
+        public uint IndexBufferIndex { get; init; }
+        public uint StartIndex { get; init; }
+        public uint VertexCount { get; init; }
+        public uint IndexCount { get; init; }
+    }
+
+    readonly struct ShaderMeshInstance
+    {
+        public uint MeshIndex { get; init; }
+        public ShaderMatrix4x3 WorldMatrix { get; init; }
+        public ShaderMatrix3x3 WorldInvTransposeMatrix { get; init; }
+        public BoundingBox WorldBoundingBox { get; init; }
+    }
+
+    // OLD STRUCTURE: TO REMOVE
     readonly struct ShaderGeometryPacket
     {
         public int VertexBufferIndex { get; init; }
@@ -56,8 +80,8 @@ namespace CoreEngine.Rendering
         public int StartIndex { get; init; }
         public int VertexCount { get; init; }
         public int IndexCount { get; init; }
-        public Matrix4x4 WorldMatrix { get; init; }
-        public Matrix4x4 WorldInvTransposeMatrix { get; init; }
+        public ShaderMatrix4x3 WorldMatrix { get; init; }
+        public ShaderMatrix3x3 WorldInvTransposeMatrix { get; init; }
         public BoundingBox WorldBoundingBox { get; init; }
     }
 
@@ -71,11 +95,14 @@ namespace CoreEngine.Rendering
 
         private readonly Shader renderMeshInstanceShader;
 
-        private readonly GraphicsBuffer cpuGeometryPacketsBuffer;
-        private readonly GraphicsBuffer geometryPacketsBuffer;
-        
-        private readonly GraphicsBuffer cpuGeometryInstancesBuffer;
-        private readonly GraphicsBuffer geometryInstancesBuffer;
+        private readonly GraphicsBuffer cpuMeshBuffer;
+        private readonly GraphicsBuffer meshBuffer;
+
+        private readonly GraphicsBuffer cpuMeshletBuffer;
+        private readonly GraphicsBuffer meshletBuffer;
+
+        private readonly GraphicsBuffer cpuMeshInstanceBuffer;
+        private readonly GraphicsBuffer meshInstanceBuffer;
 
         private readonly GraphicsBuffer cpuCamerasBuffer;
         private readonly GraphicsBuffer camerasBuffer;
@@ -97,12 +124,15 @@ namespace CoreEngine.Rendering
 
             this.renderMeshInstanceShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
 
-            this.cpuGeometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "ComputeGeometryPackets");
-            this.geometryPacketsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryPacket>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "ComputeGeometryPackets");
+            this.cpuMeshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "CpuMeshBuffer");
+            this.meshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "MeshBuffer");
             
-            this.cpuGeometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(GraphicsHeapType.Upload, 100000, isStatic: false, label: "ComputeGeometryInstances");
-            this.geometryInstancesBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderGeometryInstance>(GraphicsHeapType.Gpu, 100000, isStatic: false, label: "ComputeGeometryInstances");
-
+            this.cpuMeshletBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshlet>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "CpuMeshletBuffer");
+            this.meshletBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshlet>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "MeshletBuffer");
+            
+            this.cpuMeshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Upload, 100000, isStatic: false, label: "CpuMeshInstanceBuffer");
+            this.meshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Gpu, 100000, isStatic: false, label: "MeshInstanceBuffer");
+            
             this.cpuCamerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "ComputeCameras");
             this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "ComputeCameras");
             
@@ -253,70 +283,89 @@ namespace CoreEngine.Rendering
             return copyCommandList;
         }
 
+        // TODO: To remove
+        private Dictionary<uint, uint> meshMapping = new Dictionary<uint, uint>();
+
         private void ProcessGeometry(CommandList copyCommandList, GraphicsScene scene)
         {
-            var currentGeometryPacketIndex = 0;
-            var currentGeometryInstanceIndex = 0;
-            var currentVertexBufferId = IntPtr.Zero;
+            // TODO: Only update mesh buffers when needed
+            // TODO: Remove meshmapping dictionary
 
-            var geometryPacketList = ArrayPool<ShaderGeometryPacket>.Shared.Rent(10000);
-            var geometryInstanceList = ArrayPool<ShaderGeometryInstance>.Shared.Rent(100000);
+            uint currentMeshIndex = 0;
+            uint currentMeshletIndex = 0;
+            uint currentMeshInstanceIndex = 0;
+
+            var meshList = ArrayPool<ShaderMesh>.Shared.Rent(10000);
+            var meshletList = ArrayPool<ShaderMeshlet>.Shared.Rent(10000);
+            var meshInstanceList = ArrayPool<ShaderMeshInstance>.Shared.Rent(100000);
+            meshMapping.Clear();
 
             for (var i = 0; i < scene.MeshInstances.Count; i++)
             {
                 var meshInstance = scene.MeshInstances[i];
-
-                Matrix4x4.Invert(meshInstance.WorldMatrix, out var meshInstanceWorldInvTransposeMatrix);
-                meshInstanceWorldInvTransposeMatrix = Matrix4x4.Transpose(meshInstanceWorldInvTransposeMatrix);
-
-                var mesh = meshInstance.Mesh;
                 this.debugRenderer.DrawBoundingBox(meshInstance.WorldBoundingBox, new Vector3(0, 0.5f, 1.0f));
 
-                for (var j = 0; j < mesh.GeometryInstances.Count; j++)
+                var mesh = meshInstance.Mesh;
+
+                if (!meshMapping.ContainsKey(mesh.ResourceId))
                 {
-                    var geometryInstance = mesh.GeometryInstances[j];
-                    var geometryPacket = geometryInstance.GeometryPacket;
-
-                    if (currentVertexBufferId != geometryPacket.VertexBuffer.NativePointer)
+                    var shaderMesh = new ShaderMesh()
                     {
-                        currentVertexBufferId = geometryPacket.VertexBuffer.NativePointer;
-
-                        var shaderGeometryPacket = new ShaderGeometryPacket()
-                        {
-                            VertexBufferIndex = (int)geometryPacket.VertexBuffer.ShaderResourceIndex,
-                            IndexBufferIndex = (int)geometryPacket.IndexBuffer.ShaderResourceIndex
-                        };
-
-                        geometryPacketList[currentGeometryPacketIndex++] = shaderGeometryPacket;
-                    }
-
-                    // TODO: Split mesh instance from geometry instance
-                    var shaderGeometryInstance = new ShaderGeometryInstance()
-                    {
-                        GeometryPacketIndex = currentGeometryPacketIndex - 1,
-                        StartIndex = geometryInstance.StartIndex,
-                        IndexCount = geometryInstance.IndexCount,
-                        VertexCount = geometryInstance.VertexCount,
-                        WorldMatrix = meshInstance.WorldMatrix,
-                        WorldInvTransposeMatrix = meshInstanceWorldInvTransposeMatrix,
-                        WorldBoundingBox = meshInstance.WorldBoundingBox
+                        MeshletCount = (uint)mesh.GeometryInstances.Count,
+                        MeshletOffset = currentMeshletIndex
                     };
 
-                    geometryInstanceList[currentGeometryInstanceIndex++] = shaderGeometryInstance;
+                    meshMapping.Add(mesh.ResourceId, currentMeshIndex);
+                    meshList[currentMeshIndex++] = shaderMesh;
+
+                    for (var j = 0; j < mesh.GeometryInstances.Count; j++)
+                    {
+                        var geometryInstance = mesh.GeometryInstances[j];
+
+                        var shaderMeshlet = new ShaderMeshlet()
+                        {
+                            VertexBufferIndex = geometryInstance.GeometryPacket.VertexBuffer.ShaderResourceIndex,
+                            IndexBufferIndex = geometryInstance.GeometryPacket.IndexBuffer.ShaderResourceIndex,
+                            StartIndex = (uint)geometryInstance.StartIndex,
+                            VertexCount = (uint)geometryInstance.VertexCount,
+                            IndexCount = (uint)geometryInstance.IndexCount
+                        };
+
+                        meshletList[currentMeshletIndex++] = shaderMeshlet;
+                    }
                 }
+
+                var meshIndex = meshMapping[mesh.ResourceId];
+
+                var shaderMeshInstance = new ShaderMeshInstance()
+                {
+                    MeshIndex = meshIndex,
+                    WorldMatrix = meshInstance.WorldMatrix,
+                    WorldInvTransposeMatrix = meshInstance.WorldInvTransposeMatrix,
+                    WorldBoundingBox = meshInstance.WorldBoundingBox
+                };
+
+                meshInstanceList[currentMeshInstanceIndex++] = shaderMeshInstance;
             }
 
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryPacket>(this.cpuGeometryPacketsBuffer, 0, geometryPacketList.AsSpan().Slice(0, currentGeometryPacketIndex));
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryPacket>(copyCommandList, this.geometryPacketsBuffer, this.cpuGeometryPacketsBuffer, currentGeometryPacketIndex);
-            
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryInstance>(this.cpuGeometryInstancesBuffer, 0, geometryInstanceList.AsSpan().Slice(0, currentGeometryInstanceIndex));
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderGeometryInstance>(copyCommandList, this.geometryInstancesBuffer, this.cpuGeometryInstancesBuffer, currentGeometryInstanceIndex);
-            
-            this.renderManager.GeometryInstancesCount = currentGeometryInstanceIndex;
-            this.currentMeshInstanceCount = (uint)currentGeometryInstanceIndex;
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(this.cpuMeshBuffer, 0, meshList.AsSpan().Slice(0, (int)currentMeshIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(copyCommandList, this.meshBuffer, this.cpuMeshBuffer, (int)currentMeshIndex);
 
-            ArrayPool<ShaderGeometryPacket>.Shared.Return(geometryPacketList);
-            ArrayPool<ShaderGeometryInstance>.Shared.Return(geometryInstanceList);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshlet>(this.cpuMeshletBuffer, 0, meshletList.AsSpan().Slice(0, (int)currentMeshletIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshlet>(copyCommandList, this.meshletBuffer, this.cpuMeshletBuffer, (int)currentMeshletIndex);
+
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(this.cpuMeshInstanceBuffer, 0, meshInstanceList.AsSpan().Slice(0, (int)currentMeshInstanceIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(copyCommandList, this.meshInstanceBuffer, this.cpuMeshInstanceBuffer, (int)currentMeshInstanceIndex);
+            
+            this.renderManager.MeshCount = (int)currentMeshIndex;
+            this.renderManager.MeshletCount = (int)currentMeshletIndex;
+            this.renderManager.MeshInstanceCount = (int)currentMeshInstanceIndex;
+
+            this.currentMeshInstanceCount = currentMeshInstanceIndex;
+
+            ArrayPool<ShaderMesh>.Shared.Return(meshList);
+            ArrayPool<ShaderMeshlet>.Shared.Return(meshletList);
+            ArrayPool<ShaderMeshInstance>.Shared.Return(meshInstanceList);
         }
 
         private void ProcessCamera(CommandList copyCommandList, GraphicsScene scene)
@@ -409,7 +458,6 @@ namespace CoreEngine.Rendering
 
             var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
 
-    
             // var graphicsPipelineParameters = new GraphicsPipelineParameter[]
             // {
             //     new ResourceGraphicsPipelineParameter("MainRenderTarget", mainRenderTargetTexture),
@@ -454,8 +502,19 @@ namespace CoreEngine.Rendering
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
             this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstanceShader);
-            this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { this.geometryInstancesBuffer.ShaderResourceIndex, this.geometryPacketsBuffer.ShaderResourceIndex, this.camerasBuffer.ShaderResourceIndex });
-            this.graphicsManager.DispatchMesh(renderCommandList, this.currentMeshInstanceCount, 1, 1);
+            this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] 
+            { 
+                this.camerasBuffer.ShaderResourceIndex, 
+                scene.ShowMeshlets, 
+                this.meshBuffer.ShaderResourceIndex, 
+                this.meshletBuffer.ShaderResourceIndex, 
+                this.meshInstanceBuffer.ShaderResourceIndex, 
+                this.currentMeshInstanceCount 
+            });
+            
+            // TODO: Do not hardcode wave size
+            int waveSize = 32;
+            this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1);
         
             this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);

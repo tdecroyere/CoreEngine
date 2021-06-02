@@ -26,6 +26,7 @@ InputsState WindowsInputsService::GetInputsState()
 	// TODO: Reset transition for other inputs
 	this->inputState.Keyboard.Space.TransitionCount = 0;
 	this->inputState.Keyboard.F1.TransitionCount = 0;
+	this->inputState.Keyboard.F2.TransitionCount = 0;
 		
 	return output;
 }

@@ -21,6 +21,7 @@ namespace CoreEngine.Rendering
 
         public Camera ActiveCamera { get; set; }
         public Camera? DebugCamera { get; set; }
+        public uint ShowMeshlets { get; set; }
 
         public void CleanItems()
         {
@@ -71,6 +72,8 @@ namespace CoreEngine.Rendering
             {
                 result.DebugCamera = result.Cameras[this.Cameras.IndexOf(this.DebugCamera)];
             }
+
+            result.ShowMeshlets = this.ShowMeshlets;
 
             return result;
         }

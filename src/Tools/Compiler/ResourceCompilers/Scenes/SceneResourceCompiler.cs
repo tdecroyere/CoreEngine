@@ -175,6 +175,8 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Scenes
 
                     Logger.WriteMessage($"Found Type: {componentType}");
 
+                    // TODO: This cause several problems when we add a field in a component struct
+                    // The Dll first need to be recompiled then all the resources !
                     var component = (IComponentData)Activator.CreateInstance(componentType)!;
 
                     component.SetDefaultValues();

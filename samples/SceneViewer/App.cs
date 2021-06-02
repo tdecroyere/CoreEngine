@@ -10,9 +10,18 @@ namespace CoreEngine.Samples.SceneViewer
 
         public override void OnInit(CoreEngineContext context)
         {
+            var sceneName = "TestScene";
+
+            var args = Utils.GetCommandLineArguments();
+
+            if (args.Length > 1)
+            {
+                sceneName = args[1];
+            }
+
             var resourcesManager = context.SystemManagerContainer.GetSystemManager<ResourcesManager>();
 
-            context.CurrentScene = resourcesManager.LoadResourceAsync<Scene>("/Data/TestScene.scene");
+            context.CurrentScene = resourcesManager.LoadResourceAsync<Scene>($"/Data/{sceneName}.scene");
             // this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Bistro/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/BistroV4/Bistro.scene");
             //this.currentScene = resourcesManager.LoadResourceAsync<Scene>("/Moana/island.scene");
@@ -25,6 +34,7 @@ namespace CoreEngine.Samples.SceneViewer
                 entitySystemManager.RegisterEntitySystem<ManageActiveCameraSystem>();
                 entitySystemManager.RegisterEntitySystem<MovementUpdateSystem>();
                 entitySystemManager.RegisterEntitySystem<LightGeneratorSystem>();
+                entitySystemManager.RegisterEntitySystem<MeshInstanceGeneratorSystem>();
                 entitySystemManager.RegisterEntitySystem<AutomaticMovementSystem>();
                 entitySystemManager.RegisterEntitySystem<ComputeWorldMatrixSystem>();
                 entitySystemManager.RegisterEntitySystem<UpdateCameraSystem>();

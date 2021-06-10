@@ -1,4 +1,4 @@
-using System;
+/*using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -509,7 +509,6 @@ namespace CoreEngine.Rendering
             // graphicsManager.CommitCommandList(copyCommandList);
 
             // result.Add(copyCommandList);
-*/
             // TODO: Avoid the array copy
             return result.ToArray();
         }
@@ -650,32 +649,32 @@ namespace CoreEngine.Rendering
             // Process commandLists
             CommandList? commandListToExecute = null;
 
-            for (var i = 0; i < commandLists.Length; i++)
-            {
-                var commandList = commandLists[i];
+            // for (var i = 0; i < commandLists.Length; i++)
+            // {
+            //     var commandList = commandLists[i];
 
-                if (i == 0)
-                {
-                    this.graphicsManager.WaitForCommandQueue(commandList.CommandQueue, fenceToWait);
-                }
+            //     if (i == 0)
+            //     {
+            //         this.graphicsManager.WaitForCommandQueue(commandList.CommandQueue, fenceToWait);
+            //     }
 
-                if (commandListToExecute != null)
-                {
-                    // TODO: Put an UAV Barrier here if both compute command list access the same resources
+            //     if (commandListToExecute != null)
+            //     {
+            //         // TODO: Put an UAV Barrier here if both compute command list access the same resources
 
-                    var isAwaitable = (commandListToExecute.Value.CommandQueue.NativePointer != commandList.CommandQueue.NativePointer);
-                    var fence = this.graphicsManager.ExecuteCommandLists(commandListToExecute.Value.CommandQueue, new CommandList[] { commandListToExecute.Value }, isAwaitable);
+            //         var isAwaitable = (commandListToExecute.Value.CommandQueue.NativePointer != commandList.CommandQueue.NativePointer);
+            //         var fence = this.graphicsManager.ExecuteCommandLists(commandListToExecute.Value.CommandQueue, new CommandList[] { commandListToExecute.Value });
 
-                    if (isAwaitable)
-                    {
-                        this.graphicsManager.WaitForCommandQueue(commandList.CommandQueue, fence);
-                    }
-                }
+            //         if (isAwaitable)
+            //         {
+            //             this.graphicsManager.WaitForCommandQueue(commandList.CommandQueue, fence);
+            //         }
+            //     }
 
-                commandListToExecute = commandList;
-            }
+            //     commandListToExecute = commandList;
+            // }
 
-            return this.graphicsManager.ExecuteCommandLists(commandListToExecute!.Value.CommandQueue, new CommandList[] { commandListToExecute!.Value }, isAwaitable: true);
+            return this.graphicsManager.ExecuteCommandLists(commandListToExecute!.Value.CommandQueue, new CommandList[] { commandListToExecute!.Value });
         }
 
         internal ReadOnlySpan<CommandList> BuildCommandLists(ReadOnlyMemory<GraphicsPipelineParameter> parameters)
@@ -767,4 +766,4 @@ namespace CoreEngine.Rendering
             return Vector4.Zero;
         }
     }
-}
+}*/

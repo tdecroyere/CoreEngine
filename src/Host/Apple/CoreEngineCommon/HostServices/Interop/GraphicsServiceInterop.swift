@@ -36,19 +36,14 @@ func GraphicsService_getCommandQueueTimestampFrequencyInterop(context: UnsafeMut
     return contextObject.getCommandQueueTimestampFrequency(commandQueuePointer)
 }
 
-func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: UnsafeMutablePointer<UnsafeMutableRawPointer?>?, _ commandListsLength: Int32, _ isAwaitable: Int32) -> UInt {
+func GraphicsService_executeCommandListsInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: UnsafeMutablePointer<UnsafeMutableRawPointer?>?, _ commandListsLength: Int32, _ fencesToWait: UnsafeMutablePointer<GraphicsFence>?, _ fencesToWaitLength: Int32) -> UInt {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    return contextObject.executeCommandLists(commandQueuePointer, Array(UnsafeBufferPointer(start: commandLists, count: Int(commandListsLength))), Bool(isAwaitable == 1))
+    return contextObject.executeCommandLists(commandQueuePointer, Array(UnsafeBufferPointer(start: commandLists, count: Int(commandListsLength))), Array(UnsafeBufferPointer(start: fencesToWait, count: Int(fencesToWaitLength))))
 }
 
-func GraphicsService_waitForCommandQueueInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt) {
+func GraphicsService_waitForCommandQueueOnCpuInterop(context: UnsafeMutableRawPointer?, _ fenceToWait: GraphicsFence) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.waitForCommandQueue(commandQueuePointer, commandQueueToWaitPointer, fenceValue)
-}
-
-func GraphicsService_waitForCommandQueueOnCpuInterop(context: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt) {
-    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.waitForCommandQueueOnCpu(commandQueueToWaitPointer, fenceValue)
+    contextObject.waitForCommandQueueOnCpu(fenceToWait)
 }
 
 func GraphicsService_createCommandListInterop(context: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
@@ -311,7 +306,6 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_ResetCommandQueue = GraphicsService_resetCommandQueueInterop
     service.GraphicsService_GetCommandQueueTimestampFrequency = GraphicsService_getCommandQueueTimestampFrequencyInterop
     service.GraphicsService_ExecuteCommandLists = GraphicsService_executeCommandListsInterop
-    service.GraphicsService_WaitForCommandQueue = GraphicsService_waitForCommandQueueInterop
     service.GraphicsService_WaitForCommandQueueOnCpu = GraphicsService_waitForCommandQueueOnCpuInterop
     service.GraphicsService_CreateCommandList = GraphicsService_createCommandListInterop
     service.GraphicsService_SetCommandListLabel = GraphicsService_setCommandListLabelInterop

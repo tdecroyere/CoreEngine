@@ -26,7 +26,6 @@ namespace CoreEngine.Graphics
         internal int cpuDrawCount;
         internal int cpuDispatchCount;
 
-        private Dictionary<IntPtr, GraphicsRenderPassDescriptor> renderPassDescriptors;
         private List<Texture> aliasableTextures = new List<Texture>();
 
         private List<GraphicsBuffer> graphicsBuffers = new List<GraphicsBuffer>();
@@ -59,8 +58,6 @@ namespace CoreEngine.Graphics
 
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
             this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
-
-            this.renderPassDescriptors = new Dictionary<IntPtr, GraphicsRenderPassDescriptor>();
 
             graphicsBuffersToDelete[0] = new List<GraphicsBuffer>();
             graphicsBuffersToDelete[1] = new List<GraphicsBuffer>();
@@ -174,13 +171,19 @@ namespace CoreEngine.Graphics
             return this.graphicsService.GetCommandQueueTimestampFrequency(commandQueue.NativePointer);
         }
 
-        public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, bool isAwaitable)
+        public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists)
+        {
+            return ExecuteCommandLists(commandQueue, commandLists, Array.Empty<Fence>());
+        }
+
+        public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, ReadOnlySpan<Fence> fencesToWait)
         {
             // TODO: This code is not thread safe!
 
             var freeList = commandQueue.commandListFreeList;
 
             var commandListsPointers = ArrayPool<IntPtr>.Shared.Rent(commandLists.Length);
+            var fencesToWaitArray = ArrayPool<GraphicsFence>.Shared.Rent(fencesToWait.Length);
 
             for (var i = 0; i < commandLists.Length; i++)
             {
@@ -188,20 +191,21 @@ namespace CoreEngine.Graphics
                 freeList.Push(commandLists[i]);
             }
 
-            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsPointers.AsSpan(0..commandLists.Length), isAwaitable);
+            for (var i = 0; i < fencesToWait.Length; i++)
+            {
+                fencesToWaitArray[i] = new GraphicsFence(fencesToWait[i]);
+            }
+
+            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsPointers.AsSpan(0..commandLists.Length), fencesToWaitArray.AsSpan(0..fencesToWait.Length));
             ArrayPool<IntPtr>.Shared.Return(commandListsPointers);
+            ArrayPool<GraphicsFence>.Shared.Return(fencesToWaitArray);
 
             return new Fence(commandQueue, fenceValue);
         }
 
-        public void WaitForCommandQueue(CommandQueue commandQueue, Fence fence)
+        public void WaitForCommandQueueOnCpu(Fence fenceToWait)
         {
-            this.graphicsService.WaitForCommandQueue(commandQueue.NativePointer, fence.CommandQueue.NativePointer, fence.Value);
-        }
-
-        public void WaitForCommandQueueOnCpu(Fence fence)
-        {
-            this.graphicsService.WaitForCommandQueueOnCpu(fence.CommandQueue.NativePointer, fence.Value);
+            this.graphicsService.WaitForCommandQueueOnCpu(new GraphicsFence(fenceToWait));
         }
 
         public CommandList CreateCommandList(CommandQueue commandQueue, string label)
@@ -472,6 +476,11 @@ namespace CoreEngine.Graphics
 
         public SwapChain CreateSwapChain(Window window, CommandQueue commandQueue, int width, int height, TextureFormat textureFormat)
         {
+            if (commandQueue.Type != CommandType.Present)
+            {
+                throw new ArgumentException("Command queue used by the swap-chain should be a present queue.", nameof(commandQueue));
+            }
+
             var nativePointer = this.graphicsService.CreateSwapChain(window.NativePointer, commandQueue.NativePointer, width, height, (GraphicsTextureFormat)textureFormat);
 
             if (nativePointer == IntPtr.Zero)
@@ -714,26 +723,29 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Add checks to all render functins to see if a render pass has been started
-        public void BeginRenderPass(CommandList commandList, RenderPassDescriptor renderPassDescriptor)
+        public void BeginRenderPass(CommandList commandList, RenderPassDescriptor renderPassDescriptor, Shader shader)
         {
-            var graphicsRenderPassDescriptor = new GraphicsRenderPassDescriptor(renderPassDescriptor);
-            graphicsService.BeginRenderPass(commandList.NativePointer, graphicsRenderPassDescriptor);
+            if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
+            {
+                throw new InvalidOperationException("The specified command list is not a render command list.");
+            }
 
-            this.renderPassDescriptors.Add(commandList.NativePointer, graphicsRenderPassDescriptor);
+            var graphicsRenderPassDescriptor = new GraphicsRenderPassDescriptor(renderPassDescriptor);
+            SetShader(commandList, shader, graphicsRenderPassDescriptor);
+            graphicsService.BeginRenderPass(commandList.NativePointer, graphicsRenderPassDescriptor);
         }
 
         public void EndRenderPass(CommandList commandList)
         {
-            if (commandList.Type != CommandType.Render)
+            if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
             this.graphicsService.EndRenderPass(commandList.NativePointer);
-            this.renderPassDescriptors.Remove(commandList.NativePointer);
         }
 
-        public void SetShader(CommandList commandList, Shader shader)
+        private void SetShader(CommandList commandList, Shader shader, GraphicsRenderPassDescriptor renderPassDescriptor)
         {
             if (shader == null)
             {
@@ -747,13 +759,6 @@ namespace CoreEngine.Graphics
 
             this.shaderResourceManager.SetShaderResourceHeap(commandList);
             this.graphicsService.SetShader(commandList.NativePointer, shader.NativePointer);
-
-            var renderPassDescriptor = new GraphicsRenderPassDescriptor();
-
-            if (this.renderPassDescriptors.ContainsKey(commandList.NativePointer))
-            {
-                renderPassDescriptor = this.renderPassDescriptors[commandList.NativePointer];
-            }
 
             if (!shader.PipelineStates.ContainsKey(renderPassDescriptor))
             {
@@ -783,7 +788,7 @@ namespace CoreEngine.Graphics
 
         public void DispatchMesh(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
-            if (commandList.Type != CommandType.Render)
+            if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }

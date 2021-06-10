@@ -15,6 +15,7 @@ namespace CoreEngine
 
         public Memory<ComponentHash>? ComponentHashs { get; set; }
         public EntitySystem? EntitySystem { get; set; }
+        public EntitySystemDefinition? SystemDefinition { get; set; }
     }
 
     // TODO: Manage exclusive component definitions
@@ -70,6 +71,8 @@ namespace CoreEngine
             // TODO: For the moment the systems are executed sequentially
             // TODO: Add multi-thread
 
+            // Logger.BeginAction("Update Component System");
+
             for (var i = 0; i < this.RegisteredSystems.Count; i++)
             {
                 // TODO: Get component data in byte arrays from the entity manager
@@ -90,6 +93,7 @@ namespace CoreEngine
 
                     var systemDefinition = registeredSystem.EntitySystem.BuildDefinition();
 
+                    registeredSystem.SystemDefinition = systemDefinition;
                     // TODO: Be carreful of memory management and small buffers
                     registeredSystem.ComponentHashs = new ComponentHash[systemDefinition.Parameters.Count];
 
@@ -104,12 +108,24 @@ namespace CoreEngine
 
                 if (entitySystem != null && componentHashs.HasValue)
                 {
-                    var entitySystemData = entityManager.GetEntitySystemData(componentHashs.Value.Span);
+                    // Logger.BeginAction($"Processing System: {registeredSystem.SystemDefinition!.Name}");
 
+                    // Logger.BeginAction("GetEntitySystemData");
+                    var entitySystemData = entityManager.GetEntitySystemData(componentHashs.Value.Span);
+                    // Logger.EndAction();
+
+                    // Logger.BeginAction("SetEntitySystemData");
                     entitySystem.SetEntitySystemData(entitySystemData);
+                    // Logger.EndAction();
+
+                    // Logger.BeginAction("Process");
                     entitySystem.Process(entityManager, deltaTime);
+                    // Logger.EndAction();
+                    // Logger.EndAction();
                 }
             }
+
+            // Logger.EndAction();
         }
     }
 }

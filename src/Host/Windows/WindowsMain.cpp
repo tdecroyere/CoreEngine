@@ -1,6 +1,7 @@
 #include "WindowsCommon.h"
 #include <stdio.h>
 #include "Direct3D12GraphicsService.h"
+#include "VulkanGraphicsService.h"
 #include "WindowsInputsService.h"
 #include "CoreEngineHost.h"
 #include "WindowsNativeUIServiceUtils.h"
@@ -56,6 +57,7 @@ int CALLBACK wWinMain(HINSTANCE applicationInstance, HINSTANCE, LPWSTR fullComma
     auto arguments = SplitString(commandLine, ' ');
 
     wstring assemblyName = L"CoreEngine";
+    bool useVulkan = false;
 
     if (!arguments.empty())
     {
@@ -78,12 +80,36 @@ int CALLBACK wWinMain(HINSTANCE applicationInstance, HINSTANCE, LPWSTR fullComma
             //     assemblyName = firstArgument + L"\\bin\\win-x64\\" + directoryName;
             // }
         }
+
+        for (int i = 0; i < arguments.size(); i++)
+        {
+            wstring parameter = arguments[i];
+
+            if (parameter == L"--vulkan")
+            {
+                useVulkan = true;
+            }
+        }
     }
 
     auto nativeUIService = WindowsNativeUIService(applicationInstance);
-    auto graphicsService = Direct3D12GraphicsService();
+
+    Direct3D12GraphicsService* direct3dGraphicsService = nullptr;
+    VulkanGraphicsService* vulkanGraphicsService = nullptr;
+
+    if (!useVulkan)
+    {
+        direct3dGraphicsService = new Direct3D12GraphicsService();
+
+    }
+
+    else
+    {
+        vulkanGraphicsService = new VulkanGraphicsService();
+    }
+
     auto inputsService = WindowsInputsService();
 
-    auto coreEngineHost = CoreEngineHost(assemblyName, nativeUIService, graphicsService, inputsService);
+    auto coreEngineHost = CoreEngineHost(assemblyName, &nativeUIService, direct3dGraphicsService, vulkanGraphicsService, &inputsService);
     coreEngineHost.StartEngine();
 }

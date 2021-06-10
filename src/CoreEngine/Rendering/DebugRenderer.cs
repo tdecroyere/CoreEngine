@@ -232,7 +232,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.indexBuffer, indexBufferCpu, currentIndexCount);
             this.graphicsManager.CommitCommandList(copyCommandList);
 
-            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
         }
 
         public void ClearDebugLines()
@@ -284,10 +284,8 @@ namespace CoreEngine.Rendering
                 var copyCommandList = CreateCopyCommandList();
                 var renderCommandList = CreateRenderCommandList(renderPassParametersGraphicsBuffer, renderTargetTexture, depthTexture);
 
-                var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
-                
-                this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, copyFence);
-                this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, isAwaitable: false);
+                var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
+                this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { copyFence });
             }
         }
 
@@ -323,9 +321,7 @@ namespace CoreEngine.Rendering
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, backfaceCulling: true);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
-
-            this.graphicsManager.SetShader(renderCommandList, this.shader);
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.shader);
 
             if (this.currentLinePrimitiveCount > 0)
             {

@@ -19,7 +19,8 @@ namespace CoreEngine.HostServices
     {
         Render,
         Copy,
-        Compute
+        Compute,
+        Present
     }
 
     public enum GraphicsTextureFormat
@@ -81,6 +82,18 @@ namespace CoreEngine.HostServices
 
         public int SizeInBytes { get; }
         public int Alignment { get; }
+    }
+
+    public readonly struct GraphicsFence
+    {
+        public GraphicsFence(Fence fence)
+        {
+            this.CommandQueuePointer = fence.CommandQueue.NativePointer;
+            this.Value = fence.Value;
+        }
+
+        public IntPtr CommandQueuePointer { get; }
+        public ulong Value { get; }
     }
 
     public readonly struct GraphicsRenderPassDescriptor : IEquatable<GraphicsRenderPassDescriptor>
@@ -228,6 +241,7 @@ namespace CoreEngine.HostServices
     }
 
     // TODO: Make all method thread safe!
+    // TODO: Can we pass readonly structs as references or pointers with the in keyword?
     [HostService]
     public interface IGraphicsService
     {
@@ -243,9 +257,8 @@ namespace CoreEngine.HostServices
         void DeleteCommandQueue(IntPtr commandQueuePointer);
         void ResetCommandQueue(IntPtr commandQueuePointer);
         ulong GetCommandQueueTimestampFrequency(IntPtr commandQueuePointer);
-        ulong ExecuteCommandLists(IntPtr commandQueuePointer, ReadOnlySpan<IntPtr> commandLists, bool isAwaitable);
-        void WaitForCommandQueue(IntPtr commandQueuePointer, IntPtr commandQueueToWaitPointer, ulong fenceValue);
-        void WaitForCommandQueueOnCpu(IntPtr commandQueueToWaitPointer, ulong fenceValue);
+        ulong ExecuteCommandLists(IntPtr commandQueuePointer, ReadOnlySpan<IntPtr> commandLists, ReadOnlySpan<GraphicsFence> fencesToWait);
+        void WaitForCommandQueueOnCpu(GraphicsFence fenceToWait);
  
         IntPtr CreateCommandList(IntPtr commandQueuePointer);
         void SetCommandListLabel(IntPtr commandListPointer, string label);
@@ -303,6 +316,10 @@ namespace CoreEngine.HostServices
 
         void DispatchThreads(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
 
+        // Add a CreateRenderPass method and a RenderPassObject
+        // The render pass object will also be used for the pipeline state creation
+
+        // TODO: Split render pass definition and render pass resource assign?
         void BeginRenderPass(IntPtr commandListPointer, GraphicsRenderPassDescriptor renderPassDescriptor);
         void EndRenderPass(IntPtr commandListPointer);
 

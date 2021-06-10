@@ -20,7 +20,7 @@ namespace CoreEngine.Graphics
         {
             var commandList = this.graphicsManager.CreateCommandList(this, "DisposeCommandList");
             this.graphicsManager.CommitCommandList(commandList);
-            var fence = this.graphicsManager.ExecuteCommandLists(this, new CommandList[] { commandList }, isAwaitable: true);
+            var fence = this.graphicsManager.ExecuteCommandLists(this, new CommandList[] { commandList });
             this.graphicsManager.WaitForCommandQueueOnCpu(fence);
 
             while (this.commandListFreeList.Count > 0)

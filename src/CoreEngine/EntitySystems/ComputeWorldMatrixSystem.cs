@@ -10,6 +10,7 @@ namespace CoreEngine.EntitySystems
         {
             var definition = new EntitySystemDefinition("Compute World Matrix System");
 
+            // TODO: Add parameters that receive only changed components
             definition.Parameters.Add(new EntitySystemParameter<TransformComponent>());
 
             return definition;
@@ -24,6 +25,7 @@ namespace CoreEngine.EntitySystems
             {
                 ref var tranformComponent = ref transformArray[i];
 
+                // TODO: Only update world matrix when transform component has been changed
                 var scale = Matrix4x4.CreateScale(tranformComponent.Scale);
                 var rotationX = MathUtils .DegreesToRad(tranformComponent.RotationX);
                 var rotationY = MathUtils.DegreesToRad(tranformComponent.RotationY);

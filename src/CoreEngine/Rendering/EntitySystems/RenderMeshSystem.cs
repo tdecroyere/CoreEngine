@@ -49,15 +49,15 @@ namespace CoreEngine.Rendering.EntitySystems
                 ref var meshComponent = ref meshArray[i];
                 Material? material = null;
 
-                if (entityManager.HasComponent<MaterialComponent>(entity))
-                {
-                    var materialComponent = entityManager.GetComponentData<MaterialComponent>(entity);
+                // if (entityManager.HasComponent<MaterialComponent>(entity))
+                // {
+                //     var materialComponent = entityManager.GetComponentData<MaterialComponent>(entity);
 
-                    if (materialComponent.MaterialResourceId != 0)
-                    {
-                        material = this.resourcesManager.GetResourceById<Material>(materialComponent.MaterialResourceId);
-                    }
-                }
+                //     if (materialComponent.MaterialResourceId != 0)
+                //     {
+                //         material = this.resourcesManager.GetResourceById<Material>(materialComponent.MaterialResourceId);
+                //     }
+                // }
 
                 if (meshComponent.MeshResourceId != 0)
                 {

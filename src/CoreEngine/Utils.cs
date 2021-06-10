@@ -47,6 +47,14 @@ namespace CoreEngine
                 args.RemoveAt(0);
             }
 
+
+            var index = args.IndexOf("--vulkan");
+            
+            if (index != -1)
+            {
+                args.RemoveAt(index);
+            }
+
             return args.ToArray();
         }
     }

@@ -16,24 +16,14 @@ namespace CoreEngine.Rendering
             this.TextureMinPoint = textureMinPoint;
             this.TextureMaxPoint = textureMaxPoint;
             this.TextureIndex = textureIndex;
-            this.IsOpaque = isOpaque;
-            this.Reserved1 = 0;
-            this.Reserved2 = 0;
-            this.Reserved3 = 0;
-            this.Reserved4 = 0;
-            this.Reserved5 = 0;
+            this.IsOpaque = (uint)(isOpaque ? 1 : 0);
         }
 
-        public readonly Matrix4x4 WorldViewProjMatrix { get; }
+        public readonly ShaderMatrix4x4 WorldViewProjMatrix { get; }
         public readonly Vector2 TextureMinPoint { get; }
         public readonly Vector2 TextureMaxPoint { get; }
         public readonly uint TextureIndex { get; }
-        public readonly bool IsOpaque { get; }
-        public readonly byte Reserved1 { get; }
-        public readonly byte Reserved2 { get; }
-        public readonly byte Reserved3 { get; }
-        public readonly uint Reserved4 { get; }
-        public readonly uint Reserved5 { get; }
+        public readonly uint IsOpaque { get; }
     }
 
     public class Graphics2DRenderer : SystemManager
@@ -149,9 +139,8 @@ namespace CoreEngine.Rendering
                 var copyCommandList = CreateCopyCommandList();
                 var renderCommandList = CreateRenderCommandList(renderTargetTexture);
 
-                var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
-                this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, copyFence);
-                return this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, isAwaitable: true);
+                var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
+                return this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { copyFence });
             }
 
             return null;
@@ -184,9 +173,8 @@ namespace CoreEngine.Rendering
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.shader);
 
-            this.graphicsManager.SetShader(renderCommandList, this.shader);
             this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSurfaceCount, this.rectangleSurfacesGraphicsBuffer.ShaderResourceIndex });
 
             this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSurfaceCount / maxSurfaceCountPerThreadGroup), 1, 1);

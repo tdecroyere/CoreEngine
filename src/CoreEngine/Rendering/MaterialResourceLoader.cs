@@ -77,7 +77,7 @@ namespace CoreEngine.Rendering
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "MaterialLoader");
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, material.MaterialData, cpuBuffer, materialDataLength);
             this.graphicsManager.CommitCommandList(copyCommandList);
-            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: false);
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
 
             return resource;
         }

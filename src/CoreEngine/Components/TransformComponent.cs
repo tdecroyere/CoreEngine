@@ -11,7 +11,8 @@ namespace CoreEngine.Components
         public float RotationZ { get; set; }
         public Quaternion RotationQuaternion { get; set; }
         public Matrix4x4 WorldMatrix { get; set; }
-
+        public uint HasChanged { get; set; }
+        
         public void SetDefaultValues()
         {
             this.Scale = Vector3.One;

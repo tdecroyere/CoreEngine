@@ -12,7 +12,8 @@ enum GraphicsServiceCommandType : int
 {
     Render, 
     Copy, 
-    Compute
+    Compute, 
+    Present
 };
 
 enum GraphicsTextureFormat : int
@@ -76,6 +77,18 @@ struct NullableGraphicsAllocationInfos
     struct GraphicsAllocationInfos Value;
 };
 
+struct GraphicsFence
+{
+    void* CommandQueuePointer;
+    unsigned long Value;
+};
+
+struct NullableGraphicsFence
+{
+    int HasValue;
+    struct GraphicsFence Value;
+};
+
 struct GraphicsRenderPassDescriptor
 {
     int IsRenderShader;
@@ -114,9 +127,8 @@ typedef void (*GraphicsService_SetCommandQueueLabelPtr)(void* context, void* com
 typedef void (*GraphicsService_DeleteCommandQueuePtr)(void* context, void* commandQueuePointer);
 typedef void (*GraphicsService_ResetCommandQueuePtr)(void* context, void* commandQueuePointer);
 typedef unsigned long (*GraphicsService_GetCommandQueueTimestampFrequencyPtr)(void* context, void* commandQueuePointer);
-typedef unsigned long (*GraphicsService_ExecuteCommandListsPtr)(void* context, void* commandQueuePointer, void** commandLists, int commandListsLength, int isAwaitable);
-typedef void (*GraphicsService_WaitForCommandQueuePtr)(void* context, void* commandQueuePointer, void* commandQueueToWaitPointer, unsigned long fenceValue);
-typedef void (*GraphicsService_WaitForCommandQueueOnCpuPtr)(void* context, void* commandQueueToWaitPointer, unsigned long fenceValue);
+typedef unsigned long (*GraphicsService_ExecuteCommandListsPtr)(void* context, void* commandQueuePointer, void** commandLists, int commandListsLength, struct GraphicsFence* fencesToWait, int fencesToWaitLength);
+typedef void (*GraphicsService_WaitForCommandQueueOnCpuPtr)(void* context, struct GraphicsFence fenceToWait);
 typedef void* (*GraphicsService_CreateCommandListPtr)(void* context, void* commandQueuePointer);
 typedef void (*GraphicsService_SetCommandListLabelPtr)(void* context, void* commandListPointer, char* label);
 typedef void (*GraphicsService_DeleteCommandListPtr)(void* context, void* commandListPointer);
@@ -179,7 +191,6 @@ struct GraphicsService
     GraphicsService_ResetCommandQueuePtr GraphicsService_ResetCommandQueue;
     GraphicsService_GetCommandQueueTimestampFrequencyPtr GraphicsService_GetCommandQueueTimestampFrequency;
     GraphicsService_ExecuteCommandListsPtr GraphicsService_ExecuteCommandLists;
-    GraphicsService_WaitForCommandQueuePtr GraphicsService_WaitForCommandQueue;
     GraphicsService_WaitForCommandQueueOnCpuPtr GraphicsService_WaitForCommandQueueOnCpu;
     GraphicsService_CreateCommandListPtr GraphicsService_CreateCommandList;
     GraphicsService_SetCommandListLabelPtr GraphicsService_SetCommandListLabel;

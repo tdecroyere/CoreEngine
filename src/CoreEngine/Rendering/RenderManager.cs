@@ -88,7 +88,7 @@ namespace CoreEngine.Rendering
             this.CopyCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Copy, "CopyCommandQueue");
             this.ComputeCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Compute, "ComputeCommandQueue");
             this.RenderCommandQueue = this.graphicsManager.CreateCommandQueue(CommandType.Render, "RenderCommandQueue");
-            this.presentQueue = this.graphicsManager.CreateCommandQueue(CommandType.Render, "PresentCommandQueue");
+            this.presentQueue = this.graphicsManager.CreateCommandQueue(CommandType.Present, "PresentCommandQueue");
 
             // TODO: To remove, TESTS
             this.currentWindowRenderSize = nativeUIManager.GetWindowRenderSize(this.window);
@@ -198,6 +198,7 @@ namespace CoreEngine.Rendering
         internal void WaitForSwapChainOnCpu()
         {
             this.graphicsManager.WaitForSwapChainOnCpu(this.swapChain);
+            this.stopwatch.Restart();
         }
 
         internal void Render()
@@ -210,9 +211,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.ResetCommandQueue(this.ComputeCommandQueue);
             this.graphicsManager.ResetCommandQueue(this.CopyCommandQueue);
             this.graphicsManager.ResetCommandQueue(this.presentQueue);
-            
-            // TODO: If doing restart stopwatch here, the CPU time is more than 10ms
-            this.stopwatch.Restart();
 
             var windowRenderSize = this.nativeUIManager.GetWindowRenderSize(this.window);
 
@@ -241,30 +239,23 @@ namespace CoreEngine.Rendering
 
             DrawDebugMessages();
             var fence = this.Graphics2DRenderer.Render(mainRenderTargetTexture);
-
-            if (fence.HasValue)
-            {
-                this.graphicsManager.WaitForCommandQueue(this.presentQueue, fence.Value);
-            }
-
-            PresentScreenBuffer(mainRenderTargetTexture);
+            PresentScreenBuffer(mainRenderTargetTexture, fence);
         }
 
-        private void PresentScreenBuffer(Texture mainRenderTargetTexture)
+        private void PresentScreenBuffer(Texture mainRenderTargetTexture, Fence? fenceToWait)
         {
             var resolveCopyCountersCommandList = this.graphicsManager.CreateCommandList(this.CopyCommandQueue, "ResolveCopyCounters");
             this.graphicsManager.ResolveQueryData(resolveCopyCountersCommandList, this.globalCopyQueryBuffer, this.globalCpuCopyQueryBuffer, 0..this.currentCopyQueryIndex);
             this.graphicsManager.CommitCommandList(resolveCopyCountersCommandList);
-            this.graphicsManager.ExecuteCommandLists(this.CopyCommandQueue, new CommandList[] { resolveCopyCountersCommandList }, isAwaitable: false);
+            this.graphicsManager.ExecuteCommandLists(this.CopyCommandQueue, new CommandList[] { resolveCopyCountersCommandList });
 
             var presentCommandList = this.graphicsManager.CreateCommandList(this.presentQueue, "PresentScreenBuffer");
 
             var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
             var renderTarget = new RenderTargetDescriptor(backBufferTexture, null, BlendOperation.None);
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
-            this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2);
+            this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2, this.computeDirectTransferShader);
             var startQueryIndex = InsertQueryTimestamp(presentCommandList);
-            this.graphicsManager.SetShader(presentCommandList, this.computeDirectTransferShader);
             this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { mainRenderTargetTexture.ShaderResourceIndex });
             this.graphicsManager.DispatchMesh(presentCommandList, 1, 1, 1);
             var endQueryIndex = InsertQueryTimestamp(presentCommandList);
@@ -274,8 +265,7 @@ namespace CoreEngine.Rendering
 
             AddGpuTiming("PresentScreenBuffer", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
-            this.graphicsManager.ExecuteCommandLists(this.presentQueue, new CommandList[] { presentCommandList }, isAwaitable: false);
-            
+            this.graphicsManager.ExecuteCommandLists(this.presentQueue, new CommandList[] { presentCommandList }, fenceToWait.HasValue ? new Fence[] { fenceToWait.Value } : Array.Empty<Fence>());
             this.graphicsManager.PresentSwapChain(this.swapChain);
         }
 

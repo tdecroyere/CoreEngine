@@ -2,100 +2,84 @@
 #include "WindowsCommon.h"
 #include "../Common/CoreEngine.h"
 
+#define VK_USE_PLATFORM_WIN32_KHR
+#include "vulkan.h"
+
 using namespace std;
-using namespace Microsoft::WRL;
 
-extern "C" { _declspec(dllexport) extern const UINT D3D12SDKVersion = 4;}
-extern "C" { _declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+static const int VulkanFramesCount = 2;
 
-static const int RenderBuffersCount = 2;
-static const int FramesCount = 2;
-static const int CommandAllocatorsCount = 2;
-static const int QueryHeapMaxSize = 1000;
-
-struct Direct3D12CommandQueue
+struct VulkanCommandQueue
 {
-    ComPtr<ID3D12CommandQueue> CommandQueueObject;
-    ComPtr<ID3D12CommandAllocator>* CommandAllocators;
-    D3D12_COMMAND_LIST_TYPE Type;
-    ComPtr<ID3D12Fence1> Fence;
+    VkQueue CommandQueueObject;
+    VkCommandPool* CommandPools;
+    VkSemaphore TimelineSemaphore;
     uint64_t FenceValue;
 };
 
-struct Direct3D12CommandList
+struct VulkanCommandList
 {
-    ComPtr<ID3D12GraphicsCommandList6> CommandListObject;
-    D3D12_COMMAND_LIST_TYPE Type;
-    Direct3D12CommandQueue* CommandQueue;
-    GraphicsRenderPassDescriptor RenderPassDescriptor;
+    VkCommandBuffer CommandBufferObject;
+    VulkanCommandQueue* CommandQueue;
+    bool IsRenderPassActive;
 };
 
-struct Direct3D12GraphicsHeap
+struct VulkanGraphicsHeap
 {
-    ComPtr<ID3D12Heap> HeapObject;
-    GraphicsServiceHeapType Type;
+
 };
 
-struct Direct3D12ShaderResourceHeap
+struct VulkanShaderResourceHeap
 {
-    ComPtr<ID3D12DescriptorHeap> HeapObject;
-    UINT HandleSize;
+
 };
 
-struct Direct3D12GraphicsBuffer
+struct VulkanGraphicsBuffer
 {
-    ComPtr<ID3D12Resource> BufferObject;
-    GraphicsServiceHeapType Type;
-    D3D12_RESOURCE_DESC ResourceDesc;
-    D3D12_RESOURCE_STATES ResourceState;
-    void* CpuPointer;
+    int SizeInBytes;
 };
 
-struct Direct3D12Texture
+struct VulkanTexture
 {
-    ComPtr<ID3D12Resource> TextureObject;
-    D3D12_RESOURCE_DESC ResourceDesc;
-    D3D12_RESOURCE_STATES ResourceState;
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT FootPrint;
-    uint32_t TextureDescriptorOffset;
-    uint32_t SrvTextureDescriptorOffset;
-    uint32_t UavTextureDescriptorOffset;
+    VkImage TextureObject;
+    VkImageView ImageView;
+    uint32_t Width;
+    uint32_t Height;
     bool IsPresentTexture;
 };
 
-struct Direct3D12QueryBuffer
+struct VulkanQueryBuffer
 {
-    ComPtr<ID3D12QueryHeap> QueryBufferObject;
-    D3D12_QUERY_HEAP_TYPE Type;
+
 };
 
-struct Direct3D12Shader
+struct VulkanShader
 {
-    ComPtr<ID3DBlob> AmplificationShaderMethod;
-    ComPtr<ID3DBlob> MeshShaderMethod;
-    ComPtr<ID3DBlob> PixelShaderMethod;
-    ComPtr<ID3DBlob> ComputeShaderMethod;
-    ComPtr<ID3D12RootSignature> RootSignature;
+    VkShaderModule AmplificationShaderMethod;
+    VkShaderModule MeshShaderMethod;
+    VkShaderModule PixelShaderMethod;
+    VkShaderModule ComputeShaderMethod;
 };
 
-struct Direct3D12PipelineState
+struct VulkanPipelineState
 {
-    ComPtr<ID3D12PipelineState> PipelineStateObject;
+    VkRenderPass RenderPass;
 };
 
-struct Direct3D12SwapChain
+struct VulkanSwapChain
 {
-    ComPtr<IDXGISwapChain3> SwapChainObject;
-    Direct3D12CommandQueue* CommandQueue;
-    void* WaitHandle;
-    Direct3D12Texture* BackBufferTextures[RenderBuffersCount];
+    VkSurfaceKHR WindowSurface;
+    VkSwapchainKHR SwapChainObject;
+    VulkanCommandQueue* CommandQueue;
+    uint32_t CurrentImageIndex;
+    VulkanTexture* BackBufferTextures[VulkanFramesCount];
 };
 
-class Direct3D12GraphicsService
+class VulkanGraphicsService
 {
     public:
-        Direct3D12GraphicsService();
-        ~Direct3D12GraphicsService();
+        VulkanGraphicsService();
+        ~VulkanGraphicsService();
 
         void GetGraphicsAdapterName(char* output);
         GraphicsAllocationInfos GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
@@ -174,37 +158,20 @@ class Direct3D12GraphicsService
         void ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex);
 
     private:
-        // Device objects
-        wstring adapterName;
-        ComPtr<IDXGIFactory4> dxgiFactory; 
-        ComPtr<ID3D12Device3> graphicsDevice;
-        ComPtr<IDXGIDebug> dxgiDebug;
-        
-        // Command Objects
-        int32_t currentAllocatorIndex = 0;
+        wstring deviceName;
+        VkInstance vulkanInstance = nullptr;
+        VkPhysicalDevice graphicsPhysicalDevice = nullptr;
+        VkDevice graphicsDevice = nullptr;
 
-        // Synchronization objects
-        HANDLE globalFenceEvent;
-        bool isWaitingForGlobalFence;
+        int32_t currentCommandPoolIndex = 0;
+        // TODO: To remove?
+        VulkanPipelineState* currentPipelineState = nullptr;
 
-        // Heap objects
-        ComPtr<ID3D12DescriptorHeap> globalRtvDescriptorHeap;
-        uint32_t globalRtvDescriptorHandleSize;
-        uint32_t currentGlobalRtvDescriptorOffset;
+        uint32_t renderCommandQueueFamilyIndex;
+        uint32_t computeCommandQueueFamilyIndex;
+        uint32_t copyCommandQueueFamilyIndex;
 
-        ComPtr<ID3D12DescriptorHeap> globalDsvDescriptorHeap;
-        uint32_t globalDsvDescriptorHandleSize;
-        uint32_t currentGlobalDsvDescriptorOffset;
-
-        // Shaders
-        bool shaderBound;
-        Direct3D12Shader currentShaderIndirectCommand = {}; // TODO: To remove
-
-        void EnableDebugLayer();
-        ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);
-        bool CreateDevice(const ComPtr<IDXGIFactory4> dxgiFactory, const ComPtr<IDXGIAdapter4> graphicsAdapter);
-        bool CreateHeaps();
-
-        void TransitionTextureToState(Direct3D12CommandList* commandList, Direct3D12Texture* texture, D3D12_RESOURCE_STATES destinationState);
-        void TransitionBufferToState(Direct3D12CommandList* commandList, Direct3D12GraphicsBuffer* graphicsBuffer, D3D12_RESOURCE_STATES destinationState);
+        VkInstance CreateVulkanInstance();
+        VkPhysicalDevice FindGraphicsDevice();
+        VkDevice CreateDevice(VkPhysicalDevice physicalDevice);
 };

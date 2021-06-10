@@ -138,9 +138,17 @@ unsigned long Direct3D12GraphicsService::GetCommandQueueTimestampFrequency(void*
 	return timestampFrequency;
 }
 
-unsigned long Direct3D12GraphicsService::ExecuteCommandLists(void* commandQueuePointer, void** commandLists, int commandListsLength, int isAwaitable)
+unsigned long Direct3D12GraphicsService::ExecuteCommandLists(void* commandQueuePointer, void** commandLists, int commandListsLength, struct GraphicsFence* fencesToWait, int fencesToWaitLength)
 {
 	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+
+	for (int i = 0; i < fencesToWaitLength; i++)
+	{
+		auto fenceToWait = fencesToWait[i];
+		Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)fenceToWait.CommandQueuePointer;
+
+		AssertIfFailed(commandQueue->CommandQueueObject->Wait(commandQueueToWait->Fence.Get(), fenceToWait.Value));
+	}
 
 	// TODO: We need to free that memory somehow
 	ID3D12CommandList** commandListsToExecute = new ID3D12CommandList*[commandListsLength];
@@ -151,35 +159,24 @@ unsigned long Direct3D12GraphicsService::ExecuteCommandLists(void* commandQueueP
 	}
 
 	commandQueue->CommandQueueObject->ExecuteCommandLists(commandListsLength, commandListsToExecute);
-	
-	if (isAwaitable)
-	{
-		// TODO: Switch to an atomic increment here for multi threading
-		auto fenceValue = commandQueue->FenceValue;
-		commandQueue->CommandQueueObject->Signal(commandQueue->Fence.Get(), fenceValue);
-		commandQueue->FenceValue = fenceValue + 1;
 
-		return fenceValue;
-	}
+	delete commandListsToExecute;
 
-	return 0;
+	// TODO: Switch to an atomic increment here for multi threading
+	auto fenceValue = commandQueue->FenceValue;
+	commandQueue->CommandQueueObject->Signal(commandQueue->Fence.Get(), fenceValue);
+	commandQueue->FenceValue = fenceValue + 1;
+
+	return fenceValue;
 }
 
-void Direct3D12GraphicsService::WaitForCommandQueue(void* commandQueuePointer, void* commandQueueToWaitPointer, unsigned long fenceValue)
+void Direct3D12GraphicsService::WaitForCommandQueueOnCpu(struct GraphicsFence fenceToWait)
 {
-	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
-	Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)commandQueueToWaitPointer;
+	Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)fenceToWait.CommandQueuePointer;
 
-	AssertIfFailed(commandQueue->CommandQueueObject->Wait(commandQueueToWait->Fence.Get(), fenceValue));
-}
-
-void Direct3D12GraphicsService::WaitForCommandQueueOnCpu(void* commandQueueToWaitPointer, unsigned long fenceValue)
-{
-	Direct3D12CommandQueue* commandQueueToWait = (Direct3D12CommandQueue*)commandQueueToWaitPointer;
-
-	if (commandQueueToWait->Fence->GetCompletedValue() < fenceValue)
+	if (commandQueueToWait->Fence->GetCompletedValue() < fenceToWait.Value)
 	{
-		commandQueueToWait->Fence->SetEventOnCompletion(fenceValue, this->globalFenceEvent);
+		commandQueueToWait->Fence->SetEventOnCompletion(fenceToWait.Value, this->globalFenceEvent);
 		WaitForSingleObject(this->globalFenceEvent, INFINITE);
 	}
 }
@@ -557,6 +554,7 @@ void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* comm
 	Direct3D12SwapChain* swapChainStructure = new Direct3D12SwapChain();
 	swapChainStructure->SwapChainObject = swapChain;
 	swapChainStructure->CommandQueue = commandQueue;
+	swapChainStructure->WaitHandle = swapChain->GetFrameLatencyWaitableObject();
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.Format = ConvertTextureFormat(textureFormat);
@@ -594,7 +592,11 @@ void Direct3D12GraphicsService::ResizeSwapChain(void* swapChainPointer, int widt
 {
 	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
 
-	this->WaitForCommandQueueOnCpu(swapChain->CommandQueue, swapChain->CommandQueue->FenceValue - 1);
+	GraphicsFence fenceToWait = {};
+	fenceToWait.CommandQueuePointer = swapChain->CommandQueue;
+	fenceToWait.Value = swapChain->CommandQueue->FenceValue - 1;
+
+	this->WaitForCommandQueueOnCpu(fenceToWait);
 	
 	D3D12_RESOURCE_DESC backBufferDesc;
 
@@ -665,10 +667,7 @@ void Direct3D12GraphicsService::WaitForSwapChainOnCpu(void* swapChainPointer)
 {
 	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
 
-	// TODO: Store that in the swapchain struct
-	auto waitable = swapChain->SwapChainObject->GetFrameLatencyWaitableObject();
-
-	if (WaitForSingleObjectEx(waitable, 1000, true) == WAIT_TIMEOUT)
+	if (WaitForSingleObjectEx(swapChain->WaitHandle, 1000, true) == WAIT_TIMEOUT)
 	{
 		assert("Wait for SwapChain timeout");
 	}
@@ -723,6 +722,9 @@ void* Direct3D12GraphicsService::CreateShader(char* computeShaderFunction, void*
 
 	auto currentDataPtr = (unsigned char*)shaderByteCode;
 
+	// Skip SPIR-V offset
+	currentDataPtr += sizeof(int);
+
 	auto rootSignatureByteCodeLength = (*(int*)currentDataPtr);
 	currentDataPtr += sizeof(int);
 	auto rootSignatureBlob = CreateShaderBlob(currentDataPtr, rootSignatureByteCodeLength);
@@ -754,12 +756,7 @@ void* Direct3D12GraphicsService::CreateShader(char* computeShaderFunction, void*
 		auto shaderBlob = CreateShaderBlob(currentDataPtr, shaderByteCodeLength);
 		currentDataPtr += shaderByteCodeLength;
 
-		if (entryPointName == "VertexMain")
-		{
-			shader->VertexShaderMethod = shaderBlob;
-		}
-
-		else if (entryPointName == "AmplificationMain")
+		if (entryPointName == "AmplificationMain")
 		{
 			shader->AmplificationShaderMethod = shaderBlob;
 		}

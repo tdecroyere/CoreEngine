@@ -456,7 +456,7 @@ namespace CoreEngine.Rendering
                 Logger.EndAction();
             }
 
-            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList }, isAwaitable: true);
+            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
 
             // var graphicsPipelineParameters = new GraphicsPipelineParameter[]
             // {
@@ -499,9 +499,9 @@ namespace CoreEngine.Rendering
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor);
 
-            this.graphicsManager.SetShader(renderCommandList, this.renderMeshInstanceShader);
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
+            
             this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] 
             { 
                 this.camerasBuffer.ShaderResourceIndex, 
@@ -511,7 +511,7 @@ namespace CoreEngine.Rendering
                 this.meshInstanceBuffer.ShaderResourceIndex, 
                 this.currentMeshInstanceCount 
             });
-            
+
             // TODO: Do not hardcode wave size
             int waveSize = 32;
             this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1);
@@ -522,8 +522,8 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CommitCommandList(renderCommandList);
             this.renderManager.AddGpuTiming("TestRender", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
-            this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, copyFence);
-            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] {renderCommandList}, isAwaitable: false);
+            // TODO: Submit render and debug command list at the same time
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { copyFence });
 
             if (renderManager.logFrameTime)
             {

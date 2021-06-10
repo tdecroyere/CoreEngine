@@ -8,9 +8,8 @@ public protocol GraphicsServiceProtocol {
     func deleteCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?)
     func resetCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?)
     func getCommandQueueTimestampFrequency(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UInt
-    func executeCommandLists(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: [UnsafeMutableRawPointer?], _ isAwaitable: Bool) -> UInt
-    func waitForCommandQueue(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt)
-    func waitForCommandQueueOnCpu(_ commandQueueToWaitPointer: UnsafeMutableRawPointer?, _ fenceValue: UInt)
+    func executeCommandLists(_ commandQueuePointer: UnsafeMutableRawPointer?, _ commandLists: [UnsafeMutableRawPointer?], _ fencesToWait: [GraphicsFence]) -> UInt
+    func waitForCommandQueueOnCpu(_ fenceToWait: GraphicsFence)
     func createCommandList(_ commandQueuePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
     func setCommandListLabel(_ commandListPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteCommandList(_ commandListPointer: UnsafeMutableRawPointer?)

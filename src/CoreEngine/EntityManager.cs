@@ -272,6 +272,7 @@ namespace CoreEngine
             return false;
         }
 
+        // TODO: Replace that with a query system that build the data after each entity/componenet modification?
         internal EntitySystemData GetEntitySystemData(ReadOnlySpan<ComponentHash> componentHashCodes)
         {
             var componentSizes = new int[componentHashCodes.Length];
@@ -362,8 +363,9 @@ namespace CoreEngine
 
         private ComponentStorageMemoryChunk CreateMemoryChunk(ComponentStorage dataStorage, int chunkItemSize)
         {
-            // Store 50 entities per chunk for now
-            var entityCount = 50;
+            // Start first with small chunk count then increase it base on usage?
+            // Store 10000 entities per chunk for now
+            var entityCount = 10000;
 
             var dataChunkSize = entityCount * chunkItemSize;
             var memoryStorage = this.componentDataStorage.AsMemory(this.currentDataIndex, dataChunkSize);

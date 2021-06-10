@@ -4,6 +4,7 @@ namespace CoreEngine.Graphics
     {
         Render,
         Copy,
-        Compute
+        Compute,
+        Present
     }
 }

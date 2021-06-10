@@ -177,20 +177,20 @@ namespace CoreEngine.IntegrationTests
             Assert.Equal(entities[1], component.ActiveCamera!.Value);
         }
 
-        [Fact]
-        public async Task CompileScene_LoadScene_LoadDependentResource()
-        {
-            // Arrange
-            var resourcesManager = new TestResourcesManager();
-            var outputData = await SetupOutputData();
-            var sceneLoader = SetupSceneLoader(resourcesManager);
-            var scene = new Scene();
+        // [Fact]
+        // public async Task CompileScene_LoadScene_LoadDependentResource()
+        // {
+        //     // Arrange
+        //     var resourcesManager = new TestResourcesManager();
+        //     var outputData = await SetupOutputData();
+        //     var sceneLoader = SetupSceneLoader(resourcesManager);
+        //     var scene = new Scene();
 
-            // Act
-            sceneLoader.LoadResourceData(scene, outputData);
+        //     // Act
+        //     sceneLoader.LoadResourceData(scene, outputData);
 
-            // Assert
-            Assert.True(resourcesManager.LoadedResources.Contains("/teapot.mesh"));
-        }
+        //     // Assert
+        //     Assert.True(resourcesManager.LoadedResources.Contains("/teapot.mesh"));
+        // }
     }
 }

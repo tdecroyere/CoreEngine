@@ -51,7 +51,14 @@ bool FileExists(const wstring& filename)
 
 int CALLBACK wWinMain(HINSTANCE applicationInstance, HINSTANCE, LPWSTR fullCommandLine, int)
 {
-	AttachConsole(ATTACH_PARENT_PROCESS);
+	if (AttachConsole(ATTACH_PARENT_PROCESS))
+    {
+        FILE *fpstdin = stdin, *fpstdout = stdout, *fpstderr = stderr;
+
+		freopen_s(&fpstdin, "CONIN$", "r", stdin);
+		freopen_s(&fpstdout, "CONOUT$", "w", stdout);
+		freopen_s(&fpstderr, "CONOUT$", "w", stderr);
+    }
 
     auto commandLine = TrimString(wstring(fullCommandLine), L" \"");
     auto arguments = SplitString(commandLine, ' ');
@@ -112,4 +119,14 @@ int CALLBACK wWinMain(HINSTANCE applicationInstance, HINSTANCE, LPWSTR fullComma
 
     auto coreEngineHost = CoreEngineHost(assemblyName, &nativeUIService, direct3dGraphicsService, vulkanGraphicsService, &inputsService);
     coreEngineHost.StartEngine();
+
+    if (direct3dGraphicsService != nullptr)
+    {
+        delete direct3dGraphicsService;
+    }
+
+    if (vulkanGraphicsService != nullptr)
+    {
+        delete vulkanGraphicsService;
+    }
 }

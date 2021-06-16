@@ -29,10 +29,12 @@ public protocol GraphicsServiceProtocol {
     func setGraphicsBufferLabel(_ graphicsBufferPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteGraphicsBuffer(_ graphicsBufferPointer: UnsafeMutableRawPointer?)
     func getGraphicsBufferCpuPointer(_ graphicsBufferPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
+    func releaseGraphicsBufferCpuPointer(_ graphicsBufferPointer: UnsafeMutableRawPointer?)
     func createTexture(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ isAliasable: Bool, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> UnsafeMutableRawPointer?
     func setTextureLabel(_ texturePointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteTexture(_ texturePointer: UnsafeMutableRawPointer?)
     func createSwapChain(_ windowPointer: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ width: Int, _ height: Int, _ textureFormat: GraphicsTextureFormat) -> UnsafeMutableRawPointer?
+    func deleteSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?)
     func resizeSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?, _ width: Int, _ height: Int)
     func getSwapChainBackBufferTexture(_ swapChainPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
     func presentSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?) -> UInt

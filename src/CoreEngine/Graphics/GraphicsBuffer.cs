@@ -9,7 +9,7 @@ namespace CoreEngine.Graphics
         private readonly GraphicsManager graphicsManager;
         private bool isDisposed;
 
-        internal GraphicsBuffer(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, IntPtr nativePointer1, IntPtr? nativePointer2, IntPtr cpuPointer, IntPtr cpuPointer2, int length, bool isStatic, string label)
+        internal GraphicsBuffer(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, IntPtr nativePointer1, IntPtr? nativePointer2, int length, bool isStatic, string label)
         {
             this.graphicsManager = graphicsManager;
             this.NativePointer1 = nativePointer1;
@@ -20,8 +20,6 @@ namespace CoreEngine.Graphics
             this.Label = label;
             this.GraphicsMemoryAllocation = graphicsMemoryAllocation;
             this.GraphicsMemoryAllocation2 = graphicsMemoryAllocation2;
-            this.CpuPointer1 = cpuPointer;
-            this.CpuPointer2 = cpuPointer2;
         }
 
         public void Dispose()
@@ -70,24 +68,6 @@ namespace CoreEngine.Graphics
         public bool IsStatic { get; }
         public GraphicsMemoryAllocation GraphicsMemoryAllocation { get; }
         public GraphicsMemoryAllocation? GraphicsMemoryAllocation2 { get; }
-
-        public IntPtr CpuPointer 
-        { 
-            get
-            {
-                var result = this.CpuPointer1;
-
-                if (!IsStatic && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
-                {
-                    result = this.CpuPointer2;
-                }
-
-                return result;
-            }
-        }
-
-        public IntPtr CpuPointer1 { get; }
-        public IntPtr CpuPointer2 { get; }
 
         public uint ShaderResourceIndex 
         { 

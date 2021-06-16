@@ -141,6 +141,11 @@ func GraphicsService_getGraphicsBufferCpuPointerInterop(context: UnsafeMutableRa
     return contextObject.getGraphicsBufferCpuPointer(graphicsBufferPointer)
 }
 
+func GraphicsService_releaseGraphicsBufferCpuPointerInterop(context: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.releaseGraphicsBufferCpuPointer(graphicsBufferPointer)
+}
+
 func GraphicsService_createTextureInterop(context: UnsafeMutableRawPointer?, _ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ isAliasable: Int32, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32) -> UnsafeMutableRawPointer? {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.createTexture(graphicsHeapPointer, heapOffset, Bool(isAliasable == 1), textureFormat, usage, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount))
@@ -159,6 +164,11 @@ func GraphicsService_deleteTextureInterop(context: UnsafeMutableRawPointer?, _ t
 func GraphicsService_createSwapChainInterop(context: UnsafeMutableRawPointer?, _ windowPointer: UnsafeMutableRawPointer?, _ commandQueuePointer: UnsafeMutableRawPointer?, _ width: Int32, _ height: Int32, _ textureFormat: GraphicsTextureFormat) -> UnsafeMutableRawPointer? {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.createSwapChain(windowPointer, commandQueuePointer, Int(width), Int(height), textureFormat)
+}
+
+func GraphicsService_deleteSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.deleteSwapChain(swapChainPointer)
 }
 
 func GraphicsService_resizeSwapChainInterop(context: UnsafeMutableRawPointer?, _ swapChainPointer: UnsafeMutableRawPointer?, _ width: Int32, _ height: Int32) {
@@ -326,10 +336,12 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_SetGraphicsBufferLabel = GraphicsService_setGraphicsBufferLabelInterop
     service.GraphicsService_DeleteGraphicsBuffer = GraphicsService_deleteGraphicsBufferInterop
     service.GraphicsService_GetGraphicsBufferCpuPointer = GraphicsService_getGraphicsBufferCpuPointerInterop
+    service.GraphicsService_ReleaseGraphicsBufferCpuPointer = GraphicsService_releaseGraphicsBufferCpuPointerInterop
     service.GraphicsService_CreateTexture = GraphicsService_createTextureInterop
     service.GraphicsService_SetTextureLabel = GraphicsService_setTextureLabelInterop
     service.GraphicsService_DeleteTexture = GraphicsService_deleteTextureInterop
     service.GraphicsService_CreateSwapChain = GraphicsService_createSwapChainInterop
+    service.GraphicsService_DeleteSwapChain = GraphicsService_deleteSwapChainInterop
     service.GraphicsService_ResizeSwapChain = GraphicsService_resizeSwapChainInterop
     service.GraphicsService_GetSwapChainBackBufferTexture = GraphicsService_getSwapChainBackBufferTextureInterop
     service.GraphicsService_PresentSwapChain = GraphicsService_presentSwapChainInterop

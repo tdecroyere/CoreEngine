@@ -148,10 +148,12 @@ typedef void* (*GraphicsService_CreateGraphicsBufferPtr)(void* context, void* gr
 typedef void (*GraphicsService_SetGraphicsBufferLabelPtr)(void* context, void* graphicsBufferPointer, char* label);
 typedef void (*GraphicsService_DeleteGraphicsBufferPtr)(void* context, void* graphicsBufferPointer);
 typedef void* (*GraphicsService_GetGraphicsBufferCpuPointerPtr)(void* context, void* graphicsBufferPointer);
+typedef void (*GraphicsService_ReleaseGraphicsBufferCpuPointerPtr)(void* context, void* graphicsBufferPointer);
 typedef void* (*GraphicsService_CreateTexturePtr)(void* context, void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 typedef void (*GraphicsService_SetTextureLabelPtr)(void* context, void* texturePointer, char* label);
 typedef void (*GraphicsService_DeleteTexturePtr)(void* context, void* texturePointer);
 typedef void* (*GraphicsService_CreateSwapChainPtr)(void* context, void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
+typedef void (*GraphicsService_DeleteSwapChainPtr)(void* context, void* swapChainPointer);
 typedef void (*GraphicsService_ResizeSwapChainPtr)(void* context, void* swapChainPointer, int width, int height);
 typedef void* (*GraphicsService_GetSwapChainBackBufferTexturePtr)(void* context, void* swapChainPointer);
 typedef unsigned long (*GraphicsService_PresentSwapChainPtr)(void* context, void* swapChainPointer);
@@ -211,10 +213,12 @@ struct GraphicsService
     GraphicsService_SetGraphicsBufferLabelPtr GraphicsService_SetGraphicsBufferLabel;
     GraphicsService_DeleteGraphicsBufferPtr GraphicsService_DeleteGraphicsBuffer;
     GraphicsService_GetGraphicsBufferCpuPointerPtr GraphicsService_GetGraphicsBufferCpuPointer;
+    GraphicsService_ReleaseGraphicsBufferCpuPointerPtr GraphicsService_ReleaseGraphicsBufferCpuPointer;
     GraphicsService_CreateTexturePtr GraphicsService_CreateTexture;
     GraphicsService_SetTextureLabelPtr GraphicsService_SetTextureLabel;
     GraphicsService_DeleteTexturePtr GraphicsService_DeleteTexture;
     GraphicsService_CreateSwapChainPtr GraphicsService_CreateSwapChain;
+    GraphicsService_DeleteSwapChainPtr GraphicsService_DeleteSwapChain;
     GraphicsService_ResizeSwapChainPtr GraphicsService_ResizeSwapChain;
     GraphicsService_GetSwapChainBackBufferTexturePtr GraphicsService_GetSwapChainBackBufferTexture;
     GraphicsService_PresentSwapChainPtr GraphicsService_PresentSwapChain;

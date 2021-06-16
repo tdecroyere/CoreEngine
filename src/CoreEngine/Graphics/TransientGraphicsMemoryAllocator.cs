@@ -5,29 +5,35 @@ namespace CoreEngine.Graphics
 {
     // TODO: IMPORTANT: This code is not thread safe for now
 
-    class TransientGraphicsMemoryAllocator : IGraphicsMemoryAllocator
+    class TransientGraphicsMemoryAllocator : IGraphicsMemoryAllocator, IDisposable
     {
         private readonly IGraphicsService graphicsService;
+        private readonly GraphicsManager graphicsManager;
 
-        public TransientGraphicsMemoryAllocator(IGraphicsService graphicsService, GraphicsHeapType heapType, ulong sizeInBytes, string label)
+        private bool isDisposed;
+
+        public TransientGraphicsMemoryAllocator(GraphicsManager graphicsManager, IGraphicsService graphicsService, GraphicsHeapType heapType, ulong sizeInBytes, string label)
         {
+            this.graphicsManager = graphicsManager;
             this.graphicsService = graphicsService;
             this.CurrentOffset = 0;
 
-            var nativePointer = this.graphicsService.CreateGraphicsHeap((GraphicsServiceHeapType)heapType, sizeInBytes);
-            
-            if(nativePointer == IntPtr.Zero)
+            this.GraphicsHeap = this.graphicsManager.CreateGraphicsHeap(heapType, sizeInBytes, label);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing && !this.isDisposed)
             {
-                throw new InvalidOperationException($"Cannot create {label}.");
+                this.graphicsManager.ScheduleDeleteGraphicsHeap(this.GraphicsHeap);
+                this.isDisposed = true;
             }
-
-            this.graphicsService.SetGraphicsHeapLabel(nativePointer, label);
-
-            // TODO: Do something better here
-            this.GraphicsHeap0 = new GraphicsHeap(nativePointer, heapType, sizeInBytes, $"{label}0");
-            // this.GraphicsHeap1 = new GraphicsHeap(nativePointer, heapType, sizeInBytes, $"{label}1");
-
-            this.GraphicsHeap = this.GraphicsHeap0;
         }
 
         public GraphicsMemoryAllocation AllocateMemory(int sizeInBytes, ulong alignment)

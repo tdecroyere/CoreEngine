@@ -5,30 +5,53 @@ namespace CoreEngine.Graphics
 {
     // TODO: IMPORTANT: This code is not thread safe for now
 
-    public class GraphicsMemoryManager
+    public class GraphicsMemoryManager : IDisposable
     {
         private readonly IGraphicsService graphicsService;
+        private readonly GraphicsManager graphicsManager;
+
+        private bool isDisposed;
 
         private IGraphicsMemoryAllocator globalGpuMemoryAllocator;
         private IGraphicsMemoryAllocator globalTransientGpuMemoryAllocator;
         private IGraphicsMemoryAllocator globalUploadMemoryAllocator;
         private IGraphicsMemoryAllocator globalReadBackMemoryAllocator;
 
-        public GraphicsMemoryManager(IGraphicsService graphicsService)
+        public GraphicsMemoryManager(GraphicsManager graphicsManager, IGraphicsService graphicsService)
         {
+            this.graphicsManager = graphicsManager;
             this.graphicsService = graphicsService;
 
             // TODO: Write a paging system with pages of 256MB? (see DirectX12Allocator)
 
-            this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Gpu, Utils.MegaBytesToBytes(256), "GlobalGpuHeap");
-            this.globalTransientGpuMemoryAllocator = new TransientGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Gpu, Utils.MegaBytesToBytes(100), "GlobalTransientGpuHeap");
-            this.globalUploadMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Upload, Utils.MegaBytesToBytes(256), "GlobalUploadHeap");
-            this.globalReadBackMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.ReadBack, Utils.MegaBytesToBytes(32), "GlobalReadBackHeap");
+            this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Gpu, Utils.MegaBytesToBytes(256), "GlobalGpuHeap");
+            this.globalTransientGpuMemoryAllocator = new TransientGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Gpu, Utils.MegaBytesToBytes(100), "GlobalTransientGpuHeap");
+            this.globalUploadMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Upload, Utils.MegaBytesToBytes(175), "GlobalUploadHeap");
+            this.globalReadBackMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.ReadBack, Utils.MegaBytesToBytes(32), "GlobalReadBackHeap");
 
             // this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Gpu, Utils.GigaBytesToBytes(1), "GlobalGpuHeap");
             // this.globalTransientGpuMemoryAllocator = new TransientGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Gpu, Utils.GigaBytesToBytes(1), "GlobalTransientGpuHeap");
             // this.globalUploadMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Upload, Utils.GigaBytesToBytes(1), "GlobalUploadHeap");
             // this.globalReadBackMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.ReadBack, Utils.MegaBytesToBytes(32), "GlobalReadBackHeap");
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing && !this.isDisposed)
+            {
+                this.globalGpuMemoryAllocator.Dispose();
+                this.globalTransientGpuMemoryAllocator.Dispose();
+                this.globalUploadMemoryAllocator.Dispose();
+                this.globalReadBackMemoryAllocator.Dispose();
+
+                this.isDisposed = true;
+            }
         }
 
         public ulong AllocatedGpuMemory => this.globalGpuMemoryAllocator.AllocatedMemory;

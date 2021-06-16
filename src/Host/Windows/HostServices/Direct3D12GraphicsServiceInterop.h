@@ -169,6 +169,12 @@ void* Direct3D12GraphicsServiceGetGraphicsBufferCpuPointerInterop(void* context,
     return contextObject->GetGraphicsBufferCpuPointer(graphicsBufferPointer);
 }
 
+void Direct3D12GraphicsServiceReleaseGraphicsBufferCpuPointerInterop(void* context, void* graphicsBufferPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->ReleaseGraphicsBufferCpuPointer(graphicsBufferPointer);
+}
+
 void* Direct3D12GraphicsServiceCreateTextureInterop(void* context, void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -191,6 +197,12 @@ void* Direct3D12GraphicsServiceCreateSwapChainInterop(void* context, void* windo
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
     return contextObject->CreateSwapChain(windowPointer, commandQueuePointer, width, height, textureFormat);
+}
+
+void Direct3D12GraphicsServiceDeleteSwapChainInterop(void* context, void* swapChainPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DeleteSwapChain(swapChainPointer);
 }
 
 void Direct3D12GraphicsServiceResizeSwapChainInterop(void* context, void* swapChainPointer, int width, int height)
@@ -386,10 +398,12 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
     service->GraphicsService_SetGraphicsBufferLabel = Direct3D12GraphicsServiceSetGraphicsBufferLabelInterop;
     service->GraphicsService_DeleteGraphicsBuffer = Direct3D12GraphicsServiceDeleteGraphicsBufferInterop;
     service->GraphicsService_GetGraphicsBufferCpuPointer = Direct3D12GraphicsServiceGetGraphicsBufferCpuPointerInterop;
+    service->GraphicsService_ReleaseGraphicsBufferCpuPointer = Direct3D12GraphicsServiceReleaseGraphicsBufferCpuPointerInterop;
     service->GraphicsService_CreateTexture = Direct3D12GraphicsServiceCreateTextureInterop;
     service->GraphicsService_SetTextureLabel = Direct3D12GraphicsServiceSetTextureLabelInterop;
     service->GraphicsService_DeleteTexture = Direct3D12GraphicsServiceDeleteTextureInterop;
     service->GraphicsService_CreateSwapChain = Direct3D12GraphicsServiceCreateSwapChainInterop;
+    service->GraphicsService_DeleteSwapChain = Direct3D12GraphicsServiceDeleteSwapChainInterop;
     service->GraphicsService_ResizeSwapChain = Direct3D12GraphicsServiceResizeSwapChainInterop;
     service->GraphicsService_GetSwapChainBackBufferTexture = Direct3D12GraphicsServiceGetSwapChainBackBufferTextureInterop;
     service->GraphicsService_PresentSwapChain = Direct3D12GraphicsServicePresentSwapChainInterop;

@@ -285,6 +285,7 @@ namespace CoreEngine.HostServices
         void SetGraphicsBufferLabel(IntPtr graphicsBufferPointer, string label);
         void DeleteGraphicsBuffer(IntPtr graphicsBufferPointer);
         IntPtr GetGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer);
+        void ReleaseGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer);
 
         // TODO: Move make aliasable into a separate method
         IntPtr CreateTexture(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
@@ -292,7 +293,7 @@ namespace CoreEngine.HostServices
         void DeleteTexture(IntPtr texturePointer);
 
         IntPtr CreateSwapChain(IntPtr windowPointer, IntPtr commandQueuePointer, int width, int height, GraphicsTextureFormat textureFormat);
-        // void DeleteSwapChain(uint swapChainId);
+        void DeleteSwapChain(IntPtr swapChainPointer);
         void ResizeSwapChain(IntPtr swapChainPointer, int width, int height);
         IntPtr GetSwapChainBackBufferTexture(IntPtr swapChainPointer);
         ulong PresentSwapChain(IntPtr swapChainPointer);
@@ -334,6 +335,7 @@ namespace CoreEngine.HostServices
         void SetShader(IntPtr commandListPointer, IntPtr shaderPointer);
         void SetShaderParameterValues(IntPtr commandListPointer, uint slot, ReadOnlySpan<uint> values);
 
+        // TODO: Suppress threadGroupCountY and threadGroupCountZ for mesh shader
         void DispatchMesh(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
 
         // TODO: Find a way to map opaque datastructures like the pipeline stats to a generic one to make this portable

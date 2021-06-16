@@ -42,7 +42,7 @@ public static class Program
         var inputsManager = new InputsManager(hostPlatform.InputsService);
         var nativeUIManager = new NativeUIManager(hostPlatform.NativeUIService);
 
-        var window = nativeUIManager.CreateWindow("Core Engine", 1920, 1080);
+        var window = nativeUIManager.CreateWindow("Core Engine", 1280, 720);
         inputsManager.AssociateWindow(window);
 
         var sceneQueue = new GraphicsSceneQueue();

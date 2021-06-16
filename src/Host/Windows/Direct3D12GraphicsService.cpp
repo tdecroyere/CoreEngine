@@ -14,7 +14,14 @@ Direct3D12GraphicsService::Direct3D12GraphicsService()
     UINT createFactoryFlags = 0;
 
 #ifdef DEBUG
-	EnableDebugLayer();
+	// If the project is in a debug build, enable debugging via SDK Layers.
+	AssertIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(this->debugController.GetAddressOf())));
+
+	if (this->debugController)
+	{
+		this->debugController->EnableDebugLayer();
+	}
+
     createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 
 	// UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
@@ -28,6 +35,10 @@ Direct3D12GraphicsService::Direct3D12GraphicsService()
 	AssertIfFailed(CreateDevice(dxgiFactory, graphicsAdapter));
 	//AssertIfFailed(CreateOrResizeSwapChain(width, height));
 	AssertIfFailed(CreateHeaps());
+
+#ifdef DEBUG
+	EnableDebugLayer();
+#endif
 }
 
 Direct3D12GraphicsService::~Direct3D12GraphicsService()
@@ -36,7 +47,9 @@ Direct3D12GraphicsService::~Direct3D12GraphicsService()
 	// cleaned up by the destructor.
 	CloseHandle(this->globalFenceEvent);
 
+#ifdef DEBUG
 	this->dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_SUMMARY);
+#endif
 }
 
 void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
@@ -117,6 +130,15 @@ void Direct3D12GraphicsService::SetCommandQueueLabel(void* commandQueuePointer, 
 void Direct3D12GraphicsService::DeleteCommandQueue(void* commandQueuePointer)
 {
 	Direct3D12CommandQueue* commandQueue = (Direct3D12CommandQueue*)commandQueuePointer;
+
+	if (commandQueue != nullptr && commandQueue->CommandAllocators != nullptr)
+	{
+		for (int i = 0; i < CommandAllocatorsCount; i++)
+		{
+			commandQueue->CommandAllocators[i]->Release();
+		}
+	}
+
 	delete commandQueue;
 }
 
@@ -425,6 +447,11 @@ void* Direct3D12GraphicsService::GetGraphicsBufferCpuPointer(void* graphicsBuffe
 	return pointer;
 }
 
+void Direct3D12GraphicsService::ReleaseGraphicsBufferCpuPointer(void* graphicsBufferPointer)
+{
+	// Do nothing here because Direct3D12 support permanent map to cpu pointers
+}
+
 void* Direct3D12GraphicsService::CreateTexture(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
 	Direct3D12Texture* textureStruct = new Direct3D12Texture();
@@ -588,6 +615,18 @@ void* Direct3D12GraphicsService::CreateSwapChain(void* windowPointer, void* comm
 	return swapChainStructure;
 }
 
+void Direct3D12GraphicsService::DeleteSwapChain(void* swapChainPointer)
+{
+	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
+
+	for (int i = 0; i < RenderBuffersCount; i++)
+	{
+		DeleteTexture(swapChain->BackBufferTextures[i]);
+	}
+
+	delete swapChain;
+}
+
 void Direct3D12GraphicsService::ResizeSwapChain(void* swapChainPointer, int width, int height)
 {
 	Direct3D12SwapChain* swapChain = (Direct3D12SwapChain*)swapChainPointer;
@@ -617,6 +656,8 @@ void Direct3D12GraphicsService::ResizeSwapChain(void* swapChainPointer, int widt
 
 	for (int i = 0; i < RenderBuffersCount; i++)
 	{
+		DeleteTexture(swapChain->BackBufferTextures[i]);
+
 		ComPtr<ID3D12Resource> backBuffer;
 		AssertIfFailed(swapChain->SwapChainObject->GetBuffer(i, IID_PPV_ARGS(backBuffer.ReleaseAndGetAddressOf())));
 
@@ -964,9 +1005,19 @@ void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointe
 		destinationGraphicsBuffer->CpuPointer = nullptr;
 	}
 
+	if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
+	{
+		TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
+	}
+
 	commandList->CommandListObject->CopyBufferRegion(destinationGraphicsBuffer->BufferObject.Get(), 0, sourceGraphicsBuffer->BufferObject.Get(), 0, sizeInBytes);
 
-	// TODO: Transition buffer to generic read?
+	if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
+	{
+		TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COMMON);
+	}
+
+	// TODO: Group transitions together
 }
 
 void Direct3D12GraphicsService::CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)
@@ -1260,16 +1311,19 @@ void Direct3D12GraphicsService::ResolveQueryData(void* commandListPointer, void*
 	commandList->CommandListObject->ResolveQueryData(queryBuffer->QueryBufferObject.Get(), queryType, startIndex, endIndex, destinationBuffer->BufferObject.Get(), 0);
 }
 
+static void DebugReportCallback(D3D12_MESSAGE_CATEGORY Category, D3D12_MESSAGE_SEVERITY Severity, D3D12_MESSAGE_ID ID, LPCSTR pDescription, void* pContext)
+{
+
+}
+
 void Direct3D12GraphicsService::EnableDebugLayer()
 {
-	// If the project is in a debug build, enable debugging via SDK Layers.
-	ComPtr<ID3D12Debug> debugController;
-	
-	D3D12GetDebugInterface(IID_PPV_ARGS(debugController.GetAddressOf()));
+	this->graphicsDevice->QueryInterface(IID_PPV_ARGS(this->debugInfoQueue.GetAddressOf()));
 
-	if (debugController)
+	if (debugInfoQueue)
 	{
-		debugController->EnableDebugLayer();
+		DWORD callBackCookie = 0;
+		AssertIfFailed(debugInfoQueue->RegisterMessageCallback(DebugReportCallback, D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, nullptr, &callBackCookie));
 	}
 
 	AssertIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(this->dxgiDebug.ReleaseAndGetAddressOf())));

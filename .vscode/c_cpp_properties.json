@@ -14,6 +14,9 @@
             "includePath": [
                 "${workspaceFolder}/src/Host/Windows/**"
             ],
+            "forcedInclude": [
+                "${workspaceFolder}/src/Host/Windows/Generated Files/packages/Microsoft.Direct3D.D3D12.1.4.10/build/native/include/d3d12.h"
+            ],
             "defines": [
                 "DEBUG"
             ],

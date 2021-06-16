@@ -147,12 +147,6 @@ D3D12_RESOURCE_DESC CreateTextureResourceDescription(enum GraphicsTextureFormat 
 		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	}
 
-	// TODO: Implement this
-	// if (textureFormat == GraphicsTextureFormat::Depth32Float)
-	// {
-	// 	textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	// }
-
 	return textureDesc;
 }
 

@@ -12,7 +12,8 @@
         "*.pipeline": "jsonc",
         "*.idl": "cpp",
         "xstring": "cpp",
-        "xlocale": "cpp"
+        "xlocale": "cpp",
+        "xutility": "cpp"
     },
     "omnisharp.enableRoslynAnalyzers": true,
     "csharp.referencesCodeLens.enabled": false

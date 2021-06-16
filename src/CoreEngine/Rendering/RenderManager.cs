@@ -70,6 +70,10 @@ namespace CoreEngine.Rendering
         private SwapChain swapChain;
         private CommandQueue presentQueue;
 
+        private Fence? presentFence;
+
+        Texture testTexture;
+
         // TODO: Each Render Manager should use their own Graphics Manager
         public RenderManager(Window window, NativeUIManager nativeUIManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
         {
@@ -96,6 +100,8 @@ namespace CoreEngine.Rendering
             this.swapChain = graphicsManager.CreateSwapChain(window, this.presentQueue, (int)this.currentWindowRenderSize.X, (int)this.currentWindowRenderSize.Y, TextureFormat.Bgra8UnormSrgb);
 
             InitResourceLoaders(resourcesManager);
+
+            this.testTexture = resourcesManager.LoadResourceAsync<Texture>("/grass.texture");
             
             this.stopwatch = new Stopwatch();
             this.stopwatch.Start();
@@ -132,6 +138,11 @@ namespace CoreEngine.Rendering
         {
             if (isDisposing)
             {
+                if (this.presentFence != null)
+                {
+                    this.graphicsManager.WaitForCommandQueueOnCpu(this.presentFence.Value);
+                }
+
                 this.globalCpuCopyQueryBuffer.Dispose();
                 this.globalCpuQueryBuffer.Dispose();
 
@@ -139,6 +150,8 @@ namespace CoreEngine.Rendering
                 this.globalQueryBuffer.Dispose();
 
                 this.globalCpuQueryBuffer.Dispose();
+
+                this.swapChain.Dispose();
 
                 this.computeDirectTransferShader.Dispose();
                 this.CopyCommandQueue.Dispose();
@@ -207,10 +220,13 @@ namespace CoreEngine.Rendering
             this.graphicsManager.MoveToNextFrame();
             ResetGpuTimers();
 
-            this.graphicsManager.ResetCommandQueue(this.RenderCommandQueue);
-            this.graphicsManager.ResetCommandQueue(this.ComputeCommandQueue);
-            this.graphicsManager.ResetCommandQueue(this.CopyCommandQueue);
-            this.graphicsManager.ResetCommandQueue(this.presentQueue);
+            if (this.graphicsManager.CurrentFrameNumber > 1)
+            {
+                this.graphicsManager.ResetCommandQueue(this.RenderCommandQueue);
+                this.graphicsManager.ResetCommandQueue(this.ComputeCommandQueue);
+                this.graphicsManager.ResetCommandQueue(this.CopyCommandQueue);
+                this.graphicsManager.ResetCommandQueue(this.presentQueue);
+            }
 
             var windowRenderSize = this.nativeUIManager.GetWindowRenderSize(this.window);
 
@@ -256,7 +272,8 @@ namespace CoreEngine.Rendering
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
             this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2, this.computeDirectTransferShader);
             var startQueryIndex = InsertQueryTimestamp(presentCommandList);
-            this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { mainRenderTargetTexture.ShaderResourceIndex });
+            this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { this.testTexture.ShaderResourceIndex });
+            // this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { mainRenderTargetTexture.ShaderResourceIndex });
             this.graphicsManager.DispatchMesh(presentCommandList, 1, 1, 1);
             var endQueryIndex = InsertQueryTimestamp(presentCommandList);
             this.graphicsManager.EndRenderPass(presentCommandList);
@@ -265,7 +282,7 @@ namespace CoreEngine.Rendering
 
             AddGpuTiming("PresentScreenBuffer", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
-            this.graphicsManager.ExecuteCommandLists(this.presentQueue, new CommandList[] { presentCommandList }, fenceToWait.HasValue ? new Fence[] { fenceToWait.Value } : Array.Empty<Fence>());
+            this.presentFence = this.graphicsManager.ExecuteCommandLists(this.presentQueue, new CommandList[] { presentCommandList }, fenceToWait.HasValue ? new Fence[] { fenceToWait.Value } : Array.Empty<Fence>());
             this.graphicsManager.PresentSwapChain(this.swapChain);
         }
 

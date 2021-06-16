@@ -1,6 +1,8 @@
+using System;
+
 namespace CoreEngine.Graphics
 {
-    public interface IGraphicsMemoryAllocator
+    public interface IGraphicsMemoryAllocator : IDisposable
     {
         ulong AllocatedMemory { get; }
 

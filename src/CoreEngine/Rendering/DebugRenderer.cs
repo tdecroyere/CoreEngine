@@ -89,7 +89,6 @@ namespace CoreEngine.Rendering
         private int currentCubePrimitiveCount;
         private int currentSpherePrimitiveCount;
 
-
         private int sphereVertexBufferOffset;
         private int sphereIndexBufferOffset;
         private int lineVertexBufferOffset;

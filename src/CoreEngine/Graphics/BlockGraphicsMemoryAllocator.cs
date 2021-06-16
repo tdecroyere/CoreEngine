@@ -5,24 +5,35 @@ namespace CoreEngine.Graphics
 {
     // TODO: IMPORTANT: This code is not thread safe for now
 
-    class BlockGraphicsMemoryAllocator : IGraphicsMemoryAllocator
+    class BlockGraphicsMemoryAllocator : IGraphicsMemoryAllocator, IDisposable
     {
         private readonly IGraphicsService graphicsService;
+        private readonly GraphicsManager graphicsManager;
 
-        public BlockGraphicsMemoryAllocator(IGraphicsService graphicsService, GraphicsHeapType heapType, ulong sizeInBytes, string label)
+        private bool isDisposed;
+
+        public BlockGraphicsMemoryAllocator(GraphicsManager graphicsManager, IGraphicsService graphicsService, GraphicsHeapType heapType, ulong sizeInBytes, string label)
         {
+            this.graphicsManager = graphicsManager;
             this.graphicsService = graphicsService;
             this.CurrentOffset = 0;
 
-            var nativePointer = this.graphicsService.CreateGraphicsHeap((GraphicsServiceHeapType)heapType, sizeInBytes);
-            
-            if (nativePointer == IntPtr.Zero)
-            {
-                throw new InvalidOperationException($"Cannot create {label}.");
-            }
+            this.GraphicsHeap = this.graphicsManager.CreateGraphicsHeap(heapType, sizeInBytes, label);
+        }
 
-            this.graphicsService.SetGraphicsHeapLabel(nativePointer, label);
-            this.GraphicsHeap = new GraphicsHeap(nativePointer, heapType, sizeInBytes, label);
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing && !this.isDisposed)
+            {
+                this.graphicsManager.ScheduleDeleteGraphicsHeap(this.GraphicsHeap);
+                this.isDisposed = true;
+            }
         }
 
         public GraphicsMemoryAllocation AllocateMemory(int sizeInBytes, ulong alignment)

@@ -502,6 +502,9 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
             
+            // TODO: For the moment the resource states are in COMMON state
+            // We need to have an api here or somewhere else to be able to Transition to 
+            // Shader Read/write
             this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] 
             { 
                 this.camerasBuffer.ShaderResourceIndex, 

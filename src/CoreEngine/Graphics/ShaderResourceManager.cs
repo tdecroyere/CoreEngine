@@ -6,12 +6,13 @@ namespace CoreEngine.Graphics
 {
     // TODO: IMPORTANT: This code is not thread safe for now
 
-    public class ShaderResourceManager
+    public class ShaderResourceManager : IDisposable
     {
         private readonly IGraphicsService graphicsService;
         private readonly ShaderResourceHeap shaderResourceHeap;
         private readonly Queue<uint> availableIndexes;
         private uint currentIndex;
+        private bool isDisposed;
 
         public ShaderResourceManager(IGraphicsService graphicsService)
         {
@@ -24,6 +25,21 @@ namespace CoreEngine.Graphics
             var nativePointer = this.graphicsService.CreateShaderResourceHeap(heapLength);
             this.graphicsService.SetShaderResourceHeapLabel(nativePointer, heapLabel);
             this.shaderResourceHeap = new ShaderResourceHeap(nativePointer, heapLength, heapLabel);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (isDisposing && !this.isDisposed)
+            {
+                this.graphicsService.DeleteShaderResourceHeap(this.shaderResourceHeap.NativePointer);
+                this.isDisposed = true;
+            }
         }
 
         public void CreateShaderResourceTexture(Texture texture)

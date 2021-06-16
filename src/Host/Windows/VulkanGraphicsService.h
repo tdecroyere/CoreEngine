@@ -12,40 +12,50 @@ static const int VulkanFramesCount = 2;
 struct VulkanCommandQueue
 {
     VkQueue CommandQueueObject;
-    VkCommandPool* CommandPools;
+    VkCommandPool CommandPools[VulkanFramesCount];
     VkSemaphore TimelineSemaphore;
     uint64_t FenceValue;
+    uint32_t CommandQueueFamilyIndex;
 };
 
 struct VulkanCommandList
 {
     VkCommandBuffer CommandBufferObject;
     VulkanCommandQueue* CommandQueue;
+    GraphicsRenderPassDescriptor RenderPassDescriptor;
     bool IsRenderPassActive;
+    VkFramebuffer RenderPassFrameBuffer;
 };
 
 struct VulkanGraphicsHeap
 {
-
+    VkDeviceMemory DeviceMemory;
+    GraphicsServiceHeapType Type;
 };
 
 struct VulkanShaderResourceHeap
 {
-
+    VkDescriptorPool DescriptorPool;
+    VkDescriptorSet DescriptorSets[2];
 };
 
 struct VulkanGraphicsBuffer
 {
+    VkBuffer BufferObject;
     int SizeInBytes;
+    VulkanGraphicsHeap* GraphicsHeap;
+    void* CpuPointer;
 };
 
 struct VulkanTexture
 {
     VkImage TextureObject;
     VkImageView ImageView;
+    VkFormat Format;
     uint32_t Width;
     uint32_t Height;
     bool IsPresentTexture;
+    VkImageLayout ResourceState;
 };
 
 struct VulkanQueryBuffer
@@ -64,6 +74,10 @@ struct VulkanShader
 struct VulkanPipelineState
 {
     VkRenderPass RenderPass;
+    VkDescriptorSetLayout* DescriptorSetLayouts;
+    uint32_t DescriptorSetLayoutCount;
+    VkPipelineLayout PipelineLayoutObject;
+    VkPipeline PipelineStateObject;
 };
 
 struct VulkanSwapChain
@@ -71,8 +85,10 @@ struct VulkanSwapChain
     VkSurfaceKHR WindowSurface;
     VkSwapchainKHR SwapChainObject;
     VulkanCommandQueue* CommandQueue;
+    VkFormat Format;
     uint32_t CurrentImageIndex;
     VulkanTexture* BackBufferTextures[VulkanFramesCount];
+    VkFence BackBufferAcquireFence;
 };
 
 class VulkanGraphicsService
@@ -114,12 +130,14 @@ class VulkanGraphicsService
         void SetGraphicsBufferLabel(void* graphicsBufferPointer, char* label);
         void DeleteGraphicsBuffer(void* graphicsBufferPointer);
         void* GetGraphicsBufferCpuPointer(void* graphicsBufferPointer);
+        void ReleaseGraphicsBufferCpuPointer(void* graphicsBufferPointer);
 
         void* CreateTexture(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
         void SetTextureLabel(void* texturePointer, char* label);
         void DeleteTexture(void* texturePointer);
 
         void* CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
+        void DeleteSwapChain(void* swapChainPointer);
         void ResizeSwapChain(void* swapChainPointer, int width, int height);
         void* GetSwapChainBackBufferTexture(void* swapChainPointer);
         unsigned long PresentSwapChain(void* swapChainPointer);
@@ -162,16 +180,26 @@ class VulkanGraphicsService
         VkInstance vulkanInstance = nullptr;
         VkPhysicalDevice graphicsPhysicalDevice = nullptr;
         VkDevice graphicsDevice = nullptr;
+        VkDebugReportCallbackEXT debugCallback = nullptr;
 
         int32_t currentCommandPoolIndex = 0;
         // TODO: To remove?
         VulkanPipelineState* currentPipelineState = nullptr;
+        VulkanShaderResourceHeap* currentResourceHeap = nullptr;
+
+        // TODO: Do something better here
+        vector<VkFramebuffer> frameBuffersToDelete;
 
         uint32_t renderCommandQueueFamilyIndex;
         uint32_t computeCommandQueueFamilyIndex;
         uint32_t copyCommandQueueFamilyIndex;
 
+        uint32_t gpuMemoryTypeIndex;
+        uint32_t uploadMemoryTypeIndex;
+        uint32_t readBackMemoryTypeIndex;
+
         VkInstance CreateVulkanInstance();
         VkPhysicalDevice FindGraphicsDevice();
         VkDevice CreateDevice(VkPhysicalDevice physicalDevice);
+        void RegisterDebugCallback();
 };

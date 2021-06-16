@@ -33,12 +33,16 @@ namespace CoreEngine.Graphics
         private List<PipelineState> pipelineStates = new List<PipelineState>();
         private List<Shader> shaders = new List<Shader>();
         private List<QueryBuffer> queryBuffers = new List<QueryBuffer>();
+        private List<SwapChain> swapChains = new List<SwapChain>();
+        private List<GraphicsHeap> graphicsHeaps = new List<GraphicsHeap>();
 
         private List<GraphicsBuffer>[] graphicsBuffersToDelete = new List<GraphicsBuffer>[2];
         private List<Texture>[] texturesToDelete = new List<Texture>[2];
         private List<PipelineState>[] pipelineStatesToDelete = new List<PipelineState>[2];
         private List<Shader>[] shadersToDelete = new List<Shader>[2];
         private List<QueryBuffer>[] queryBuffersToDelete = new List<QueryBuffer>[2];
+        private List<SwapChain>[] swapChainsToDelete = new List<SwapChain>[2];
+        private List<GraphicsHeap>[] graphicsHeapsToDelete = new List<GraphicsHeap>[2];
 
         public GraphicsManager(IGraphicsService graphicsService, ResourcesManager resourcesManager)
         {
@@ -53,7 +57,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService = graphicsService;
-            this.graphicsMemoryManager = new GraphicsMemoryManager(graphicsService);
+            this.graphicsMemoryManager = new GraphicsMemoryManager(this, graphicsService);
             this.shaderResourceManager = new ShaderResourceManager(graphicsService);
 
             var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
@@ -74,6 +78,12 @@ namespace CoreEngine.Graphics
             queryBuffersToDelete[0] = new List<QueryBuffer>();
             queryBuffersToDelete[1] = new List<QueryBuffer>();
 
+            swapChainsToDelete[0] = new List<SwapChain>();
+            swapChainsToDelete[1] = new List<SwapChain>();
+
+            graphicsHeapsToDelete[0] = new List<GraphicsHeap>();
+            graphicsHeapsToDelete[1] = new List<GraphicsHeap>();
+
             InitResourceLoaders(resourcesManager);
         }
 
@@ -87,29 +97,64 @@ namespace CoreEngine.Graphics
         {
             if (isDisposing)
             {
-                for (var i = 0; i < this.graphicsBuffers.Count; i++)
+                // TODO: Do something better here!
+                this.graphicsMemoryManager.Dispose();
+                this.shaderResourceManager.Dispose();
+
+                var tmpGraphicsBuffers = new GraphicsBuffer[this.graphicsBuffers.Count];
+                this.graphicsBuffers.CopyTo(tmpGraphicsBuffers);
+
+                for (var i = 0; i < tmpGraphicsBuffers.Length; i++)
                 {
-                    DeleteGraphicsBuffer(this.graphicsBuffers[i]);
+                    DeleteGraphicsBuffer(tmpGraphicsBuffers[i]);
                 }
 
-                for (var i = 0; i < this.textures.Count; i++)
+                var tmpTextures = new Texture[this.textures.Count];
+                this.textures.CopyTo(tmpTextures);
+
+                for (var i = 0; i < tmpTextures.Length; i++)
                 {
-                    DeleteTexture(this.textures[i]);
+                    DeleteTexture(tmpTextures[i]);
                 }
 
-                for (var i = 0; i < this.pipelineStates.Count; i++)
+                var tmpPipelineStates = new PipelineState[this.pipelineStates.Count];
+                this.pipelineStates.CopyTo(tmpPipelineStates);
+
+                for (var i = 0; i < tmpPipelineStates.Length; i++)
                 {
-                    DeletePipelineState(this.pipelineStates[i]);
+                    DeletePipelineState(tmpPipelineStates[i]);
                 }
 
-                for (var i = 0; i < this.shaders.Count; i++)
+                var tmpShaders = new Shader[this.shaders.Count];
+                this.shaders.CopyTo(tmpShaders);
+
+                for (var i = 0; i < tmpShaders.Length; i++)
                 {
-                    DeleteShader(this.shaders[i]);
+                    DeleteShader(tmpShaders[i]);
                 }
 
-                for (var i = 0; i < this.queryBuffers.Count; i++)
+                var tmpQueryBuffers = new QueryBuffer[this.queryBuffers.Count];
+                this.queryBuffers.CopyTo(tmpQueryBuffers);
+
+                for (var i = 0; i < tmpQueryBuffers.Length; i++)
                 {
-                    DeleteQueryBuffer(this.queryBuffers[i]);
+                    DeleteQueryBuffer(tmpQueryBuffers[i]);
+                }
+
+                var tmpSwapChains = new SwapChain[this.swapChains.Count];
+                this.swapChains.CopyTo(tmpSwapChains);
+
+                for (var i = 0; i < tmpSwapChains.Length; i++)
+                {
+                    DeleteSwapChain(tmpSwapChains[i]);
+                }
+
+                var tmpGraphicsHeaps = new GraphicsHeap[this.graphicsHeaps.Count];
+                this.graphicsHeaps.CopyTo(tmpGraphicsHeaps);
+
+                for (var i = 0; i < tmpGraphicsHeaps.Length; i++)
+                {
+                    DeleteGraphicsHeap(tmpGraphicsHeaps[i]);
                 }
             }
         }
@@ -265,16 +310,8 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.SetGraphicsBufferLabel(nativePointer1, $"{label}{(isStatic ? string.Empty : "0") }");
 
-            IntPtr cpuPointer = IntPtr.Zero;
-
-            if (heapType == GraphicsHeapType.Upload)
-            {
-                cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(nativePointer1);
-            }
-
             IntPtr? nativePointer2 = null;
             GraphicsMemoryAllocation? allocation2 = null;
-            IntPtr cpuPointer2 = IntPtr.Zero;
 
             if (!isStatic)
             {
@@ -287,14 +324,9 @@ namespace CoreEngine.Graphics
                 }
 
                 this.graphicsService.SetGraphicsBufferLabel(nativePointer2.Value, $"{label}1");
-
-                if (heapType == GraphicsHeapType.Upload)
-                {
-                    cpuPointer2 = this.graphicsService.GetGraphicsBufferCpuPointer(nativePointer2.Value);
-                }
             }
 
-            var graphicsBuffer = new GraphicsBuffer(this, allocation, allocation2, nativePointer1, nativePointer2, cpuPointer, cpuPointer2, sizeInBytes, isStatic, label);
+            var graphicsBuffer = new GraphicsBuffer(this, allocation, allocation2, nativePointer1, nativePointer2, sizeInBytes, isStatic, label);
             this.graphicsBuffers.Add(graphicsBuffer);
 
             if (heapType == GraphicsHeapType.Gpu)
@@ -317,16 +349,13 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException($"Graphics buffer '{graphicsBuffer.Label}' is not an upload buffer.");
             }
 
-            var cpuPointer = graphicsBuffer.CpuPointer;
-
-            if (cpuPointer == IntPtr.Zero)
-            {
-                cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
-            }
+            var cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
 
             var elementCount = graphicsBuffer.Length / Marshal.SizeOf(typeof(T));
             var cpuSpan = new Span<T>(cpuPointer.ToPointer(), elementCount).Slice(destinationOffset);
             data.CopyTo(cpuSpan);
+
+            this.graphicsService.ReleaseGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
         }
 
         public unsafe ReadOnlySpan<T> CopyDataFromGraphicsBuffer<T>(GraphicsBuffer graphicsBuffer) where T : struct
@@ -341,18 +370,15 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException($"Graphics buffer '{graphicsBuffer.Label}' is not a readback buffer.");
             }
             
-            var cpuPointer = graphicsBuffer.CpuPointer;
-
-            if (cpuPointer == IntPtr.Zero)
-            {
-                cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
-            }
+            var cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
 
             var elementCount = graphicsBuffer.Length / Marshal.SizeOf(typeof(T));
 
             var cpuSpan = new Span<T>(cpuPointer.ToPointer(), elementCount);
             var outputData = new T[elementCount];
             cpuSpan.CopyTo(outputData);
+
+            this.graphicsService.ReleaseGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
 
             return outputData;
         }
@@ -488,7 +514,67 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("There was an error while creating the swap-chain.");
             }
 
-            return new SwapChain(nativePointer, commandQueue, width, height, textureFormat);
+            var swapChain = new SwapChain(this, nativePointer, commandQueue, width, height, textureFormat);
+            this.swapChains.Add(swapChain);
+            
+            return swapChain;
+        }
+
+        public void DeleteSwapChain(SwapChain swapChain)
+        {
+            if (swapChain == null)
+            {
+                throw new ArgumentNullException(nameof(swapChain));
+            }
+
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting SwapChain...");
+            }
+
+            this.graphicsService.DeleteSwapChain(swapChain.NativePointer);
+
+            // TODO: Use something faster here
+            this.swapChains.Remove(swapChain);
+        }
+
+        internal void ScheduleDeleteSwapChain(SwapChain swapChain)
+        {
+            this.swapChainsToDelete[this.CurrentFrameNumber % 2].Add(swapChain);
+        }
+
+        internal GraphicsHeap CreateGraphicsHeap(GraphicsHeapType heapType, ulong sizeInBytes, string label)
+        {
+            var nativePointer = this.graphicsService.CreateGraphicsHeap((GraphicsServiceHeapType)heapType, sizeInBytes);
+            
+            if (nativePointer == IntPtr.Zero)
+            {
+                throw new InvalidOperationException($"Cannot create {label}.");
+            }
+
+            this.graphicsService.SetGraphicsHeapLabel(nativePointer, label);
+            var graphicsHeap = new GraphicsHeap(this, nativePointer, heapType, sizeInBytes, label);
+            this.graphicsHeaps.Add(graphicsHeap);
+
+            return graphicsHeap;
+        }
+
+        public void DeleteGraphicsHeap(GraphicsHeap graphicsHeap)
+        {
+            if (logResourceAllocationInfos)
+            {
+                Logger.WriteMessage($"Deleting Graphics Heap...");
+            }
+
+            this.graphicsService.DeleteGraphicsHeap(graphicsHeap.NativePointer);
+
+            // TODO: Use something faster here
+            this.graphicsHeaps.Remove(graphicsHeap);
+        }
+
+        internal void ScheduleDeleteGraphicsHeap(GraphicsHeap graphicsHeap)
+        {
+            this.graphicsHeapsToDelete[this.CurrentFrameNumber % 2].Add(graphicsHeap);
         }
 
         public void ResizeSwapChain(SwapChain swapChain, int width, int height)
@@ -900,6 +986,13 @@ namespace CoreEngine.Graphics
             }
 
             this.shadersToDelete[this.CurrentFrameNumber % 2].Clear();
+
+            for (var i = 0; i < this.graphicsHeapsToDelete[this.CurrentFrameNumber % 2].Count; i++)
+            {
+                this.DeleteGraphicsHeap(this.graphicsHeapsToDelete[this.CurrentFrameNumber % 2][i]);
+            }
+
+            this.graphicsHeapsToDelete[this.CurrentFrameNumber % 2].Clear();
         }
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)

@@ -130,12 +130,14 @@ class Direct3D12GraphicsService
         void SetGraphicsBufferLabel(void* graphicsBufferPointer, char* label);
         void DeleteGraphicsBuffer(void* graphicsBufferPointer);
         void* GetGraphicsBufferCpuPointer(void* graphicsBufferPointer);
+        void ReleaseGraphicsBufferCpuPointer(void* graphicsBufferPointer);
 
         void* CreateTexture(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
         void SetTextureLabel(void* texturePointer, char* label);
         void DeleteTexture(void* texturePointer);
 
         void* CreateSwapChain(void* windowPointer, void* commandQueuePointer, int width, int height, enum GraphicsTextureFormat textureFormat);
+        void DeleteSwapChain(void* swapChainPointer);
         void ResizeSwapChain(void* swapChainPointer, int width, int height);
         void* GetSwapChainBackBufferTexture(void* swapChainPointer);
         unsigned long PresentSwapChain(void* swapChainPointer);
@@ -177,7 +179,9 @@ class Direct3D12GraphicsService
         // Device objects
         wstring adapterName;
         ComPtr<IDXGIFactory4> dxgiFactory; 
-        ComPtr<ID3D12Device3> graphicsDevice;
+        ComPtr<ID3D12Device9> graphicsDevice;
+        ComPtr<ID3D12Debug5> debugController;
+        ComPtr<ID3D12InfoQueue1> debugInfoQueue;
         ComPtr<IDXGIDebug> dxgiDebug;
         
         // Command Objects

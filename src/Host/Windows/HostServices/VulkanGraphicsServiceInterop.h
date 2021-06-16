@@ -169,6 +169,12 @@ void* VulkanGraphicsServiceGetGraphicsBufferCpuPointerInterop(void* context, voi
     return contextObject->GetGraphicsBufferCpuPointer(graphicsBufferPointer);
 }
 
+void VulkanGraphicsServiceReleaseGraphicsBufferCpuPointerInterop(void* context, void* graphicsBufferPointer)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    contextObject->ReleaseGraphicsBufferCpuPointer(graphicsBufferPointer);
+}
+
 void* VulkanGraphicsServiceCreateTextureInterop(void* context, void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
     auto contextObject = (VulkanGraphicsService*)context;
@@ -191,6 +197,12 @@ void* VulkanGraphicsServiceCreateSwapChainInterop(void* context, void* windowPoi
 {
     auto contextObject = (VulkanGraphicsService*)context;
     return contextObject->CreateSwapChain(windowPointer, commandQueuePointer, width, height, textureFormat);
+}
+
+void VulkanGraphicsServiceDeleteSwapChainInterop(void* context, void* swapChainPointer)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    contextObject->DeleteSwapChain(swapChainPointer);
 }
 
 void VulkanGraphicsServiceResizeSwapChainInterop(void* context, void* swapChainPointer, int width, int height)
@@ -386,10 +398,12 @@ void InitVulkanGraphicsService(const VulkanGraphicsService* context, GraphicsSer
     service->GraphicsService_SetGraphicsBufferLabel = VulkanGraphicsServiceSetGraphicsBufferLabelInterop;
     service->GraphicsService_DeleteGraphicsBuffer = VulkanGraphicsServiceDeleteGraphicsBufferInterop;
     service->GraphicsService_GetGraphicsBufferCpuPointer = VulkanGraphicsServiceGetGraphicsBufferCpuPointerInterop;
+    service->GraphicsService_ReleaseGraphicsBufferCpuPointer = VulkanGraphicsServiceReleaseGraphicsBufferCpuPointerInterop;
     service->GraphicsService_CreateTexture = VulkanGraphicsServiceCreateTextureInterop;
     service->GraphicsService_SetTextureLabel = VulkanGraphicsServiceSetTextureLabelInterop;
     service->GraphicsService_DeleteTexture = VulkanGraphicsServiceDeleteTextureInterop;
     service->GraphicsService_CreateSwapChain = VulkanGraphicsServiceCreateSwapChainInterop;
+    service->GraphicsService_DeleteSwapChain = VulkanGraphicsServiceDeleteSwapChainInterop;
     service->GraphicsService_ResizeSwapChain = VulkanGraphicsServiceResizeSwapChainInterop;
     service->GraphicsService_GetSwapChainBackBufferTexture = VulkanGraphicsServiceGetSwapChainBackBufferTextureInterop;
     service->GraphicsService_PresentSwapChain = VulkanGraphicsServicePresentSwapChainInterop;

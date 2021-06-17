@@ -126,12 +126,12 @@ VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat textureForm
 	return view;
 }
 
-VkFramebuffer CreateFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView imageView, uint32_t width, uint32_t height)
+VkFramebuffer CreateFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView* imageViews, uint32_t attachmentCount, uint32_t width, uint32_t height)
 {
 	VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	createInfo.renderPass = renderPass;
-	createInfo.attachmentCount = 1;
-	createInfo.pAttachments = &imageView;
+	createInfo.attachmentCount = attachmentCount;
+	createInfo.pAttachments = imageViews;
 	createInfo.width = width;
 	createInfo.height = height;
 	createInfo.layers = 1;
@@ -145,18 +145,37 @@ VkFramebuffer CreateFramebuffer(VkDevice device, VkRenderPass renderPass, VkImag
 // TODO: Pass the struct as a pointer
 VkRenderPass CreateRenderPass(VkDevice device, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 {
+	// TODO: Rewrite this to handle all cases!
+
+	uint32_t attachmentCount = 1;
+
 	// TODO: Handle the proper amount of attachments
-    VkAttachmentDescription attachments[1] = {};
+    VkAttachmentDescription attachments[2] = {};
 
 	// TODO: Handle RT operations defined in the renderPassDescriptor
 	attachments[0].format = VulkanConvertTextureFormat(renderPassDescriptor.RenderTarget1TextureFormat.Value);
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[0].loadOp = renderPassDescriptor.RenderTarget1ClearColor.HasValue ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
 	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	if (renderPassDescriptor.DepthTexturePointer.HasValue)
+	{
+		attachmentCount++;
+
+		VulkanTexture* depthTexture = (VulkanTexture*)renderPassDescriptor.DepthTexturePointer.Value;
+		attachments[1].format = depthTexture->Format;
+		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[1].loadOp = (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::ClearWrite) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+	}
 
 	VkAttachmentReference colorAttachments = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
@@ -165,8 +184,14 @@ VkRenderPass CreateRenderPass(VkDevice device, struct GraphicsRenderPassDescript
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachments;
 
+	if (renderPassDescriptor.DepthTexturePointer.HasValue)
+	{
+		VkAttachmentReference depthAttachments = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+		subpass.pDepthStencilAttachment = &depthAttachments;
+	}
+
 	VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-	createInfo.attachmentCount = 1;
+	createInfo.attachmentCount = attachmentCount;
 	createInfo.pAttachments = attachments;
 	createInfo.subpassCount = 1;
 	createInfo.pSubpasses = &subpass;
@@ -191,10 +216,9 @@ VkDescriptorSetLayout CreateDescriptorSetLayout(VkDevice device, VkDescriptorTyp
 	descriptorBinding.binding = 0;
 	descriptorBinding.descriptorType = descriptorType;
 	descriptorBinding.descriptorCount = descriptorCount;
-	descriptorBinding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+	descriptorBinding.stageFlags = VK_SHADER_STAGE_ALL;
 
 	VkDescriptorSetLayoutCreateInfo descriptorSetCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	// descriptorSetCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 	descriptorSetCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
 	descriptorSetCreateInfo.bindingCount = 1;
 	descriptorSetCreateInfo.pBindings = &descriptorBinding;
@@ -230,6 +254,18 @@ VkDescriptorSetLayout GetGlobalTextureLayout(VkDevice device)
 	return globalTextureLayout;
 }
 
+VkDescriptorSetLayout globalSamplerLayout = nullptr;
+
+VkDescriptorSetLayout GetGlobalSamplerLayout(VkDevice device)
+{
+	if (globalSamplerLayout == nullptr)
+	{
+		globalSamplerLayout = CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_SAMPLER, 1);
+	}
+
+	return globalSamplerLayout;
+}
+
 VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutCount, VkDescriptorSetLayout** outputSetLayouts)
 {
 	// TODO: To replace with dynamic shader discovery
@@ -237,7 +273,7 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutC
 	{
 		GetGlobalBufferLayout(device),
 		GetGlobalTextureLayout(device),
-		CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_SAMPLER, 1)
+		GetGlobalSamplerLayout(device)
 	};
 
 	VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
@@ -247,8 +283,8 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutC
 	// TODO: 
 	VkPushConstantRange push_constant;
 	push_constant.offset = 0;
-	push_constant.size = 4;
-	push_constant.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+	push_constant.size = 128;
+	push_constant.stageFlags = VK_SHADER_STAGE_ALL;
 
 	layoutCreateInfo.pPushConstantRanges = &push_constant;
 	layoutCreateInfo.pushConstantRangeCount = 1;
@@ -262,11 +298,35 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutC
 	return layout;
 }
 
-VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout, VulkanShader* shader)
+VkPipelineColorBlendAttachmentState VulkanInitBlendState(GraphicsBlendOperation blendOperation)
+{
+	switch (blendOperation)
+	{
+		case GraphicsBlendOperation::AlphaBlending:
+			return {
+				true,
+				VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
+				VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
+				VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+			};
+
+		default:
+			return {
+				false,
+				VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+				VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+				VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+			};
+	}
+}
+
+VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout, GraphicsRenderPassDescriptor renderPassDescriptor, VulkanShader* shader)
 {
 	VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
-	VkPipelineShaderStageCreateInfo stages[2] = {};
+	uint32_t stagesCount = 2;
+
+	VkPipelineShaderStageCreateInfo stages[3] = {};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[0].stage = VK_SHADER_STAGE_MESH_BIT_NV;
 	stages[0].module = shader->MeshShaderMethod;
@@ -276,7 +336,17 @@ VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPi
 	stages[1].module = shader->PixelShaderMethod;
 	stages[1].pName = "PixelMain";
 
-	createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
+	if (shader->AmplificationShaderMethod)
+	{
+		stages[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[2].stage = VK_SHADER_STAGE_TASK_BIT_NV;
+		stages[2].module = shader->AmplificationShaderMethod;
+		stages[2].pName = "AmplificationMain";
+
+		stagesCount++;
+	}
+
+	createInfo.stageCount = stagesCount;
 	createInfo.pStages = stages;
 
 	VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
@@ -286,6 +356,8 @@ VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPi
 
 	VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 	rasterizationState.lineWidth = 1.0f;
+	rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	createInfo.pRasterizationState = &rasterizationState;
 
 	VkPipelineMultisampleStateCreateInfo multisampleState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
@@ -293,14 +365,46 @@ VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPi
 	createInfo.pMultisampleState = &multisampleState;
 
 	VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+
+	if (renderPassDescriptor.DepthBufferOperation != GraphicsDepthBufferOperation::DepthNone)
+	{
+		depthStencilState.depthTestEnable = true;
+
+		if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::ClearWrite ||
+			renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::Write)
+		{
+			depthStencilState.depthWriteEnable = true;
+		}
+
+		if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::CompareEqual)
+		{
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_EQUAL;
+		}
+
+		else if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::CompareGreater)
+		{
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER;
+		}
+
+		else
+		{
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+		}
+	}
+
 	createInfo.pDepthStencilState = &depthStencilState;
 
-	VkPipelineColorBlendAttachmentState colorAttachmentState = {};
-	colorAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	VkPipelineColorBlendAttachmentState colorAttachmentState = VulkanInitBlendState(GraphicsBlendOperation::None);
+	
+	if (renderPassDescriptor.RenderTarget1BlendOperation.HasValue)
+	{
+		colorAttachmentState = VulkanInitBlendState(renderPassDescriptor.RenderTarget1BlendOperation.Value);
+	}
 
 	VkPipelineColorBlendStateCreateInfo colorBlendState = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 	colorBlendState.attachmentCount = 1;
 	colorBlendState.pAttachments = &colorAttachmentState;
+
 	createInfo.pColorBlendState = &colorBlendState;
 
 	VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };

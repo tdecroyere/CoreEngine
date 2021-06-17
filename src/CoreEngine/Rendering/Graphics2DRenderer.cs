@@ -28,7 +28,7 @@ namespace CoreEngine.Rendering
 
     public class Graphics2DRenderer : SystemManager
     {
-        private const uint maxSurfaceCountPerThreadGroup = 64;  
+        private const uint maxSurfaceCountPerThreadGroup = 16;  
         private const float scaleFactor = 1.0f;
 
         private readonly RenderManager renderManager;

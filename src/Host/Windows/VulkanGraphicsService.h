@@ -36,13 +36,15 @@ struct VulkanGraphicsHeap
 struct VulkanShaderResourceHeap
 {
     VkDescriptorPool DescriptorPool;
-    VkDescriptorSet DescriptorSets[2];
+    VkDescriptorSet DescriptorSets[3];
+    VkSampler Sampler;
 };
 
 struct VulkanGraphicsBuffer
 {
     VkBuffer BufferObject;
     int SizeInBytes;
+    uint64_t HeapOffset;
     VulkanGraphicsHeap* GraphicsHeap;
     void* CpuPointer;
 };

@@ -408,6 +408,11 @@ namespace CoreEngine.Rendering
 
         private void ProcessLights(CommandList copyCommandList, GraphicsScene scene)
         {
+            if (scene.Lights.Count == 0)
+            {
+                return;
+            }
+            
             var currentLightIndex = 0;
             var lightList = ArrayPool<ShaderLight>.Shared.Rent(10000);
             

@@ -24,18 +24,19 @@ namespace CoreEngine.Rendering
         }
 
         public float M11 { get; }
-        public float M21 { get; }
-        public float M31 { get; }
-        public float M41 { get; }
-
         public float M12 { get; }
-        public float M22 { get; }
-        public float M32 { get; }
-        public float M42 { get; }
-
         public float M13 { get; }
+
+        public float M21 { get; }
+        public float M22 { get; }
         public float M23 { get; }
+
+        public float M31 { get; }
+        public float M32 { get; }
         public float M33 { get; }
+
+        public float M41 { get; }
+        public float M42 { get; }
         public float M43 { get; }
 
         public static implicit operator ShaderMatrix4x3(Matrix4x4 matrix) => new ShaderMatrix4x3(matrix);

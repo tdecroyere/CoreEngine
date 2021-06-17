@@ -343,26 +343,28 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
 {
     VulkanShaderResourceHeap* resourceHeap = new VulkanShaderResourceHeap();
 
-    VkDescriptorPoolSize poolSizes[2]
+    VkDescriptorPoolSize poolSizes[]
     {
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, length},
-        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, length }
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, length },
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 1 }
     };
 
     VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
     createInfo.poolSizeCount = ARRAYSIZE(poolSizes);
     createInfo.pPoolSizes = poolSizes;
     createInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-    createInfo.maxSets = 2;
+    createInfo.maxSets = 3;
 
     vkCreateDescriptorPool(this->graphicsDevice, &createInfo, nullptr, &resourceHeap->DescriptorPool);
 
     VkDescriptorSetLayout setLayouts[] {
         GetGlobalBufferLayout(this->graphicsDevice),
-	    GetGlobalTextureLayout(this->graphicsDevice)
+	    GetGlobalTextureLayout(this->graphicsDevice),
+	    GetGlobalSamplerLayout(this->graphicsDevice)
     };
 
-    uint32_t counts[] { length, length };
+    uint32_t counts[] { length, length, 1 };
 
     VkDescriptorSetVariableDescriptorCountAllocateInfo set_counts = {};
     set_counts.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
@@ -371,11 +373,32 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
     
     VkDescriptorSetAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
     allocateInfo.pSetLayouts = setLayouts;
-    allocateInfo.descriptorSetCount = 2;
+    allocateInfo.descriptorSetCount = ARRAYSIZE(setLayouts);
     allocateInfo.descriptorPool = resourceHeap->DescriptorPool;
     allocateInfo.pNext = &set_counts;
 
     vkAllocateDescriptorSets(this->graphicsDevice, &allocateInfo, resourceHeap->DescriptorSets);
+
+    // TODO: Don't allocate the sampler like that
+    VkSamplerCreateInfo samplerCreateInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
+    samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
+
+    AssertIfFailed(vkCreateSampler(this->graphicsDevice, &samplerCreateInfo, nullptr, &resourceHeap->Sampler));
+
+    VkDescriptorImageInfo samplerInfo = {};
+    samplerInfo.sampler = resourceHeap->Sampler;
+
+    VkWriteDescriptorSet descriptor = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    descriptor.dstSet = resourceHeap->DescriptorSets[2];
+    descriptor.dstBinding = 0;
+    descriptor.dstArrayElement = 0;
+    descriptor.descriptorCount = 1;
+    descriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    descriptor.pImageInfo = &samplerInfo;
+
+    vkUpdateDescriptorSets(this->graphicsDevice, 1, &descriptor, 0, nullptr);
 
     return resourceHeap;
 }
@@ -398,8 +421,10 @@ void VulkanGraphicsService::DeleteShaderResourceHeap(void* shaderResourceHeapPoi
     vkDestroyDescriptorPool(this->graphicsDevice, shaderResourceHeap->DescriptorPool, nullptr);
 
     // TODO: Remove that workaround
+    vkDestroySampler(this->graphicsDevice, shaderResourceHeap->Sampler, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalBufferLayout, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalTextureLayout, nullptr);
+    vkDestroyDescriptorSetLayout(this->graphicsDevice, globalSamplerLayout, nullptr);
 
     delete shaderResourceHeap;
 }
@@ -453,6 +478,7 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
     VulkanGraphicsHeap* graphicsHeap = (VulkanGraphicsHeap*)graphicsHeapPointer;
     VulkanGraphicsBuffer* graphicsBuffer = new VulkanGraphicsBuffer();
     graphicsBuffer->SizeInBytes = sizeInBytes;
+    graphicsBuffer->HeapOffset = heapOffset;
     graphicsBuffer->GraphicsHeap = graphicsHeap;
 
     VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
@@ -461,7 +487,7 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
 
     if (graphicsHeap->Type == GraphicsServiceHeapType::Gpu)
 	{
-		createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 	}
 
     else if (graphicsHeap->Type == GraphicsServiceHeapType::Upload)
@@ -470,6 +496,14 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
 	}
 
     AssertIfFailed(vkCreateBuffer(this->graphicsDevice, &createInfo, nullptr, &graphicsBuffer->BufferObject));
+
+    VkMemoryRequirements memoryRequirements = {};
+    vkGetBufferMemoryRequirements(this->graphicsDevice, graphicsBuffer->BufferObject, &memoryRequirements);
+
+    GraphicsAllocationInfos result = {};
+	result.SizeInBytes = memoryRequirements.size;
+	result.Alignment = memoryRequirements.alignment;
+
     AssertIfFailed(vkBindBufferMemory(this->graphicsDevice, graphicsBuffer->BufferObject, graphicsHeap->DeviceMemory, heapOffset));
 
     return graphicsBuffer;
@@ -503,7 +537,7 @@ void* VulkanGraphicsService::GetGraphicsBufferCpuPointer(void* graphicsBufferPoi
 
     if (graphicsBuffer->CpuPointer == nullptr)
     {
-        AssertIfFailed(vkMapMemory(this->graphicsDevice, graphicsBuffer->GraphicsHeap->DeviceMemory, 0, VK_WHOLE_SIZE, 0, &graphicsBuffer->CpuPointer));
+        AssertIfFailed(vkMapMemory(this->graphicsDevice, graphicsBuffer->GraphicsHeap->DeviceMemory, graphicsBuffer->HeapOffset, graphicsBuffer->SizeInBytes, 0, &graphicsBuffer->CpuPointer));
     }
 
     return graphicsBuffer->CpuPointer;
@@ -651,6 +685,16 @@ void VulkanGraphicsService::ResizeSwapChain(void* swapChainPointer, int width, i
 
     VkSwapchainKHR oldSwapchain = swapChain->SwapChainObject;
 
+    VkFormat formatList[] = 
+    {
+        swapChain->Format,
+        swapChain->BackBufferTextures[0]->Format
+    };
+
+    VkImageFormatListCreateInfo imageFormatListCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO };
+    imageFormatListCreateInfo.pViewFormats = formatList;
+    imageFormatListCreateInfo.viewFormatCount = ARRAYSIZE(formatList);
+
     VkSwapchainCreateInfoKHR swapChainCreateInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     swapChainCreateInfo.surface = swapChain->WindowSurface;
     swapChainCreateInfo.minImageCount = VulkanFramesCount;
@@ -664,7 +708,9 @@ void VulkanGraphicsService::ResizeSwapChain(void* swapChainPointer, int width, i
     swapChainCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapChainCreateInfo.oldSwapchain = oldSwapchain;
-
+    swapChainCreateInfo.flags = VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
+    swapChainCreateInfo.pNext = &imageFormatListCreateInfo;
+    
     AssertIfFailed(vkCreateSwapchainKHR(this->graphicsDevice, &swapChainCreateInfo, nullptr, &swapChain->SwapChainObject));
 
 	uint32_t swapchainImageCount = 0;
@@ -890,13 +936,9 @@ void* VulkanGraphicsService::CreatePipelineState(void* shaderPointer, struct Gra
     {
         VulkanTexture* renderTargetTexture = (VulkanTexture*)renderPassDescriptor.RenderTarget1TexturePointer.Value;
 
-        // TODO: Remove that test
-        if (renderTargetTexture->IsPresentTexture)
-        {
-            pipelineState->RenderPass = CreateRenderPass(this->graphicsDevice, renderPassDescriptor);
-            pipelineState->PipelineLayoutObject = CreateGraphicsPipelineLayout(this->graphicsDevice, &pipelineState->DescriptorSetLayoutCount, &pipelineState->DescriptorSetLayouts);
-            pipelineState->PipelineStateObject = CreateGraphicsPipeline(this->graphicsDevice, pipelineState->RenderPass, pipelineState->PipelineLayoutObject, shader);
-        }
+        pipelineState->RenderPass = CreateRenderPass(this->graphicsDevice, renderPassDescriptor);
+        pipelineState->PipelineLayoutObject = CreateGraphicsPipelineLayout(this->graphicsDevice, &pipelineState->DescriptorSetLayoutCount, &pipelineState->DescriptorSetLayouts);
+        pipelineState->PipelineStateObject = CreateGraphicsPipeline(this->graphicsDevice, pipelineState->RenderPass, pipelineState->PipelineLayoutObject, renderPassDescriptor, shader);
     }
 
     return pipelineState;
@@ -912,7 +954,6 @@ void VulkanGraphicsService::DeletePipelineState(void* pipelineStatePointer)
     vkDestroyPipelineLayout(this->graphicsDevice, pipelineState->PipelineLayoutObject, nullptr);
     vkDestroyPipeline(this->graphicsDevice, pipelineState->PipelineStateObject, nullptr);
 
-    delete pipelineState->DescriptorSetLayouts;
     delete pipelineState;
 }
 
@@ -960,42 +1001,54 @@ void VulkanGraphicsService::BeginRenderPass(void* commandListPointer, struct Gra
     VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
 	commandList->RenderPassDescriptor = renderPassDescriptor;
 
-    if (renderPassDescriptor.DepthTexturePointer.HasValue == 1)
-    {
-        VulkanTexture* depthTexture = (VulkanTexture*)renderPassDescriptor.DepthTexturePointer.Value;
-        TransitionTextureToState(commandList, depthTexture, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-    }
-
     if (renderPassDescriptor.RenderTarget1TexturePointer.HasValue == 1)
     {
         VulkanTexture* renderTargetTexture = (VulkanTexture*)renderPassDescriptor.RenderTarget1TexturePointer.Value;
-
         TransitionTextureToState(commandList, renderTargetTexture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        // TODO: To Remove
-        if (!renderTargetTexture->IsPresentTexture)
+        uint32_t imageViewCount = 1;
+        VkImageView imageViews[2] {};
+        imageViews[0] = renderTargetTexture->ImageView;
+
+        if (renderPassDescriptor.DepthTexturePointer.HasValue == 1)
         {
-            return;
+            VulkanTexture* depthTexture = (VulkanTexture*)renderPassDescriptor.DepthTexturePointer.Value;
+            TransitionTextureToState(commandList, depthTexture, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+            imageViews[1] = depthTexture->ImageView;
+            imageViewCount++;
         }
 
-        VkClearColorValue color = { 0.5f, 1.0f, 0.25f, 1 };
-        VkClearValue clearColor = { color };
+        uint32_t clearColorCount = 0;
+        VkClearValue clearColors[2] = {};
+        
+        if (renderPassDescriptor.RenderTarget1ClearColor.HasValue)
+        {
+            clearColorCount++;
+            clearColors[0] = { renderPassDescriptor.RenderTarget1ClearColor.Value.X, renderPassDescriptor.RenderTarget1ClearColor.Value.Y, renderPassDescriptor.RenderTarget1ClearColor.Value.Z, 1 };
+        }
+
+        if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::ClearWrite)
+        {
+            clearColorCount++;
+            clearColors[1] = { 0, 0, 0, 0 };
+        }
 
         VkRenderPassBeginInfo passBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
         passBeginInfo.renderPass = this->currentPipelineState->RenderPass;
 
         // TODO: Can we avoid the frame buffer creation at each frame?
-        commandList->RenderPassFrameBuffer = CreateFramebuffer(this->graphicsDevice, this->currentPipelineState->RenderPass, renderTargetTexture->ImageView, renderTargetTexture->Width, renderTargetTexture->Height);
+        commandList->RenderPassFrameBuffer = CreateFramebuffer(this->graphicsDevice, this->currentPipelineState->RenderPass, imageViews, imageViewCount, renderTargetTexture->Width, renderTargetTexture->Height);
         
         passBeginInfo.framebuffer = commandList->RenderPassFrameBuffer;
         passBeginInfo.renderArea.extent.width = renderTargetTexture->Width;
         passBeginInfo.renderArea.extent.height = renderTargetTexture->Height;
-        passBeginInfo.clearValueCount = 1;
-        passBeginInfo.pClearValues = &clearColor;
+        passBeginInfo.clearValueCount = clearColorCount;
+        passBeginInfo.pClearValues = clearColors;
 
         vkCmdBeginRenderPass(commandList->CommandBufferObject, &passBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport viewport = { 0, 0, (float)renderTargetTexture->Width, (float)renderTargetTexture->Height, 0, 1 };
+        VkViewport viewport = { 0, (float)renderTargetTexture->Height, (float)renderTargetTexture->Width, -(float)renderTargetTexture->Height, 0, 1 };
         VkRect2D scissor = { {0, 0}, {renderTargetTexture->Width, renderTargetTexture->Height} };
 
         vkCmdSetViewport(commandList->CommandBufferObject, 0, 1, &viewport);
@@ -1046,7 +1099,7 @@ void VulkanGraphicsService::SetPipelineState(void* commandListPointer, void* pip
     {
         // TODO: Support compute shaders
         vkCmdBindPipeline(commandList->CommandBufferObject, VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineStateObject);
-        vkCmdBindDescriptorSets(commandList->CommandBufferObject, VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 2, this->currentResourceHeap->DescriptorSets, 0, nullptr);
+        vkCmdBindDescriptorSets(commandList->CommandBufferObject, VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 3, this->currentResourceHeap->DescriptorSets, 0, nullptr);
     }
 }
 
@@ -1064,7 +1117,7 @@ void VulkanGraphicsService::SetShaderParameterValues(void* commandListPointer, u
     // TODO: Disable that
     if (commandList->IsRenderPassActive)
     {
-        vkCmdPushConstants(commandList->CommandBufferObject, this->currentPipelineState->PipelineLayoutObject, VK_SHADER_STAGE_ALL_GRAPHICS, 0, valuesLength * 4, values);
+        vkCmdPushConstants(commandList->CommandBufferObject, this->currentPipelineState->PipelineLayoutObject, VK_SHADER_STAGE_ALL, 0, valuesLength * 4, values);
     }
 }
 
@@ -1244,6 +1297,11 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
     features.descriptorBindingVariableDescriptorCount = true;
     features.descriptorBindingPartiallyBound = true;
     features.shaderSampledImageArrayNonUniformIndexing = true;
+    features.separateDepthStencilLayouts = true;
+
+    #ifdef DEBUG
+    features.bufferDeviceAddressCaptureReplay = true;
+    #endif
     features.pNext = &meshFeatures;
 
     createInfo.pNext = &features;
@@ -1287,7 +1345,7 @@ static VkBool32 VKAPI_CALL DebugReportCallback(VkDebugReportFlagsEXT flags, VkDe
 
 	if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
     {
-		assert(!"Vulkan validation error encountered!");
+		// assert(!"Vulkan validation error encountered!");
     }
 
 	return VK_FALSE;

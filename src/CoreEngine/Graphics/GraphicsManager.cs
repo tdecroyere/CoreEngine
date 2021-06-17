@@ -746,6 +746,11 @@ namespace CoreEngine.Graphics
 
             var sizeInBytes = length * Marshal.SizeOf(typeof(T));
 
+            if (sizeInBytes == 0)
+            {
+                throw new InvalidOperationException("Size In Bytes cannot be zero.");
+            }
+
             this.graphicsService.CopyDataToGraphicsBuffer(commandList.NativePointer, destination.NativePointer, source.NativePointer, sizeInBytes);
             this.gpuMemoryUploaded += sizeInBytes;
         }

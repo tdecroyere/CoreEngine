@@ -115,8 +115,8 @@ namespace CoreEngine.Rendering
             this.cpuPrimitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Upload, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Cpu");
             this.primitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Gpu, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Gpu");
             
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Gpu, 100, isStatic: true, "DebugVertexBuffer_Gpu");
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, 300, isStatic: true, "DebugIndexBuffer_Gpu");
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Gpu, 120, isStatic: true, "DebugVertexBuffer_Gpu");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, 320, isStatic: true, "DebugIndexBuffer_Gpu");
 
             InitGeometryBuffers();
             this.currentLinePrimitiveCount = 0;
@@ -126,8 +126,8 @@ namespace CoreEngine.Rendering
 
         private void InitGeometryBuffers()
         {
-            var vertexBufferData = new Vector3[100];
-            var indexBufferData = new uint[300];
+            var vertexBufferData = new Vector3[120];
+            var indexBufferData = new uint[320];
 
             // Init Cube
             var minPoint = new Vector3(-0.5f, -0.5f, -0.5f);
@@ -181,7 +181,7 @@ namespace CoreEngine.Rendering
 
             var position = Vector3.Zero;
             var radius = 0.5f;
-            const uint steps = 30;
+            const uint steps = 32;
 
             float stepAngle = 360.0f * MathF.PI / 180.0f / steps;
 
@@ -220,8 +220,8 @@ namespace CoreEngine.Rendering
             indexBufferData[currentIndexCount++] = 0;
             indexBufferData[currentIndexCount++] = 1;
 
-            using var vertexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Upload, 100, isStatic: true, "DebugVertexBuffer_Cpu");
-            using var indexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 300, isStatic: true, "DebugIndexBuffer_Cpu");
+            using var vertexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Upload, 120, isStatic: true, "DebugVertexBuffer_Cpu");
+            using var indexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 320, isStatic: true, "DebugIndexBuffer_Cpu");
 
             this.graphicsManager.CopyDataToGraphicsBuffer<Vector3>(vertexBufferCpu, 0, vertexBufferData);
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(indexBufferCpu, 0, indexBufferData);
@@ -324,19 +324,19 @@ namespace CoreEngine.Rendering
 
             if (this.currentLinePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentLinePrimitiveCount, 0, (uint)this.lineVertexBufferOffset, (uint)this.lineIndexBufferOffset / 2, 128, 2, 1, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentLinePrimitiveCount, 0, (uint)this.lineVertexBufferOffset, (uint)this.lineIndexBufferOffset / 2, 32, 2, 1, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex, 1 });
                 this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentLinePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
             if (this.currentCubePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentCubePrimitiveCount, (uint)this.currentLinePrimitiveCount, 0, 0, 20, 8, 12, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentCubePrimitiveCount, (uint)this.currentLinePrimitiveCount, 0, 0, 2, 8, 12, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex, 1 });
                 this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentCubePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
             if (this.currentSpherePrimitiveCount > 0)
             {
-                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSpherePrimitiveCount, (uint)this.currentLinePrimitiveCount + (uint)this.currentCubePrimitiveCount, (uint)this.sphereVertexBufferOffset, (uint)this.sphereIndexBufferOffset / 2, 2, 90, 90, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex });
+                this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSpherePrimitiveCount, (uint)this.currentLinePrimitiveCount + (uint)this.currentCubePrimitiveCount, (uint)this.sphereVertexBufferOffset, (uint)this.sphereIndexBufferOffset / 2, 1, 96, 96, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex, 3 });
                 this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSpherePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 

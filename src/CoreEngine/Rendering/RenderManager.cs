@@ -72,8 +72,6 @@ namespace CoreEngine.Rendering
 
         private Fence? presentFence;
 
-        Texture testTexture;
-
         // TODO: Each Render Manager should use their own Graphics Manager
         public RenderManager(Window window, NativeUIManager nativeUIManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager, GraphicsSceneQueue graphicsSceneQueue)
         {
@@ -101,8 +99,6 @@ namespace CoreEngine.Rendering
 
             InitResourceLoaders(resourcesManager);
 
-            this.testTexture = resourcesManager.LoadResourceAsync<Texture>("/grass.texture");
-            
             this.stopwatch = new Stopwatch();
             this.stopwatch.Start();
             this.globalStopwatch = new Stopwatch();
@@ -272,8 +268,7 @@ namespace CoreEngine.Rendering
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true);
             this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2, this.computeDirectTransferShader);
             var startQueryIndex = InsertQueryTimestamp(presentCommandList);
-            this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { this.testTexture.ShaderResourceIndex });
-            // this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { mainRenderTargetTexture.ShaderResourceIndex });
+            this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { mainRenderTargetTexture.ShaderResourceIndex });
             this.graphicsManager.DispatchMesh(presentCommandList, 1, 1, 1);
             var endQueryIndex = InsertQueryTimestamp(presentCommandList);
             this.graphicsManager.EndRenderPass(presentCommandList);

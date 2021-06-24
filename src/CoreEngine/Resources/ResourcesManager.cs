@@ -174,6 +174,7 @@ namespace CoreEngine.Resources
             var resourceData = resourceStorage.ReadResourceDataAsync(resource.Path).Result;
             resource = resource.ResourceLoader.LoadResourceData(resource, resourceData);
             resource.IsLoaded = true;
+            resource.FullPath = resourceStorage.GetResourceFullPath(resource.Path);
             
             Logger.EndAction();
 

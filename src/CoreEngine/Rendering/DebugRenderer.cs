@@ -317,7 +317,7 @@ namespace CoreEngine.Rendering
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "DebugRenderer");
 
             var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, backfaceCulling: true);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthTexture, DepthBufferOperation.CompareGreater, backfaceCulling: true, PrimitiveType.Line);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.shader);

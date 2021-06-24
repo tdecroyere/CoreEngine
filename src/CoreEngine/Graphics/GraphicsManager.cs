@@ -648,6 +648,16 @@ namespace CoreEngine.Graphics
             return queryBuffer;
         }
 
+        public void ResetQueryBuffer(QueryBuffer queryBuffer)
+        {
+            if (queryBuffer is null)
+            {
+                throw new ArgumentNullException(nameof(queryBuffer));
+            }
+
+            this.graphicsService.ResetQueryBuffer(queryBuffer.NativePointer);
+        }
+
         public void DeleteQueryBuffer(QueryBuffer queryBuffer)
         {
             if (queryBuffer == null)

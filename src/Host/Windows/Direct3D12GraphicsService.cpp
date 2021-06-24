@@ -10,6 +10,8 @@ using namespace Microsoft::WRL;
 
 Direct3D12GraphicsService::Direct3D12GraphicsService()
 {
+	isDirect3d = true;
+	
 	this->isWaitingForGlobalFence = false;
     UINT createFactoryFlags = 0;
 
@@ -55,6 +57,17 @@ Direct3D12GraphicsService::~Direct3D12GraphicsService()
 void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
 { 
     this->adapterName.copy((wchar_t*)output, this->adapterName.length());
+}
+
+GraphicsAllocationInfos Direct3D12GraphicsService::GetBufferAllocationInfos(int sizeInBytes)
+{
+	// TODO: Call the GetResourceAllocationInfo method?
+
+	GraphicsAllocationInfos result = {};
+	result.SizeInBytes = sizeInBytes;
+	result.Alignment = 64 * 1024;
+
+	return result;
 }
 
 GraphicsAllocationInfos Direct3D12GraphicsService::GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
@@ -743,6 +756,10 @@ void* Direct3D12GraphicsService::CreateQueryBuffer(enum GraphicsQueryBufferType 
 	return queryBufferStruct;
 }
 
+void Direct3D12GraphicsService::ResetQueryBuffer(void* queryBufferPointer)
+{
+}
+
 void Direct3D12GraphicsService::SetQueryBufferLabel(void* queryBufferPointer, char* label)
 {
 	auto internalLabel = wstring(label, label + strlen(label));
@@ -938,6 +955,8 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 			blendState.RenderTarget[0] = InitBlendState(GraphicsBlendOperation::None);
 		}
 
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = renderPassDescriptor.PrimitiveType == GraphicsPrimitiveType::Triangle ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE : D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+
 		D3D12_PIPELINE_STATE_STREAM_DESC psoStream = {};
 		GraphicsPso psoDesc = {};
 		
@@ -956,6 +975,7 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 		psoDesc.DepthStencilFormat = depthFormat;
 		psoDesc.DepthStencilState = depthStencilState;
 		psoDesc.BlendState = blendState;
+		psoDesc.PrimitiveTopologyType = topologyType;
 
 		psoStream.SizeInBytes = sizeof(GraphicsPso);
 		psoStream.pPipelineStateSubobjectStream = &psoDesc;

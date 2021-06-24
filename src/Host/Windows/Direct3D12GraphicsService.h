@@ -98,6 +98,7 @@ class Direct3D12GraphicsService
         ~Direct3D12GraphicsService();
 
         void GetGraphicsAdapterName(char* output);
+        GraphicsAllocationInfos GetBufferAllocationInfos(int sizeInBytes);
         GraphicsAllocationInfos GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 
         void* CreateCommandQueue(enum GraphicsServiceCommandType commandQueueType);
@@ -144,6 +145,7 @@ class Direct3D12GraphicsService
         void WaitForSwapChainOnCpu(void* swapChainPointer);
 
         void* CreateQueryBuffer(enum GraphicsQueryBufferType queryBufferType, int length);
+        void ResetQueryBuffer(void* queryBufferPointer);
         void SetQueryBufferLabel(void* queryBufferPointer, char* label);
         void DeleteQueryBuffer(void* queryBufferPointer);
 

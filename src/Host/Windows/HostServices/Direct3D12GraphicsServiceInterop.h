@@ -7,6 +7,12 @@ void Direct3D12GraphicsServiceGetGraphicsAdapterNameInterop(void* context, char*
     contextObject->GetGraphicsAdapterName(output);
 }
 
+struct GraphicsAllocationInfos Direct3D12GraphicsServiceGetBufferAllocationInfosInterop(void* context, int sizeInBytes)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->GetBufferAllocationInfos(sizeInBytes);
+}
+
 struct GraphicsAllocationInfos Direct3D12GraphicsServiceGetTextureAllocationInfosInterop(void* context, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -235,6 +241,12 @@ void* Direct3D12GraphicsServiceCreateQueryBufferInterop(void* context, enum Grap
     return contextObject->CreateQueryBuffer(queryBufferType, length);
 }
 
+void Direct3D12GraphicsServiceResetQueryBufferInterop(void* context, void* queryBufferPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->ResetQueryBuffer(queryBufferPointer);
+}
+
 void Direct3D12GraphicsServiceSetQueryBufferLabelInterop(void* context, void* queryBufferPointer, char* label)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -371,6 +383,7 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
 {
     service->Context = (void*)context;
     service->GraphicsService_GetGraphicsAdapterName = Direct3D12GraphicsServiceGetGraphicsAdapterNameInterop;
+    service->GraphicsService_GetBufferAllocationInfos = Direct3D12GraphicsServiceGetBufferAllocationInfosInterop;
     service->GraphicsService_GetTextureAllocationInfos = Direct3D12GraphicsServiceGetTextureAllocationInfosInterop;
     service->GraphicsService_CreateCommandQueue = Direct3D12GraphicsServiceCreateCommandQueueInterop;
     service->GraphicsService_SetCommandQueueLabel = Direct3D12GraphicsServiceSetCommandQueueLabelInterop;
@@ -409,6 +422,7 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
     service->GraphicsService_PresentSwapChain = Direct3D12GraphicsServicePresentSwapChainInterop;
     service->GraphicsService_WaitForSwapChainOnCpu = Direct3D12GraphicsServiceWaitForSwapChainOnCpuInterop;
     service->GraphicsService_CreateQueryBuffer = Direct3D12GraphicsServiceCreateQueryBufferInterop;
+    service->GraphicsService_ResetQueryBuffer = Direct3D12GraphicsServiceResetQueryBufferInterop;
     service->GraphicsService_SetQueryBufferLabel = Direct3D12GraphicsServiceSetQueryBufferLabelInterop;
     service->GraphicsService_DeleteQueryBuffer = Direct3D12GraphicsServiceDeleteQueryBufferInterop;
     service->GraphicsService_CreateShader = Direct3D12GraphicsServiceCreateShaderInterop;

@@ -6,6 +6,11 @@ func GraphicsService_getGraphicsAdapterNameInterop(context: UnsafeMutableRawPoin
     contextObject.getGraphicsAdapterName(output)
 }
 
+func GraphicsService_getBufferAllocationInfosInterop(context: UnsafeMutableRawPointer?, _ sizeInBytes: Int32) -> GraphicsAllocationInfos {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.getBufferAllocationInfos(Int(sizeInBytes))
+}
+
 func GraphicsService_getTextureAllocationInfosInterop(context: UnsafeMutableRawPointer?, _ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int32, _ height: Int32, _ faceCount: Int32, _ mipLevels: Int32, _ multisampleCount: Int32) -> GraphicsAllocationInfos {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.getTextureAllocationInfos(textureFormat, usage, Int(width), Int(height), Int(faceCount), Int(mipLevels), Int(multisampleCount))
@@ -196,6 +201,11 @@ func GraphicsService_createQueryBufferInterop(context: UnsafeMutableRawPointer?,
     return contextObject.createQueryBuffer(queryBufferType, Int(length))
 }
 
+func GraphicsService_resetQueryBufferInterop(context: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.resetQueryBuffer(queryBufferPointer)
+}
+
 func GraphicsService_setQueryBufferLabelInterop(context: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ label: UnsafeMutablePointer<Int8>?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.setQueryBufferLabel(queryBufferPointer, String(cString: label!))
@@ -309,6 +319,7 @@ func GraphicsService_resolveQueryDataInterop(context: UnsafeMutableRawPointer?, 
 func initGraphicsService(_ context: MetalGraphicsService, _ service: inout GraphicsService) {
     service.Context = Unmanaged.passUnretained(context).toOpaque()
     service.GraphicsService_GetGraphicsAdapterName = GraphicsService_getGraphicsAdapterNameInterop
+    service.GraphicsService_GetBufferAllocationInfos = GraphicsService_getBufferAllocationInfosInterop
     service.GraphicsService_GetTextureAllocationInfos = GraphicsService_getTextureAllocationInfosInterop
     service.GraphicsService_CreateCommandQueue = GraphicsService_createCommandQueueInterop
     service.GraphicsService_SetCommandQueueLabel = GraphicsService_setCommandQueueLabelInterop
@@ -347,6 +358,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_PresentSwapChain = GraphicsService_presentSwapChainInterop
     service.GraphicsService_WaitForSwapChainOnCpu = GraphicsService_waitForSwapChainOnCpuInterop
     service.GraphicsService_CreateQueryBuffer = GraphicsService_createQueryBufferInterop
+    service.GraphicsService_ResetQueryBuffer = GraphicsService_resetQueryBufferInterop
     service.GraphicsService_SetQueryBufferLabel = GraphicsService_setQueryBufferLabelInterop
     service.GraphicsService_DeleteQueryBuffer = GraphicsService_deleteQueryBufferInterop
     service.GraphicsService_CreateShader = GraphicsService_createShaderInterop

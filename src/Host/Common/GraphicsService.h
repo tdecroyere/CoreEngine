@@ -65,6 +65,12 @@ enum GraphicsQueryBufferType : int
     GraphicsPipelineStats
 };
 
+enum GraphicsPrimitiveType : int
+{
+    Triangle, 
+    Line
+};
+
 struct GraphicsAllocationInfos
 {
     int SizeInBytes;
@@ -112,6 +118,7 @@ struct GraphicsRenderPassDescriptor
     struct NullableIntPtr DepthTexturePointer;
     enum GraphicsDepthBufferOperation DepthBufferOperation;
     int BackfaceCulling;
+    enum GraphicsPrimitiveType PrimitiveType;
 };
 
 struct NullableGraphicsRenderPassDescriptor
@@ -121,6 +128,7 @@ struct NullableGraphicsRenderPassDescriptor
 };
 
 typedef void (*GraphicsService_GetGraphicsAdapterNamePtr)(void* context, char* output);
+typedef struct GraphicsAllocationInfos (*GraphicsService_GetBufferAllocationInfosPtr)(void* context, int sizeInBytes);
 typedef struct GraphicsAllocationInfos (*GraphicsService_GetTextureAllocationInfosPtr)(void* context, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 typedef void* (*GraphicsService_CreateCommandQueuePtr)(void* context, enum GraphicsServiceCommandType commandQueueType);
 typedef void (*GraphicsService_SetCommandQueueLabelPtr)(void* context, void* commandQueuePointer, char* label);
@@ -159,6 +167,7 @@ typedef void* (*GraphicsService_GetSwapChainBackBufferTexturePtr)(void* context,
 typedef unsigned long (*GraphicsService_PresentSwapChainPtr)(void* context, void* swapChainPointer);
 typedef void (*GraphicsService_WaitForSwapChainOnCpuPtr)(void* context, void* swapChainPointer);
 typedef void* (*GraphicsService_CreateQueryBufferPtr)(void* context, enum GraphicsQueryBufferType queryBufferType, int length);
+typedef void (*GraphicsService_ResetQueryBufferPtr)(void* context, void* queryBufferPointer);
 typedef void (*GraphicsService_SetQueryBufferLabelPtr)(void* context, void* queryBufferPointer, char* label);
 typedef void (*GraphicsService_DeleteQueryBufferPtr)(void* context, void* queryBufferPointer);
 typedef void* (*GraphicsService_CreateShaderPtr)(void* context, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength);
@@ -186,6 +195,7 @@ struct GraphicsService
 {
     void* Context;
     GraphicsService_GetGraphicsAdapterNamePtr GraphicsService_GetGraphicsAdapterName;
+    GraphicsService_GetBufferAllocationInfosPtr GraphicsService_GetBufferAllocationInfos;
     GraphicsService_GetTextureAllocationInfosPtr GraphicsService_GetTextureAllocationInfos;
     GraphicsService_CreateCommandQueuePtr GraphicsService_CreateCommandQueue;
     GraphicsService_SetCommandQueueLabelPtr GraphicsService_SetCommandQueueLabel;
@@ -224,6 +234,7 @@ struct GraphicsService
     GraphicsService_PresentSwapChainPtr GraphicsService_PresentSwapChain;
     GraphicsService_WaitForSwapChainOnCpuPtr GraphicsService_WaitForSwapChainOnCpu;
     GraphicsService_CreateQueryBufferPtr GraphicsService_CreateQueryBuffer;
+    GraphicsService_ResetQueryBufferPtr GraphicsService_ResetQueryBuffer;
     GraphicsService_SetQueryBufferLabelPtr GraphicsService_SetQueryBufferLabel;
     GraphicsService_DeleteQueryBufferPtr GraphicsService_DeleteQueryBuffer;
     GraphicsService_CreateShaderPtr GraphicsService_CreateShader;

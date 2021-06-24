@@ -61,6 +61,7 @@ namespace CoreEngine.Graphics
         // TODO: Change that, currently we are just blindly sequentially allocate memory without freeing it
         public GraphicsMemoryAllocation AllocateBuffer(GraphicsHeapType heapType, int sizeInBytes)
         {
+            var allocationInfos = this.graphicsService.GetBufferAllocationInfos(sizeInBytes);
             var memoryAllocator = this.globalGpuMemoryAllocator;
 
             if (heapType == GraphicsHeapType.Upload)
@@ -73,9 +74,7 @@ namespace CoreEngine.Graphics
                 memoryAllocator = this.globalReadBackMemoryAllocator;
             }
 
-            // TODO: Get the alignment from the device
-            var alignment = (ulong)64 * 1024;
-            return memoryAllocator.AllocateMemory(sizeInBytes, alignment);
+            return memoryAllocator.AllocateMemory(allocationInfos.SizeInBytes, (ulong)allocationInfos.Alignment);
         }
 
         public GraphicsMemoryAllocation AllocateTexture(GraphicsHeapType heapType, TextureFormat textureFormat, TextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)

@@ -2,6 +2,7 @@ import CoreEngineCommonInterop
 
 public protocol GraphicsServiceProtocol {
     func getGraphicsAdapterName(_ output: UnsafeMutablePointer<Int8>?)
+    func getBufferAllocationInfos(_ sizeInBytes: Int) -> GraphicsAllocationInfos
     func getTextureAllocationInfos(_ textureFormat: GraphicsTextureFormat, _ usage: GraphicsTextureUsage, _ width: Int, _ height: Int, _ faceCount: Int, _ mipLevels: Int, _ multisampleCount: Int) -> GraphicsAllocationInfos
     func createCommandQueue(_ commandQueueType: GraphicsServiceCommandType) -> UnsafeMutableRawPointer?
     func setCommandQueueLabel(_ commandQueuePointer: UnsafeMutableRawPointer?, _ label: String)
@@ -40,6 +41,7 @@ public protocol GraphicsServiceProtocol {
     func presentSwapChain(_ swapChainPointer: UnsafeMutableRawPointer?) -> UInt
     func waitForSwapChainOnCpu(_ swapChainPointer: UnsafeMutableRawPointer?)
     func createQueryBuffer(_ queryBufferType: GraphicsQueryBufferType, _ length: Int) -> UnsafeMutableRawPointer?
+    func resetQueryBuffer(_ queryBufferPointer: UnsafeMutableRawPointer?)
     func setQueryBufferLabel(_ queryBufferPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteQueryBuffer(_ queryBufferPointer: UnsafeMutableRawPointer?)
     func createShader(_ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> UnsafeMutableRawPointer?

@@ -24,7 +24,7 @@
         {
           "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
-            "MeshResourceId": "resource:/UnitCube.mesh"
+            "MeshResourceId": "resource:/Data/UnitCube.mesh"
           }
         },
         {
@@ -49,7 +49,7 @@
         {
           "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
-            "MeshResourceId": "resource:/teapot.mesh"
+            "MeshResourceId": "resource:/Data/teapot.mesh"
           }
         },
         {
@@ -74,7 +74,7 @@
         {
           "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
-            "MeshResourceId": "resource:/teapot.mesh"
+            "MeshResourceId": "resource:/Data/teapot.mesh"
           }
         },
         {
@@ -99,7 +99,7 @@
         {
           "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
-            "MeshResourceId": "resource:/teapot.mesh"
+            "MeshResourceId": "resource:/Data/teapot.mesh"
           }
         },
         {
@@ -124,7 +124,7 @@
         {
           "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
-            "MeshResourceId": "resource:/teapot.mesh"
+            "MeshResourceId": "resource:/Data/teapot.mesh"
           }
         },
         {
@@ -149,7 +149,7 @@
         {
           "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
-            "MeshResourceId": "resource:/teapot.mesh"
+            "MeshResourceId": "resource:/Data/teapot.mesh"
           }
         },
         {
@@ -178,7 +178,7 @@
         {
           "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
           "Data": {
-            "MeshResourceId": "resource:/Sponza/sponza.mesh"
+            "MeshResourceId": "resource:/Data/Sponza/sponza.mesh"
           }
         },
         {

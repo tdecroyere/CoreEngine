@@ -10,7 +10,10 @@ VulkanGraphicsService::VulkanGraphicsService()
     this->graphicsPhysicalDevice = FindGraphicsDevice();
     
     this->graphicsDevice = CreateDevice(this->graphicsPhysicalDevice);
+
+    #ifdef DEBUG
     RegisterDebugCallback();
+    #endif
 }
 
 VulkanGraphicsService::~VulkanGraphicsService()
@@ -39,6 +42,27 @@ VulkanGraphicsService::~VulkanGraphicsService()
 void VulkanGraphicsService::GetGraphicsAdapterName(char* output)
 {
     this->deviceName.copy((wchar_t*)output, this->deviceName.length());
+}
+
+GraphicsAllocationInfos VulkanGraphicsService::GetBufferAllocationInfos(int sizeInBytes)
+{
+	VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    createInfo.size = sizeInBytes;
+    createInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+    VkBuffer buffer = nullptr;
+    AssertIfFailed(vkCreateBuffer(this->graphicsDevice, &createInfo, nullptr, &buffer));
+
+    VkMemoryRequirements memoryRequirements = {};
+    vkGetBufferMemoryRequirements(this->graphicsDevice, buffer, &memoryRequirements);
+
+    GraphicsAllocationInfos result = {};
+	result.SizeInBytes = memoryRequirements.size;
+	result.Alignment = memoryRequirements.alignment;
+
+    vkDestroyBuffer(this->graphicsDevice, buffer, nullptr);
+
+	return result;
 }
 
 GraphicsAllocationInfos VulkanGraphicsService::GetTextureAllocationInfos(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
@@ -104,7 +128,8 @@ void* VulkanGraphicsService::CreateCommandQueue(enum GraphicsServiceCommandType 
 }
 
 void VulkanGraphicsService::SetCommandQueueLabel(void* commandQueuePointer, char* label)
-{ 
+{
+    #ifdef DEBUG 
     VulkanCommandQueue* commandQueue = (VulkanCommandQueue*)commandQueuePointer;
 
     for (int i = 0; i < VulkanFramesCount; i++)
@@ -116,6 +141,7 @@ void VulkanGraphicsService::SetCommandQueueLabel(void* commandQueuePointer, char
 
         AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
     }
+    #endif
 }
 void VulkanGraphicsService::DeleteCommandQueue(void* commandQueuePointer)
 { 
@@ -141,7 +167,10 @@ void VulkanGraphicsService::ResetCommandQueue(void* commandQueuePointer)
 
 unsigned long VulkanGraphicsService::GetCommandQueueTimestampFrequency(void* commandQueuePointer)
 {
-    return 1000;
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(this->graphicsPhysicalDevice, &properties);
+
+    return (unsigned long)properties.limits.timestampPeriod * 1000000000;
 }
 
 unsigned long VulkanGraphicsService::ExecuteCommandLists(void* commandQueuePointer, void** commandLists, int commandListsLength, struct GraphicsFence* fencesToWait, int fencesToWaitLength)
@@ -241,6 +270,7 @@ void* VulkanGraphicsService::CreateCommandList(void* commandQueuePointer)
 
 void VulkanGraphicsService::SetCommandListLabel(void* commandListPointer, char* label)
 { 
+    #ifdef DEBUG 
     VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
 
     VkDebugUtilsObjectNameInfoEXT nameInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
@@ -249,6 +279,7 @@ void VulkanGraphicsService::SetCommandListLabel(void* commandListPointer, char* 
     nameInfo.pObjectName = label;
 
     AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    #endif
 }
 
 void VulkanGraphicsService::DeleteCommandList(void* commandListPointer)
@@ -321,6 +352,7 @@ void* VulkanGraphicsService::CreateGraphicsHeap(enum GraphicsServiceHeapType typ
 
 void VulkanGraphicsService::SetGraphicsHeapLabel(void* graphicsHeapPointer, char* label)
 { 
+    #ifdef DEBUG 
     VulkanGraphicsHeap* graphicsHeap = (VulkanGraphicsHeap*)graphicsHeapPointer;
 
     VkDebugUtilsObjectNameInfoEXT nameInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
@@ -329,6 +361,7 @@ void VulkanGraphicsService::SetGraphicsHeapLabel(void* graphicsHeapPointer, char
     nameInfo.pObjectName = label;
 
     AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    #endif
 }
 
 void VulkanGraphicsService::DeleteGraphicsHeap(void* graphicsHeapPointer)
@@ -405,6 +438,7 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
 
 void VulkanGraphicsService::SetShaderResourceHeapLabel(void* shaderResourceHeapPointer, char* label)
 { 
+    #ifdef DEBUG 
     VulkanShaderResourceHeap* shaderResourceHeap = (VulkanShaderResourceHeap*)shaderResourceHeapPointer;
 
     VkDebugUtilsObjectNameInfoEXT nameInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
@@ -413,6 +447,7 @@ void VulkanGraphicsService::SetShaderResourceHeapLabel(void* shaderResourceHeapP
     nameInfo.pObjectName = label;
 
     AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    #endif
 }
 
 void VulkanGraphicsService::DeleteShaderResourceHeap(void* shaderResourceHeapPointer)
@@ -487,7 +522,7 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
 
     if (graphicsHeap->Type == GraphicsServiceHeapType::Gpu)
 	{
-		createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+		createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	}
 
     else if (graphicsHeap->Type == GraphicsServiceHeapType::Upload)
@@ -495,15 +530,12 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
 		createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	}
 
+    else if (graphicsHeap->Type == GraphicsServiceHeapType::ReadBack)
+    {
+        createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    }
+
     AssertIfFailed(vkCreateBuffer(this->graphicsDevice, &createInfo, nullptr, &graphicsBuffer->BufferObject));
-
-    VkMemoryRequirements memoryRequirements = {};
-    vkGetBufferMemoryRequirements(this->graphicsDevice, graphicsBuffer->BufferObject, &memoryRequirements);
-
-    GraphicsAllocationInfos result = {};
-	result.SizeInBytes = memoryRequirements.size;
-	result.Alignment = memoryRequirements.alignment;
-
     AssertIfFailed(vkBindBufferMemory(this->graphicsDevice, graphicsBuffer->BufferObject, graphicsHeap->DeviceMemory, heapOffset));
 
     return graphicsBuffer;
@@ -511,6 +543,7 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
 
 void VulkanGraphicsService::SetGraphicsBufferLabel(void* graphicsBufferPointer, char* label)
 { 
+    #ifdef DEBUG 
     VulkanGraphicsBuffer* graphicsBuffer = (VulkanGraphicsBuffer*)graphicsBufferPointer;
 
     VkDebugUtilsObjectNameInfoEXT nameInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
@@ -519,6 +552,7 @@ void VulkanGraphicsService::SetGraphicsBufferLabel(void* graphicsBufferPointer, 
     nameInfo.pObjectName = label;
 
     AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    #endif
 }
 
 void VulkanGraphicsService::DeleteGraphicsBuffer(void* graphicsBufferPointer)
@@ -573,6 +607,7 @@ void* VulkanGraphicsService::CreateTexture(void* graphicsHeapPointer, unsigned l
 
 void VulkanGraphicsService::SetTextureLabel(void* texturePointer, char* label)
 { 
+    #ifdef DEBUG 
     VulkanTexture* texture = (VulkanTexture*)texturePointer;
 
     VkDebugUtilsObjectNameInfoEXT nameInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
@@ -581,6 +616,7 @@ void VulkanGraphicsService::SetTextureLabel(void* texturePointer, char* label)
     nameInfo.pObjectName = label;
 
     AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    #endif
 }
 
 void VulkanGraphicsService::DeleteTexture(void* texturePointer)
@@ -611,6 +647,9 @@ void* VulkanGraphicsService::CreateSwapChain(void* windowPointer, void* commandQ
     AssertIfFailed(vkGetPhysicalDeviceSurfaceSupportKHR(this->graphicsPhysicalDevice, swapChain->CommandQueue->CommandQueueFamilyIndex, swapChain->WindowSurface, &isPresentSupported));
     assert(isPresentSupported == 1);
 
+    VkSurfaceCapabilitiesKHR surfaceCapabilities;
+    AssertIfFailed(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->graphicsPhysicalDevice, swapChain->WindowSurface, &surfaceCapabilities));
+
     swapChain->Format = VulkanConvertTextureFormat(textureFormat, true);
 
     VkFormat formatList[] = 
@@ -633,7 +672,7 @@ void* VulkanGraphicsService::CreateSwapChain(void* windowPointer, void* commandQ
     swapChainCreateInfo.imageArrayLayers = 1;
     swapChainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapChainCreateInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    swapChainCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    swapChainCreateInfo.preTransform = surfaceCapabilities.currentTransform;
     swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapChainCreateInfo.flags = VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
     swapChainCreateInfo.pNext = &imageFormatListCreateInfo;
@@ -691,6 +730,7 @@ void VulkanGraphicsService::ResizeSwapChain(void* swapChainPointer, int width, i
         swapChain->BackBufferTextures[0]->Format
     };
 
+    // TODO: Create an util function for this
     VkImageFormatListCreateInfo imageFormatListCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO };
     imageFormatListCreateInfo.pViewFormats = formatList;
     imageFormatListCreateInfo.viewFormatCount = ARRAYSIZE(formatList);
@@ -795,11 +835,31 @@ void VulkanGraphicsService::WaitForSwapChainOnCpu(void* swapChainPointer)
 
 void* VulkanGraphicsService::CreateQueryBuffer(enum GraphicsQueryBufferType queryBufferType, int length)
 {
-    return new VulkanQueryBuffer();
+    VulkanQueryBuffer* queryBuffer = new VulkanQueryBuffer();
+    queryBuffer->QueryBufferType = queryBufferType;
+    queryBuffer->Length = length;
+
+    VkQueryPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+    createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    createInfo.queryCount = length;
+
+    AssertIfFailed(vkCreateQueryPool(this->graphicsDevice, &createInfo, nullptr, &queryBuffer->QueryPool));
+
+    return queryBuffer;
+}
+
+void VulkanGraphicsService::ResetQueryBuffer(void* queryBufferPointer)
+{
+    VulkanQueryBuffer* queryBuffer = (VulkanQueryBuffer*)queryBufferPointer;
+    vkResetQueryPool(this->graphicsDevice, queryBuffer->QueryPool, 0, queryBuffer->Length);
 }
 
 void VulkanGraphicsService::SetQueryBufferLabel(void* queryBufferPointer, char* label){ }
-void VulkanGraphicsService::DeleteQueryBuffer(void* queryBufferPointer){ }
+void VulkanGraphicsService::DeleteQueryBuffer(void* queryBufferPointer)
+{ 
+    VulkanQueryBuffer* queryBuffer = (VulkanQueryBuffer*)queryBufferPointer;
+    vkDestroyQueryPool(this->graphicsDevice, queryBuffer->QueryPool, nullptr);
+}
 
 void* VulkanGraphicsService::CreateShader(char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength)
 {
@@ -859,6 +919,7 @@ void* VulkanGraphicsService::CreateShader(char* computeShaderFunction, void* sha
 
 void VulkanGraphicsService::SetShaderLabel(void* shaderPointer, char* label)
 { 
+    #ifdef DEBUG 
     VulkanShader* shader = (VulkanShader*)shaderPointer;
 
     if (shader->AmplificationShaderMethod != nullptr)
@@ -900,6 +961,7 @@ void VulkanGraphicsService::SetShaderLabel(void* shaderPointer, char* label)
 
         AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
     }
+    #endif
 }
 
 void VulkanGraphicsService::DeleteShader(void* shaderPointer)
@@ -1131,9 +1193,33 @@ void VulkanGraphicsService::DispatchMesh(void* commandListPointer, unsigned int 
     }
 }
 
-void VulkanGraphicsService::BeginQuery(void* commandListPointer, void* queryBufferPointer, int index){ }
-void VulkanGraphicsService::EndQuery(void* commandListPointer, void* queryBufferPointer, int index){ }
-void VulkanGraphicsService::ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex){ }
+void VulkanGraphicsService::BeginQuery(void* commandListPointer, void* queryBufferPointer, int index)
+{ 
+    
+}
+
+void VulkanGraphicsService::EndQuery(void* commandListPointer, void* queryBufferPointer, int index)
+{ 
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+    VulkanQueryBuffer* queryBuffer = (VulkanQueryBuffer*)queryBufferPointer;
+
+    if (queryBuffer->QueryBufferType == GraphicsQueryBufferType::Timestamp || queryBuffer->QueryBufferType == GraphicsQueryBufferType::CopyTimestamp)
+    {
+        vkCmdWriteTimestamp(commandList->CommandBufferObject, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryBuffer->QueryPool, index);
+    }
+}
+
+void VulkanGraphicsService::ResolveQueryData(void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex)
+{ 
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+    VulkanQueryBuffer* queryBuffer = (VulkanQueryBuffer*)queryBufferPointer;
+    VulkanGraphicsBuffer* destinationBuffer = (VulkanGraphicsBuffer*)destinationBufferPointer;
+
+    if (queryBuffer->QueryBufferType == GraphicsQueryBufferType::Timestamp)
+    {
+        vkCmdCopyQueryPoolResults(commandList->CommandBufferObject, queryBuffer->QueryPool, startIndex, endIndex - startIndex, destinationBuffer->BufferObject, 0, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+    }
+}
 
 VkInstance VulkanGraphicsService::CreateVulkanInstance()
 {
@@ -1279,8 +1365,7 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
         VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME,
-        VK_NV_MESH_SHADER_EXTENSION_NAME,
-        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
+        VK_NV_MESH_SHADER_EXTENSION_NAME
     };
 
     createInfo.ppEnabledExtensionNames = extensions;
@@ -1298,6 +1383,7 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
     features.descriptorBindingPartiallyBound = true;
     features.shaderSampledImageArrayNonUniformIndexing = true;
     features.separateDepthStencilLayouts = true;
+    features.hostQueryReset = true;
 
     #ifdef DEBUG
     features.bufferDeviceAddressCaptureReplay = true;

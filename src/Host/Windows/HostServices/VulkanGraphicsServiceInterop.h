@@ -7,6 +7,12 @@ void VulkanGraphicsServiceGetGraphicsAdapterNameInterop(void* context, char* out
     contextObject->GetGraphicsAdapterName(output);
 }
 
+struct GraphicsAllocationInfos VulkanGraphicsServiceGetBufferAllocationInfosInterop(void* context, int sizeInBytes)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    return contextObject->GetBufferAllocationInfos(sizeInBytes);
+}
+
 struct GraphicsAllocationInfos VulkanGraphicsServiceGetTextureAllocationInfosInterop(void* context, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
     auto contextObject = (VulkanGraphicsService*)context;
@@ -235,6 +241,12 @@ void* VulkanGraphicsServiceCreateQueryBufferInterop(void* context, enum Graphics
     return contextObject->CreateQueryBuffer(queryBufferType, length);
 }
 
+void VulkanGraphicsServiceResetQueryBufferInterop(void* context, void* queryBufferPointer)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    contextObject->ResetQueryBuffer(queryBufferPointer);
+}
+
 void VulkanGraphicsServiceSetQueryBufferLabelInterop(void* context, void* queryBufferPointer, char* label)
 {
     auto contextObject = (VulkanGraphicsService*)context;
@@ -371,6 +383,7 @@ void InitVulkanGraphicsService(const VulkanGraphicsService* context, GraphicsSer
 {
     service->Context = (void*)context;
     service->GraphicsService_GetGraphicsAdapterName = VulkanGraphicsServiceGetGraphicsAdapterNameInterop;
+    service->GraphicsService_GetBufferAllocationInfos = VulkanGraphicsServiceGetBufferAllocationInfosInterop;
     service->GraphicsService_GetTextureAllocationInfos = VulkanGraphicsServiceGetTextureAllocationInfosInterop;
     service->GraphicsService_CreateCommandQueue = VulkanGraphicsServiceCreateCommandQueueInterop;
     service->GraphicsService_SetCommandQueueLabel = VulkanGraphicsServiceSetCommandQueueLabelInterop;
@@ -409,6 +422,7 @@ void InitVulkanGraphicsService(const VulkanGraphicsService* context, GraphicsSer
     service->GraphicsService_PresentSwapChain = VulkanGraphicsServicePresentSwapChainInterop;
     service->GraphicsService_WaitForSwapChainOnCpu = VulkanGraphicsServiceWaitForSwapChainOnCpuInterop;
     service->GraphicsService_CreateQueryBuffer = VulkanGraphicsServiceCreateQueryBufferInterop;
+    service->GraphicsService_ResetQueryBuffer = VulkanGraphicsServiceResetQueryBufferInterop;
     service->GraphicsService_SetQueryBufferLabel = VulkanGraphicsServiceSetQueryBufferLabelInterop;
     service->GraphicsService_DeleteQueryBuffer = VulkanGraphicsServiceDeleteQueryBufferInterop;
     service->GraphicsService_CreateShader = VulkanGraphicsServiceCreateShaderInterop;

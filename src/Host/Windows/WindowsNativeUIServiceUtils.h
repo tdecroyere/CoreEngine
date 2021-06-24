@@ -10,6 +10,7 @@ bool doChangeSize = false;
 WINDOWPLACEMENT previousWindowPlacement;
 
 bool firstRun = true;
+bool isDirect3d = false;
 
 void Win32SwitchScreenMode(HWND window)
 {
@@ -65,29 +66,30 @@ LRESULT CALLBACK Win32WindowCallBack(HWND window, UINT message, WPARAM wParam, L
 	}
 	case WM_KEYDOWN:
 	{
-		bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
-	
-		switch (wParam)
-		{
-		case VK_ESCAPE:
-			::PostQuitMessage(0);
-			break;
-		case VK_RETURN:
-			if (alt)
-			{
-				Win32SwitchScreenMode(window);
-			}
-			break;
-		}
-
 		if (globalInputService != nullptr)
 		{
 			globalInputService->UpdateRawInputKeyboardState(WM_KEYDOWN, wParam);
 		}
 		break;
 	}
+	case WM_SYSKEYUP:
+		if (!isDirect3d && wParam == VK_RETURN)
+		{
+			if ((HIWORD(lParam) & KF_ALTDOWN))
+			{
+				Win32SwitchScreenMode(window);
+			}
+		}
+		break;
 	case WM_KEYUP:
 	{
+		switch (wParam)
+		{
+		case VK_ESCAPE:
+			::PostQuitMessage(0);
+			break;
+		}
+
 		if (globalInputService != nullptr)
 		{
 			globalInputService->UpdateRawInputKeyboardState(WM_KEYUP, wParam);

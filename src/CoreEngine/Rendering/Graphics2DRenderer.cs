@@ -170,7 +170,7 @@ namespace CoreEngine.Rendering
             
             var renderTarget = new RenderTargetDescriptor(renderTargetTexture, null, BlendOperation.AlphaBlending);
             // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.Triangle);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.shader);

@@ -3,7 +3,7 @@ $ProgressPreference = "SilentlyContinue"
 
 $WindowsHostSourceFolder = ".\src\Host\Windows\"
 $GeneratedFilesFolder = ".\src\Host\Windows\Generated Files\"
-$ObjFolder = ".\src\Host\Windows\Generated Files\obj"
+$ObjFolder = ".\src\Host\Windows\Generated Files\obj\Release"
 $TempFolder = ".\build\temp"
 $TempD3D12Folder = ".\build\temp\D3D12"
 $OutputFolder = ".\build\Windows"
@@ -14,6 +14,10 @@ $Configuration = "Release"
 if ($args.length -gt 0 -And $args[0] -eq "debug")
 {
     $Configuration = "Debug"
+}
+
+if ($Configuration -eq "Debug") {
+    $ObjFolder = ".\src\Host\Windows\Generated Files\obj\Debug"
 }
 
 if (-not(Test-Path -Path $TempFolder))
@@ -40,7 +44,7 @@ function RegisterVisualStudioEnvironment
 {
     $registeredVisualStudioVersion = Get-Content -Path Env:VisualStudioVersion -ErrorAction SilentlyContinue
 
-    if (-not($registeredVisualStudioVersion -eq "16.0"))
+    if (-not($registeredVisualStudioVersion -eq "16.0") -And -not($registeredVisualStudioVersion -eq "17.0"))
     {
         Write-Output "[93mRegistering Visual Studio Environment...[0m"
 
@@ -50,7 +54,8 @@ function RegisterVisualStudioEnvironment
         $vs2019ProfPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019EntPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $vs2019PreviewPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Preview\VC\Auxiliary\Build\vcvars64.bat"
-
+        $vs2022PreviewPath = "C:\Program Files\Microsoft Visual Studio\2022\Preview\VC\Auxiliary\Build\vcvars64.bat"
+        
         if (Test-Path -Path $vs2019ComPath)
         {
             $vsPath = $vs2019ComPath
@@ -69,6 +74,11 @@ function RegisterVisualStudioEnvironment
         if (Test-Path -Path $vs2019PreviewPath)
         {
             $vsPath = $vs2019PreviewPath
+        }
+
+        if (Test-Path -Path $vs2022PreviewPath)
+        {
+            $vsPath = $vs2022PreviewPath
         }
 
         $batchCommand = "`"$vsPath`" > nul & set"
@@ -163,17 +173,19 @@ function CompileDotnet
     Pop-Location
 }
 
-function PreCompileHeader
-{
+function PreCompileHeader {
     Push-Location $ObjFolder
 
-    if (-Not(Test-Path -Path "WindowsCommon.pch"))
-    {
+    if (-Not(Test-Path -Path "WindowsCommon.pch")) {
         Write-Output "[93mCompiling Windows Pre-compiled header...[0m"
-        cl.exe /c /nologo /DDEBUG /std:c++17 /EHsc /I"..\packages\$DirectX12Version\build\native\include" /Zi /Yc /FpWindowsCommon.pch "..\..\WindowsCommon.cpp"
 
-        if(-Not $?)
-        {
+        if ($Configuration -eq "Debug") {
+            cl.exe /c /nologo /DDEBUG /std:c++17 /Zi /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /Yc /FpWindowsCommon.pch "..\..\..\WindowsCommon.cpp"
+        } else {
+            cl.exe /c /nologo /std:c++17 /O2 /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /Yc /FpWindowsCommon.pch "..\..\..\WindowsCommon.cpp"
+        }
+
+        if(-Not $?) {
             Pop-Location
             ShowErrorMessage
             Exit 1
@@ -183,13 +195,16 @@ function PreCompileHeader
     Pop-Location
 }
 
-function CompileWindowsHost
-{
+function CompileWindowsHost {
     Push-Location $ObjFolder
 
     Write-Output "[93mCompiling Windows Executable...[0m"
 
-    cl.exe /c /nologo /DDEBUG /std:c++17 /diagnostics:caret /EHsc /I"..\packages\$DirectX12Version\build\native\include" /I"..\..\Libs\Vulkan\include" /Zi /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\main.compilationunit"
+    if ($Configuration -eq "Debug") {
+        cl.exe /c /nologo /DDEBUG /std:c++17 /Zi /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\Vulkan\include" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
+    } else {
+        cl.exe /c /nologo /std:c++17 /O2 /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\Vulkan\include" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
+    }
 
     if (-Not $?)
     {
@@ -207,8 +222,11 @@ function LinkWindowsHost
     Write-Output "[93mLinking Windows Executable...[0m"
 
     # TODO: Copy nethost.dll to outputdir from the package folder
-   
-    link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib" "..\..\Libs\Vulkan\Lib\vulkan-1.lib"
+    if ($Configuration -eq "Debug") {
+        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib" "..\..\..\Libs\Vulkan\Lib\vulkan-1.lib"
+    } else {
+        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib" "..\..\..\Libs\Vulkan\Lib\vulkan-1.lib"
+    }
 
     if (-Not $?)
     {
@@ -217,7 +235,7 @@ function LinkWindowsHost
         Exit 1
     }
 
-    Copy-Item "..\packages\$DirectX12Version\build\native\bin\x64\*" "..\..\..\..\..\$TempD3D12Folder" -Recurse -Force
+    Copy-Item "..\..\packages\$DirectX12Version\build\native\bin\x64\*" "..\..\..\..\..\..\$TempD3D12Folder" -Recurse -Force
     Pop-Location
 }
 

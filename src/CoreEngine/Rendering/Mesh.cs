@@ -17,6 +17,16 @@ namespace CoreEngine.Rendering
         }
 
         public BoundingBox BoundingBox { get; set; }
-        public IList<GeometryInstance> GeometryInstances { get; } = new List<GeometryInstance>();
+        public uint MeshletCount { get; set; }
+        public uint TriangleCount { get; set; }
+
+        public ulong VerticesOffset { get; set; }
+        public ulong VerticesSizeInBytes { get; set; }
+        public ulong VertexIndicesOffset { get; set; }
+        public ulong VertexIndicesSizeInBytes { get; set; }
+        public ulong TriangleIndicesOffset { get; set; }
+        public ulong TriangleIndicesSizeInBytes { get; set; }
+        public ulong MeshletsOffset { get; set; }
+        public ulong MeshletsSizeInBytes { get; set; }
     }
 }

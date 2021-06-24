@@ -39,7 +39,7 @@ namespace CoreEngine.Samples.SceneViewer
             {
                 this.isFirstTimeRun = false;
 
-                var mesh = this.resourcesManager.LoadResourceAsync<Mesh>("/teapot.mesh");
+                var mesh = this.resourcesManager.LoadResourceAsync<Mesh>("/Data/teapot.mesh");
 
                 var entityArray = this.GetEntityArray();
                 var meshInstanceGeneratorArray = this.GetComponentDataArray<MeshInstanceGeneratorComponent>();

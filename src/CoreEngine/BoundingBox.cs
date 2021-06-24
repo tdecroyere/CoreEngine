@@ -81,6 +81,22 @@ namespace CoreEngine
 			}
 		}
 
+        public static BoundingBox AddPoint(in BoundingBox boundingBox, Vector3 point)
+		{
+			float minX = (point.X < boundingBox.MinPoint.X) ? point.X : boundingBox.MinPoint.X;
+			float minY = (point.Y < boundingBox.MinPoint.Y) ? point.Y : boundingBox.MinPoint.Y;
+			float minZ = (point.Z < boundingBox.MinPoint.Z) ? point.Z : boundingBox.MinPoint.Z;
+
+			float maxX = (point.X > boundingBox.MaxPoint.X) ? point.X : boundingBox.MaxPoint.X;
+			float maxY = (point.Y > boundingBox.MaxPoint.Y) ? point.Y : boundingBox.MaxPoint.Y;
+			float maxZ = (point.Z > boundingBox.MaxPoint.Z) ? point.Z : boundingBox.MaxPoint.Z;
+	
+			var minPoint = new Vector3(minX, minY, minZ);
+			var maxPoint = new Vector3(maxX, maxY, maxZ);
+
+            return new BoundingBox(minPoint, maxPoint);
+		}
+
         public static BoundingBox CreateMerged(BoundingBox original, BoundingBox additional) 
         {
             var minX = MathF.Min(original.MinPoint.X, additional.MinPoint.X);

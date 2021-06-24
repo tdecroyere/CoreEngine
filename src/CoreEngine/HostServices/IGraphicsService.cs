@@ -72,6 +72,12 @@ namespace CoreEngine.HostServices
         GraphicsPipelineStats
     }
 
+    public enum GraphicsPrimitiveType
+    {
+        Triangle,
+        Line
+    }
+
     public readonly struct GraphicsAllocationInfos
     {
         public GraphicsAllocationInfos(int sizeInBytes, int alignment)
@@ -180,6 +186,7 @@ namespace CoreEngine.HostServices
             this.DepthTexturePointer = renderPassDescriptor.DepthTexture?.NativePointer;
             this.DepthBufferOperation = (GraphicsDepthBufferOperation)renderPassDescriptor.DepthBufferOperation;
             this.BackfaceCulling = renderPassDescriptor.BackfaceCulling;
+            this.PrimitiveType = (GraphicsPrimitiveType)renderPassDescriptor.PrimitiveType;
         }
 
         public readonly bool IsRenderShader { get; }
@@ -203,6 +210,7 @@ namespace CoreEngine.HostServices
         public readonly IntPtr? DepthTexturePointer { get; }
         public readonly GraphicsDepthBufferOperation DepthBufferOperation { get; }
         public readonly bool BackfaceCulling { get; }
+        public readonly GraphicsPrimitiveType PrimitiveType { get; }
 
         public override int GetHashCode() 
         {
@@ -216,7 +224,8 @@ namespace CoreEngine.HostServices
                    this.RenderTarget4BlendOperation.GetHashCode() ^ 
                    this.MultiSampleCount.GetHashCode() ^ 
                    this.DepthBufferOperation.GetHashCode() ^ 
-                   this.BackfaceCulling.GetHashCode();
+                   this.BackfaceCulling.GetHashCode() ^
+                   this.PrimitiveType.GetHashCode();
         }
 
         public override bool Equals(Object? obj) 
@@ -242,6 +251,7 @@ namespace CoreEngine.HostServices
 
     // TODO: Make all method thread safe!
     // TODO: Can we pass readonly structs as references or pointers with the in keyword?
+    // TODO: Review int parameters (can they be converted to uint?)
     [HostService]
     public interface IGraphicsService
     {
@@ -250,6 +260,8 @@ namespace CoreEngine.HostServices
 
         // GraphicsAdapterInfos GetGraphicsAdapterInfos();
         string GetGraphicsAdapterName();
+
+        GraphicsAllocationInfos GetBufferAllocationInfos(int sizeInBytes);
         GraphicsAllocationInfos GetTextureAllocationInfos(GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
 
         IntPtr CreateCommandQueue(GraphicsServiceCommandType commandQueueType);
@@ -299,7 +311,9 @@ namespace CoreEngine.HostServices
         ulong PresentSwapChain(IntPtr swapChainPointer);
         void WaitForSwapChainOnCpu(IntPtr swapChainPointer);
 
+        // TODO: Do we need a reset function?
         IntPtr CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length);
+        void ResetQueryBuffer(IntPtr queryBufferPointer);
         void SetQueryBufferLabel(IntPtr queryBufferPointer, string label);
         void DeleteQueryBuffer(IntPtr queryBufferPointer);
 

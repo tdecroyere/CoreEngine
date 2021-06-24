@@ -47,5 +47,10 @@ namespace CoreEngine.Resources
 
             return File.ReadAllBytesAsync(this.basePath + path);
         }
+
+        public override string GetResourceFullPath(string path)
+        {
+            return this.basePath + path;
+        }
     }
 }

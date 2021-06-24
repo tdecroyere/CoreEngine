@@ -17,10 +17,21 @@
             "processId": "${command:pickProcess}"
         },
         {
+            "name": "Core Engine Compiler",
+            "type": "coreclr",
+            "request": "launch",
+            "args": ["Tools\\Compiler ../../samples/SceneViewer/SceneViewer.csproj teapot.obj"],
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "windows": {
+                "cwd": "${workspaceFolder}/build/Windows/",
+                "program": "./CoreEngine.exe"
+            }
+        },
+        {
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            // "args": ["Tools\\Compiler ../../samples/SceneViewer/SceneViewer.csproj TestScene.cescene"],
             "args": ["..\\..\\samples\\SceneViewer"],
             "stopAtEntry": false,
             "externalConsole": false,
@@ -32,18 +43,6 @@
                 "cwd": "${workspaceFolder}/build/Windows/",
                 "program": "./CoreEngine.exe"
             }
-        },
-        {
-            "name": "(MacOS) Launch",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/MacOS/CoreEngine.app/Contents/CoreClr/CoreEngineHost",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build/MacOS/CoreEngine.app/Contents/CoreClr/",
-            "environment": [],
-            "externalConsole": true,
-            "MIMode": "lldb"
         },
         {
             "name": "(Windows-D3D12) Launch",

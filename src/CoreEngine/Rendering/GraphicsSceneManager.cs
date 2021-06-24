@@ -48,16 +48,6 @@ namespace CoreEngine.Rendering
                 if (meshInstance.IsDirty)
                 {
                     meshInstance.WorldBoundingBox = BoundingBox.CreateTransformed(meshInstance.Mesh.BoundingBox, meshInstance.WorldMatrix);
-
-                    meshInstance.WorldBoundingBoxList.Clear();
-
-                    for (var j = 0; j < meshInstance.Mesh.GeometryInstances.Count; j++)
-                    {
-                        var geometryInstance = meshInstance.Mesh.GeometryInstances[j];
-
-                        var boundingBox = BoundingBox.CreateTransformed(geometryInstance.BoundingBox, meshInstance.WorldMatrix);
-                        meshInstance.WorldBoundingBoxList.Add(boundingBox);
-                    }
                 }
             }
         }

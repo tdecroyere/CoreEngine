@@ -13,5 +13,6 @@ namespace CoreEngine.Resources
         public abstract bool IsResourceExists(string path);
         public abstract DateTime? CheckForUpdatedResource(string path, DateTime lastUpdateDateTime);
         public abstract Task<byte[]> ReadResourceDataAsync(string path);
+        public abstract string GetResourceFullPath(string path);
     }
 }

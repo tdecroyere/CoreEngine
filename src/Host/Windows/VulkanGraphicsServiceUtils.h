@@ -178,6 +178,7 @@ VkRenderPass CreateRenderPass(VkDevice device, struct GraphicsRenderPassDescript
 	}
 
 	VkAttachmentReference colorAttachments = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+	VkAttachmentReference depthAttachments = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
 
 	VkSubpassDescription subpass = {};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -186,7 +187,6 @@ VkRenderPass CreateRenderPass(VkDevice device, struct GraphicsRenderPassDescript
 
 	if (renderPassDescriptor.DepthTexturePointer.HasValue)
 	{
-		VkAttachmentReference depthAttachments = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
 		subpass.pDepthStencilAttachment = &depthAttachments;
 	}
 
@@ -348,6 +348,10 @@ VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPi
 
 	createInfo.stageCount = stagesCount;
 	createInfo.pStages = stages;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+	inputAssemblyState.topology = renderPassDescriptor.PrimitiveType == GraphicsPrimitiveType::Triangle ? VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST : VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	createInfo.pInputAssemblyState = &inputAssemblyState;
 
 	VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 	viewportState.viewportCount = 1;

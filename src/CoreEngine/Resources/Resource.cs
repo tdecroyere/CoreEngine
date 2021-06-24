@@ -9,6 +9,7 @@ namespace CoreEngine.Resources
         {
             this.ResourceId = resourceId;
             this.Path = path;
+            this.FullPath = path;
             this.Parameters = Array.Empty<string>();
             this.ReferenceCount = 1;
             this.LastUpdateDateTime = DateTime.Now;
@@ -23,6 +24,12 @@ namespace CoreEngine.Resources
         public string Path
         {
             get;
+        }
+
+        public string FullPath
+        {
+            get;
+            internal set;
         }
 
         public bool IsLoaded

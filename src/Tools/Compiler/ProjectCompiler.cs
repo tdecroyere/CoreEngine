@@ -18,6 +18,8 @@ namespace CoreEngine.Tools.Compiler
 {
     public static class ProjectCompiler
     {
+        private static readonly bool logAssemblies;
+
         public static async Task CompileProject(string projectPath, string searchPattern, bool isWatchMode, bool rebuildAll)
         {
             var inputDirectory = Path.GetDirectoryName(Path.GetFullPath(projectPath));
@@ -58,16 +60,19 @@ namespace CoreEngine.Tools.Compiler
 
             compiledFilesCount += await BuildDotnet(projectPath, outputDirectory, fileTracker, remainingDestinationFiles);
 
-            foreach (var assemblyLoadContext in AssemblyLoadContext.All)
+            if (logAssemblies)
             {
-                Logger.BeginAction($"Assembly Load Context: {assemblyLoadContext.Name}");
-
-                foreach (var assembly in assemblyLoadContext.Assemblies)
+                foreach (var assemblyLoadContext in AssemblyLoadContext.All)
                 {
-                    Logger.WriteMessage($"Loaded Assembly: {assembly.GetName().FullName}");
-                }
+                    Logger.BeginAction($"Assembly Load Context: {assemblyLoadContext.Name}");
 
-                Logger.EndAction();
+                    foreach (var assembly in assemblyLoadContext.Assemblies)
+                    {
+                        Logger.WriteMessage($"Loaded Assembly: {assembly.GetName().FullName}");
+                    }
+
+                    Logger.EndAction();
+                }
             }
 
             compiledFilesCount += await BuildResources(projectPath, outputDirectory, searchPattern, fileTracker, remainingDestinationFiles);
@@ -200,13 +205,13 @@ namespace CoreEngine.Tools.Compiler
                 var hasFileChanged = fileTracker.HasFileChanged(sourceFile) || searchPattern != "*";
                 var destinationFiles = fileTracker.GetDestinationFiles(sourceFile);
 
-                var destinationFilesExist = true;
+                var destinationFilesExist = false;
 
                 foreach (var destinationFile in destinationFiles)
                 {
-                    if (!File.Exists(destinationFile))
+                    if (File.Exists(destinationFile))
                     {
-                        destinationFilesExist = false;
+                        destinationFilesExist = true;
                         break;
                     }
                 }

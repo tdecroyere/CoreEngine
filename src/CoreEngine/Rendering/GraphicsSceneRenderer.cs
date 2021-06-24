@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
 using CoreEngine.Resources;
+using System.IO;
 
 namespace CoreEngine.Rendering
 {
@@ -47,7 +48,10 @@ namespace CoreEngine.Rendering
     readonly struct ShaderMesh
     {
         public uint MeshletCount { get; init; }
-        public uint MeshletOffset { get; init; }
+        public uint VerticesBufferIndex { get; init; }
+        public uint VertexIndicesBufferIndex { get; init; }
+        public uint TriangleIndicesBufferIndex { get; init; }
+        public uint MeshletBufferIndex { get; init; }
     }
 
     readonly struct ShaderMeshlet
@@ -283,20 +287,53 @@ namespace CoreEngine.Rendering
             return copyCommandList;
         }
 
+        // TODO: Do we create separate buffers for each mesh or do we
+        // sub-allocate big shared buffers?
+        struct MeshGraphicsResources
+        {
+            public GraphicsBuffer VerticesBuffer { get; init; }
+            public GraphicsBuffer VertexIndicesBuffer { get; init; }
+            public GraphicsBuffer TriangleIndicesBuffer { get; init; }
+            public GraphicsBuffer MeshletsBuffer { get; init; }
+        }
+
         // TODO: To remove
         private Dictionary<uint, uint> meshMapping = new Dictionary<uint, uint>();
+        private Dictionary<uint, MeshGraphicsResources> meshGraphicsResources = new Dictionary<uint, MeshGraphicsResources>();
+        private List<GraphicsBuffer> currentCpuGraphicsBuffers = new List<GraphicsBuffer>();
+
+        // TODO: Refactor that to allow the use of technologies like direct storage
+        private GraphicsBuffer LoadGraphicsBuffer(CommandList copyCommandList, string path, ulong offset, ulong sizeInBytes, string label)
+        {
+            using var fileStream = new FileStream(path, FileMode.Open);
+            using var reader = new BinaryReader(fileStream);
+
+            fileStream.Position = (long)offset;
+            var bufferData = reader.ReadBytes((int)sizeInBytes);
+
+            var cpuGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, (int)sizeInBytes, isStatic: true, label + "CPU");
+            this.currentCpuGraphicsBuffers.Add(cpuGraphicsBuffer);
+
+            var graphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, (int)sizeInBytes, isStatic: true, label);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuGraphicsBuffer, 0, bufferData);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, graphicsBuffer, cpuGraphicsBuffer, (int)sizeInBytes);
+
+            return graphicsBuffer;
+        }
 
         private void ProcessGeometry(CommandList copyCommandList, GraphicsScene scene)
         {
-            // TODO: Only update mesh buffers when needed
-            // TODO: Remove meshmapping dictionary
+            for (var i = 0; i < currentCpuGraphicsBuffers.Count; i++)
+            {
+                this.currentCpuGraphicsBuffers[i].Dispose();
+            }
+
+            this.currentCpuGraphicsBuffers.Clear();
 
             uint currentMeshIndex = 0;
-            uint currentMeshletIndex = 0;
             uint currentMeshInstanceIndex = 0;
 
             var meshList = ArrayPool<ShaderMesh>.Shared.Rent(10000);
-            var meshletList = ArrayPool<ShaderMeshlet>.Shared.Rent(10000);
             var meshInstanceList = ArrayPool<ShaderMeshInstance>.Shared.Rent(100000);
             meshMapping.Clear();
 
@@ -307,32 +344,37 @@ namespace CoreEngine.Rendering
 
                 var mesh = meshInstance.Mesh;
 
+                if (!this.meshGraphicsResources.ContainsKey(mesh.ResourceId))
+                {
+                    var localMeshGraphicsResources = new MeshGraphicsResources()
+                    {
+                        VerticesBuffer = LoadGraphicsBuffer(copyCommandList, mesh.FullPath, mesh.VerticesOffset, mesh.VerticesSizeInBytes, $"{Path.GetFileNameWithoutExtension(mesh.Path)}Vertices"),
+                        VertexIndicesBuffer = LoadGraphicsBuffer(copyCommandList, mesh.FullPath, mesh.VertexIndicesOffset, mesh.VertexIndicesSizeInBytes, $"{Path.GetFileNameWithoutExtension(mesh.Path)}VertexIndices"),
+                        TriangleIndicesBuffer = LoadGraphicsBuffer(copyCommandList, mesh.FullPath, mesh.TriangleIndicesOffset, mesh.TriangleIndicesSizeInBytes, $"{Path.GetFileNameWithoutExtension(mesh.Path)}TriangleIndices"),
+                        MeshletsBuffer = LoadGraphicsBuffer(copyCommandList, mesh.FullPath, mesh.MeshletsOffset, mesh.MeshletsSizeInBytes, $"{Path.GetFileNameWithoutExtension(mesh.Path)}Meshlets")
+                    };
+
+                    this.renderManager.MeshletCount = (int)mesh.MeshletCount;
+                    this.renderManager.TriangleCount = (int)mesh.TriangleCount;
+
+                    this.meshGraphicsResources.Add(mesh.ResourceId, localMeshGraphicsResources);
+                }
+
                 if (!meshMapping.ContainsKey(mesh.ResourceId))
                 {
+                    var meshGraphicsResources = this.meshGraphicsResources[mesh.ResourceId];
+
                     var shaderMesh = new ShaderMesh()
                     {
-                        MeshletCount = (uint)mesh.GeometryInstances.Count,
-                        MeshletOffset = currentMeshletIndex
+                        MeshletCount = mesh.MeshletCount,
+                        VerticesBufferIndex = meshGraphicsResources.VerticesBuffer.ShaderResourceIndex,
+                        VertexIndicesBufferIndex = meshGraphicsResources.VertexIndicesBuffer.ShaderResourceIndex,
+                        TriangleIndicesBufferIndex = meshGraphicsResources.TriangleIndicesBuffer.ShaderResourceIndex,
+                        MeshletBufferIndex = meshGraphicsResources.MeshletsBuffer.ShaderResourceIndex
                     };
 
                     meshMapping.Add(mesh.ResourceId, currentMeshIndex);
                     meshList[currentMeshIndex++] = shaderMesh;
-
-                    for (var j = 0; j < mesh.GeometryInstances.Count; j++)
-                    {
-                        var geometryInstance = mesh.GeometryInstances[j];
-
-                        var shaderMeshlet = new ShaderMeshlet()
-                        {
-                            VertexBufferIndex = geometryInstance.GeometryPacket.VertexBuffer.ShaderResourceIndex,
-                            IndexBufferIndex = geometryInstance.GeometryPacket.IndexBuffer.ShaderResourceIndex,
-                            StartIndex = (uint)geometryInstance.StartIndex,
-                            VertexCount = (uint)geometryInstance.VertexCount,
-                            IndexCount = (uint)geometryInstance.IndexCount
-                        };
-
-                        meshletList[currentMeshletIndex++] = shaderMeshlet;
-                    }
                 }
 
                 var meshIndex = meshMapping[mesh.ResourceId];
@@ -351,20 +393,15 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(this.cpuMeshBuffer, 0, meshList.AsSpan().Slice(0, (int)currentMeshIndex));
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(copyCommandList, this.meshBuffer, this.cpuMeshBuffer, (int)currentMeshIndex);
 
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshlet>(this.cpuMeshletBuffer, 0, meshletList.AsSpan().Slice(0, (int)currentMeshletIndex));
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshlet>(copyCommandList, this.meshletBuffer, this.cpuMeshletBuffer, (int)currentMeshletIndex);
-
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(this.cpuMeshInstanceBuffer, 0, meshInstanceList.AsSpan().Slice(0, (int)currentMeshInstanceIndex));
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(copyCommandList, this.meshInstanceBuffer, this.cpuMeshInstanceBuffer, (int)currentMeshInstanceIndex);
             
             this.renderManager.MeshCount = (int)currentMeshIndex;
-            this.renderManager.MeshletCount = (int)currentMeshletIndex;
             this.renderManager.MeshInstanceCount = (int)currentMeshInstanceIndex;
 
             this.currentMeshInstanceCount = currentMeshInstanceIndex;
 
             ArrayPool<ShaderMesh>.Shared.Return(meshList);
-            ArrayPool<ShaderMeshlet>.Shared.Return(meshletList);
             ArrayPool<ShaderMeshInstance>.Shared.Return(meshInstanceList);
         }
 
@@ -501,7 +538,7 @@ namespace CoreEngine.Rendering
             var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "TestRender");
 
             var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, Vector4.Zero, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true, PrimitiveType.Triangle);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
@@ -520,10 +557,13 @@ namespace CoreEngine.Rendering
                 this.currentMeshInstanceCount 
             });
 
-            // TODO: Do not hardcode wave size
-            int waveSize = 32;
-            this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1);
-        
+            if (this.currentMeshInstanceCount > 0)
+            {
+                // TODO: Do not hardcode wave size
+                int waveSize = 32;
+                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1);
+            }
+
             this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 

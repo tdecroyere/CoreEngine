@@ -161,6 +161,8 @@ class Direct3D12GraphicsService
         void CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
 
+        void TransitionGraphicsBufferToState(void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState);
+
         void DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 
         void BeginRenderPass(void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);

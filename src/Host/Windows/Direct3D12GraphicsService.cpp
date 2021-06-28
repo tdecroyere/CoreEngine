@@ -1025,17 +1025,17 @@ void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointe
 		destinationGraphicsBuffer->CpuPointer = nullptr;
 	}
 
-	if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
-	{
-		TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
-	}
+	// if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
+	// {
+	// 	TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
+	// }
 
 	commandList->CommandListObject->CopyBufferRegion(destinationGraphicsBuffer->BufferObject.Get(), 0, sourceGraphicsBuffer->BufferObject.Get(), 0, sizeInBytes);
 
-	if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
-	{
-		TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COMMON);
-	}
+	// if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
+	// {
+	// 	TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COMMON);
+	// }
 
 	// TODO: Group transitions together
 }
@@ -1076,6 +1076,26 @@ void Direct3D12GraphicsService::CopyTexture(void* commandListPointer, void* dest
 	Direct3D12Texture* sourceTexture = (Direct3D12Texture*)sourceTexturePointer;
 
 	commandList->CommandListObject->CopyResource(destinationTexture->TextureObject.Get(), sourceTexture->TextureObject.Get());
+}
+
+void Direct3D12GraphicsService::TransitionGraphicsBufferToState(void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
+
+	D3D12_RESOURCE_STATES destinationState = D3D12_RESOURCE_STATE_COMMON;
+
+	if (resourceState == GraphicsResourceState::StateDestinationCopy)
+	{
+		destinationState = D3D12_RESOURCE_STATE_COPY_DEST;
+	}
+
+	else if (resourceState == GraphicsResourceState::StateShaderRead)
+	{
+		destinationState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	}
+
+	TransitionBufferToState(commandList, graphicsBuffer, destinationState);
 }
 
 void Direct3D12GraphicsService::DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)

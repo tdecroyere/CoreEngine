@@ -84,6 +84,7 @@ GraphicsAllocationInfos VulkanGraphicsService::GetTextureAllocationInfos(enum Gr
 void* VulkanGraphicsService::CreateCommandQueue(enum GraphicsServiceCommandType commandQueueType)
 {
     VulkanCommandQueue* commandQueue = new VulkanCommandQueue();
+    commandQueue->IsCopyCommandQueue = false;
 
     uint32_t queueFamilyIndex = this->renderCommandQueueFamilyIndex;
 
@@ -95,6 +96,7 @@ void* VulkanGraphicsService::CreateCommandQueue(enum GraphicsServiceCommandType 
     else if (commandQueueType == GraphicsServiceCommandType::Copy)
     {
         queueFamilyIndex = this->copyCommandQueueFamilyIndex;
+        commandQueue->IsCopyCommandQueue = true;
     }
 
     commandQueue->CommandQueueFamilyIndex = queueFamilyIndex;
@@ -1028,7 +1030,15 @@ void VulkanGraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, v
     VkBufferCopy copyRegion = {};
     copyRegion.size = sizeInBytes;
 
+    // TransitionBufferToState(commandList, destinationBuffer, VK_ACCESS_TRANSFER_WRITE_BIT, true);
+
     vkCmdCopyBuffer(commandList->CommandBufferObject, sourceBuffer->BufferObject, destinationBuffer->BufferObject, 1, &copyRegion);
+
+    // TODO: This state cannot be set in the copy queue (Same issue as DX12), a mechanism is need for that
+    // TransitionBufferToState(commandList, destinationBuffer, VK_ACCESS_SHADER_READ_BIT);
+
+    // TODO: Maybe the vulkan performance issues in mesh shaders are due to a missing pipeline barrier?
+    // Normally we need to switch from COPY_DST to OPTIMAL_READ like we do for textures?
 }
 
 void VulkanGraphicsService::CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)
@@ -1055,6 +1065,26 @@ void VulkanGraphicsService::CopyDataToTexture(void* commandListPointer, void* de
 }
 
 void VulkanGraphicsService::CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer){ }
+
+void VulkanGraphicsService::TransitionGraphicsBufferToState(void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState)
+{
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+	VulkanGraphicsBuffer* graphicsBuffer = (VulkanGraphicsBuffer*)graphicsBufferPointer;
+
+	VkAccessFlags destinationState = VK_ACCESS_NONE_KHR;
+
+	if (resourceState == GraphicsResourceState::StateDestinationCopy)
+	{
+		destinationState = VK_ACCESS_TRANSFER_WRITE_BIT;
+	}
+
+	else if (resourceState == GraphicsResourceState::StateShaderRead)
+	{
+		destinationState = VK_ACCESS_SHADER_READ_BIT;
+	}
+
+	TransitionBufferToState(commandList, graphicsBuffer, destinationState, commandList->CommandQueue->IsCopyCommandQueue);
+}
 
 void VulkanGraphicsService::DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ){ }
 
@@ -1347,12 +1377,15 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
 
         else if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))
         {
-            this->uploadMemoryTypeIndex = i;
+            // this->uploadMemoryTypeIndex = i;
         }
 
         else if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT))
         {
+            // TODO: This is an issue and should be fixed, this type of memory will not be the fastest for uploading small amount of data
+            // But for static resources we need to upload big chunks of data
             this->readBackMemoryTypeIndex = i;
+            this->uploadMemoryTypeIndex = i;
         }
     }
 
@@ -1384,6 +1417,7 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
     features.shaderSampledImageArrayNonUniformIndexing = true;
     features.separateDepthStencilLayouts = true;
     features.hostQueryReset = true;
+    features.shaderInt8 = true;
 
     #ifdef DEBUG
     features.bufferDeviceAddressCaptureReplay = true;

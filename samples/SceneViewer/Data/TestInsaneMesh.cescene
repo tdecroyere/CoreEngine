@@ -1,0 +1,76 @@
+{
+  "Entities": [
+    {
+      "Entity": "Scene",
+      "Components": [
+        {
+          "Component": "CoreEngine.Components.SceneComponent, CoreEngine",
+          "Data": {
+            "ActiveCamera": "MainCamera"
+          }
+        }
+      ]
+    },
+    {
+      "Entity": "BigMesh",
+      "Components": [
+        {
+          "Component": "CoreEngine.Rendering.Components.MeshComponent, CoreEngine",
+          "Data": {
+            "MeshResourceId": "resource:/Data/san-miguel.mesh"
+          }
+        },
+        {
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
+          "Data": {
+            "Scale": [10.0, 10.0, 10.0]
+          }
+        }
+      ]
+    },
+    {
+      "Entity": "MainCamera",
+      "Components": [
+        {
+          "Component": "CoreEngine.Rendering.Components.CameraComponent, CoreEngine"
+        },
+        {
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
+          "Data": {
+            "Position": [100, 15, -10],
+            "RotationY": 120
+          }
+        },
+        {
+          "Component": "CoreEngine.Samples.SceneViewer.PlayerComponent, SceneViewer",
+          "Data": {
+            "MovementAcceleration": 3000
+          }
+        }
+      ]
+    },
+    {
+      "Entity": "DebugCamera",
+      "Components": [
+        {
+          "Component": "CoreEngine.Rendering.Components.CameraComponent, CoreEngine"
+        },
+        {
+          "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
+          "Data": {
+            "Position": [100, 100, -50],
+            "RotationY": 90,
+            "RotationX": 89
+          }
+        },
+        {
+          "Component": "CoreEngine.Samples.SceneViewer.PlayerComponent, SceneViewer",
+          "Data": {
+            "MovementAcceleration": 300,
+            "IsActive": false
+          }
+        }
+      ]
+    }
+  ]
+}

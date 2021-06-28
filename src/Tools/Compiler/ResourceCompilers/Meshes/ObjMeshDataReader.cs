@@ -10,9 +10,9 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 {
     struct FaceElement
     {
-        public uint VertexIndex;
-        public uint TextureCoordinatesIndex;
-        public uint NormalIndex;
+        public int VertexIndex;
+        public int TextureCoordinatesIndex;
+        public int NormalIndex;
     }
 
     public class ObjMeshDataReader : MeshDataReader
@@ -227,16 +227,16 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 
             var faceElements = faceElement.Split('/');
 
-            result.VertexIndex = uint.Parse(faceElements[0], CultureInfo.InvariantCulture);
+            result.VertexIndex = int.Parse(faceElements[0], CultureInfo.InvariantCulture);
 
             if (faceElements.Length > 1 && !string.IsNullOrEmpty(faceElements[1]))
             {
-                result.TextureCoordinatesIndex = uint.Parse(faceElements[1], CultureInfo.InvariantCulture);
+                result.TextureCoordinatesIndex = int.Parse(faceElements[1], CultureInfo.InvariantCulture);
             }
 
             if (faceElements.Length > 2 && !string.IsNullOrEmpty(faceElements[2]))
             {
-                result.NormalIndex = uint.Parse(faceElements[2], CultureInfo.InvariantCulture);
+                result.NormalIndex = int.Parse(faceElements[2], CultureInfo.InvariantCulture);
             }
 
             return result;
@@ -248,19 +248,36 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             var normal = Vector3.Zero;
             var textureCoordinates = Vector2.Zero;
 
-            if (faceElement.VertexIndex != 0)
+            if (faceElement.VertexIndex > 0)
             {
-                position = vertexList[(int)faceElement.VertexIndex - 1];
+                position = vertexList[faceElement.VertexIndex - 1];
             }
 
-            if (faceElement.NormalIndex != 0)
+            else if (faceElement.VertexIndex < 0)
             {
-                normal = vertexNormalList[(int)faceElement.NormalIndex - 1];
+                position = vertexList[vertexList.Count + faceElement.VertexIndex];
+
             }
 
-            if (faceElement.TextureCoordinatesIndex != 0)
+            if (faceElement.NormalIndex > 0)
             {
-                var textureCoordinatesVec3 = vertexTextureCoordinatesList[(int)faceElement.TextureCoordinatesIndex - 1];
+                normal = vertexNormalList[faceElement.NormalIndex - 1];
+            }
+
+            else if (faceElement.NormalIndex < 0)
+            {
+                normal = vertexNormalList[vertexNormalList.Count + faceElement.NormalIndex];
+            }
+
+            if (faceElement.TextureCoordinatesIndex > 0)
+            {
+                var textureCoordinatesVec3 = vertexTextureCoordinatesList[faceElement.TextureCoordinatesIndex - 1];
+                textureCoordinates = new Vector2(textureCoordinatesVec3.X, -textureCoordinatesVec3.Y);
+            }
+
+            else if (faceElement.TextureCoordinatesIndex < 0)
+            {
+                var textureCoordinatesVec3 = vertexTextureCoordinatesList[vertexTextureCoordinatesList.Count + faceElement.TextureCoordinatesIndex];
                 textureCoordinates = new Vector2(textureCoordinatesVec3.X, -textureCoordinatesVec3.Y);
             }
 

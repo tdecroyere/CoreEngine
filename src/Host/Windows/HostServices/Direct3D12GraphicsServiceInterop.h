@@ -313,6 +313,12 @@ void Direct3D12GraphicsServiceCopyTextureInterop(void* context, void* commandLis
     contextObject->CopyTexture(commandListPointer, destinationTexturePointer, sourceTexturePointer);
 }
 
+void Direct3D12GraphicsServiceTransitionGraphicsBufferToStateInterop(void* context, void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->TransitionGraphicsBufferToState(commandListPointer, graphicsBufferPointer, resourceState);
+}
+
 void Direct3D12GraphicsServiceDispatchThreadsInterop(void* context, void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -434,6 +440,7 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
     service->GraphicsService_CopyDataToGraphicsBuffer = Direct3D12GraphicsServiceCopyDataToGraphicsBufferInterop;
     service->GraphicsService_CopyDataToTexture = Direct3D12GraphicsServiceCopyDataToTextureInterop;
     service->GraphicsService_CopyTexture = Direct3D12GraphicsServiceCopyTextureInterop;
+    service->GraphicsService_TransitionGraphicsBufferToState = Direct3D12GraphicsServiceTransitionGraphicsBufferToStateInterop;
     service->GraphicsService_DispatchThreads = Direct3D12GraphicsServiceDispatchThreadsInterop;
     service->GraphicsService_BeginRenderPass = Direct3D12GraphicsServiceBeginRenderPassInterop;
     service->GraphicsService_EndRenderPass = Direct3D12GraphicsServiceEndRenderPassInterop;

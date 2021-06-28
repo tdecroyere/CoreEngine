@@ -6,6 +6,8 @@
 
 src/**/*.obj
 tests/**/*.obj
+samples/**/buddha.obj
+samples/**/san-miguel.obj
 
 *.generated.cs
 

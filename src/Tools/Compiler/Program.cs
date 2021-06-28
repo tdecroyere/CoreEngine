@@ -47,7 +47,7 @@ public static class Program
 
         catch (Exception e)
         {
-            Logger.WriteMessage($"{e.Message}", LogMessageTypes.Error);
+            Logger.WriteMessage($"{e.ToString()}", LogMessageTypes.Error);
         }
     }
 

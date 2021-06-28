@@ -313,6 +313,12 @@ void VulkanGraphicsServiceCopyTextureInterop(void* context, void* commandListPoi
     contextObject->CopyTexture(commandListPointer, destinationTexturePointer, sourceTexturePointer);
 }
 
+void VulkanGraphicsServiceTransitionGraphicsBufferToStateInterop(void* context, void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    contextObject->TransitionGraphicsBufferToState(commandListPointer, graphicsBufferPointer, resourceState);
+}
+
 void VulkanGraphicsServiceDispatchThreadsInterop(void* context, void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
 {
     auto contextObject = (VulkanGraphicsService*)context;
@@ -434,6 +440,7 @@ void InitVulkanGraphicsService(const VulkanGraphicsService* context, GraphicsSer
     service->GraphicsService_CopyDataToGraphicsBuffer = VulkanGraphicsServiceCopyDataToGraphicsBufferInterop;
     service->GraphicsService_CopyDataToTexture = VulkanGraphicsServiceCopyDataToTextureInterop;
     service->GraphicsService_CopyTexture = VulkanGraphicsServiceCopyTextureInterop;
+    service->GraphicsService_TransitionGraphicsBufferToState = VulkanGraphicsServiceTransitionGraphicsBufferToStateInterop;
     service->GraphicsService_DispatchThreads = VulkanGraphicsServiceDispatchThreadsInterop;
     service->GraphicsService_BeginRenderPass = VulkanGraphicsServiceBeginRenderPassInterop;
     service->GraphicsService_EndRenderPass = VulkanGraphicsServiceEndRenderPassInterop;

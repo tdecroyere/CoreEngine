@@ -224,26 +224,98 @@ namespace CoreEngine.Graphics
         public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, ReadOnlySpan<Fence> fencesToWait)
         {
             // TODO: This code is not thread safe!
+            // TODO: Refactor that code!
 
-            var freeList = commandQueue.commandListFreeList;
-
-            var commandListsPointers = ArrayPool<IntPtr>.Shared.Rent(commandLists.Length);
             var fencesToWaitArray = ArrayPool<GraphicsFence>.Shared.Rent(fencesToWait.Length);
 
-            for (var i = 0; i < commandLists.Length; i++)
-            {
-                commandListsPointers[i] = commandLists[i].NativePointer;
-                freeList.Push(commandLists[i]);
-            }
+            CommandList? transitionCommandListBefore = null;
+            CommandList? transitionCommandListAfter = null;
 
             for (var i = 0; i < fencesToWait.Length; i++)
             {
                 fencesToWaitArray[i] = new GraphicsFence(fencesToWait[i]);
+
+                var commandQueueToWait = fencesToWait[i].CommandQueue;
+
+                for (var j = 0; j < commandQueueToWait.CurrentCopyBuffers.Count; j++)
+                {
+                    var buffer = commandQueueToWait.CurrentCopyBuffers[j];
+
+                    if (buffer.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
+                    {
+                        if (transitionCommandListBefore == null)
+                        {
+                            transitionCommandListBefore = CreateCommandList(commandQueue, "TransitionCommandListBefore");
+                        }
+
+                        this.graphicsService.TransitionGraphicsBufferToState(transitionCommandListBefore.Value.NativePointer, buffer.NativePointer, GraphicsResourceState.StateShaderRead);
+                    }
+                }
             }
 
-            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsPointers.AsSpan(0..commandLists.Length), fencesToWaitArray.AsSpan(0..fencesToWait.Length));
+            var transitionCommandListCount = transitionCommandListBefore != null ? 2 : 0;
+            var transitionCommandListBeforeCount = transitionCommandListBefore != null ? 1 : 0;
+
+            var freeList = commandQueue.commandListFreeList;
+            var commandListsPointers = ArrayPool<IntPtr>.Shared.Rent(commandLists.Length + transitionCommandListCount);
+
+            if (transitionCommandListBefore != null)
+            {
+                this.CommitCommandList(transitionCommandListBefore.Value);
+                commandListsPointers[0] = transitionCommandListBefore.Value.NativePointer;
+            }
+            
+            for (var i = 0; i < commandLists.Length; i++)
+            {
+                commandListsPointers[i + transitionCommandListBeforeCount] = commandLists[i].NativePointer;
+            }
+
+            for (var i = 0; i < fencesToWait.Length; i++)
+            {
+                var commandQueueToWait = fencesToWait[i].CommandQueue;
+
+                for (var j = 0; j < commandQueueToWait.CurrentCopyBuffers.Count; j++)
+                {
+                    var buffer = commandQueueToWait.CurrentCopyBuffers[j];
+
+                    if (buffer.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
+                    {
+                        if (transitionCommandListAfter == null)
+                        {
+                            transitionCommandListAfter = CreateCommandList(commandQueue, "TransitionCommandListAfter");
+                        }
+
+                        this.graphicsService.TransitionGraphicsBufferToState(transitionCommandListAfter.Value.NativePointer, buffer.NativePointer, GraphicsResourceState.StateCommon);
+                    }
+                }
+
+                commandQueueToWait.CurrentCopyBuffers.Clear();
+            }
+
+            if (transitionCommandListAfter != null)
+            {
+                this.CommitCommandList(transitionCommandListAfter.Value);
+                commandListsPointers[commandLists.Length + transitionCommandListCount - 1] = transitionCommandListAfter.Value.NativePointer;
+            }
+
+            var fenceValue = this.graphicsService.ExecuteCommandLists(commandQueue.NativePointer, commandListsPointers.AsSpan(0..(commandLists.Length + transitionCommandListCount)), fencesToWaitArray.AsSpan(0..fencesToWait.Length));
             ArrayPool<IntPtr>.Shared.Return(commandListsPointers);
             ArrayPool<GraphicsFence>.Shared.Return(fencesToWaitArray);
+
+            if (transitionCommandListBefore != null)
+            {
+                freeList.Push(transitionCommandListBefore.Value);
+            }
+            
+            for (var i = 0; i < commandLists.Length; i++)
+            {
+                freeList.Push(commandLists[i]);
+            }
+
+            if (transitionCommandListAfter != null)
+            {
+                freeList.Push(transitionCommandListAfter.Value);
+            }
 
             return new Fence(commandQueue, fenceValue);
         }
@@ -584,6 +656,11 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(swapChain));
             }
 
+            if (width == 0 || height == 0)
+            {
+                return;
+            }
+
             swapChain.Width = width;
             swapChain.Height = height;
             
@@ -761,8 +838,20 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("Size In Bytes cannot be zero.");
             }
 
+            if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
+            {
+                this.graphicsService.TransitionGraphicsBufferToState(commandList.NativePointer, destination.NativePointer, GraphicsResourceState.StateDestinationCopy);
+                
+                commandList.CommandQueue.CurrentCopyBuffers.Add(destination);
+            }
+
             this.graphicsService.CopyDataToGraphicsBuffer(commandList.NativePointer, destination.NativePointer, source.NativePointer, sizeInBytes);
             this.gpuMemoryUploaded += sizeInBytes;
+
+            if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
+            {
+                this.graphicsService.TransitionGraphicsBufferToState(commandList.NativePointer, destination.NativePointer, GraphicsResourceState.StateCommon);
+            }
         }
 
         public void CopyDataToTexture<T>(CommandList commandList, Texture destination, GraphicsBuffer source, int width, int height, int slice, int mipLevel) where T : struct

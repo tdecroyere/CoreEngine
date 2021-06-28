@@ -14,6 +14,7 @@ namespace CoreEngine.Graphics
             this.Type = type;
             this.Label = label;
             this.commandListFreeList = new Stack<CommandList>();
+            this.CurrentCopyBuffers = new List<GraphicsBuffer>();
         }
 
         public void Dispose()
@@ -38,5 +39,6 @@ namespace CoreEngine.Graphics
         public readonly CommandType Type { get; }
         public readonly string Label { get; }
         public readonly Stack<CommandList> commandListFreeList { get; }
+        public readonly List<GraphicsBuffer> CurrentCopyBuffers { get; }
     }
 }

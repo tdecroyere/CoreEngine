@@ -311,6 +311,7 @@ namespace CoreEngine.Rendering
             fileStream.Position = (long)offset;
             var bufferData = reader.ReadBytes((int)sizeInBytes);
 
+            // TODO: Use transient buffers
             var cpuGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, (int)sizeInBytes, isStatic: true, label + "CPU");
             this.currentCpuGraphicsBuffers.Add(cpuGraphicsBuffer);
 
@@ -323,6 +324,11 @@ namespace CoreEngine.Rendering
 
         private void ProcessGeometry(CommandList copyCommandList, GraphicsScene scene)
         {
+            if (scene.MeshInstances.Count == 0)
+            {
+                return;
+            }
+            
             for (var i = 0; i < currentCpuGraphicsBuffers.Count; i++)
             {
                 this.currentCpuGraphicsBuffers[i].Dispose();

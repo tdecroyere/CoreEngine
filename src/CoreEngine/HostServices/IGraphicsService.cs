@@ -78,6 +78,13 @@ namespace CoreEngine.HostServices
         Line
     }
 
+    public enum GraphicsResourceState
+    {
+        StateDestinationCopy,
+        StateShaderRead,
+        StateCommon
+    }
+
     public readonly struct GraphicsAllocationInfos
     {
         public GraphicsAllocationInfos(int sizeInBytes, int alignment)
@@ -328,6 +335,9 @@ namespace CoreEngine.HostServices
         void CopyDataToGraphicsBuffer(IntPtr commandListPointer, IntPtr destinationGraphicsBufferPointer, IntPtr sourceGraphicsBufferPointer, int length);
         void CopyDataToTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceGraphicsBufferPointer, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceTexturePointer);
+
+        // TODO: Only allow passing an array of buffers or resources
+        void TransitionGraphicsBufferToState(IntPtr commandListPointer, IntPtr graphicsBufferPointer, GraphicsResourceState resourceState);
 
         void DispatchThreads(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
 

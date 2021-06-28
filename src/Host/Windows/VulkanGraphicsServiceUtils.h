@@ -440,6 +440,21 @@ VkShaderModule CreateShaderModule(VkDevice device, void* data, int dataLength)
 	return shaderModule;
 }
 
+VkBufferMemoryBarrier CreateBufferTransitionBarrier(VkBuffer buffer, uint32_t sizeInBytes, VkAccessFlags oldAccess, VkAccessFlags newAccess)
+{
+	VkBufferMemoryBarrier result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+
+	result.srcAccessMask = oldAccess;
+	result.dstAccessMask = newAccess;
+	result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	result.buffer = buffer;
+	result.offset = 0;
+    result.size = sizeInBytes;
+
+	return result;
+}
+
 VkImageMemoryBarrier CreateImageTransitionBarrier(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, bool isDepthBuffer)
 {
 	// TODO: Handle other parameters
@@ -460,8 +475,30 @@ VkImageMemoryBarrier CreateImageTransitionBarrier(VkImage image, VkImageLayout o
 	return result;
 }
 
+void TransitionBufferToState(VulkanCommandList* commandList, VulkanGraphicsBuffer* buffer, VkAccessFlags destinationAccess, bool isTransfer = false)
+{
+	if (buffer->ResourceAccess != destinationAccess)
+	{
+		auto barrier = CreateBufferTransitionBarrier(buffer->BufferObject, buffer->SizeInBytes, buffer->ResourceAccess, destinationAccess);
+		
+		if (!isTransfer)
+		{
+			vkCmdPipelineBarrier(commandList->CommandBufferObject, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &barrier, 0, 0);
+		}
+
+		else
+		{
+			vkCmdPipelineBarrier(commandList->CommandBufferObject, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &barrier, 0, 0);
+		}
+
+		buffer->ResourceAccess = destinationAccess;
+	}
+}
+
 void TransitionTextureToState(VulkanCommandList* commandList, VulkanTexture* texture, VkImageLayout destinationState, bool isTransfer = false)
 {
+	// TODO: Handle texture accesses, currently we only handle the image layout
+
 	if (texture->ResourceState != destinationState)
 	{
 		auto barrier = CreateImageTransitionBarrier(texture->TextureObject, texture->ResourceState, destinationState, texture->Format == VK_FORMAT_D32_SFLOAT);

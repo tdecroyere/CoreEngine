@@ -16,6 +16,7 @@ struct VulkanCommandQueue
     VkSemaphore TimelineSemaphore;
     uint64_t FenceValue;
     uint32_t CommandQueueFamilyIndex;
+    bool IsCopyCommandQueue;
 };
 
 struct VulkanCommandList
@@ -47,6 +48,7 @@ struct VulkanGraphicsBuffer
     uint64_t HeapOffset;
     VulkanGraphicsHeap* GraphicsHeap;
     void* CpuPointer;
+    VkAccessFlags ResourceAccess;
 };
 
 struct VulkanTexture
@@ -165,6 +167,8 @@ class VulkanGraphicsService
         void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes);
         void CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
+
+        void TransitionGraphicsBufferToState(void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState);
 
         void DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 

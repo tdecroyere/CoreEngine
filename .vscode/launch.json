@@ -20,7 +20,7 @@
             "name": "Core Engine Compiler",
             "type": "coreclr",
             "request": "launch",
-            "args": ["Tools\\Compiler ../../samples/SceneViewer/SceneViewer.csproj teapot.obj"],
+            "args": ["Tools\\Compiler ../../samples/SceneViewer/SceneViewer.csproj buddha.obj"],
             "stopAtEntry": false,
             "externalConsole": false,
             "windows": {

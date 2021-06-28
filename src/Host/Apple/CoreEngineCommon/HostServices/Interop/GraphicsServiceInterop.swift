@@ -261,6 +261,11 @@ func GraphicsService_copyTextureInterop(context: UnsafeMutableRawPointer?, _ com
     contextObject.copyTexture(commandListPointer, destinationTexturePointer, sourceTexturePointer)
 }
 
+func GraphicsService_transitionGraphicsBufferToStateInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?, _ resourceState: GraphicsResourceState) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.transitionGraphicsBufferToState(commandListPointer, graphicsBufferPointer, resourceState)
+}
+
 func GraphicsService_dispatchThreadsInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt32, _ threadGroupCountY: UInt32, _ threadGroupCountZ: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.dispatchThreads(commandListPointer, UInt(threadGroupCountX), UInt(threadGroupCountY), UInt(threadGroupCountZ))
@@ -370,6 +375,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CopyDataToGraphicsBuffer = GraphicsService_copyDataToGraphicsBufferInterop
     service.GraphicsService_CopyDataToTexture = GraphicsService_copyDataToTextureInterop
     service.GraphicsService_CopyTexture = GraphicsService_copyTextureInterop
+    service.GraphicsService_TransitionGraphicsBufferToState = GraphicsService_transitionGraphicsBufferToStateInterop
     service.GraphicsService_DispatchThreads = GraphicsService_dispatchThreadsInterop
     service.GraphicsService_BeginRenderPass = GraphicsService_beginRenderPassInterop
     service.GraphicsService_EndRenderPass = GraphicsService_endRenderPassInterop

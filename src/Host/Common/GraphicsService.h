@@ -71,6 +71,13 @@ enum GraphicsPrimitiveType : int
     Line
 };
 
+enum GraphicsResourceState : int
+{
+    StateDestinationCopy, 
+    StateShaderRead, 
+    StateCommon
+};
+
 struct GraphicsAllocationInfos
 {
     int SizeInBytes;
@@ -179,6 +186,7 @@ typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, void* pipe
 typedef void (*GraphicsService_CopyDataToGraphicsBufferPtr)(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int length);
 typedef void (*GraphicsService_CopyDataToTexturePtr)(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
 typedef void (*GraphicsService_CopyTexturePtr)(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
+typedef void (*GraphicsService_TransitionGraphicsBufferToStatePtr)(void* context, void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState);
 typedef void (*GraphicsService_DispatchThreadsPtr)(void* context, void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
 typedef void (*GraphicsService_BeginRenderPassPtr)(void* context, void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_EndRenderPassPtr)(void* context, void* commandListPointer);
@@ -246,6 +254,7 @@ struct GraphicsService
     GraphicsService_CopyDataToGraphicsBufferPtr GraphicsService_CopyDataToGraphicsBuffer;
     GraphicsService_CopyDataToTexturePtr GraphicsService_CopyDataToTexture;
     GraphicsService_CopyTexturePtr GraphicsService_CopyTexture;
+    GraphicsService_TransitionGraphicsBufferToStatePtr GraphicsService_TransitionGraphicsBufferToState;
     GraphicsService_DispatchThreadsPtr GraphicsService_DispatchThreads;
     GraphicsService_BeginRenderPassPtr GraphicsService_BeginRenderPass;
     GraphicsService_EndRenderPassPtr GraphicsService_EndRenderPass;

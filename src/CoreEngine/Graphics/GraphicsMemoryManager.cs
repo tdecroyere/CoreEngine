@@ -24,9 +24,9 @@ namespace CoreEngine.Graphics
 
             // TODO: Write a paging system with pages of 256MB? (see DirectX12Allocator)
 
-            this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Gpu, Utils.MegaBytesToBytes(256), "GlobalGpuHeap");
+            this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Gpu, Utils.MegaBytesToBytes(500), "GlobalGpuHeap");
             this.globalTransientGpuMemoryAllocator = new TransientGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Gpu, Utils.MegaBytesToBytes(100), "GlobalTransientGpuHeap");
-            this.globalUploadMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Upload, Utils.MegaBytesToBytes(175), "GlobalUploadHeap");
+            this.globalUploadMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.Upload, Utils.MegaBytesToBytes(500), "GlobalUploadHeap");
             this.globalReadBackMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsManager, graphicsService, GraphicsHeapType.ReadBack, Utils.MegaBytesToBytes(32), "GlobalReadBackHeap");
 
             // this.globalGpuMemoryAllocator = new BlockGraphicsMemoryAllocator(graphicsService, GraphicsHeapType.Gpu, Utils.GigaBytesToBytes(1), "GlobalGpuHeap");

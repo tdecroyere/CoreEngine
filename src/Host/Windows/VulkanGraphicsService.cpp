@@ -1375,18 +1375,21 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
             this->gpuMemoryTypeIndex = i;
         }
 
-        else if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))
-        {
-            // this->uploadMemoryTypeIndex = i;
-        }
-
         else if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT))
         {
-            // TODO: This is an issue and should be fixed, this type of memory will not be the fastest for uploading small amount of data
-            // But for static resources we need to upload big chunks of data
             this->readBackMemoryTypeIndex = i;
+        }
+
+        else if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0)
+        {
             this->uploadMemoryTypeIndex = i;
         }
+
+        // TODO: Consider using this type of memory. This is a small special memory for direct GPU access
+        // It could be great for fast dynamic data
+        // else if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) && (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))
+        // {
+        // }
     }
 
     VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };

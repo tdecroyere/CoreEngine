@@ -174,11 +174,27 @@ namespace CoreEngine.Graphics
             }
         }
 
+        public ulong TotalGpuMemory 
+        { 
+            get
+            {
+                return this.graphicsMemoryManager.TotalGpuMemory;
+            }
+        }
+
         public ulong AllocatedTransientGpuMemory 
         { 
             get
             {
                 return this.graphicsMemoryManager.AllocatedTransientGpuMemory;
+            }
+        }
+
+        public ulong TotalTransientGpuMemory 
+        { 
+            get
+            {
+                return this.graphicsMemoryManager.TotalTransientGpuMemory;
             }
         }
 
@@ -838,20 +854,20 @@ namespace CoreEngine.Graphics
                 throw new InvalidOperationException("Size In Bytes cannot be zero.");
             }
 
-            if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
-            {
-                this.graphicsService.TransitionGraphicsBufferToState(commandList.NativePointer, destination.NativePointer, GraphicsResourceState.StateDestinationCopy);
+            // if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
+            // {
+            //     this.graphicsService.TransitionGraphicsBufferToState(commandList.NativePointer, destination.NativePointer, GraphicsResourceState.StateDestinationCopy);
                 
-                commandList.CommandQueue.CurrentCopyBuffers.Add(destination);
-            }
+            //     commandList.CommandQueue.CurrentCopyBuffers.Add(destination);
+            // }
 
             this.graphicsService.CopyDataToGraphicsBuffer(commandList.NativePointer, destination.NativePointer, source.NativePointer, sizeInBytes);
             this.gpuMemoryUploaded += sizeInBytes;
 
-            if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
-            {
-                this.graphicsService.TransitionGraphicsBufferToState(commandList.NativePointer, destination.NativePointer, GraphicsResourceState.StateCommon);
-            }
+            // if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
+            // {
+            //     this.graphicsService.TransitionGraphicsBufferToState(commandList.NativePointer, destination.NativePointer, GraphicsResourceState.StateCommon);
+            // }
         }
 
         public void CopyDataToTexture<T>(CommandList commandList, Texture destination, GraphicsBuffer source, int width, int height, int slice, int mipLevel) where T : struct

@@ -8,7 +8,7 @@ namespace CoreEngine
     {
         public static ulong AlignValue(ulong value, ulong alignment)
         {
-            return (value + (alignment - (value % alignment)) % alignment);
+            return value + (alignment - (value % alignment)) % alignment;
         }
 
         public static float BytesToMegaBytes(ulong value)

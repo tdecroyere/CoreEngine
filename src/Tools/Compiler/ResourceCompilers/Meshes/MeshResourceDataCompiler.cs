@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Numerics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using MeshOptimizerLib;
 using CoreEngine.Diagnostics;
+using System.Diagnostics;
 
 namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 {
@@ -137,7 +138,9 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
                     vertexIndices.AddRange(meshletVertexIndices);
                     triangleIndices.AddRange(meshletTriangleIndices);
 
-                    meshlets.Add(new Meshlet((uint)meshletVertexIndices.Count, vertexOffset, (uint)meshletTriangleIndices.Count, triangleOffset));
+                    var meshletConeLocal = ComputeMeshletCone(meshletVertexIndices, meshletTriangleIndices, vertexBuffer);
+
+                    meshlets.Add(new Meshlet(meshletConeLocal, (uint)meshletVertexIndices.Count, vertexOffset, (uint)meshletTriangleIndices.Count, triangleOffset));
 
                     meshletVertexIndices.Clear();
                     meshletTriangleIndices.Clear();
@@ -177,12 +180,64 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             vertexIndices.AddRange(meshletVertexIndices);
             triangleIndices.AddRange(meshletTriangleIndices);
 
-            meshlets.Add(new Meshlet((uint)meshletVertexIndices.Count, finalVertexOffset, (uint)meshletTriangleIndices.Count, finalTriangleOffset));
+            var meshletCone = ComputeMeshletCone(meshletVertexIndices, meshletTriangleIndices, vertexBuffer);
+            meshlets.Add(new Meshlet(meshletCone, (uint)meshletVertexIndices.Count, finalVertexOffset, (uint)meshletTriangleIndices.Count, finalTriangleOffset));
 
             Logger.EndAction();
 
             // TODO: Remove the ToArray here, big perf impact
             return new MeshData(meshBoundingBox, vertexBuffer.ToArray(), vertexIndices.ToArray(), triangleIndices.ToArray(), meshlets.ToArray());
+        }
+
+        private static Vector4 ComputeMeshletCone(List<uint> meshletVertexIndices, List<uint> meshletTriangleIndices, ReadOnlySpan<MeshVertex> vertexBuffer)
+        {
+            var meshletNormal = Vector3.Zero;
+            var triangleNormals = new Vector3[meshletTriangleIndices.Count];
+
+            for (var i = 0; i < meshletTriangleIndices.Count; i++)
+            {
+                var trianglePackedIndices = meshletTriangleIndices[i];
+
+                var vertexIndex0 = trianglePackedIndices & 0xFF;
+                var vertexIndex1 = trianglePackedIndices >> 8 & 0xFF;
+                var vertexIndex2 = trianglePackedIndices >> 16 & 0xFF;
+
+                var vertexPosition0 = vertexBuffer[(int)meshletVertexIndices[(int)vertexIndex0]].Position;              
+                var vertexPosition1 = vertexBuffer[(int)meshletVertexIndices[(int)vertexIndex1]].Position;              
+                var vertexPosition2 = vertexBuffer[(int)meshletVertexIndices[(int)vertexIndex2]].Position;
+
+                // Check for zero area triangles
+                if (vertexPosition1 == vertexPosition2 || vertexPosition0 == vertexPosition1 || vertexPosition0 == vertexPosition2)
+                {
+                    continue;
+                }
+
+                var triangleVector0 = vertexPosition1 - vertexPosition0;
+                var triangleVector1 = vertexPosition2 - vertexPosition0;
+
+                var triangleNormal = Vector3.Normalize(Vector3.Cross(triangleVector0, triangleVector1));
+                triangleNormals[i] = triangleNormal;
+
+                meshletNormal += triangleNormal;
+            }
+
+            var averageNormal = Vector3.Normalize(meshletNormal);
+            var minDotProduct = 1.0f;
+
+            for (var i = 0; i < triangleNormals.Length; i++)
+            {
+                var triangleNormal = triangleNormals[i];
+
+                if (triangleNormal != Vector3.Zero)
+                {
+                    var dotProduct = Vector3.Dot(averageNormal, triangleNormal);
+                    minDotProduct = MathF.Min(minDotProduct, dotProduct);
+                }
+            }
+
+            var coneW = minDotProduct <= 0.0f ? 1.0f : MathF.Sqrt(1 - minDotProduct * minDotProduct);
+
+            return new Vector4(averageNormal, coneW);
         }
 
         private static ReadOnlyMemory<byte> WriteMeshData(in MeshData meshData)
@@ -255,6 +310,10 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             {
                 var meshlet = meshData.Meshlets.Span[i];
 
+                streamWriter.Write(meshlet.Cone.X);
+                streamWriter.Write(meshlet.Cone.Y);
+                streamWriter.Write(meshlet.Cone.Z);
+                streamWriter.Write(meshlet.Cone.W);
                 streamWriter.Write(meshlet.VertexCount);
                 streamWriter.Write(meshlet.VertexOffset);
                 streamWriter.Write(meshlet.TriangleCount);

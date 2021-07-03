@@ -58,7 +58,7 @@
         {
           "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
-            "Position": [100, 100, -50],
+            "Position": [100, 150, -50],
             "RotationY": 90,
             "RotationX": 89
           }

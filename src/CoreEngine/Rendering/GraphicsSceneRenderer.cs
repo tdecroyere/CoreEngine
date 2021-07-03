@@ -54,15 +54,6 @@ namespace CoreEngine.Rendering
         public uint MeshletBufferIndex { get; init; }
     }
 
-    readonly struct ShaderMeshlet
-    {
-        public uint VertexBufferIndex { get; init; }
-        public uint IndexBufferIndex { get; init; }
-        public uint StartIndex { get; init; }
-        public uint VertexCount { get; init; }
-        public uint IndexCount { get; init; }
-    }
-
     readonly struct ShaderMeshInstance
     {
         public uint MeshIndex { get; init; }
@@ -102,9 +93,6 @@ namespace CoreEngine.Rendering
         private readonly GraphicsBuffer cpuMeshBuffer;
         private readonly GraphicsBuffer meshBuffer;
 
-        private readonly GraphicsBuffer cpuMeshletBuffer;
-        private readonly GraphicsBuffer meshletBuffer;
-
         private readonly GraphicsBuffer cpuMeshInstanceBuffer;
         private readonly GraphicsBuffer meshInstanceBuffer;
 
@@ -130,9 +118,6 @@ namespace CoreEngine.Rendering
 
             this.cpuMeshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "CpuMeshBuffer");
             this.meshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "MeshBuffer");
-            
-            this.cpuMeshletBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshlet>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "CpuMeshletBuffer");
-            this.meshletBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshlet>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "MeshletBuffer");
             
             this.cpuMeshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Upload, 100000, isStatic: false, label: "CpuMeshInstanceBuffer");
             this.meshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Gpu, 100000, isStatic: false, label: "MeshInstanceBuffer");
@@ -269,7 +254,7 @@ namespace CoreEngine.Rendering
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
-
+            
             ProcessGeometry(copyCommandList, scene);
             ProcessCamera(copyCommandList, scene);
             ProcessLights(copyCommandList, scene);
@@ -558,16 +543,19 @@ namespace CoreEngine.Rendering
                 this.camerasBuffer.ShaderResourceIndex, 
                 scene.ShowMeshlets, 
                 this.meshBuffer.ShaderResourceIndex, 
-                this.meshletBuffer.ShaderResourceIndex, 
                 this.meshInstanceBuffer.ShaderResourceIndex, 
-                this.currentMeshInstanceCount 
+                // this.currentMeshInstanceCount 
+                (uint)this.renderManager.MeshletCount 
             });
 
             if (this.currentMeshInstanceCount > 0)
             {
                 // TODO: Do not hardcode wave size
-                int waveSize = 32;
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1);
+                uint waveSize = 32;
+
+                // TODO: We dispatch only the number of meshlets of the first mesh for now
+                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.renderManager.MeshletCount / waveSize), 1, 1);
+                // this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1);
             }
 
             this.graphicsManager.EndRenderPass(renderCommandList);

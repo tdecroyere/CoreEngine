@@ -2,6 +2,7 @@
 #include "WindowsCommon.h"
 #include "Direct3D12GraphicsService.h"
 #include "Direct3D12GraphicsServiceUtils.h"
+#include "WindowsNativeUIServiceUtils.h"
 
 using namespace std;
 using namespace Microsoft::WRL;
@@ -61,11 +62,9 @@ void Direct3D12GraphicsService::GetGraphicsAdapterName(char* output)
 
 GraphicsAllocationInfos Direct3D12GraphicsService::GetBufferAllocationInfos(int sizeInBytes)
 {
-	// TODO: Call the GetResourceAllocationInfo method?
-
 	GraphicsAllocationInfos result = {};
 	result.SizeInBytes = sizeInBytes;
-	result.Alignment = 64 * 1024;
+	result.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
 	return result;
 }
@@ -481,6 +480,10 @@ void* Direct3D12GraphicsService::CreateTexture(void* graphicsHeapPointer, unsign
 	if (usage == GraphicsTextureUsage::RenderTarget && textureFormat == GraphicsTextureFormat::Depth32Float)
 	{
 		initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;	
+
+		D3D12_CLEAR_VALUE rawClearValue = {};
+		rawClearValue.Format = ConvertTextureFormat(textureFormat);
+		clearValue = &rawClearValue;
 	}
 
 	else if (usage == GraphicsTextureUsage::RenderTarget)
@@ -1438,6 +1441,12 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 	}
 
 	this->globalFenceEvent = CreateEventA(nullptr, false, false, nullptr);
+
+	// TODO: Remove that, that method will work only on DEV mode in Windows 10
+	// It will prevent the driver to use boost mode so that's really bad
+	// but when working with a mobile GPU it is the only way to have stable
+	// GPU measurements
+	AssertIfFailed(this->graphicsDevice->SetStablePowerState(true));
 
 	return true;
 }

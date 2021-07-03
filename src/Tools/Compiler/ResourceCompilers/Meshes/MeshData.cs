@@ -48,14 +48,16 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 
     public readonly struct Meshlet
     {
-        public Meshlet(uint vertexCount, uint vertexOffset, uint triangleCount, uint triangleOffset)
+        public Meshlet(Vector4 cone, uint vertexCount, uint vertexOffset, uint triangleCount, uint triangleOffset)
         {
+            this.Cone = cone;
             this.VertexCount = vertexCount;
             this.VertexOffset = vertexOffset;
             this.TriangleCount = triangleCount;
             this.TriangleOffset = triangleOffset;
         }
 
+        public readonly Vector4 Cone { get; }
         public readonly uint VertexCount { get; }
         public readonly uint VertexOffset { get; }
         public readonly uint TriangleCount { get; }

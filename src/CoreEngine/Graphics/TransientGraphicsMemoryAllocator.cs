@@ -7,15 +7,13 @@ namespace CoreEngine.Graphics
 
     class TransientGraphicsMemoryAllocator : IGraphicsMemoryAllocator, IDisposable
     {
-        private readonly IGraphicsService graphicsService;
         private readonly GraphicsManager graphicsManager;
 
         private bool isDisposed;
 
-        public TransientGraphicsMemoryAllocator(GraphicsManager graphicsManager, IGraphicsService graphicsService, GraphicsHeapType heapType, ulong sizeInBytes, string label)
+        public TransientGraphicsMemoryAllocator(GraphicsManager graphicsManager, GraphicsHeapType heapType, ulong sizeInBytes, string label)
         {
             this.graphicsManager = graphicsManager;
-            this.graphicsService = graphicsService;
             this.CurrentOffset = 0;
 
             this.GraphicsHeap = this.graphicsManager.CreateGraphicsHeap(heapType, sizeInBytes, label);
@@ -70,10 +68,10 @@ namespace CoreEngine.Graphics
         }
 
         public GraphicsHeap GraphicsHeap { get; private set; }
-        public GraphicsHeap GraphicsHeap0 { get; }
-        public GraphicsHeap GraphicsHeap1 { get; }
         public ulong CurrentOffset { get; private set; }
-        public ulong AllocatedMemory { get; private set; }
         public ulong StartOffset { get; private set; }
+
+        public ulong AllocatedMemory { get; private set; }
+        public ulong TotalMemory { get; private set; }
     }
 }

@@ -405,7 +405,7 @@ namespace CoreEngine.Rendering
             {
                 shaderCamera = new ShaderCamera()
                 {
-                    WorldPosition = scene.DebugCamera.WorldPosition,
+                    WorldPosition = scene.ActiveCamera.WorldPosition,
                     ViewMatrix = scene.DebugCamera.ViewMatrix,
                     ViewProjectionMatrix = scene.DebugCamera.ViewProjectionMatrix,
                     BoundingFrustum = new ShaderBoundingFrustum(scene.ActiveCamera.BoundingFrustum)

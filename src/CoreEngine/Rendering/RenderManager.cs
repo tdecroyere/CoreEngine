@@ -257,14 +257,19 @@ namespace CoreEngine.Rendering
 
         private void PresentScreenBuffer(Texture mainRenderTargetTexture, Fence? fenceToWait)
         {
+            if (logFrameTime)
+            {
+                Logger.BeginAction("PresentScreenBuffer");
+            }
+
             var resolveCopyCountersCommandList = this.graphicsManager.CreateCommandList(this.CopyCommandQueue, "ResolveCopyCounters");
             this.graphicsManager.ResolveQueryData(resolveCopyCountersCommandList, this.globalCopyQueryBuffer, this.globalCpuCopyQueryBuffer, 0..this.currentCopyQueryIndex);
             this.graphicsManager.CommitCommandList(resolveCopyCountersCommandList);
             this.graphicsManager.ExecuteCommandLists(this.CopyCommandQueue, new CommandList[] { resolveCopyCountersCommandList });
 
             var presentCommandList = this.graphicsManager.CreateCommandList(this.presentQueue, "PresentScreenBuffer");
-
             var backBufferTexture = this.graphicsManager.GetSwapChainBackBufferTexture(this.swapChain);
+      
             var renderTarget = new RenderTargetDescriptor(backBufferTexture, null, BlendOperation.None);
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.Triangle);
             this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2, this.computeDirectTransferShader);
@@ -279,7 +284,19 @@ namespace CoreEngine.Rendering
             AddGpuTiming("PresentScreenBuffer", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
             this.presentFence = this.graphicsManager.ExecuteCommandLists(this.presentQueue, new CommandList[] { presentCommandList }, fenceToWait.HasValue ? new Fence[] { fenceToWait.Value } : Array.Empty<Fence>());
+            
+            if (logFrameTime)
+            {
+                Logger.BeginAction("PresentSwapChain");
+            }
+
             this.graphicsManager.PresentSwapChain(this.swapChain);
+
+            if (logFrameTime)
+            {
+                Logger.EndAction();
+                Logger.EndAction();
+            }
         }
 
         private void ResetGpuTimers()

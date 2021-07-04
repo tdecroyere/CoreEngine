@@ -180,9 +180,9 @@ unsigned long VulkanGraphicsService::ExecuteCommandLists(void* commandQueuePoint
     // TODO: Reuse already allocated arrays
     VulkanCommandQueue* commandQueue = (VulkanCommandQueue*)commandQueuePointer;
 
-    VkPipelineStageFlags* submitStageMasks = new VkPipelineStageFlags[fencesToWaitLength];
-    VkSemaphore* waitSemaphores = new VkSemaphore[fencesToWaitLength];
-    uint64_t* waitSemaphoreValues = new uint64_t[fencesToWaitLength];
+    vector<VkPipelineStageFlags> submitStageMasks = vector<VkPipelineStageFlags>(fencesToWaitLength);
+    vector<VkSemaphore> waitSemaphores = vector<VkSemaphore>(fencesToWaitLength);
+    vector<uint64_t> waitSemaphoreValues = vector<uint64_t>(fencesToWaitLength);
 
     for (int i = 0; i < fencesToWaitLength; i++)
 	{
@@ -194,7 +194,7 @@ unsigned long VulkanGraphicsService::ExecuteCommandLists(void* commandQueuePoint
         submitStageMasks[i] = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
 	}
 
-    VkCommandBuffer* vulkanCommandBuffers = new VkCommandBuffer[commandListsLength];
+    vector<VkCommandBuffer> vulkanCommandBuffers = vector<VkCommandBuffer>(commandListsLength);
 
     for (int i = 0; i < commandListsLength; i++)
 	{
@@ -207,26 +207,21 @@ unsigned long VulkanGraphicsService::ExecuteCommandLists(void* commandQueuePoint
 
     VkTimelineSemaphoreSubmitInfo timelineInfo = { VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO };
     timelineInfo.waitSemaphoreValueCount = fencesToWaitLength;
-    timelineInfo.pWaitSemaphoreValues = waitSemaphoreValues;
+    timelineInfo.pWaitSemaphoreValues = waitSemaphoreValues.data();
     timelineInfo.signalSemaphoreValueCount = 1;
     timelineInfo.pSignalSemaphoreValues = &signalValue;
 
     VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
     submitInfo.pNext = &timelineInfo;
     submitInfo.waitSemaphoreCount = fencesToWaitLength;
-    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &commandQueue->TimelineSemaphore;
     submitInfo.commandBufferCount = commandListsLength;
-    submitInfo.pCommandBuffers = vulkanCommandBuffers;
-    submitInfo.pWaitDstStageMask = submitStageMasks;
+    submitInfo.pCommandBuffers = vulkanCommandBuffers.data();
+    submitInfo.pWaitDstStageMask = submitStageMasks.data();
 
     AssertIfFailed(vkQueueSubmit(commandQueue->CommandQueueObject, 1, &submitInfo, VK_NULL_HANDLE));
-
-    delete submitStageMasks;
-    delete waitSemaphores;
-    delete waitSemaphoreValues;
-    delete vulkanCommandBuffers;
 
     return signalValue;
 }
@@ -833,6 +828,14 @@ void VulkanGraphicsService::WaitForSwapChainOnCpu(void* swapChainPointer)
 	AssertIfFailed(vkAcquireNextImageKHR(this->graphicsDevice, swapChain->SwapChainObject, UINT64_MAX, VK_NULL_HANDLE, swapChain->BackBufferAcquireFence, &swapChain->CurrentImageIndex));
     vkWaitForFences(this->graphicsDevice, 1, &swapChain->BackBufferAcquireFence, true, UINT64_MAX);
     vkResetFences(this->graphicsDevice, 1, &swapChain->BackBufferAcquireFence);
+
+    // TODO: This is not the right thing to do, refactor that!
+    for (int i = 0; i < this->frameBuffersToDelete.size(); i++)
+    {
+        vkDestroyFramebuffer(this->graphicsDevice, this->frameBuffersToDelete[i], nullptr);
+    }
+
+    this->frameBuffersToDelete.clear();
 }
 
 void* VulkanGraphicsService::CreateQueryBuffer(enum GraphicsQueryBufferType queryBufferType, int length)
@@ -861,6 +864,7 @@ void VulkanGraphicsService::DeleteQueryBuffer(void* queryBufferPointer)
 { 
     VulkanQueryBuffer* queryBuffer = (VulkanQueryBuffer*)queryBufferPointer;
     vkDestroyQueryPool(this->graphicsDevice, queryBuffer->QueryPool, nullptr);
+    delete queryBuffer;
 }
 
 void* VulkanGraphicsService::CreateShader(char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength)
@@ -989,6 +993,8 @@ void VulkanGraphicsService::DeleteShader(void* shaderPointer)
     {
         vkDestroyShaderModule(this->graphicsDevice, shader->ComputeShaderMethod, nullptr);
     }
+
+    delete shader;
 }
 
 void* VulkanGraphicsService::CreatePipelineState(void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
@@ -1209,6 +1215,8 @@ void VulkanGraphicsService::SetShaderParameterValues(void* commandListPointer, u
     // TODO: Disable that
     if (commandList->IsRenderPassActive)
     {
+        // TODO: There seems that there is a memory leak here!!!
+        // Is it a drive issue?
         vkCmdPushConstants(commandList->CommandBufferObject, this->currentPipelineState->PipelineLayoutObject, VK_SHADER_STAGE_ALL, 0, valuesLength * 4, values);
     }
 }
@@ -1233,7 +1241,7 @@ void VulkanGraphicsService::EndQuery(void* commandListPointer, void* queryBuffer
     VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
     VulkanQueryBuffer* queryBuffer = (VulkanQueryBuffer*)queryBufferPointer;
 
-    if (queryBuffer->QueryBufferType == GraphicsQueryBufferType::Timestamp || queryBuffer->QueryBufferType == GraphicsQueryBufferType::CopyTimestamp)
+    if (queryBuffer->QueryBufferType == GraphicsQueryBufferType::Timestamp)
     {
         vkCmdWriteTimestamp(commandList->CommandBufferObject, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryBuffer->QueryPool, index);
     }

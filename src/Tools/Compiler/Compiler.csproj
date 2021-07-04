@@ -25,5 +25,5 @@
     <PackageReference Include="Microsoft.CodeAnalysis" Version="3.11.0-1.final" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="3.11.0-1.final" />
   </ItemGroup>
-  
+   
 </Project>

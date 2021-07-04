@@ -64,7 +64,7 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 
                 if (importMeshData != null)
                 {
-                    var meshData = BuildMeshData(importMeshData, optimize: true);
+                    var meshData = BuildMeshData(importMeshData);
 
                     var resourceData = WriteMeshData(meshData);
                     var resourceEntry = new ResourceCompilerOutput($"{Path.GetFileNameWithoutExtension(context.SourceFilename)}{this.DestinationExtension}", resourceData);
@@ -76,27 +76,58 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             return null;
         }
 
-        private static MeshData BuildMeshData(ImportMeshData importMeshData, bool optimize)
+        private static MeshData BuildMeshData(ImportMeshData importMeshData)
         {
             // TODO: Remove the ToArray here, big perf impact
             var vertexBuffer = importMeshData.Vertices.ToArray().AsSpan();
             var indexBuffer = importMeshData.Indices.ToArray().AsSpan();
 
-            if (optimize)
-            {
-                Logger.BeginAction("Optimizing Mesh");
-                var meshOptimizer = new MeshOptimizer();
-                var remap = meshOptimizer.GenerateVertexRemap<MeshVertex>(indexBuffer, vertexBuffer);
+            Logger.BeginAction("Optimizing Mesh");
+            var meshOptimizer = new MeshOptimizer();
+            var remap = meshOptimizer.GenerateVertexRemap<MeshVertex>(indexBuffer, vertexBuffer);
 
-                meshOptimizer.RemapVertexBuffer(ref vertexBuffer, remap);
-                meshOptimizer.RemapIndexBuffer(indexBuffer, remap);
+            meshOptimizer.RemapVertexBuffer(ref vertexBuffer, remap);
+            meshOptimizer.RemapIndexBuffer(indexBuffer, remap);
 
-                meshOptimizer.OptimizeVertexCache(indexBuffer, (ulong)vertexBuffer.Length);
-                meshOptimizer.OptimizeVertexFetch(indexBuffer, ref vertexBuffer);
-                Logger.EndAction();
-            }
+            meshOptimizer.OptimizeVertexCache(indexBuffer, (ulong)vertexBuffer.Length);
+            meshOptimizer.OptimizeVertexFetch(indexBuffer, ref vertexBuffer);
+            Logger.EndAction();
             
             Logger.BeginAction("Generate Meshlets");
+            
+            // Build meshlets
+            const uint maxVertexCount = 64;
+            const uint maxTriangleCount = 126;
+            
+            var meshletCount = (int)meshOptimizer.BuildMeshletsBound((ulong)indexBuffer.Length, maxVertexCount, maxTriangleCount);
+            
+            var tmpMeshlets = new MeshoptMeshlet[meshletCount].AsSpan();
+            var tmpMeshletVertices = new uint[meshletCount * maxVertexCount].AsSpan();
+            var tmpMeshletTriangles = new byte[meshletCount * maxTriangleCount * 3].AsSpan();
+            meshOptimizer.BuildMeshletsScan(ref tmpMeshlets, ref tmpMeshletVertices, ref tmpMeshletTriangles, indexBuffer, (ulong)indexBuffer.Length, (ulong)vertexBuffer.Length, maxVertexCount, maxTriangleCount);
+
+            var meshlets = new Meshlet[tmpMeshlets.Length];
+            var triangleIndices = new List<uint>();
+            var meshletTriangleIndices = new List<uint>();
+
+            for (var i = 0; i < tmpMeshlets.Length; i ++)
+            {
+                meshletTriangleIndices.Clear();
+
+                for (var j = 0; j < tmpMeshlets[i].TriangleCount * 3; j += 3)
+                {
+                    var vertexLocalIndex = (uint)tmpMeshletTriangles[(int)tmpMeshlets[i].TriangleOffset + j];
+                    var vertexLocalIndex1 = (uint)tmpMeshletTriangles[(int)tmpMeshlets[i].TriangleOffset + j + 1];
+                    var vertexLocalIndex2 = (uint)tmpMeshletTriangles[(int)tmpMeshlets[i].TriangleOffset + j + 2];
+                
+                    meshletTriangleIndices.Add(vertexLocalIndex2 << 16 | vertexLocalIndex1 << 8 | vertexLocalIndex);
+                }
+
+                var bounds = meshOptimizer.ComputeMeshletBounds<MeshVertex>(tmpMeshlets[i], tmpMeshletVertices, tmpMeshletTriangles, vertexBuffer);
+
+                meshlets[i] = new Meshlet(new Vector4(bounds.ConeAxis, bounds.ConeCutoff), new Vector4(bounds.ConeApex, 0.0f), tmpMeshlets[i].VertexCount, tmpMeshlets[i].VertexOffset, tmpMeshlets[i].TriangleCount, (uint)triangleIndices.Count);
+                triangleIndices.AddRange(meshletTriangleIndices);
+            }
 
             // Build Bounding Box
             var meshBoundingBox = new BoundingBox();
@@ -107,86 +138,12 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
                 meshBoundingBox = BoundingBox.AddPoint(meshBoundingBox, vertex.Position);
             }
 
-            // Build meshlets
-            const uint maxVertexCount = 64;
-            const uint maxTriangleCount = 126;
-
-            var vertexIndices = new List<uint>();
-            var triangleIndices = new List<uint>();
-            var meshlets = new List<Meshlet>();
-
-            var meshletVertexIndices = new List<uint>();
-            var meshletTriangleIndices = new List<uint>();
-
-            for (var i = 0; i < indexBuffer.Length; i += 3)
-            {
-                var vertexIndex0 = indexBuffer[i];
-                var vertexIndex1 = indexBuffer[i + 1];
-                var vertexIndex2 = indexBuffer[i + 2];
-
-                var vertexIndex0Flag = !meshletVertexIndices.Contains(vertexIndex0) ? 1 : 0;
-                var vertexIndex1Flag = !meshletVertexIndices.Contains(vertexIndex1) ? 1 : 0;
-                var vertexIndex2Flag = !meshletVertexIndices.Contains(vertexIndex2) ? 1 : 0;
-
-                // TODO: This is sub-optimal because triangles can share vertices
-                // Big mesh should have 11284 and currently we have 11292
-                if ((meshletVertexIndices.Count + vertexIndex0Flag + vertexIndex1Flag + vertexIndex2Flag) > maxVertexCount || meshletTriangleIndices.Count >= maxTriangleCount)
-                {
-                    var vertexOffset = (uint)vertexIndices.Count;
-                    var triangleOffset = (uint)triangleIndices.Count;
-
-                    vertexIndices.AddRange(meshletVertexIndices);
-                    triangleIndices.AddRange(meshletTriangleIndices);
-
-                    var meshletConeLocal = ComputeMeshletCone(meshletVertexIndices, meshletTriangleIndices, vertexBuffer);
-
-                    meshlets.Add(new Meshlet(meshletConeLocal, (uint)meshletVertexIndices.Count, vertexOffset, (uint)meshletTriangleIndices.Count, triangleOffset));
-
-                    meshletVertexIndices.Clear();
-                    meshletTriangleIndices.Clear();
-
-                    vertexIndex0Flag = !meshletVertexIndices.Contains(vertexIndex0) ? 1 : 0;
-                    vertexIndex1Flag = !meshletVertexIndices.Contains(vertexIndex1) ? 1 : 0;
-                    vertexIndex2Flag = !meshletVertexIndices.Contains(vertexIndex2) ? 1 : 0;
-                }
-
-                if (vertexIndex0Flag == 1)
-                {
-                    meshletVertexIndices.Add(vertexIndex0);
-                }
-
-                var vertexLocalIndex0 = (uint)meshletVertexIndices.IndexOf(vertexIndex0);
-
-                if (vertexIndex1Flag == 1)
-                {
-                    meshletVertexIndices.Add(vertexIndex1);
-                }
-
-                var vertexLocalIndex1 = (uint)meshletVertexIndices.IndexOf(vertexIndex1);
-
-                if (vertexIndex2Flag == 1)
-                {
-                    meshletVertexIndices.Add(vertexIndex2);
-                }
-
-                var vertexLocalIndex2 = (uint)meshletVertexIndices.IndexOf(vertexIndex2);
-
-                meshletTriangleIndices.Add(vertexLocalIndex2 << 16 | vertexLocalIndex1 << 8 | vertexLocalIndex0);
-            }
-
-            var finalVertexOffset = (uint)vertexIndices.Count;
-            var finalTriangleOffset = (uint)triangleIndices.Count;
-
-            vertexIndices.AddRange(meshletVertexIndices);
-            triangleIndices.AddRange(meshletTriangleIndices);
-
-            var meshletCone = ComputeMeshletCone(meshletVertexIndices, meshletTriangleIndices, vertexBuffer);
-            meshlets.Add(new Meshlet(meshletCone, (uint)meshletVertexIndices.Count, finalVertexOffset, (uint)meshletTriangleIndices.Count, finalTriangleOffset));
-
             Logger.EndAction();
 
+            Logger.WriteMessage($"Meshlet Count: {meshlets.Length}");
+
             // TODO: Remove the ToArray here, big perf impact
-            return new MeshData(meshBoundingBox, vertexBuffer.ToArray(), vertexIndices.ToArray(), triangleIndices.ToArray(), meshlets.ToArray());
+            return new MeshData(meshBoundingBox, vertexBuffer.ToArray(), tmpMeshletVertices.ToArray(), triangleIndices.ToArray(), meshlets);
         }
 
         private static Vector4 ComputeMeshletCone(List<uint> meshletVertexIndices, List<uint> meshletTriangleIndices, ReadOnlySpan<MeshVertex> vertexBuffer)
@@ -310,10 +267,14 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             {
                 var meshlet = meshData.Meshlets.Span[i];
 
-                streamWriter.Write(meshlet.Cone.X);
-                streamWriter.Write(meshlet.Cone.Y);
-                streamWriter.Write(meshlet.Cone.Z);
-                streamWriter.Write(meshlet.Cone.W);
+                streamWriter.Write(meshlet.ConeAxis.X);
+                streamWriter.Write(meshlet.ConeAxis.Y);
+                streamWriter.Write(meshlet.ConeAxis.Z);
+                streamWriter.Write(meshlet.ConeAxis.W);
+                streamWriter.Write(meshlet.ConeApex.X);
+                streamWriter.Write(meshlet.ConeApex.Y);
+                streamWriter.Write(meshlet.ConeApex.Z);
+                streamWriter.Write(meshlet.ConeApex.W);
                 streamWriter.Write(meshlet.VertexCount);
                 streamWriter.Write(meshlet.VertexOffset);
                 streamWriter.Write(meshlet.TriangleCount);

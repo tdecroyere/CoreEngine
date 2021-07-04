@@ -14,7 +14,7 @@ VkFence VulkanCreateFence(VkDevice device)
 
 VkDeviceQueueCreateInfo CreateDeviceQueueCreateInfo(uint32_t queueFamilyIndex, uint32_t count)
 {
-    float* queuePriorities = new float[count];
+    vector<float> queuePriorities = vector<float>(count);
 
     for (int i = 0; i < count; i++)
     {
@@ -22,7 +22,7 @@ VkDeviceQueueCreateInfo CreateDeviceQueueCreateInfo(uint32_t queueFamilyIndex, u
     }
 
     VkDeviceQueueCreateInfo queueCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
-    queueCreateInfo.pQueuePriorities = queuePriorities;
+    queueCreateInfo.pQueuePriorities = queuePriorities.data();
     queueCreateInfo.queueCount = count;
     queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
 

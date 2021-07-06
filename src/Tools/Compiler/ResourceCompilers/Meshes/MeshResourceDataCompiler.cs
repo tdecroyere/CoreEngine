@@ -124,8 +124,9 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
                 }
 
                 var bounds = meshOptimizer.ComputeMeshletBounds<MeshVertex>(tmpMeshlets[i], tmpMeshletVertices, tmpMeshletTriangles, vertexBuffer);
+                var packedCone = (byte)bounds.cone_cutoff_s8 << 24 | (byte)bounds.cone_axis_s8_2 << 16 | (byte)bounds.cone_axis_s8_1 << 8 | (byte)bounds.cone_axis_s8_0; 
 
-                meshlets[i] = new Meshlet(new Vector4(bounds.ConeAxis, bounds.ConeCutoff), new Vector4(bounds.Center, bounds.Radius), tmpMeshlets[i].VertexCount, tmpMeshlets[i].VertexOffset, tmpMeshlets[i].TriangleCount, (uint)triangleIndices.Count);
+                meshlets[i] = new Meshlet(packedCone, new Vector4(bounds.Center, bounds.Radius), tmpMeshlets[i].VertexCount, tmpMeshlets[i].VertexOffset, tmpMeshlets[i].TriangleCount, (uint)triangleIndices.Count);
                 triangleIndices.AddRange(meshletTriangleIndices);
             }
 
@@ -267,10 +268,7 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             {
                 var meshlet = meshData.Meshlets.Span[i];
 
-                streamWriter.Write(meshlet.ConeAxis.X);
-                streamWriter.Write(meshlet.ConeAxis.Y);
-                streamWriter.Write(meshlet.ConeAxis.Z);
-                streamWriter.Write(meshlet.ConeAxis.W);
+                streamWriter.Write(meshlet.PackedCone);
                 streamWriter.Write(meshlet.BoundingSphere.X);
                 streamWriter.Write(meshlet.BoundingSphere.Y);
                 streamWriter.Write(meshlet.BoundingSphere.Z);

@@ -18,14 +18,14 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
         public Vector3 Normal { get; }
         public Vector2 TextureCoordinates { get; }
 
-        public override int GetHashCode() 
+        public override int GetHashCode()
         {
-            return this.Position.GetHashCode() ^ 
-                   this.Normal.GetHashCode() ^ 
+            return this.Position.GetHashCode() ^
+                   this.Normal.GetHashCode() ^
                    this.TextureCoordinates.GetHashCode();
         }
 
-        public override bool Equals(object? obj) 
+        public override bool Equals(object? obj)
         {
             return obj is MeshVertex vertex && this == vertex;
         }
@@ -35,12 +35,12 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             return this == other;
         }
 
-        public static bool operator ==(MeshVertex vertex1, MeshVertex vertex2) 
+        public static bool operator ==(MeshVertex vertex1, MeshVertex vertex2)
         {
             return vertex1.Position == vertex2.Position && vertex1.Normal == vertex2.Normal && vertex1.TextureCoordinates == vertex2.TextureCoordinates;
         }
 
-        public static bool operator !=(MeshVertex layout1, MeshVertex layout2) 
+        public static bool operator !=(MeshVertex layout1, MeshVertex layout2)
         {
             return !(layout1 == layout2);
         }
@@ -48,9 +48,9 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 
     public readonly struct Meshlet
     {
-        public Meshlet(Vector4 coneAxis, Vector4 boundingSphere, uint vertexCount, uint vertexOffset, uint triangleCount, uint triangleOffset)
+        public Meshlet(int packedCone, Vector4 boundingSphere, uint vertexCount, uint vertexOffset, uint triangleCount, uint triangleOffset)
         {
-            this.ConeAxis = coneAxis;
+            this.PackedCone = packedCone;
             this.BoundingSphere = boundingSphere;
             this.VertexCount = vertexCount;
             this.VertexOffset = vertexOffset;
@@ -58,7 +58,7 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
             this.TriangleOffset = triangleOffset;
         }
 
-        public readonly Vector4 ConeAxis { get; }
+        public readonly int PackedCone { get; }
         public readonly Vector4 BoundingSphere { get; }
         public readonly uint VertexCount { get; }
         public readonly uint VertexOffset { get; }

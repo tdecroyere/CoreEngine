@@ -57,6 +57,7 @@ namespace CoreEngine.Rendering
     readonly struct ShaderMeshInstance
     {
         public uint MeshIndex { get; init; }
+        public float Scale { get; init; }
         public ShaderMatrix4x3 WorldMatrix { get; init; }
         public ShaderMatrix3x3 WorldInvTransposeMatrix { get; init; }
         public BoundingBox WorldBoundingBox { get; init; }
@@ -373,6 +374,7 @@ namespace CoreEngine.Rendering
                 var shaderMeshInstance = new ShaderMeshInstance()
                 {
                     MeshIndex = meshIndex,
+                    Scale = meshInstance.Scale,
                     WorldMatrix = meshInstance.WorldMatrix,
                     WorldInvTransposeMatrix = meshInstance.WorldInvTransposeMatrix,
                     WorldBoundingBox = meshInstance.WorldBoundingBox

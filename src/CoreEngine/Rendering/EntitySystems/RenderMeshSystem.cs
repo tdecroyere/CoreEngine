@@ -65,12 +65,14 @@ namespace CoreEngine.Rendering.EntitySystems
                     {
                         var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
                         var meshInstance = new MeshInstance(mesh, material, transformComponent.WorldMatrix, false);
+                        meshInstance.Scale = transformComponent.Scale.X; // TODO: Support only uniform scale for the moment
                         meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
                     }
 
                     else
                     {
                         var meshInstance = currentScene.MeshInstances[meshComponent.MeshInstance];
+                        meshInstance.Scale = transformComponent.Scale.X;
                         meshInstance.WorldMatrix = transformComponent.WorldMatrix;
                     }
                 }

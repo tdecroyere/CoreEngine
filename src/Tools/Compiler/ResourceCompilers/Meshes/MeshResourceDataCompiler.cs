@@ -125,7 +125,7 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 
                 var bounds = meshOptimizer.ComputeMeshletBounds<MeshVertex>(tmpMeshlets[i], tmpMeshletVertices, tmpMeshletTriangles, vertexBuffer);
 
-                meshlets[i] = new Meshlet(new Vector4(bounds.ConeAxis, bounds.ConeCutoff), new Vector4(bounds.ConeApex, 0.0f), tmpMeshlets[i].VertexCount, tmpMeshlets[i].VertexOffset, tmpMeshlets[i].TriangleCount, (uint)triangleIndices.Count);
+                meshlets[i] = new Meshlet(new Vector4(bounds.ConeAxis, bounds.ConeCutoff), new Vector4(bounds.Center, bounds.Radius), tmpMeshlets[i].VertexCount, tmpMeshlets[i].VertexOffset, tmpMeshlets[i].TriangleCount, (uint)triangleIndices.Count);
                 triangleIndices.AddRange(meshletTriangleIndices);
             }
 
@@ -271,10 +271,10 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
                 streamWriter.Write(meshlet.ConeAxis.Y);
                 streamWriter.Write(meshlet.ConeAxis.Z);
                 streamWriter.Write(meshlet.ConeAxis.W);
-                streamWriter.Write(meshlet.ConeApex.X);
-                streamWriter.Write(meshlet.ConeApex.Y);
-                streamWriter.Write(meshlet.ConeApex.Z);
-                streamWriter.Write(meshlet.ConeApex.W);
+                streamWriter.Write(meshlet.BoundingSphere.X);
+                streamWriter.Write(meshlet.BoundingSphere.Y);
+                streamWriter.Write(meshlet.BoundingSphere.Z);
+                streamWriter.Write(meshlet.BoundingSphere.W);
                 streamWriter.Write(meshlet.VertexCount);
                 streamWriter.Write(meshlet.VertexOffset);
                 streamWriter.Write(meshlet.TriangleCount);

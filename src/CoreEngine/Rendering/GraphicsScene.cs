@@ -57,6 +57,7 @@ namespace CoreEngine.Rendering
             for (var i = 0; i < this.MeshInstances.Count; i++)
             {
                 var meshInstanceCopy = new MeshInstance(this.MeshInstances[i].Mesh, this.MeshInstances[i].Material, this.MeshInstances[i].WorldMatrix);
+                meshInstanceCopy.Scale = this.MeshInstances[i].Scale;
                 
                 for (var j = 0; j < this.MeshInstances[i].WorldBoundingBoxList.Count; j++)
                 {

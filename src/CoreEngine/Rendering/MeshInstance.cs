@@ -24,6 +24,7 @@ namespace CoreEngine.Rendering
 
         public Mesh Mesh { get; }
         public Material? Material { get; }
+        public float Scale { get; set; }
 
         public Matrix4x4 WorldMatrix 
         { 

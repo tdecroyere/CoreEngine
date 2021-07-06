@@ -48,10 +48,10 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
 
     public readonly struct Meshlet
     {
-        public Meshlet(Vector4 coneAxis, Vector4 coneApex, uint vertexCount, uint vertexOffset, uint triangleCount, uint triangleOffset)
+        public Meshlet(Vector4 coneAxis, Vector4 boundingSphere, uint vertexCount, uint vertexOffset, uint triangleCount, uint triangleOffset)
         {
             this.ConeAxis = coneAxis;
-            this.ConeApex = coneApex;
+            this.BoundingSphere = boundingSphere;
             this.VertexCount = vertexCount;
             this.VertexOffset = vertexOffset;
             this.TriangleCount = triangleCount;
@@ -59,7 +59,7 @@ namespace CoreEngine.Tools.Compiler.ResourceCompilers.Meshes
         }
 
         public readonly Vector4 ConeAxis { get; }
-        public readonly Vector4 ConeApex { get; }
+        public readonly Vector4 BoundingSphere { get; }
         public readonly uint VertexCount { get; }
         public readonly uint VertexOffset { get; }
         public readonly uint TriangleCount { get; }

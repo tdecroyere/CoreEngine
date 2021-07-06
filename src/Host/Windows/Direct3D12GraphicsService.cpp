@@ -932,14 +932,9 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 				depthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
 			}
 
-			else if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::CompareGreater)
-			{
-				depthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
-			}
-
 			else
 			{
-				depthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+				depthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
 			}
 		}
 

@@ -8,17 +8,15 @@ namespace CoreEngine.Rendering
         private Vector3 worldPosition;
         private Vector3 targetPosition;
         private float nearPlaneDistance;
-        private float farPlaneDistance;
         private Matrix4x4 viewMatrix;
         private Matrix4x4 projectionMatrix;
         private Matrix4x4 viewProjectionMatrix;
 
-        public Camera(Vector3 worldPosition, Vector3 targetPosition, float nearPlaneDistance, float farPlaneDistance, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix, Matrix4x4 viewProjectionMatrix)
+        public Camera(Vector3 worldPosition, Vector3 targetPosition, float nearPlaneDistance, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix, Matrix4x4 viewProjectionMatrix)
         {
             this.worldPosition = worldPosition;
             this.targetPosition = targetPosition;
             this.nearPlaneDistance = nearPlaneDistance;
-            this.farPlaneDistance = farPlaneDistance;
             this.viewMatrix = viewMatrix;
             this.projectionMatrix = projectionMatrix;
             this.viewProjectionMatrix = viewProjectionMatrix;
@@ -61,19 +59,6 @@ namespace CoreEngine.Rendering
             set
             {
                 UpdateField(ref this.nearPlaneDistance, value);
-            } 
-        }
-
-        public float FarPlaneDistance 
-        { 
-            get
-            {
-                return this.farPlaneDistance;
-            } 
-            
-            set
-            {
-                UpdateField(ref this.farPlaneDistance, value);
             } 
         }
 

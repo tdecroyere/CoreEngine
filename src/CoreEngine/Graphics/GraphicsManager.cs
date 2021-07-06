@@ -987,6 +987,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetPipelineState(commandList.NativePointer, shader.PipelineStates[renderPassDescriptor].NativePointer);
         }
 
+        // TODO: Do another overload to be able to specify a struct of uint instead?
         public void SetShaderParameterValues(CommandList commandList, uint slot, ReadOnlySpan<uint> values)
         {
             this.graphicsService.SetShaderParameterValues(commandList.NativePointer, slot, values);

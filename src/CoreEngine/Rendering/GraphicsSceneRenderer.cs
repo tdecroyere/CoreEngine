@@ -538,31 +538,38 @@ namespace CoreEngine.Rendering
             // TODO: For the moment the resource states are in COMMON state
             // We need to have an api here or somewhere else to be able to Transition to 
             // Shader Read/write
-            this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] 
-            { 
-                this.camerasBuffer.ShaderResourceIndex, 
-                scene.ShowMeshlets, 
-                this.meshBuffer.ShaderResourceIndex, 
-                this.meshInstanceBuffer.ShaderResourceIndex, 
-                // this.currentMeshInstanceCount 
-                (uint)this.renderManager.MeshletCount 
-            });
 
             if (this.currentMeshInstanceCount > 0)
             {
                 // TODO: Do not hardcode wave size
                 uint waveSize = 32;
 
-                // TODO: We dispatch only the number of meshlets of the first mesh for now
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.renderManager.MeshletCount / waveSize), 1, 1);
-                // this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1);
+                for (var i = 0; i < this.currentMeshInstanceCount; i++)
+                {
+                    // TODO: Construct draw parameters in the copy geometry function then in a compute shader
+                    // when we will switch with draw indirect
+                    var meshInstance = scene.MeshInstances[i];
+                    var meshletCount = meshInstance.Mesh.MeshletCount;
+
+                    this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] 
+                    { 
+                        this.camerasBuffer.ShaderResourceIndex, 
+                        scene.ShowMeshlets, 
+                        this.meshBuffer.ShaderResourceIndex, 
+                        this.meshInstanceBuffer.ShaderResourceIndex, 
+                        meshletCount,
+                        (uint)i
+                    });
+
+                    this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)meshletCount / waveSize), 1, 1);
+                }
             }
 
             this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.CommitCommandList(renderCommandList);
-            this.renderManager.AddGpuTiming("TestRender", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+            this.renderManager.AddGpuTiming("RenderGeometry", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
             // TODO: Submit render and debug command list at the same time
             this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { copyFence });

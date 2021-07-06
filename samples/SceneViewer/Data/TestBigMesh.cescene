@@ -23,7 +23,8 @@
         {
           "Component": "CoreEngine.Components.TransformComponent, CoreEngine",
           "Data": {
-            "Scale": [10.0, 10.0, 10.0]
+            "Scale": [10.0, 10.0, 10.0],
+            "RotationY": 90
           }
         }
       ]

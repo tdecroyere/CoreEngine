@@ -17,7 +17,7 @@
         {
           "Component": "CoreEngine.Samples.SceneViewer.MeshInstanceGeneratorComponent, SceneViewer",
           "Data": {
-            "MeshInstanceCountWidth": 100
+            "MeshInstanceCountWidth": 50
           }
         }
       ]

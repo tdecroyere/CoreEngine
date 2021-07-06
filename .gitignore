@@ -8,6 +8,9 @@ src/**/*.obj
 tests/**/*.obj
 samples/**/buddha.obj
 samples/**/san-miguel.obj
+samples/**/bunny.obj
+samples/**/kitten.obj
+samples/**/Minun.obj
 
 *.generated.cs
 

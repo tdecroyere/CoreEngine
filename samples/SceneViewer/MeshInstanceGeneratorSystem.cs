@@ -39,7 +39,7 @@ namespace CoreEngine.Samples.SceneViewer
             {
                 this.isFirstTimeRun = false;
 
-                var mesh = this.resourcesManager.LoadResourceAsync<Mesh>("/Data/teapot.mesh");
+                var mesh = this.resourcesManager.LoadResourceAsync<Mesh>("/Data/kitten.mesh");
 
                 var entityArray = this.GetEntityArray();
                 var meshInstanceGeneratorArray = this.GetComponentDataArray<MeshInstanceGeneratorComponent>();
@@ -48,17 +48,26 @@ namespace CoreEngine.Samples.SceneViewer
                 {
                     ref var meshInstanceGeneratorComponent = ref meshInstanceGeneratorArray[i];
 
-                    var positionOffset = 0;
-
                     var componentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent>();
+                    var dimensions = new Vector3(20, 20, 20);
+                    var random = new Random();
 
                     for (var j = 0; j < meshInstanceGeneratorComponent.MeshInstanceCountWidth; j++)
                     {
                         for (var k = 0; k < meshInstanceGeneratorComponent.MeshInstanceCountWidth; k++)
                         {
+                            var offsetX = (float)random.NextDouble() * dimensions.X - dimensions.X * 0.5f;
+                            var offsetY = (float)random.NextDouble() * dimensions.Y - dimensions.Y * 0.5f;
+                            var offsetZ = (float)random.NextDouble() * dimensions.Z - dimensions.Z * 0.5f;
+                            
+                            var position = new Vector3(offsetX, offsetY, offsetZ);
+                            var scale = (float)random.NextDouble() * 1.5f;
+                            var rotationX = (float)random.NextDouble() * 90.0f - 90.0f * 0.5f;
+                            var rotationY = (float)random.NextDouble() * 90.0f - 90.0f * 0.5f;
+
                             var entity = entityManager.CreateEntity(componentLayout);
                             entityManager.SetComponentData(entity, new MeshComponent { MeshResourceId = mesh.ResourceId });
-                            entityManager.SetComponentData(entity, new TransformComponent{ Position = new Vector3(positionOffset + k * meshInstanceGeneratorComponent.Spacing, 0, j * meshInstanceGeneratorComponent.Spacing), Scale = new Vector3(0.02f, 0.02f, 0.02f), WorldMatrix = Matrix4x4.Identity });
+                            entityManager.SetComponentData(entity, new TransformComponent{ Position = position, Scale = new Vector3(scale, scale, scale), RotationX = rotationX, RotationY = rotationY, WorldMatrix = Matrix4x4.Identity });
                         }
                     }
                 }

@@ -283,7 +283,7 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutC
 	// TODO: 
 	VkPushConstantRange push_constant;
 	push_constant.offset = 0;
-	push_constant.size = 128;
+	push_constant.size = 64;
 	push_constant.stageFlags = VK_SHADER_STAGE_ALL;
 
 	layoutCreateInfo.pPushConstantRanges = &push_constant;
@@ -385,14 +385,9 @@ VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPi
 			depthStencilState.depthCompareOp = VK_COMPARE_OP_EQUAL;
 		}
 
-		else if (renderPassDescriptor.DepthBufferOperation == GraphicsDepthBufferOperation::CompareGreater)
-		{
-			depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER;
-		}
-
 		else
 		{
-			depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER;
 		}
 	}
 

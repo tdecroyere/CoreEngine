@@ -8,7 +8,7 @@ namespace CoreEngine.Rendering
         public GraphicsScene()
         {
             // TODO: Create a valid default camera
-            this.ActiveCamera = new Camera(Vector3.Zero, new Vector3(0, 0, 1), 0, 1000, Matrix4x4.Identity, Matrix4x4.Identity, Matrix4x4.Identity);
+            this.ActiveCamera = new Camera(Vector3.Zero, new Vector3(0, 0, 1), 0, Matrix4x4.Identity, Matrix4x4.Identity, Matrix4x4.Identity);
 
             this.Cameras = new ItemCollection<Camera>();
             this.Lights = new ItemCollection<Light>();
@@ -46,7 +46,7 @@ namespace CoreEngine.Rendering
             
             for (var i = 0; i < this.Cameras.Count; i++)
             {
-                result.Cameras.Add(new Camera(this.Cameras[i].WorldPosition, this.Cameras[i].TargetPosition, this.Cameras[i].NearPlaneDistance, this.Cameras[i].FarPlaneDistance, this.Cameras[i].ViewMatrix, this.Cameras[i].ProjectionMatrix, this.Cameras[i].ViewProjectionMatrix));
+                result.Cameras.Add(new Camera(this.Cameras[i].WorldPosition, this.Cameras[i].TargetPosition, this.Cameras[i].NearPlaneDistance, this.Cameras[i].ViewMatrix, this.Cameras[i].ProjectionMatrix, this.Cameras[i].ViewProjectionMatrix));
             }
 
             for (var i = 0; i < this.Lights.Count; i++)

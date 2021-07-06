@@ -55,8 +55,7 @@ namespace CoreEngine.Rendering.EntitySystems
             var renderHeight = renderSize.Y;
 
             var nearPlaneDistance = 0.1f;
-            var farPlaneDistance = 1000.0f;
-            var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, nearPlaneDistance, farPlaneDistance);
+            var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, nearPlaneDistance);
 
             for (var i = 0; i < entityArray.Length; i++)
             {
@@ -76,7 +75,7 @@ namespace CoreEngine.Rendering.EntitySystems
                 
                 if (!sceneManager.CurrentScene.Cameras.Contains(cameraComponent.Camera))
                 {
-                    var camera = new Camera(cameraPosition, target, nearPlaneDistance, farPlaneDistance, viewMatrix, projectionMatrix, viewMatrix * projectionMatrix);
+                    var camera = new Camera(cameraPosition, target, nearPlaneDistance, viewMatrix, projectionMatrix, viewMatrix * projectionMatrix);
                     cameraComponent.Camera = sceneManager.CurrentScene.Cameras.Add(camera);
                 }
 
@@ -87,7 +86,6 @@ namespace CoreEngine.Rendering.EntitySystems
                     camera.WorldPosition = cameraPosition;
                     camera.TargetPosition = target;
                     camera.NearPlaneDistance = nearPlaneDistance;
-                    camera.FarPlaneDistance = farPlaneDistance;
                     camera.ViewMatrix = viewMatrix;
                     camera.ProjectionMatrix = projectionMatrix;
                     camera.ViewProjectionMatrix = viewMatrix * projectionMatrix;

@@ -505,7 +505,7 @@ void VulkanGraphicsService::CreateShaderResourceBuffer(void* shaderResourceHeapP
 
 void VulkanGraphicsService::DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index){ }
 
-void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes)
+void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes)
 {
     VulkanGraphicsHeap* graphicsHeap = (VulkanGraphicsHeap*)graphicsHeapPointer;
     VulkanGraphicsBuffer* graphicsBuffer = new VulkanGraphicsBuffer();
@@ -530,6 +530,11 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
     else if (graphicsHeap->Type == GraphicsServiceHeapType::ReadBack)
     {
         createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    }
+
+    if (graphicsBufferUsage == GraphicsBufferUsage::IndirectCommands)
+    {
+        createInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     }
 
     AssertIfFailed(vkCreateBuffer(this->graphicsDevice, &createInfo, nullptr, &graphicsBuffer->BufferObject));
@@ -878,6 +883,9 @@ void* VulkanGraphicsService::CreateShader(char* computeShaderFunction, void* sha
 	currentDataPtr += sizeof(int);
 	currentDataPtr += spirvOffset;
 
+    shader->ParameterCount = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+	
 	auto shaderTableCount = (*(int*)currentDataPtr);
 	currentDataPtr += sizeof(int);
 
@@ -919,6 +927,8 @@ void* VulkanGraphicsService::CreateShader(char* computeShaderFunction, void* sha
 			shader->ComputeShaderMethod = shaderBlob;
 		}
 	}
+
+    shader->CommandSignature = CreateIndirectPipelineLayout(this->graphicsDevice, shader->ComputeShaderMethod != nullptr, shader->ParameterCount);
 
     return shader;
 }
@@ -994,6 +1004,11 @@ void VulkanGraphicsService::DeleteShader(void* shaderPointer)
         vkDestroyShaderModule(this->graphicsDevice, shader->ComputeShaderMethod, nullptr);
     }
 
+    if (shader->CommandSignature != nullptr)
+    {
+        vkDestroyIndirectCommandsLayout(this->graphicsDevice, shader->CommandSignature, nullptr);
+    }
+
     delete shader;
 }
 
@@ -1007,7 +1022,7 @@ void* VulkanGraphicsService::CreatePipelineState(void* shaderPointer, struct Gra
         VulkanTexture* renderTargetTexture = (VulkanTexture*)renderPassDescriptor.RenderTarget1TexturePointer.Value;
 
         pipelineState->RenderPass = CreateRenderPass(this->graphicsDevice, renderPassDescriptor);
-        pipelineState->PipelineLayoutObject = CreateGraphicsPipelineLayout(this->graphicsDevice, &pipelineState->DescriptorSetLayoutCount, &pipelineState->DescriptorSetLayouts);
+        pipelineState->PipelineLayoutObject = CreateGraphicsPipelineLayout(this->graphicsDevice, shader->ParameterCount, &pipelineState->DescriptorSetLayoutCount, &pipelineState->DescriptorSetLayouts);
         pipelineState->PipelineStateObject = CreateGraphicsPipeline(this->graphicsDevice, pipelineState->RenderPass, pipelineState->PipelineLayoutObject, renderPassDescriptor, shader);
     }
 
@@ -1207,7 +1222,11 @@ void VulkanGraphicsService::SetShaderResourceHeap(void* commandListPointer, void
     this->currentResourceHeap = resourceHeap;
 }
 
-void VulkanGraphicsService::SetShader(void* commandListPointer, void* shaderPointer){ }
+void VulkanGraphicsService::SetShader(void* commandListPointer, void* shaderPointer)
+{ 
+    this->currentShader = (VulkanShader*)shaderPointer;
+}
+
 void VulkanGraphicsService::SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength)
 { 
     VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
@@ -1228,6 +1247,31 @@ void VulkanGraphicsService::DispatchMesh(void* commandListPointer, unsigned int 
     if (commandList->IsRenderPassActive)
     {
         vkCmdDrawMeshTasks(commandList->CommandBufferObject, threadGroupCountX, 0);
+    }
+}
+
+void VulkanGraphicsService::DispatchMeshIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes)
+{
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+    VulkanGraphicsBuffer* commandGraphicsBuffer = (VulkanGraphicsBuffer*)commandGraphicsBufferPointer;
+
+    if (commandList->IsRenderPassActive && this->currentShader)
+    {
+        VkIndirectCommandsStreamNV streams[1] = {};
+        streams[0].buffer = commandGraphicsBuffer->BufferObject;
+        streams[0].offset = commandBufferOffset;
+
+        VkGeneratedCommandsInfoNV generatedCommandsInfo = { VK_STRUCTURE_TYPE_GENERATED_COMMANDS_INFO_NV };
+        generatedCommandsInfo.indirectCommandsLayout = this->currentShader->CommandSignature;
+        generatedCommandsInfo.pipeline = this->currentPipelineState->PipelineStateObject;
+        generatedCommandsInfo.pStreams = streams;
+        generatedCommandsInfo.streamCount = ARRAYSIZE(streams);
+        generatedCommandsInfo.sequencesCount = maxCommandCount;
+        generatedCommandsInfo.preprocessBuffer = commandGraphicsBuffer->BufferObject;
+        generatedCommandsInfo.preprocessSize = 1024;
+        generatedCommandsInfo.preprocessOffset = 1024;
+
+        vkCmdExecuteGeneratedCommands(commandList->CommandBufferObject, false, &generatedCommandsInfo);
     }
 }
 
@@ -1409,7 +1453,8 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
         VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME,
-        VK_NV_MESH_SHADER_EXTENSION_NAME
+        VK_NV_MESH_SHADER_EXTENSION_NAME,
+        VK_NV_DEVICE_GENERATED_COMMANDS_EXTENSION_NAME
     };
 
     createInfo.ppEnabledExtensionNames = extensions;

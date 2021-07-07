@@ -81,6 +81,21 @@ namespace CoreEngine.Rendering
         public BoundingBox WorldBoundingBox { get; init; }
     }
 
+    public readonly struct DispatchMeshIndirectParam
+    {
+        public uint CamerasBuffer { get; init; }
+        public uint ShowMeshlets { get; init; }
+
+        public uint MeshBufferIndex { get; init; }
+        public uint MeshInstanceBufferIndex { get; init; }
+        public uint MeshletCount { get; init; }
+        public uint MeshInstanceIndex { get; init; }
+
+        public uint ThreadGroupCount { get; init; }
+        public uint Reserved1 { get; init; }
+        public uint Reserved2 { get; init; }
+    }
+
     // TODO: Add a render pipeline system to have a data oriented configuration of the render pipeline
     public class GraphicsSceneRenderer
     {
@@ -96,6 +111,9 @@ namespace CoreEngine.Rendering
 
         private readonly GraphicsBuffer cpuMeshInstanceBuffer;
         private readonly GraphicsBuffer meshInstanceBuffer;
+
+        private readonly GraphicsBuffer cpuIndirectCommandBuffer;
+        private readonly GraphicsBuffer indirectCommandBuffer;
 
         private readonly GraphicsBuffer cpuCamerasBuffer;
         private readonly GraphicsBuffer camerasBuffer;
@@ -117,17 +135,21 @@ namespace CoreEngine.Rendering
 
             this.renderMeshInstanceShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
 
-            this.cpuMeshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "CpuMeshBuffer");
-            this.meshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "MeshBuffer");
+            this.cpuMeshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "CpuMeshBuffer");
+            this.meshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "MeshBuffer");
 
-            this.cpuMeshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Upload, 100000, isStatic: false, label: "CpuMeshInstanceBuffer");
-            this.meshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Gpu, 100000, isStatic: false, label: "MeshInstanceBuffer");
+            this.cpuMeshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "CpuMeshInstanceBuffer");
+            this.meshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "MeshInstanceBuffer");
 
-            this.cpuCamerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "ComputeCameras");
-            this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "ComputeCameras");
+            this.cpuIndirectCommandBuffer = this.graphicsManager.CreateGraphicsBuffer<DispatchMeshIndirectParam>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "CpuIndirectCommandBuffer");
+            this.indirectCommandBuffer = this.graphicsManager.CreateGraphicsBuffer<DispatchMeshIndirectParam>(GraphicsHeapType.Gpu, GraphicsBufferUsage.IndirectCommands, 100000, isStatic: false, label: "IndirectCommandBuffer");
 
-            this.cpuLightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Upload, 10000, isStatic: false, label: "ComputeLights");
-            this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Gpu, 10000, isStatic: false, label: "ComputeLights");
+            this.cpuCamerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeCameras");
+            this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeCameras");
+
+            this.cpuLightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeLights");
+            this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeLights");
+            
 
             // var graphicsPipelineResourceDeclarations = new GraphicsPipelineResourceDeclaration[]
             // {
@@ -298,10 +320,10 @@ namespace CoreEngine.Rendering
             var bufferData = reader.ReadBytes((int)sizeInBytes);
 
             // TODO: Use transient buffers
-            var cpuGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, (int)sizeInBytes, isStatic: true, label + "CPU");
+            var cpuGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, (int)sizeInBytes, isStatic: true, label + "CPU");
             this.currentCpuGraphicsBuffers.Add(cpuGraphicsBuffer);
 
-            var graphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, (int)sizeInBytes, isStatic: true, label);
+            var graphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, (int)sizeInBytes, isStatic: true, label);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuGraphicsBuffer, 0, bufferData);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, graphicsBuffer, cpuGraphicsBuffer, (int)sizeInBytes);
 
@@ -324,9 +346,11 @@ namespace CoreEngine.Rendering
 
             uint currentMeshIndex = 0;
             uint currentMeshInstanceIndex = 0;
+            uint currentIndirectCommandIndex = 0;
 
             var meshList = ArrayPool<ShaderMesh>.Shared.Rent(10000);
             var meshInstanceList = ArrayPool<ShaderMeshInstance>.Shared.Rent(100000);
+            var indirectCommandList = ArrayPool<DispatchMeshIndirectParam>.Shared.Rent(100000);
             meshMapping.Clear();
 
             for (var i = 0; i < scene.MeshInstances.Count; i++)
@@ -381,6 +405,23 @@ namespace CoreEngine.Rendering
                 };
 
                 meshInstanceList[currentMeshInstanceIndex++] = shaderMeshInstance;
+                uint waveSize = 32;
+                var meshletCount = meshInstance.Mesh.MeshletCount;
+
+                var indirectCommand = new DispatchMeshIndirectParam()
+                {
+                    CamerasBuffer = this.camerasBuffer.ShaderResourceIndex,
+                    ShowMeshlets = scene.ShowMeshlets,
+                    MeshBufferIndex = this.meshBuffer.ShaderResourceIndex,
+                    MeshInstanceBufferIndex = this.meshInstanceBuffer.ShaderResourceIndex,
+                    MeshletCount = meshletCount,
+                    MeshInstanceIndex = (uint)i,
+                    ThreadGroupCount = (uint)MathF.Ceiling((float)meshletCount / waveSize),
+                    Reserved1 = 1,
+                    Reserved2 = 1
+                };
+
+                indirectCommandList[currentIndirectCommandIndex++] = indirectCommand;
             }
 
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(this.cpuMeshBuffer, 0, meshList.AsSpan().Slice(0, (int)currentMeshIndex));
@@ -389,6 +430,9 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(this.cpuMeshInstanceBuffer, 0, meshInstanceList.AsSpan().Slice(0, (int)currentMeshInstanceIndex));
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(copyCommandList, this.meshInstanceBuffer, this.cpuMeshInstanceBuffer, (int)currentMeshInstanceIndex);
 
+            this.graphicsManager.CopyDataToGraphicsBuffer<DispatchMeshIndirectParam>(this.cpuIndirectCommandBuffer, 0, indirectCommandList.AsSpan().Slice(0, (int)currentIndirectCommandIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<DispatchMeshIndirectParam>(copyCommandList, this.indirectCommandBuffer, this.cpuIndirectCommandBuffer, (int)currentIndirectCommandIndex);
+
             this.renderManager.MeshCount = (int)currentMeshIndex;
             this.renderManager.MeshInstanceCount = (int)currentMeshInstanceIndex;
 
@@ -396,6 +440,7 @@ namespace CoreEngine.Rendering
 
             ArrayPool<ShaderMesh>.Shared.Return(meshList);
             ArrayPool<ShaderMeshInstance>.Shared.Return(meshInstanceList);
+            ArrayPool<DispatchMeshIndirectParam>.Shared.Return(indirectCommandList);
         }
 
         private void ProcessCamera(CommandList copyCommandList, GraphicsScene scene)
@@ -543,28 +588,8 @@ namespace CoreEngine.Rendering
 
             if (this.currentMeshInstanceCount > 0)
             {
-                // TODO: Do not hardcode wave size
-                uint waveSize = 32;
-
-                for (var i = 0; i < this.currentMeshInstanceCount; i++)
-                {
-                    // TODO: Construct draw parameters in the copy geometry function then in a compute shader
-                    // when we will switch with draw indirect
-                    var meshInstance = scene.MeshInstances[i];
-                    var meshletCount = meshInstance.Mesh.MeshletCount;
-
-                    this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[]
-                    {
-                        this.camerasBuffer.ShaderResourceIndex,
-                        scene.ShowMeshlets,
-                        this.meshBuffer.ShaderResourceIndex,
-                        this.meshInstanceBuffer.ShaderResourceIndex,
-                        meshletCount,
-                        (uint)i
-                    });
-
-                    this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)meshletCount / waveSize), 1, 1);
-                }
+                // TODO: Replace currentMeshInstanceCount by currentIndirectCommandCount because we may pack the data later
+                this.graphicsManager.DispatchMeshIndirect<DispatchMeshIndirectParam>(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
             }
 
             this.graphicsManager.EndRenderPass(renderCommandList);

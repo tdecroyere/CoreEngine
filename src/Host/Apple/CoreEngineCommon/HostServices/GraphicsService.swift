@@ -26,7 +26,7 @@ public protocol GraphicsServiceProtocol {
     func deleteShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)
     func createShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ bufferPointer: UnsafeMutableRawPointer?)
     func deleteShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)
-    func createGraphicsBuffer(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ isAliasable: Bool, _ sizeInBytes: Int) -> UnsafeMutableRawPointer?
+    func createGraphicsBuffer(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ graphicsBufferUsage: GraphicsBufferUsage, _ sizeInBytes: Int) -> UnsafeMutableRawPointer?
     func setGraphicsBufferLabel(_ graphicsBufferPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteGraphicsBuffer(_ graphicsBufferPointer: UnsafeMutableRawPointer?)
     func getGraphicsBufferCpuPointer(_ graphicsBufferPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
@@ -62,6 +62,7 @@ public protocol GraphicsServiceProtocol {
     func setShader(_ commandListPointer: UnsafeMutableRawPointer?, _ shaderPointer: UnsafeMutableRawPointer?)
     func setShaderParameterValues(_ commandListPointer: UnsafeMutableRawPointer?, _ slot: UInt, _ values: [UInt32])
     func dispatchMesh(_ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt)
+    func dispatchMeshIndirect(_ commandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: UInt, _ commandGraphicsBufferPointer: UnsafeMutableRawPointer?, _ commandBufferOffset: UInt, _ commandSizeInBytes: UInt)
     func beginQuery(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int)
     func endQuery(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int)
     func resolveQueryData(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ destinationBufferPointer: UnsafeMutableRawPointer?, _ startIndex: Int, _ endIndex: Int)

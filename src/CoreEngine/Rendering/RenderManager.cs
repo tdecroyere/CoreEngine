@@ -111,11 +111,11 @@ namespace CoreEngine.Rendering
             this.Graphics2DRenderer = new Graphics2DRenderer(this, this.graphicsManager, resourcesManager);
             
             // TODO: TESTS: TO REMOVE
-            this.globalQueryBuffer = this.graphicsManager.CreateQueryBuffer(GraphicsQueryBufferType.Timestamp, 1000, "RendererQueryBuffer");
-            this.globalCpuQueryBuffer = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, 1000, isStatic: false, "RendererCpuQueryBuffer");
+            this.globalQueryBuffer = this.graphicsManager.CreateQueryBuffer(QueryBufferType.Timestamp, 1000, "RendererQueryBuffer");
+            this.globalCpuQueryBuffer = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, Graphics.GraphicsBufferUsage.Storage, 1000, isStatic: false, "RendererCpuQueryBuffer");
 
-            this.globalCopyQueryBuffer = this.graphicsManager.CreateQueryBuffer(GraphicsQueryBufferType.CopyTimestamp, 1000, "RendererCopyQueryBuffer");
-            this.globalCpuCopyQueryBuffer = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, 1000, isStatic: false, "RendererCpuCopyQueryBuffer");
+            this.globalCopyQueryBuffer = this.graphicsManager.CreateQueryBuffer(QueryBufferType.CopyTimestamp, 1000, "RendererCopyQueryBuffer");
+            this.globalCpuCopyQueryBuffer = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, Graphics.GraphicsBufferUsage.Storage, 1000, isStatic: false, "RendererCpuCopyQueryBuffer");
 
             this.gpuTimingsList[0] = new List<GpuTiming>();
             this.gpuTimingsList[1] = new List<GpuTiming>();

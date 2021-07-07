@@ -392,7 +392,7 @@ void Direct3D12GraphicsService::DeleteShaderResourceBuffer(void* shaderResourceH
 	// TODO
 }
 
-void* Direct3D12GraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes)
+void* Direct3D12GraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes)
 { 
 	Direct3D12GraphicsHeap* graphicsHeap = (Direct3D12GraphicsHeap*)graphicsHeapPointer;
 
@@ -786,6 +786,9 @@ void* Direct3D12GraphicsService::CreateShader(char* computeShaderFunction, void*
 	// Skip SPIR-V offset
 	currentDataPtr += sizeof(int);
 
+	auto parameterCount = (*(int*)currentDataPtr);
+	currentDataPtr += sizeof(int);
+	
 	auto rootSignatureByteCodeLength = (*(int*)currentDataPtr);
 	currentDataPtr += sizeof(int);
 	auto rootSignatureBlob = CreateShaderBlob(currentDataPtr, rootSignatureByteCodeLength);
@@ -838,6 +841,19 @@ void* Direct3D12GraphicsService::CreateShader(char* computeShaderFunction, void*
 		}
 	}
 
+	D3D12_INDIRECT_ARGUMENT_DESC arguments[2] = {};
+	arguments[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+	arguments[0].Constant.RootParameterIndex = 0;
+	arguments[0].Constant.Num32BitValuesToSet = parameterCount;
+	arguments[1].Type = (shader->ComputeShaderMethod == nullptr) ? D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH : D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+	commandSignatureDesc.pArgumentDescs = arguments;
+	commandSignatureDesc.NumArgumentDescs = ARRAYSIZE(arguments);
+	commandSignatureDesc.ByteStride = (3 + parameterCount) * sizeof(uint32_t);
+
+	AssertIfFailed(this->graphicsDevice->CreateCommandSignature(&commandSignatureDesc, shader->RootSignature.Get(), IID_PPV_ARGS(shader->CommandSignature.ReleaseAndGetAddressOf())));
+
     return shader;
 }
 
@@ -847,12 +863,6 @@ void Direct3D12GraphicsService::SetShaderLabel(void* shaderPointer, char* label)
 
 	// TODO: Remove that hack
 	auto rootSignatureName = wstring(label, label + strlen(label));
-
-	if (rootSignatureName.compare(L"RenderMeshInstanceShader") == 0)
-	{
-		this->currentShaderIndirectCommand = *shader;
-	}
-
 	shader->RootSignature->SetName(wstring(label, label + strlen(label)).c_str());
 }
 
@@ -1267,7 +1277,7 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 		currentDescriptorHeap = nullptr;
 	}
 
-	this->shaderBound = true;
+	this->shaderBound = shader;
 }
 
 void Direct3D12GraphicsService::SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength)
@@ -1294,6 +1304,19 @@ void Direct3D12GraphicsService::DispatchMesh(void* commandListPointer, unsigned 
 
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	commandList->CommandListObject->DispatchMesh(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+}
+
+void Direct3D12GraphicsService::DispatchMeshIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes)
+{
+	if (!this->shaderBound)
+	{
+		return;
+	}
+
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12GraphicsBuffer* commandGraphicsBuffer = (Direct3D12GraphicsBuffer*)commandGraphicsBufferPointer;
+
+	commandList->CommandListObject->ExecuteIndirect(this->shaderBound->CommandSignature.Get(), maxCommandCount, commandGraphicsBuffer->BufferObject.Get(), commandBufferOffset, nullptr, 0);
 }
 
 void Direct3D12GraphicsService::BeginQuery(void* commandListPointer, void* queryBufferPointer, int index)

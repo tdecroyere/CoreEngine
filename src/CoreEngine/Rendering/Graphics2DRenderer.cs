@@ -61,8 +61,8 @@ namespace CoreEngine.Rendering
             var maxSurfaceCount = 10000;
 
             this.rectangleSurfaces = new RectangleSurface[maxSurfaceCount];
-            this.cpuRectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Upload, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer_Cpu");
-            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Gpu, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer_Gpu");
+            this.cpuRectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer_Cpu");
+            this.rectangleSurfacesGraphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<RectangleSurface>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, maxSurfaceCount, isStatic: false, label: "Graphics2DRectangleSurfacesBuffer_Gpu");
         }
 
         public override void PreUpdate(CoreEngineContext context)

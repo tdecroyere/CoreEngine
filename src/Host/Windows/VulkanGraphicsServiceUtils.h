@@ -2,6 +2,46 @@
 #include "WindowsCommon.h"
 #include "VulkanGraphicsService.h"
 
+PFN_vkVoidFunction GetVulkanFeatureFunction(VkInstance instance, VkDevice device, const char* name) 
+{
+	if (device != nullptr)
+	{
+		auto result = vkGetDeviceProcAddr(device, name);
+		assert(result != nullptr);
+		return result;
+	}
+
+	else
+	{
+		auto result = vkGetInstanceProcAddr(instance, name);
+		assert(result != nullptr);
+
+		return result;
+	}
+}
+
+PFN_vkCreateIndirectCommandsLayoutNV vkCreateIndirectCommandsLayout; 
+PFN_vkDestroyIndirectCommandsLayoutNV vkDestroyIndirectCommandsLayout;
+PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasks;
+PFN_vkCmdExecuteGeneratedCommandsNV vkCmdExecuteGeneratedCommands;
+PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallback;
+PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName;
+PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallback;
+
+void InitVulkanFeatureFunctions(VkInstance instance, VkDevice device)
+{
+	vkCreateIndirectCommandsLayout = (PFN_vkCreateIndirectCommandsLayoutNV)GetVulkanFeatureFunction(nullptr, device, "vkCreateIndirectCommandsLayoutNV");
+	vkDestroyIndirectCommandsLayout = (PFN_vkDestroyIndirectCommandsLayoutNV)GetVulkanFeatureFunction(nullptr, device, "vkDestroyIndirectCommandsLayoutNV");
+	vkCmdDrawMeshTasks = (PFN_vkCmdDrawMeshTasksNV)GetVulkanFeatureFunction(nullptr, device, "vkCmdDrawMeshTasksNV");
+	vkCmdExecuteGeneratedCommands = (PFN_vkCmdExecuteGeneratedCommandsNV)GetVulkanFeatureFunction(nullptr, device, "vkCmdExecuteGeneratedCommandsNV");
+
+#ifdef DEBUG
+	vkSetDebugUtilsObjectName = (PFN_vkSetDebugUtilsObjectNameEXT)GetVulkanFeatureFunction(nullptr, device, "vkSetDebugUtilsObjectNameEXT");
+	vkCreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)GetVulkanFeatureFunction(instance, nullptr, "vkCreateDebugReportCallbackEXT");
+	vkDestroyDebugReportCallback = (PFN_vkDestroyDebugReportCallbackEXT)GetVulkanFeatureFunction(instance, nullptr, "vkDestroyDebugReportCallbackEXT");
+#endif
+}
+
 VkFence VulkanCreateFence(VkDevice device)
 {
 	VkFenceCreateInfo createInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
@@ -266,7 +306,7 @@ VkDescriptorSetLayout GetGlobalSamplerLayout(VkDevice device)
 	return globalSamplerLayout;
 }
 
-VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutCount, VkDescriptorSetLayout** outputSetLayouts)
+VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t parameterCount, uint32_t* layoutCount, VkDescriptorSetLayout** outputSetLayouts)
 {
 	// TODO: To replace with dynamic shader discovery
 	VkDescriptorSetLayout setLayouts[] =
@@ -283,7 +323,7 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutC
 	// TODO: 
 	VkPushConstantRange push_constant;
 	push_constant.offset = 0;
-	push_constant.size = 64;
+	push_constant.size = parameterCount * sizeof(uint32_t);
 	push_constant.stageFlags = VK_SHADER_STAGE_ALL;
 
 	layoutCreateInfo.pPushConstantRanges = &push_constant;
@@ -293,7 +333,40 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t* layoutC
 	AssertIfFailed(vkCreatePipelineLayout(device, &layoutCreateInfo, 0, &layout));
 
 	*outputSetLayouts = setLayouts;
-	*layoutCount = 4;
+	*layoutCount = ARRAYSIZE(setLayouts);
+
+	return layout;
+}
+
+VkIndirectCommandsLayoutNV CreateIndirectPipelineLayout(VkDevice device, bool isComputeShader, uint32_t parameterCount)
+{
+	// TODO: Skip compute shaders for now
+	if (isComputeShader)
+	{
+		return nullptr;
+	}
+
+	VkIndirectCommandsLayoutTokenNV arguments[2] = {};
+	arguments[0] = { VK_STRUCTURE_TYPE_INDIRECT_COMMANDS_LAYOUT_TOKEN_NV };
+	arguments[0].tokenType = VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_CONSTANT_NV;
+	arguments[0].stream = 0;
+	arguments[0].pushconstantSize = parameterCount * sizeof(uint32_t);
+	arguments[1] = { VK_STRUCTURE_TYPE_INDIRECT_COMMANDS_LAYOUT_TOKEN_NV };
+	arguments[1].tokenType = VK_INDIRECT_COMMANDS_TOKEN_TYPE_DRAW_TASKS_NV;
+	arguments[1].stream = 0;
+
+	uint32_t strides[1] = {(3 + parameterCount) * sizeof(uint32_t)};
+
+	VkIndirectCommandsLayoutCreateInfoNV createInfo = { VK_STRUCTURE_TYPE_INDIRECT_COMMANDS_LAYOUT_CREATE_INFO_NV };
+    createInfo.flags = 0;
+    createInfo.pipelineBindPoint = isComputeShader ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
+    createInfo.tokenCount = ARRAYSIZE(arguments);
+    createInfo.pTokens = arguments;
+	createInfo.streamCount = 1;
+	createInfo.pStreamStrides = strides;
+
+	VkIndirectCommandsLayoutNV layout = nullptr;
+	AssertIfFailed(vkCreateIndirectCommandsLayout(device, &createInfo, nullptr, &layout));
 
 	return layout;
 }
@@ -510,38 +583,4 @@ void TransitionTextureToState(VulkanCommandList* commandList, VulkanTexture* tex
 
 		texture->ResourceState = destinationState;
 	}
-}
-
-PFN_vkVoidFunction GetVulkanFeatureFunction(VkInstance instance, VkDevice device, const char* name) 
-{
-	if (device != nullptr)
-	{
-		auto result = vkGetDeviceProcAddr(device, name);
-		assert(result != nullptr);
-		return result;
-	}
-
-	else
-	{
-		auto result = vkGetInstanceProcAddr(instance, name);
-		assert(result != nullptr);
-
-		return result;
-	}
-}
-
-PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasks;
-PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallback;
-PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName;
-PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallback;
-
-void InitVulkanFeatureFunctions(VkInstance instance, VkDevice device)
-{
-	vkCmdDrawMeshTasks = (PFN_vkCmdDrawMeshTasksNV)GetVulkanFeatureFunction(nullptr, device, "vkCmdDrawMeshTasksNV");
-
-#ifdef DEBUG
-	vkSetDebugUtilsObjectName = (PFN_vkSetDebugUtilsObjectNameEXT)GetVulkanFeatureFunction(nullptr, device, "vkSetDebugUtilsObjectNameEXT");
-	vkCreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)GetVulkanFeatureFunction(instance, nullptr, "vkCreateDebugReportCallbackEXT");
-	vkDestroyDebugReportCallback = (PFN_vkDestroyDebugReportCallbackEXT)GetVulkanFeatureFunction(instance, nullptr, "vkDestroyDebugReportCallbackEXT");
-#endif
 }

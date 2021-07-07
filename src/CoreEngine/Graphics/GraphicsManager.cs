@@ -384,12 +384,12 @@ namespace CoreEngine.Graphics
             this.graphicsService.CommitCommandList(commandList.NativePointer);            
         }
 
-        public GraphicsBuffer CreateGraphicsBuffer<T>(GraphicsHeapType heapType, int length, bool isStatic, string label) where T : struct
+        public GraphicsBuffer CreateGraphicsBuffer<T>(GraphicsHeapType heapType, GraphicsBufferUsage usage, int length, bool isStatic, string label) where T : struct
         {
             var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
 
             var allocation = this.graphicsMemoryManager.AllocateBuffer(heapType, sizeInBytes);
-            var nativePointer1 = this.graphicsService.CreateGraphicsBuffer(allocation.GraphicsHeap.NativePointer, allocation.Offset, allocation.IsAliasable, sizeInBytes);
+            var nativePointer1 = this.graphicsService.CreateGraphicsBuffer(allocation.GraphicsHeap.NativePointer, allocation.Offset, (HostServices.GraphicsBufferUsage)usage, sizeInBytes);
 
             if (nativePointer1 == IntPtr.Zero)
             {
@@ -404,7 +404,7 @@ namespace CoreEngine.Graphics
             if (!isStatic)
             {
                 allocation2 = this.graphicsMemoryManager.AllocateBuffer(heapType, sizeInBytes);
-                nativePointer2 = this.graphicsService.CreateGraphicsBuffer(allocation2.Value.GraphicsHeap.NativePointer, allocation2.Value.Offset, allocation2.Value.IsAliasable, sizeInBytes);
+                nativePointer2 = this.graphicsService.CreateGraphicsBuffer(allocation2.Value.GraphicsHeap.NativePointer, allocation2.Value.Offset, (HostServices.GraphicsBufferUsage)usage, sizeInBytes);
 
                 if (nativePointer2.Value == IntPtr.Zero)
                 {
@@ -715,7 +715,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.WaitForSwapChainOnCpu(swapChain.NativePointer);
         }
 
-        public QueryBuffer CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length, string label)
+        public QueryBuffer CreateQueryBuffer(QueryBufferType queryBufferType, int length, string label)
         {
             var nativePointer1 = this.graphicsService.CreateQueryBuffer((GraphicsQueryBufferType)queryBufferType, length);
 
@@ -1017,6 +1017,21 @@ namespace CoreEngine.Graphics
 
             this.graphicsService.DispatchMesh(commandList.NativePointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
             this.cpuDrawCount++;
+        }
+
+        public void DispatchMeshIndirect<T>(CommandList commandList, uint maxCommandCount, GraphicsBuffer commandGraphicsBuffer, uint commandBufferOffset) where T : struct
+        {
+            if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
+            {
+                throw new InvalidOperationException("The specified command list is not a render command list.");
+            }
+
+            if (commandGraphicsBuffer is null)
+            {
+                throw new ArgumentNullException(nameof(commandGraphicsBuffer));
+            }
+
+            this.graphicsService.DispatchMeshIndirect(commandList.NativePointer, maxCommandCount, commandGraphicsBuffer.NativePointer, commandBufferOffset, (uint)Marshal.SizeOf<T>());
         }
 
         public void BeginQuery(CommandList commandList, QueryBuffer queryBuffer, int index)

@@ -151,10 +151,10 @@ void Direct3D12GraphicsServiceDeleteShaderResourceBufferInterop(void* context, v
     contextObject->DeleteShaderResourceBuffer(shaderResourceHeapPointer, index);
 }
 
-void* Direct3D12GraphicsServiceCreateGraphicsBufferInterop(void* context, void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes)
+void* Direct3D12GraphicsServiceCreateGraphicsBufferInterop(void* context, void* graphicsHeapPointer, unsigned long heapOffset, enum GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    return contextObject->CreateGraphicsBuffer(graphicsHeapPointer, heapOffset, isAliasable, sizeInBytes);
+    return contextObject->CreateGraphicsBuffer(graphicsHeapPointer, heapOffset, graphicsBufferUsage, sizeInBytes);
 }
 
 void Direct3D12GraphicsServiceSetGraphicsBufferLabelInterop(void* context, void* graphicsBufferPointer, char* label)
@@ -367,6 +367,12 @@ void Direct3D12GraphicsServiceDispatchMeshInterop(void* context, void* commandLi
     contextObject->DispatchMesh(commandListPointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
+void Direct3D12GraphicsServiceDispatchMeshIndirectInterop(void* context, void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->DispatchMeshIndirect(commandListPointer, maxCommandCount, commandGraphicsBufferPointer, commandBufferOffset, commandSizeInBytes);
+}
+
 void Direct3D12GraphicsServiceBeginQueryInterop(void* context, void* commandListPointer, void* queryBufferPointer, int index)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -449,6 +455,7 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
     service->GraphicsService_SetShader = Direct3D12GraphicsServiceSetShaderInterop;
     service->GraphicsService_SetShaderParameterValues = Direct3D12GraphicsServiceSetShaderParameterValuesInterop;
     service->GraphicsService_DispatchMesh = Direct3D12GraphicsServiceDispatchMeshInterop;
+    service->GraphicsService_DispatchMeshIndirect = Direct3D12GraphicsServiceDispatchMeshIndirectInterop;
     service->GraphicsService_BeginQuery = Direct3D12GraphicsServiceBeginQueryInterop;
     service->GraphicsService_EndQuery = Direct3D12GraphicsServiceEndQueryInterop;
     service->GraphicsService_ResolveQueryData = Direct3D12GraphicsServiceResolveQueryDataInterop;

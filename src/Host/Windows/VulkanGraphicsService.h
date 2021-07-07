@@ -75,6 +75,8 @@ struct VulkanShader
     VkShaderModule MeshShaderMethod;
     VkShaderModule PixelShaderMethod;
     VkShaderModule ComputeShaderMethod;
+    uint32_t ParameterCount;
+    VkIndirectCommandsLayoutNV CommandSignature;
 };
 
 struct VulkanPipelineState
@@ -134,7 +136,7 @@ class VulkanGraphicsService
         void CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer);
         void DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index);
 
-        void* CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes);
+        void* CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes);
         void SetGraphicsBufferLabel(void* graphicsBufferPointer, char* label);
         void DeleteGraphicsBuffer(void* graphicsBufferPointer);
         void* GetGraphicsBufferCpuPointer(void* graphicsBufferPointer);
@@ -155,7 +157,7 @@ class VulkanGraphicsService
         void ResetQueryBuffer(void* queryBufferPointer);
         void SetQueryBufferLabel(void* queryBufferPointer, char* label);
         void DeleteQueryBuffer(void* queryBufferPointer);
-
+     
         void* CreateShader(char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength);
         void SetShaderLabel(void* shaderPointer, char* label);
         void DeleteShader(void* shaderPointer);
@@ -181,6 +183,7 @@ class VulkanGraphicsService
         void SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
 
         void DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
+        void DispatchMeshIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes);
 
         void BeginQuery(void* commandListPointer, void* queryBufferPointer, int index);
         void EndQuery(void* commandListPointer, void* queryBufferPointer, int index);
@@ -197,6 +200,7 @@ class VulkanGraphicsService
         // TODO: To remove?
         VulkanPipelineState* currentPipelineState = nullptr;
         VulkanShaderResourceHeap* currentResourceHeap = nullptr;
+        VulkanShader* currentShader = nullptr;
 
         // TODO: Do something better here
         vector<VkFramebuffer> frameBuffersToDelete;

@@ -23,6 +23,12 @@ namespace CoreEngine.HostServices
         Present
     }
 
+    public enum GraphicsBufferUsage
+    {
+        Storage,
+        IndirectCommands
+    }
+
     public enum GraphicsTextureFormat
     {
         Rgba8UnormSrgb,
@@ -300,7 +306,7 @@ namespace CoreEngine.HostServices
         // TODO: UAV
 
         // TODO: Move make aliasable into a separate method
-        IntPtr CreateGraphicsBuffer(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, int sizeInBytes);
+        IntPtr CreateGraphicsBuffer(IntPtr graphicsHeapPointer, ulong heapOffset, GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes);
         void SetGraphicsBufferLabel(IntPtr graphicsBufferPointer, string label);
         void DeleteGraphicsBuffer(IntPtr graphicsBufferPointer);
         IntPtr GetGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer);
@@ -339,6 +345,7 @@ namespace CoreEngine.HostServices
         // TODO: Only allow passing an array of buffers or resources
         void TransitionGraphicsBufferToState(IntPtr commandListPointer, IntPtr graphicsBufferPointer, GraphicsResourceState resourceState);
 
+        // TODO: Rename that to DispatchCompute
         void DispatchThreads(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
 
         // Add a CreateRenderPass method and a RenderPassObject
@@ -361,6 +368,7 @@ namespace CoreEngine.HostServices
 
         // TODO: Suppress threadGroupCountY and threadGroupCountZ for mesh shader
         void DispatchMesh(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
+        void DispatchMeshIndirect(IntPtr commandListPointer, uint maxCommandCount, IntPtr commandGraphicsBufferPointer, uint commandBufferOffset, uint commandSizeInBytes);
 
         // TODO: Find a way to map opaque datastructures like the pipeline stats to a generic one to make this portable
         // TODO: IS the pipeline state usefull?

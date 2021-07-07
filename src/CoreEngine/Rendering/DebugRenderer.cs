@@ -112,11 +112,11 @@ namespace CoreEngine.Rendering
             this.cubePrimitives = new DebugPrimitive[maxPrimitiveCount];
             this.spherePrimitives = new DebugPrimitive[maxPrimitiveCount];
 
-            this.cpuPrimitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Upload, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Cpu");
-            this.primitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Gpu, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Gpu");
+            this.cpuPrimitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Cpu");
+            this.primitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Gpu");
             
-            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Gpu, 120, isStatic: true, "DebugVertexBuffer_Gpu");
-            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, 320, isStatic: true, "DebugIndexBuffer_Gpu");
+            this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 120, isStatic: true, "DebugVertexBuffer_Gpu");
+            this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 320, isStatic: true, "DebugIndexBuffer_Gpu");
 
             InitGeometryBuffers();
             this.currentLinePrimitiveCount = 0;
@@ -220,8 +220,8 @@ namespace CoreEngine.Rendering
             indexBufferData[currentIndexCount++] = 0;
             indexBufferData[currentIndexCount++] = 1;
 
-            using var vertexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Upload, 120, isStatic: true, "DebugVertexBuffer_Cpu");
-            using var indexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, 320, isStatic: true, "DebugIndexBuffer_Cpu");
+            using var vertexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 120, isStatic: true, "DebugVertexBuffer_Cpu");
+            using var indexBufferCpu = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 320, isStatic: true, "DebugIndexBuffer_Cpu");
 
             this.graphicsManager.CopyDataToGraphicsBuffer<Vector3>(vertexBufferCpu, 0, vertexBufferData);
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(indexBufferCpu, 0, indexBufferData);

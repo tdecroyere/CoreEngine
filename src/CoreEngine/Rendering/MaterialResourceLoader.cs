@@ -67,11 +67,11 @@ namespace CoreEngine.Rendering
             var materialDataLength = reader.ReadInt32();
             var materialData = ArrayPool<byte>.Shared.Rent(materialDataLength);
             reader.Read(materialData, 0, materialDataLength);
-            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, materialDataLength, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
+            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, materialDataLength, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuBuffer, 0, materialData.AsSpan().Slice(0, materialDataLength));
             ArrayPool<byte>.Shared.Return(materialData);
 
-            material.MaterialData = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, materialData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
+            material.MaterialData = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, materialData.Length, isStatic: true, label: $"{Path.GetFileNameWithoutExtension(material.Path)}MaterialBuffer");
 
             // TODO: Refactor that
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, "MaterialLoader");

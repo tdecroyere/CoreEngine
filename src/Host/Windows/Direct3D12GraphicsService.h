@@ -69,6 +69,10 @@ struct Direct3D12QueryBuffer
     D3D12_QUERY_HEAP_TYPE Type;
 };
 
+struct Direct3D12CommandBuffer
+{
+};
+
 struct Direct3D12Shader
 {
     ComPtr<ID3DBlob> AmplificationShaderMethod;
@@ -76,6 +80,7 @@ struct Direct3D12Shader
     ComPtr<ID3DBlob> PixelShaderMethod;
     ComPtr<ID3DBlob> ComputeShaderMethod;
     ComPtr<ID3D12RootSignature> RootSignature;
+    ComPtr<ID3D12CommandSignature> CommandSignature;
 };
 
 struct Direct3D12PipelineState
@@ -127,7 +132,7 @@ class Direct3D12GraphicsService
         void CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer);
         void DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index);
 
-        void* CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, int isAliasable, int sizeInBytes);
+        void* CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes);
         void SetGraphicsBufferLabel(void* graphicsBufferPointer, char* label);
         void DeleteGraphicsBuffer(void* graphicsBufferPointer);
         void* GetGraphicsBufferCpuPointer(void* graphicsBufferPointer);
@@ -174,6 +179,7 @@ class Direct3D12GraphicsService
         void SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
 
         void DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
+        void DispatchMeshIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes);
 
         void BeginQuery(void* commandListPointer, void* queryBufferPointer, int index);
         void EndQuery(void* commandListPointer, void* queryBufferPointer, int index);
@@ -205,8 +211,7 @@ class Direct3D12GraphicsService
         uint32_t currentGlobalDsvDescriptorOffset;
 
         // Shaders
-        bool shaderBound;
-        Direct3D12Shader currentShaderIndirectCommand = {}; // TODO: To remove
+        Direct3D12Shader* shaderBound;
 
         void EnableDebugLayer();
         ComPtr<IDXGIAdapter4> FindGraphicsAdapter(const ComPtr<IDXGIFactory4> dxgiFactory);

@@ -79,7 +79,7 @@ namespace CoreEngine.Rendering
 
             var textureData = ArrayPool<byte>.Shared.Rent(textureDataLength);
             reader.Read(textureData, 0, textureDataLength);
-            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
+            using var cpuBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, textureDataLength, isStatic: true, label: "TextureCpuBuffer");
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuBuffer, 0, textureData.AsSpan().Slice(0, textureDataLength));
             ArrayPool<byte>.Shared.Return(textureData);
 

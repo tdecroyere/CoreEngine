@@ -47,6 +47,7 @@ public protocol GraphicsServiceProtocol {
     func createShader(_ computeShaderFunction: String?, _ shaderByteCode: UnsafeMutableRawPointer, _ shaderByteCodeLength: Int) -> UnsafeMutableRawPointer?
     func setShaderLabel(_ shaderPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteShader(_ shaderPointer: UnsafeMutableRawPointer?)
+    func createComputePipelineState(_ shaderPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
     func createPipelineState(_ shaderPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> UnsafeMutableRawPointer?
     func setPipelineStateLabel(_ pipelineStatePointer: UnsafeMutableRawPointer?, _ label: String)
     func deletePipelineState(_ pipelineStatePointer: UnsafeMutableRawPointer?)

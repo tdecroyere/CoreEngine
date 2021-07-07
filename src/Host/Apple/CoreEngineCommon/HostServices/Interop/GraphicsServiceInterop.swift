@@ -231,6 +231,11 @@ func GraphicsService_deleteShaderInterop(context: UnsafeMutableRawPointer?, _ sh
     contextObject.deleteShader(shaderPointer)
 }
 
+func GraphicsService_createComputePipelineStateInterop(context: UnsafeMutableRawPointer?, _ shaderPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    return contextObject.createComputePipelineState(shaderPointer)
+}
+
 func GraphicsService_createPipelineStateInterop(context: UnsafeMutableRawPointer?, _ shaderPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> UnsafeMutableRawPointer? {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     return contextObject.createPipelineState(shaderPointer, renderPassDescriptor)
@@ -374,6 +379,7 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_CreateShader = GraphicsService_createShaderInterop
     service.GraphicsService_SetShaderLabel = GraphicsService_setShaderLabelInterop
     service.GraphicsService_DeleteShader = GraphicsService_deleteShaderInterop
+    service.GraphicsService_CreateComputePipelineState = GraphicsService_createComputePipelineStateInterop
     service.GraphicsService_CreatePipelineState = GraphicsService_createPipelineStateInterop
     service.GraphicsService_SetPipelineStateLabel = GraphicsService_setPipelineStateLabelInterop
     service.GraphicsService_DeletePipelineState = GraphicsService_deletePipelineStateInterop

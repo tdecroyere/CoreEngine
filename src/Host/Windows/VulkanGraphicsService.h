@@ -17,6 +17,7 @@ struct VulkanCommandQueue
     uint64_t FenceValue;
     uint32_t CommandQueueFamilyIndex;
     bool IsCopyCommandQueue;
+    bool IsComputeCommandQueue;
 };
 
 struct VulkanCommandList
@@ -165,6 +166,7 @@ class VulkanGraphicsService
         void SetShaderLabel(void* shaderPointer, char* label);
         void DeleteShader(void* shaderPointer);
 
+        void* CreateComputePipelineState(void* shaderPointer);
         void* CreatePipelineState(void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
         void SetPipelineStateLabel(void* pipelineStatePointer, char* label);
         void DeletePipelineState(void* pipelineStatePointer);

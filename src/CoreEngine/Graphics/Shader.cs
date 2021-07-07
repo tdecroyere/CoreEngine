@@ -41,5 +41,6 @@ namespace CoreEngine.Graphics
         public IntPtr NativePointer { get; internal set; }
         public string Label { get; internal set; }
         public IDictionary<GraphicsRenderPassDescriptor, PipelineState> PipelineStates { get; }
+        public PipelineState? ComputePipelineState { get; internal set; }
     }
 }

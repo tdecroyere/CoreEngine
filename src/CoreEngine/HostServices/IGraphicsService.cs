@@ -334,6 +334,7 @@ namespace CoreEngine.HostServices
         void SetShaderLabel(IntPtr shaderPointer, string label);
         void DeleteShader(IntPtr shaderPointer);
 
+        IntPtr CreateComputePipelineState(IntPtr shaderPointer);
         IntPtr CreatePipelineState(IntPtr shaderPointer, GraphicsRenderPassDescriptor renderPassDescriptor);
         void SetPipelineStateLabel(IntPtr pipelineStatePointer, string label);
         void DeletePipelineState(IntPtr pipelineStatePointer);

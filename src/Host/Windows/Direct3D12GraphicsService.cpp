@@ -835,7 +835,7 @@ void* Direct3D12GraphicsService::CreateShader(char* computeShaderFunction, void*
 			shader->PixelShaderMethod = shaderBlob;
 		}
 
-		else if (entryPointName == string(computeShaderFunction))
+		else if (entryPointName == "ComputeMain")
 		{
 			shader->ComputeShaderMethod = shaderBlob;
 		}
@@ -870,6 +870,29 @@ void Direct3D12GraphicsService::DeleteShader(void* shaderPointer)
 { 
 	Direct3D12Shader* shader = (Direct3D12Shader*)shaderPointer;
 	delete shader;
+}
+
+void* Direct3D12GraphicsService::CreateComputePipelineState(void* shaderPointer)
+{
+if (shaderPointer == nullptr)
+	{
+		return nullptr;
+	}
+
+	Direct3D12Shader* shader = (Direct3D12Shader*)shaderPointer;
+
+	ComPtr<ID3D12PipelineState> pipelineState;
+		// TODO: Switch to CreatePipelineState
+		D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+		psoDesc.pRootSignature = shader->RootSignature.Get();
+		psoDesc.CS = { shader->ComputeShaderMethod->GetBufferPointer(), shader->ComputeShaderMethod->GetBufferSize() };
+
+		AssertIfFailed(this->graphicsDevice->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
+
+	Direct3D12PipelineState* pipelineStateStruct = new Direct3D12PipelineState();
+	pipelineStateStruct->PipelineStateObject = pipelineState;
+
+	return pipelineStateStruct;
 }
 
 void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
@@ -989,16 +1012,6 @@ void* Direct3D12GraphicsService::CreatePipelineState(void* shaderPointer, struct
 		psoStream.pPipelineStateSubobjectStream = &psoDesc;
 
 		AssertIfFailed(this->graphicsDevice->CreatePipelineState(&psoStream, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
-	}
-
-	else
-	{
-		// TODO: Switch to CreatePipelineState
-		D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
-		psoDesc.pRootSignature = shader->RootSignature.Get();
-		psoDesc.CS = { shader->ComputeShaderMethod->GetBufferPointer(), shader->ComputeShaderMethod->GetBufferSize() };
-
-		AssertIfFailed(this->graphicsDevice->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
 	}
 
 	Direct3D12PipelineState* pipelineStateStruct = new Direct3D12PipelineState();
@@ -1268,13 +1281,27 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 	// TODO: To remove when sm6.6 is stable
 	if (currentDescriptorHeap != nullptr)
 	{
-		commandList->CommandListObject->SetGraphicsRootDescriptorTable(1, currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart());
+		if (commandList->Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
+		{
+			commandList->CommandListObject->SetGraphicsRootDescriptorTable(1, currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart());
 
-		D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle = currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart();
-		texturesHandle.ptr += (500 * currentDescriptorHeap->HandleSize);
+			D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle = currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart();
+			texturesHandle.ptr += (500 * currentDescriptorHeap->HandleSize);
 
-		commandList->CommandListObject->SetGraphicsRootDescriptorTable(2, texturesHandle);
-		currentDescriptorHeap = nullptr;
+			commandList->CommandListObject->SetGraphicsRootDescriptorTable(2, texturesHandle);
+			currentDescriptorHeap = nullptr;
+		}
+
+		else
+		{
+			commandList->CommandListObject->SetComputeRootDescriptorTable(1, currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart());
+
+			D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle = currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart();
+			texturesHandle.ptr += (500 * currentDescriptorHeap->HandleSize);
+
+			commandList->CommandListObject->SetComputeRootDescriptorTable(2, texturesHandle);
+			currentDescriptorHeap = nullptr;
+		}
 	}
 
 	this->shaderBound = shader;

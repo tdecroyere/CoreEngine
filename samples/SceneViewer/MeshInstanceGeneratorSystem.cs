@@ -39,13 +39,17 @@ namespace CoreEngine.Samples.SceneViewer
             {
                 this.isFirstTimeRun = false;
 
-                var mesh = this.resourcesManager.LoadResourceAsync<Mesh>("/Data/kitten.mesh");
-
                 var entityArray = this.GetEntityArray();
-                var meshInstanceGeneratorArray = this.GetComponentDataArray<MeshInstanceGeneratorComponent>();
-
+                
                 for (var i = 0; i < entityArray.Length; i++)
                 {
+                    var meshes = new Mesh[]
+                    {
+                        this.resourcesManager.LoadResourceAsync<Mesh>("/Data/kitten.mesh"),
+                        this.resourcesManager.LoadResourceAsync<Mesh>("/Data/teapot.mesh")
+                    };
+
+                    var meshInstanceGeneratorArray = this.GetComponentDataArray<MeshInstanceGeneratorComponent>();
                     ref var meshInstanceGeneratorComponent = ref meshInstanceGeneratorArray[i];
 
                     var componentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent>();
@@ -56,18 +60,26 @@ namespace CoreEngine.Samples.SceneViewer
                     {
                         for (var k = 0; k < meshInstanceGeneratorComponent.MeshInstanceCountWidth; k++)
                         {
+                            var meshIndex = random.Next() % meshes.Length;
+                            var mesh = meshes[meshIndex];
+
                             var offsetX = (float)random.NextDouble() * dimensions.X - dimensions.X * 0.5f;
                             var offsetY = (float)random.NextDouble() * dimensions.Y - dimensions.Y * 0.5f;
                             var offsetZ = (float)random.NextDouble() * dimensions.Z - dimensions.Z * 0.5f;
-                            
+
                             var position = new Vector3(offsetX, offsetY, offsetZ);
                             var scale = (float)random.NextDouble() * 1.5f;
                             var rotationX = (float)random.NextDouble() * 90.0f - 90.0f * 0.5f;
                             var rotationY = (float)random.NextDouble() * 90.0f - 90.0f * 0.5f;
 
+                            if (meshIndex == 1)
+                            {
+                                scale /= 30.0f;
+                            }
+
                             var entity = entityManager.CreateEntity(componentLayout);
                             entityManager.SetComponentData(entity, new MeshComponent { MeshResourceId = mesh.ResourceId });
-                            entityManager.SetComponentData(entity, new TransformComponent{ Position = position, Scale = new Vector3(scale, scale, scale), RotationX = rotationX, RotationY = rotationY, WorldMatrix = Matrix4x4.Identity });
+                            entityManager.SetComponentData(entity, new TransformComponent { Position = position, Scale = new Vector3(scale, scale, scale), RotationX = rotationX, RotationY = rotationY, WorldMatrix = Matrix4x4.Identity });
                         }
                     }
                 }

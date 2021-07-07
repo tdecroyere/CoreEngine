@@ -277,6 +277,12 @@ void VulkanGraphicsServiceDeleteShaderInterop(void* context, void* shaderPointer
     contextObject->DeleteShader(shaderPointer);
 }
 
+void* VulkanGraphicsServiceCreateComputePipelineStateInterop(void* context, void* shaderPointer)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    return contextObject->CreateComputePipelineState(shaderPointer);
+}
+
 void* VulkanGraphicsServiceCreatePipelineStateInterop(void* context, void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 {
     auto contextObject = (VulkanGraphicsService*)context;
@@ -440,6 +446,7 @@ void InitVulkanGraphicsService(const VulkanGraphicsService* context, GraphicsSer
     service->GraphicsService_CreateShader = VulkanGraphicsServiceCreateShaderInterop;
     service->GraphicsService_SetShaderLabel = VulkanGraphicsServiceSetShaderLabelInterop;
     service->GraphicsService_DeleteShader = VulkanGraphicsServiceDeleteShaderInterop;
+    service->GraphicsService_CreateComputePipelineState = VulkanGraphicsServiceCreateComputePipelineStateInterop;
     service->GraphicsService_CreatePipelineState = VulkanGraphicsServiceCreatePipelineStateInterop;
     service->GraphicsService_SetPipelineStateLabel = VulkanGraphicsServiceSetPipelineStateLabelInterop;
     service->GraphicsService_DeletePipelineState = VulkanGraphicsServiceDeletePipelineStateInterop;

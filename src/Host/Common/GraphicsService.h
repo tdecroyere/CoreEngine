@@ -186,6 +186,7 @@ typedef void (*GraphicsService_DeleteQueryBufferPtr)(void* context, void* queryB
 typedef void* (*GraphicsService_CreateShaderPtr)(void* context, char* computeShaderFunction, void* shaderByteCode, int shaderByteCodeLength);
 typedef void (*GraphicsService_SetShaderLabelPtr)(void* context, void* shaderPointer, char* label);
 typedef void (*GraphicsService_DeleteShaderPtr)(void* context, void* shaderPointer);
+typedef void* (*GraphicsService_CreateComputePipelineStatePtr)(void* context, void* shaderPointer);
 typedef void* (*GraphicsService_CreatePipelineStatePtr)(void* context, void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_SetPipelineStateLabelPtr)(void* context, void* pipelineStatePointer, char* label);
 typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, void* pipelineStatePointer);
@@ -255,6 +256,7 @@ struct GraphicsService
     GraphicsService_CreateShaderPtr GraphicsService_CreateShader;
     GraphicsService_SetShaderLabelPtr GraphicsService_SetShaderLabel;
     GraphicsService_DeleteShaderPtr GraphicsService_DeleteShader;
+    GraphicsService_CreateComputePipelineStatePtr GraphicsService_CreateComputePipelineState;
     GraphicsService_CreatePipelineStatePtr GraphicsService_CreatePipelineState;
     GraphicsService_SetPipelineStateLabelPtr GraphicsService_SetPipelineStateLabel;
     GraphicsService_DeletePipelineStatePtr GraphicsService_DeletePipelineState;

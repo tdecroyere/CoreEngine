@@ -277,6 +277,12 @@ void Direct3D12GraphicsServiceDeleteShaderInterop(void* context, void* shaderPoi
     contextObject->DeleteShader(shaderPointer);
 }
 
+void* Direct3D12GraphicsServiceCreateComputePipelineStateInterop(void* context, void* shaderPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    return contextObject->CreateComputePipelineState(shaderPointer);
+}
+
 void* Direct3D12GraphicsServiceCreatePipelineStateInterop(void* context, void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -440,6 +446,7 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
     service->GraphicsService_CreateShader = Direct3D12GraphicsServiceCreateShaderInterop;
     service->GraphicsService_SetShaderLabel = Direct3D12GraphicsServiceSetShaderLabelInterop;
     service->GraphicsService_DeleteShader = Direct3D12GraphicsServiceDeleteShaderInterop;
+    service->GraphicsService_CreateComputePipelineState = Direct3D12GraphicsServiceCreateComputePipelineStateInterop;
     service->GraphicsService_CreatePipelineState = Direct3D12GraphicsServiceCreatePipelineStateInterop;
     service->GraphicsService_SetPipelineStateLabel = Direct3D12GraphicsServiceSetPipelineStateLabelInterop;
     service->GraphicsService_DeletePipelineState = Direct3D12GraphicsServiceDeletePipelineStateInterop;

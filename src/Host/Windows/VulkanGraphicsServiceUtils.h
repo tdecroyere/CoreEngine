@@ -429,6 +429,25 @@ VkPipelineColorBlendAttachmentState VulkanInitBlendState(GraphicsBlendOperation 
 	}
 }
 
+VkPipeline CreateComputePipeline(VkDevice device, VkPipelineLayout layout, VulkanShader* shader)
+{
+	VkComputePipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+
+	VkPipelineShaderStageCreateInfo stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	stage.module = shader->ComputeShaderMethod;
+	stage.pName = "ComputeMain";
+
+	createInfo.stage = stage;
+	createInfo.layout = layout;
+
+	//TODO: Use the pipelinecache !
+	VkPipeline pipeline = 0;
+	AssertIfFailed(vkCreateComputePipelines(device, nullptr, 1, &createInfo, 0, &pipeline));
+
+	return pipeline;
+}
+
 VkPipeline CreateGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout, GraphicsRenderPassDescriptor renderPassDescriptor, VulkanShader* shader)
 {
 	VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };

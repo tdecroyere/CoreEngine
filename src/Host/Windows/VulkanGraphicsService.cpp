@@ -91,6 +91,7 @@ void* VulkanGraphicsService::CreateCommandQueue(enum GraphicsServiceCommandType 
     if (commandQueueType == GraphicsServiceCommandType::Compute)
     {
         queueFamilyIndex = this->computeCommandQueueFamilyIndex;
+        commandQueue->IsComputeCommandQueue = true;
     }
 
     else if (commandQueueType == GraphicsServiceCommandType::Copy)
@@ -191,7 +192,7 @@ unsigned long VulkanGraphicsService::ExecuteCommandLists(void* commandQueuePoint
 
         waitSemaphores[i] = commandQueueToWait->TimelineSemaphore;
         waitSemaphoreValues[i] = commandQueueToWait->FenceValue;
-        submitStageMasks[i] = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+        submitStageMasks[i] = commandQueue->IsComputeCommandQueue ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
 	}
 
     vector<VkCommandBuffer> vulkanCommandBuffers = vector<VkCommandBuffer>(commandListsLength);
@@ -932,7 +933,7 @@ void* VulkanGraphicsService::CreateShader(char* computeShaderFunction, void* sha
 			shader->PixelShaderMethod = shaderBlob;
 		}
 
-		else if (entryPointName == string(computeShaderFunction))
+		else if (entryPointName == "ComputeMain")
 		{
 			shader->ComputeShaderMethod = shaderBlob;
 		}
@@ -1022,6 +1023,17 @@ void VulkanGraphicsService::DeleteShader(void* shaderPointer)
     delete shader;
 }
 
+void* VulkanGraphicsService::CreateComputePipelineState(void* shaderPointer)
+{
+    VulkanShader *shader = (VulkanShader *)shaderPointer;
+    VulkanPipelineState *pipelineState = new VulkanPipelineState();
+
+    pipelineState->PipelineLayoutObject = CreateGraphicsPipelineLayout(this->graphicsDevice, shader->ParameterCount, &pipelineState->DescriptorSetLayoutCount, &pipelineState->DescriptorSetLayouts);
+    pipelineState->PipelineStateObject = CreateComputePipeline(this->graphicsDevice, pipelineState->PipelineLayoutObject, shader);
+
+    return pipelineState;
+}
+
 void* VulkanGraphicsService::CreatePipelineState(void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 {
     VulkanShader* shader = (VulkanShader*)shaderPointer;
@@ -1042,10 +1054,14 @@ void* VulkanGraphicsService::CreatePipelineState(void* shaderPointer, struct Gra
 void VulkanGraphicsService::SetPipelineStateLabel(void* pipelineStatePointer, char* label){ }
 
 void VulkanGraphicsService::DeletePipelineState(void* pipelineStatePointer)
-{ 
-    VulkanPipelineState* pipelineState = (VulkanPipelineState*)pipelineStatePointer;
+{
+    VulkanPipelineState *pipelineState = (VulkanPipelineState *)pipelineStatePointer;
 
-    vkDestroyRenderPass(this->graphicsDevice, pipelineState->RenderPass, nullptr);
+    if (pipelineState->RenderPass)
+    {
+        vkDestroyRenderPass(this->graphicsDevice, pipelineState->RenderPass, nullptr);
+    }
+
     vkDestroyPipelineLayout(this->graphicsDevice, pipelineState->PipelineLayoutObject, nullptr);
     vkDestroyPipeline(this->graphicsDevice, pipelineState->PipelineStateObject, nullptr);
 
@@ -1221,8 +1237,8 @@ void VulkanGraphicsService::SetPipelineState(void* commandListPointer, void* pip
     if (this->currentPipelineState->PipelineStateObject != nullptr)
     {
         // TODO: Support compute shaders
-        vkCmdBindPipeline(commandList->CommandBufferObject, VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineStateObject);
-        vkCmdBindDescriptorSets(commandList->CommandBufferObject, VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 3, this->currentResourceHeap->DescriptorSets, 0, nullptr);
+        vkCmdBindPipeline(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineStateObject);
+        vkCmdBindDescriptorSets(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 3, this->currentResourceHeap->DescriptorSets, 0, nullptr);
     }
 }
 

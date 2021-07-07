@@ -816,6 +816,11 @@ namespace CoreEngine.Graphics
                 this.ScheduleDeletePipelineState(pipelineState);
             }
 
+            if (shader.ComputePipelineState != null)
+            {
+                this.ScheduleDeletePipelineState(shader.ComputePipelineState.Value);
+            }
+
             this.shadersToDelete[this.CurrentFrameNumber % 2].Add(shader);
         }
 
@@ -902,7 +907,12 @@ namespace CoreEngine.Graphics
             this.graphicsService.CopyTexture(commandList.NativePointer, destination.NativePointer, source.NativePointer);
         }
 
-        public void DispatchThreads(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        public void SetShader(CommandList commandList, Shader shader)
+        {
+            SetShader(commandList, shader, null);
+        }
+
+        public void DispatchCompute(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
             if (commandList.Type != CommandType.Compute)
             {
@@ -951,7 +961,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.EndRenderPass(commandList.NativePointer);
         }
 
-        private void SetShader(CommandList commandList, Shader shader, GraphicsRenderPassDescriptor renderPassDescriptor)
+        private void SetShader(CommandList commandList, Shader shader, GraphicsRenderPassDescriptor? renderPassDescriptor)
         {
             if (shader == null)
             {
@@ -966,11 +976,11 @@ namespace CoreEngine.Graphics
             this.shaderResourceManager.SetShaderResourceHeap(commandList);
             this.graphicsService.SetShader(commandList.NativePointer, shader.NativePointer);
 
-            if (!shader.PipelineStates.ContainsKey(renderPassDescriptor))
+            if (renderPassDescriptor != null && !shader.PipelineStates.ContainsKey(renderPassDescriptor.Value))
             {
                 Logger.WriteMessage($"Create Pipeline State for shader {shader.Label}...");
 
-                var nativePointer = this.graphicsService.CreatePipelineState(shader.NativePointer, renderPassDescriptor);
+                var nativePointer = this.graphicsService.CreatePipelineState(shader.NativePointer, renderPassDescriptor.Value);
 
                 if (nativePointer == IntPtr.Zero)
                 {
@@ -981,10 +991,37 @@ namespace CoreEngine.Graphics
 
                 var pipelineState = new PipelineState(this, nativePointer, $"{shader.Label}PSO");
                 this.pipelineStates.Add(pipelineState);
-                shader.PipelineStates.Add(renderPassDescriptor, pipelineState);
+                shader.PipelineStates.Add(renderPassDescriptor.Value, pipelineState);
             }
 
-            this.graphicsService.SetPipelineState(commandList.NativePointer, shader.PipelineStates[renderPassDescriptor].NativePointer);
+            else if (commandList.Type == CommandType.Compute && shader.ComputePipelineState == null)
+            {
+                Logger.WriteMessage($"Create Pipeline State for shader {shader.Label}...");
+
+                var nativePointer = this.graphicsService.CreateComputePipelineState(shader.NativePointer);
+
+                if (nativePointer == IntPtr.Zero)
+                {
+                    throw new InvalidOperationException("There was an error while creating the pipelinestate object.");
+                }
+
+                this.graphicsService.SetPipelineStateLabel(nativePointer, $"{shader.Label}PSO");
+
+                var pipelineState = new PipelineState(this, nativePointer, $"{shader.Label}PSO");
+
+                this.pipelineStates.Add(pipelineState);
+                shader.ComputePipelineState = pipelineState;
+            }
+
+            if (renderPassDescriptor != null)
+            {
+                this.graphicsService.SetPipelineState(commandList.NativePointer, shader.PipelineStates[renderPassDescriptor.Value].NativePointer);
+            }
+
+            else if (shader.ComputePipelineState != null)
+            {
+                this.graphicsService.SetPipelineState(commandList.NativePointer, shader.ComputePipelineState.Value.NativePointer);
+            }
         }
 
         // TODO: Do another overload to be able to specify a struct of uint instead?

@@ -104,6 +104,7 @@ namespace CoreEngine.Rendering
         private readonly DebugRenderer debugRenderer;
         private readonly GraphicsSceneQueue sceneQueue;
 
+        private readonly Shader computeRenderCommandsShader;
         private readonly Shader renderMeshInstanceShader;
 
         private readonly GraphicsBuffer cpuMeshBuffer;
@@ -133,6 +134,7 @@ namespace CoreEngine.Rendering
             this.debugRenderer = new DebugRenderer(graphicsManager, renderManager, resourcesManager);
             this.sceneQueue = sceneQueue;
 
+            this.computeRenderCommandsShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeRenderCommands.shader");
             this.renderMeshInstanceShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
 
             this.cpuMeshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "CpuMeshBuffer");
@@ -540,7 +542,77 @@ namespace CoreEngine.Rendering
 
             var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
 
-            // var graphicsPipelineParameters = new GraphicsPipelineParameter[]
+            var computeRenderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.ComputeCommandQueue, "ComputeRenderCommands");
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
+            this.graphicsManager.SetShader(computeRenderCommandList, this.computeRenderCommandsShader);
+            // TODO: Dispatch 1 group for now
+            this.graphicsManager.DispatchCompute(computeRenderCommandList, 1, 1, 1); 
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
+            this.graphicsManager.CommitCommandList(computeRenderCommandList);
+
+            this.renderManager.AddGpuTiming("ComputeRenderCommands", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+            var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { computeRenderCommandList }, new Fence[] { copyFence });
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.BeginAction("Create Depth Buffer");
+            }
+
+            var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+                Logger.BeginAction("Execute Command List");
+            }
+
+            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "RenderGeometry");
+
+            var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, Vector4.Zero, BlendOperation.None);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true, PrimitiveType.Triangle);
+
+            startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
+
+            // TODO: For the moment the resource states are in COMMON state
+            // We need to have an api here or somewhere else to be able to Transition to 
+            // Shader Read/write
+
+            if (this.currentMeshInstanceCount > 0)
+            {
+                // TODO: Replace currentMeshInstanceCount by currentIndirectCommandCount because we may pack the data later
+                this.graphicsManager.DispatchMeshIndirect<DispatchMeshIndirectParam>(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
+            }
+
+            this.graphicsManager.EndRenderPass(renderCommandList);
+            endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+
+            this.graphicsManager.CommitCommandList(renderCommandList);
+            this.renderManager.AddGpuTiming("RenderGeometry", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+
+            // TODO: Submit render and debug command list at the same time
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { computeFence });
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+                Logger.BeginAction("DebugRenderer");
+            }
+
+            this.debugRenderer.Render(this.camerasBuffer, mainRenderTargetTexture, depthBuffer);
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+            }
+        }
+    }
+}
+
+// TODO: OLD CODE
+
+// var graphicsPipelineParameters = new GraphicsPipelineParameter[]
             // {
             //     new ResourceGraphicsPipelineParameter("MainRenderTarget", mainRenderTargetTexture),
             //     new ResourceGraphicsPipelineParameter("MainCameraIndirectCommandBuffer", this.indirectCommandBufferList[mainCamera.OpaqueCommandListIndex]),
@@ -561,60 +633,3 @@ namespace CoreEngine.Rendering
             // // TODO: Skip the wait if the last step of the pipeline was on the render queue
             // this.graphicsManager.WaitForCommandQueue(this.renderManager.RenderCommandQueue, pipelineFence);
             // this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { transferCommandList }, isAwaitable: false);
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.BeginAction("Create Depth Buffer");
-            }
-
-            var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-                Logger.BeginAction("Execute Command List");
-            }
-
-            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "TestRender");
-
-            var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, Vector4.Zero, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true, PrimitiveType.Triangle);
-
-            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-
-            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
-
-            // TODO: For the moment the resource states are in COMMON state
-            // We need to have an api here or somewhere else to be able to Transition to 
-            // Shader Read/write
-
-            if (this.currentMeshInstanceCount > 0)
-            {
-                // TODO: Replace currentMeshInstanceCount by currentIndirectCommandCount because we may pack the data later
-                this.graphicsManager.DispatchMeshIndirect<DispatchMeshIndirectParam>(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
-            }
-
-            this.graphicsManager.EndRenderPass(renderCommandList);
-            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-
-            this.graphicsManager.CommitCommandList(renderCommandList);
-            this.renderManager.AddGpuTiming("RenderGeometry", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
-
-            // TODO: Submit render and debug command list at the same time
-            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { copyFence });
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-                Logger.BeginAction("DebugRenderer");
-            }
-
-            this.debugRenderer.Render(this.camerasBuffer, mainRenderTargetTexture, depthBuffer);
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-            }
-        }
-    }
-}

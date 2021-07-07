@@ -158,6 +158,7 @@ class Direct3D12GraphicsService
         void SetShaderLabel(void* shaderPointer, char* label);
         void DeleteShader(void* shaderPointer);
 
+        void* CreateComputePipelineState(void* shaderPointer);
         void* CreatePipelineState(void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
         void SetPipelineStateLabel(void* pipelineStatePointer, char* label);
         void DeletePipelineState(void* pipelineStatePointer);

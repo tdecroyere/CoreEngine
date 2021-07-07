@@ -22,6 +22,7 @@ PFN_vkVoidFunction GetVulkanFeatureFunction(VkInstance instance, VkDevice device
 
 PFN_vkCreateIndirectCommandsLayoutNV vkCreateIndirectCommandsLayout; 
 PFN_vkDestroyIndirectCommandsLayoutNV vkDestroyIndirectCommandsLayout;
+PFN_vkGetGeneratedCommandsMemoryRequirementsNV vkGetGeneratedCommandsMemoryRequirements;
 PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasks;
 PFN_vkCmdExecuteGeneratedCommandsNV vkCmdExecuteGeneratedCommands;
 PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallback;
@@ -32,6 +33,7 @@ void InitVulkanFeatureFunctions(VkInstance instance, VkDevice device)
 {
 	vkCreateIndirectCommandsLayout = (PFN_vkCreateIndirectCommandsLayoutNV)GetVulkanFeatureFunction(nullptr, device, "vkCreateIndirectCommandsLayoutNV");
 	vkDestroyIndirectCommandsLayout = (PFN_vkDestroyIndirectCommandsLayoutNV)GetVulkanFeatureFunction(nullptr, device, "vkDestroyIndirectCommandsLayoutNV");
+	vkGetGeneratedCommandsMemoryRequirements = (PFN_vkGetGeneratedCommandsMemoryRequirementsNV)GetVulkanFeatureFunction(nullptr, device, "vkGetGeneratedCommandsMemoryRequirementsNV");
 	vkCmdDrawMeshTasks = (PFN_vkCmdDrawMeshTasksNV)GetVulkanFeatureFunction(nullptr, device, "vkCmdDrawMeshTasksNV");
 	vkCmdExecuteGeneratedCommands = (PFN_vkCmdExecuteGeneratedCommandsNV)GetVulkanFeatureFunction(nullptr, device, "vkCmdExecuteGeneratedCommandsNV");
 
@@ -114,6 +116,39 @@ VkFormat VulkanConvertTextureFormat(GraphicsTextureFormat textureFormat, bool no
 	}
         
 	return noSrgb ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+}
+
+VkBuffer VulkanCreateIndirectCommandWorkingBuffer(VkDevice device, VulkanShader* shader, VulkanPipelineState* pipelineState, uint32_t maxCommandCount, uint32_t gpuMemoryIndex, VkDeviceMemory* deviceMemory, uint32_t* workingBufferSize)
+{
+	VkGeneratedCommandsMemoryRequirementsInfoNV info { VK_STRUCTURE_TYPE_GENERATED_COMMANDS_MEMORY_REQUIREMENTS_INFO_NV };
+	info.pipeline = pipelineState->PipelineStateObject;
+	info.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	info.maxSequencesCount = maxCommandCount;
+	info.indirectCommandsLayout = shader->CommandSignature;
+	
+	VkMemoryRequirements2 memoryRequirements = { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+	vkGetGeneratedCommandsMemoryRequirements(device, &info, &memoryRequirements);
+
+	VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+	createInfo.size = memoryRequirements.memoryRequirements.size;
+	createInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+	VkBuffer buffer = nullptr;
+	AssertIfFailed(vkCreateBuffer(device, &createInfo, nullptr, &buffer));
+
+	VkMemoryRequirements bufferMemoryRequirements;
+	vkGetBufferMemoryRequirements(device, buffer, &bufferMemoryRequirements);
+
+	VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+	allocateInfo.memoryTypeIndex = gpuMemoryIndex;
+	allocateInfo.allocationSize = bufferMemoryRequirements.size;
+
+	vkAllocateMemory(device, &allocateInfo, nullptr, deviceMemory);
+	AssertIfFailed(vkBindBufferMemory(device, buffer, *deviceMemory, 0));
+
+	*workingBufferSize = memoryRequirements.memoryRequirements.size;
+
+	return buffer;
 }
 
 VkImage CreateImage(VkDevice device, enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
@@ -354,11 +389,12 @@ VkIndirectCommandsLayoutNV CreateIndirectPipelineLayout(VkDevice device, bool is
 	arguments[1] = { VK_STRUCTURE_TYPE_INDIRECT_COMMANDS_LAYOUT_TOKEN_NV };
 	arguments[1].tokenType = VK_INDIRECT_COMMANDS_TOKEN_TYPE_DRAW_TASKS_NV;
 	arguments[1].stream = 0;
+	arguments[1].offset = parameterCount * sizeof(uint32_t);
 
 	uint32_t strides[1] = {(3 + parameterCount) * sizeof(uint32_t)};
 
 	VkIndirectCommandsLayoutCreateInfoNV createInfo = { VK_STRUCTURE_TYPE_INDIRECT_COMMANDS_LAYOUT_CREATE_INFO_NV };
-    createInfo.flags = 0;
+    createInfo.flags = VK_INDIRECT_COMMANDS_LAYOUT_USAGE_UNORDERED_SEQUENCES_BIT_NV;
     createInfo.pipelineBindPoint = isComputeShader ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
     createInfo.tokenCount = ARRAYSIZE(arguments);
     createInfo.pTokens = arguments;

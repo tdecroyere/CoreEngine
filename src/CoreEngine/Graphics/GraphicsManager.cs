@@ -60,7 +60,7 @@ namespace CoreEngine.Graphics
             this.graphicsMemoryManager = new GraphicsMemoryManager(this, graphicsService);
             this.shaderResourceManager = new ShaderResourceManager(graphicsService);
 
-            var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName();
+            var graphicsAdapterName = this.graphicsService.GetGraphicsAdapterName().Replace("\0", "");
             this.graphicsAdapterName = (graphicsAdapterName != null) ? graphicsAdapterName : "Unknown Graphics Adapter";
 
             graphicsBuffersToDelete[0] = new List<GraphicsBuffer>();

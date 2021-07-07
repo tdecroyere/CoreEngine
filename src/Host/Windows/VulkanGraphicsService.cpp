@@ -562,6 +562,16 @@ void VulkanGraphicsService::DeleteGraphicsBuffer(void* graphicsBufferPointer)
     VulkanGraphicsBuffer* graphicsBuffer = (VulkanGraphicsBuffer*)graphicsBufferPointer;
     vkDestroyBuffer(this->graphicsDevice, graphicsBuffer->BufferObject, nullptr);
 
+    if (graphicsBuffer->IndirectCommandWorkingDeviceMemory != nullptr)
+    {
+        vkFreeMemory(this->graphicsDevice, graphicsBuffer->IndirectCommandWorkingDeviceMemory, nullptr);
+    }
+
+    if (graphicsBuffer->IndirectCommandWorkingBuffer != nullptr)
+    {
+        vkDestroyBuffer(this->graphicsDevice, graphicsBuffer->IndirectCommandWorkingBuffer, nullptr);
+    }
+
     delete graphicsBuffer;
 }
 
@@ -1257,6 +1267,11 @@ void VulkanGraphicsService::DispatchMeshIndirect(void* commandListPointer, unsig
 
     if (commandList->IsRenderPassActive && this->currentShader)
     {
+        if (commandGraphicsBuffer->IndirectCommandWorkingBuffer == nullptr)
+        {
+            commandGraphicsBuffer->IndirectCommandWorkingBuffer = VulkanCreateIndirectCommandWorkingBuffer(this->graphicsDevice, this->currentShader, this->currentPipelineState, maxCommandCount, this->gpuMemoryTypeIndex, &commandGraphicsBuffer->IndirectCommandWorkingDeviceMemory, &commandGraphicsBuffer->IndirectCommandWorkingBufferSize);
+        }
+
         VkIndirectCommandsStreamNV streams[1] = {};
         streams[0].buffer = commandGraphicsBuffer->BufferObject;
         streams[0].offset = commandBufferOffset;
@@ -1264,12 +1279,13 @@ void VulkanGraphicsService::DispatchMeshIndirect(void* commandListPointer, unsig
         VkGeneratedCommandsInfoNV generatedCommandsInfo = { VK_STRUCTURE_TYPE_GENERATED_COMMANDS_INFO_NV };
         generatedCommandsInfo.indirectCommandsLayout = this->currentShader->CommandSignature;
         generatedCommandsInfo.pipeline = this->currentPipelineState->PipelineStateObject;
+        generatedCommandsInfo.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         generatedCommandsInfo.pStreams = streams;
         generatedCommandsInfo.streamCount = ARRAYSIZE(streams);
         generatedCommandsInfo.sequencesCount = maxCommandCount;
-        generatedCommandsInfo.preprocessBuffer = commandGraphicsBuffer->BufferObject;
-        generatedCommandsInfo.preprocessSize = 1024;
-        generatedCommandsInfo.preprocessOffset = 1024;
+        generatedCommandsInfo.preprocessBuffer = commandGraphicsBuffer->IndirectCommandWorkingBuffer;
+        generatedCommandsInfo.preprocessSize = commandGraphicsBuffer->IndirectCommandWorkingBufferSize;
+        generatedCommandsInfo.preprocessOffset = 0;
 
         vkCmdExecuteGeneratedCommands(commandList->CommandBufferObject, false, &generatedCommandsInfo);
     }

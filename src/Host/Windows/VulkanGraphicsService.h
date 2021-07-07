@@ -49,6 +49,9 @@ struct VulkanGraphicsBuffer
     VulkanGraphicsHeap* GraphicsHeap;
     void* CpuPointer;
     VkAccessFlags ResourceAccess;
+    VkBuffer IndirectCommandWorkingBuffer;
+    VkDeviceMemory IndirectCommandWorkingDeviceMemory;
+    uint32_t IndirectCommandWorkingBufferSize;
 };
 
 struct VulkanTexture

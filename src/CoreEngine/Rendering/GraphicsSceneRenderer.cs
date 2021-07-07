@@ -417,7 +417,9 @@ namespace CoreEngine.Rendering
                     MeshletCount = meshletCount,
                     MeshInstanceIndex = (uint)i,
                     ThreadGroupCount = (uint)MathF.Ceiling((float)meshletCount / waveSize),
-                    Reserved1 = 1,
+                    // TODO: This is a big hack for now because the dispatch mesh parameters are different between
+                    // Vulkan and Direct3D12, we should have another mechanism of defining the command structure
+                    Reserved1 = this.graphicsManager.graphicsAdapterName.Contains("Vulkan") ? 0u : 1u,
                     Reserved2 = 1
                 };
 

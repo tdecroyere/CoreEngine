@@ -139,10 +139,10 @@ void Direct3D12GraphicsServiceDeleteShaderResourceTextureInterop(void* context, 
     contextObject->DeleteShaderResourceTexture(shaderResourceHeapPointer, index);
 }
 
-void Direct3D12GraphicsServiceCreateShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer)
+void Direct3D12GraphicsServiceCreateShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->CreateShaderResourceBuffer(shaderResourceHeapPointer, index, bufferPointer);
+    contextObject->CreateShaderResourceBuffer(shaderResourceHeapPointer, index, bufferPointer, isWriteable);
 }
 
 void Direct3D12GraphicsServiceDeleteShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index)
@@ -373,10 +373,10 @@ void Direct3D12GraphicsServiceDispatchMeshInterop(void* context, void* commandLi
     contextObject->DispatchMesh(commandListPointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
-void Direct3D12GraphicsServiceDispatchMeshIndirectInterop(void* context, void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes)
+void Direct3D12GraphicsServiceExecuteIndirectInterop(void* context, void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->DispatchMeshIndirect(commandListPointer, maxCommandCount, commandGraphicsBufferPointer, commandBufferOffset, commandSizeInBytes);
+    contextObject->ExecuteIndirect(commandListPointer, maxCommandCount, commandGraphicsBufferPointer, commandBufferOffset);
 }
 
 void Direct3D12GraphicsServiceBeginQueryInterop(void* context, void* commandListPointer, void* queryBufferPointer, int index)
@@ -462,7 +462,7 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
     service->GraphicsService_SetShader = Direct3D12GraphicsServiceSetShaderInterop;
     service->GraphicsService_SetShaderParameterValues = Direct3D12GraphicsServiceSetShaderParameterValuesInterop;
     service->GraphicsService_DispatchMesh = Direct3D12GraphicsServiceDispatchMeshInterop;
-    service->GraphicsService_DispatchMeshIndirect = Direct3D12GraphicsServiceDispatchMeshIndirectInterop;
+    service->GraphicsService_ExecuteIndirect = Direct3D12GraphicsServiceExecuteIndirectInterop;
     service->GraphicsService_BeginQuery = Direct3D12GraphicsServiceBeginQueryInterop;
     service->GraphicsService_EndQuery = Direct3D12GraphicsServiceEndQueryInterop;
     service->GraphicsService_ResolveQueryData = Direct3D12GraphicsServiceResolveQueryDataInterop;

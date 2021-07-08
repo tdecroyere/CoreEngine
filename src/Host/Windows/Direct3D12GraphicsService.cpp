@@ -347,7 +347,7 @@ void Direct3D12GraphicsService::CreateShaderResourceTexture(void* shaderResource
 	// TODO: Create also RTV and DSV when appropriate so that we can remove the other global heaps
 
 	// TODO: To remove when SM6.6 is stable
-	int textureOffset = 500;
+	int textureOffset = 2500;
 
 	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
 	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
@@ -369,22 +369,41 @@ void Direct3D12GraphicsService::DeleteShaderResourceTexture(void* shaderResource
 	// TODO
 }
 
-void Direct3D12GraphicsService::CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer)
+void Direct3D12GraphicsService::CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable)
 {
 	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
 	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)bufferPointer;
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Buffer.NumElements = (UINT)graphicsBuffer->ResourceDesc.Width / 4;
-    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+	if (!isWriteable)
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Buffer.NumElements = (UINT)graphicsBuffer->ResourceDesc.Width / 4;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 
-	auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
-	descriptorHandle.ptr += index * descriptorHeap->HandleSize;
+		auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
+		descriptorHandle.ptr += index * descriptorHeap->HandleSize;
 
-	this->graphicsDevice->CreateShaderResourceView(graphicsBuffer->BufferObject.Get(), &srvDesc, descriptorHandle);
+		this->graphicsDevice->CreateShaderResourceView(graphicsBuffer->BufferObject.Get(), &srvDesc, descriptorHandle);
+	}
+
+	else
+	{
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		uavDesc.Buffer.NumElements = (UINT)graphicsBuffer->ResourceDesc.Width / 4;
+		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+
+		int bufferOffset = 5000;
+		
+		auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
+		descriptorHandle.ptr += (bufferOffset + index) * descriptorHeap->HandleSize;
+
+		this->graphicsDevice->CreateUnorderedAccessView(graphicsBuffer->BufferObject.Get(), nullptr, &uavDesc, descriptorHandle);
+	}
 }
 
 void Direct3D12GraphicsService::DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index)
@@ -407,6 +426,11 @@ void* Direct3D12GraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer,
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.SampleDesc.Quality = 0;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	if (graphicsBufferUsage == GraphicsBufferUsage::WriteableStorage || graphicsBufferUsage == GraphicsBufferUsage::IndirectCommands)
+	{
+		resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	}
 
 	auto resourceState = D3D12_RESOURCE_STATE_COPY_DEST;
 
@@ -1286,9 +1310,13 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 			commandList->CommandListObject->SetGraphicsRootDescriptorTable(1, currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart());
 
 			D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle = currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart();
-			texturesHandle.ptr += (500 * currentDescriptorHeap->HandleSize);
-
+			
+			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
 			commandList->CommandListObject->SetGraphicsRootDescriptorTable(2, texturesHandle);
+
+			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
+			commandList->CommandListObject->SetGraphicsRootDescriptorTable(3, texturesHandle);
+
 			currentDescriptorHeap = nullptr;
 		}
 
@@ -1297,9 +1325,13 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 			commandList->CommandListObject->SetComputeRootDescriptorTable(1, currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart());
 
 			D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle = currentDescriptorHeap->HeapObject->GetGPUDescriptorHandleForHeapStart();
-			texturesHandle.ptr += (500 * currentDescriptorHeap->HandleSize);
 
+			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
 			commandList->CommandListObject->SetComputeRootDescriptorTable(2, texturesHandle);
+
+			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
+			commandList->CommandListObject->SetComputeRootDescriptorTable(3, texturesHandle);
+
 			currentDescriptorHeap = nullptr;
 		}
 	}
@@ -1333,7 +1365,7 @@ void Direct3D12GraphicsService::DispatchMesh(void* commandListPointer, unsigned 
 	commandList->CommandListObject->DispatchMesh(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
-void Direct3D12GraphicsService::DispatchMeshIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes)
+void Direct3D12GraphicsService::ExecuteIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset)
 {
 	if (!this->shaderBound)
 	{

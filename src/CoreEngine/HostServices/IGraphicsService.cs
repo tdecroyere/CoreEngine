@@ -26,6 +26,7 @@ namespace CoreEngine.HostServices
     public enum GraphicsBufferUsage
     {
         Storage,
+        WriteableStorage,
         IndirectCommands
     }
 
@@ -301,7 +302,7 @@ namespace CoreEngine.HostServices
         void DeleteShaderResourceHeap(IntPtr shaderResourceHeapPointer);
         void CreateShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index, IntPtr texturePointer);
         void DeleteShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index);
-        void CreateShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index, IntPtr bufferPointer);
+        void CreateShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index, IntPtr bufferPointer, bool isWriteable);
         void DeleteShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index);
         // TODO: UAV
 
@@ -369,7 +370,7 @@ namespace CoreEngine.HostServices
 
         // TODO: Suppress threadGroupCountY and threadGroupCountZ for mesh shader
         void DispatchMesh(IntPtr commandListPointer, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ);
-        void DispatchMeshIndirect(IntPtr commandListPointer, uint maxCommandCount, IntPtr commandGraphicsBufferPointer, uint commandBufferOffset, uint commandSizeInBytes);
+        void ExecuteIndirect(IntPtr commandListPointer, uint maxCommandCount, IntPtr commandGraphicsBufferPointer, uint commandBufferOffset);
 
         // TODO: Find a way to map opaque datastructures like the pipeline stats to a generic one to make this portable
         // TODO: IS the pipeline state usefull?

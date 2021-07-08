@@ -139,10 +139,10 @@ void VulkanGraphicsServiceDeleteShaderResourceTextureInterop(void* context, void
     contextObject->DeleteShaderResourceTexture(shaderResourceHeapPointer, index);
 }
 
-void VulkanGraphicsServiceCreateShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer)
+void VulkanGraphicsServiceCreateShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable)
 {
     auto contextObject = (VulkanGraphicsService*)context;
-    contextObject->CreateShaderResourceBuffer(shaderResourceHeapPointer, index, bufferPointer);
+    contextObject->CreateShaderResourceBuffer(shaderResourceHeapPointer, index, bufferPointer, isWriteable);
 }
 
 void VulkanGraphicsServiceDeleteShaderResourceBufferInterop(void* context, void* shaderResourceHeapPointer, unsigned int index)
@@ -373,10 +373,10 @@ void VulkanGraphicsServiceDispatchMeshInterop(void* context, void* commandListPo
     contextObject->DispatchMesh(commandListPointer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
-void VulkanGraphicsServiceDispatchMeshIndirectInterop(void* context, void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes)
+void VulkanGraphicsServiceExecuteIndirectInterop(void* context, void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset)
 {
     auto contextObject = (VulkanGraphicsService*)context;
-    contextObject->DispatchMeshIndirect(commandListPointer, maxCommandCount, commandGraphicsBufferPointer, commandBufferOffset, commandSizeInBytes);
+    contextObject->ExecuteIndirect(commandListPointer, maxCommandCount, commandGraphicsBufferPointer, commandBufferOffset);
 }
 
 void VulkanGraphicsServiceBeginQueryInterop(void* context, void* commandListPointer, void* queryBufferPointer, int index)
@@ -462,7 +462,7 @@ void InitVulkanGraphicsService(const VulkanGraphicsService* context, GraphicsSer
     service->GraphicsService_SetShader = VulkanGraphicsServiceSetShaderInterop;
     service->GraphicsService_SetShaderParameterValues = VulkanGraphicsServiceSetShaderParameterValuesInterop;
     service->GraphicsService_DispatchMesh = VulkanGraphicsServiceDispatchMeshInterop;
-    service->GraphicsService_DispatchMeshIndirect = VulkanGraphicsServiceDispatchMeshIndirectInterop;
+    service->GraphicsService_ExecuteIndirect = VulkanGraphicsServiceExecuteIndirectInterop;
     service->GraphicsService_BeginQuery = VulkanGraphicsServiceBeginQueryInterop;
     service->GraphicsService_EndQuery = VulkanGraphicsServiceEndQueryInterop;
     service->GraphicsService_ResolveQueryData = VulkanGraphicsServiceResolveQueryDataInterop;

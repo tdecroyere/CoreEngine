@@ -311,7 +311,7 @@ VkDescriptorSetLayout GetGlobalBufferLayout(VkDevice device)
 {
 	if (globalBufferLayout == nullptr)
 	{
-		globalBufferLayout = CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000);
+		globalBufferLayout = CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2500);
 	}
 
 	return globalBufferLayout;
@@ -323,10 +323,22 @@ VkDescriptorSetLayout GetGlobalTextureLayout(VkDevice device)
 {
 	if (globalTextureLayout == nullptr)
 	{
-		globalTextureLayout = CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000);
+		globalTextureLayout = CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2500);
 	}
 
 	return globalTextureLayout;
+}
+
+VkDescriptorSetLayout globalUavBufferLayout = nullptr;
+
+VkDescriptorSetLayout GetGlobalUavBufferLayout(VkDevice device)
+{
+	if (globalUavBufferLayout == nullptr)
+	{
+		globalUavBufferLayout = CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2500);
+	}
+
+	return globalUavBufferLayout;
 }
 
 VkDescriptorSetLayout globalSamplerLayout = nullptr;
@@ -348,6 +360,7 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t paramete
 	{
 		GetGlobalBufferLayout(device),
 		GetGlobalTextureLayout(device),
+		GetGlobalUavBufferLayout(device),
 		GetGlobalSamplerLayout(device)
 	};
 

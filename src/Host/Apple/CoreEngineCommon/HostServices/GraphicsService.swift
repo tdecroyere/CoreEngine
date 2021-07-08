@@ -24,7 +24,7 @@ public protocol GraphicsServiceProtocol {
     func deleteShaderResourceHeap(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?)
     func createShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ texturePointer: UnsafeMutableRawPointer?)
     func deleteShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)
-    func createShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ bufferPointer: UnsafeMutableRawPointer?)
+    func createShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ bufferPointer: UnsafeMutableRawPointer?, _ isWriteable: Bool)
     func deleteShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)
     func createGraphicsBuffer(_ graphicsHeapPointer: UnsafeMutableRawPointer?, _ heapOffset: UInt, _ graphicsBufferUsage: GraphicsBufferUsage, _ sizeInBytes: Int) -> UnsafeMutableRawPointer?
     func setGraphicsBufferLabel(_ graphicsBufferPointer: UnsafeMutableRawPointer?, _ label: String)
@@ -63,7 +63,7 @@ public protocol GraphicsServiceProtocol {
     func setShader(_ commandListPointer: UnsafeMutableRawPointer?, _ shaderPointer: UnsafeMutableRawPointer?)
     func setShaderParameterValues(_ commandListPointer: UnsafeMutableRawPointer?, _ slot: UInt, _ values: [UInt32])
     func dispatchMesh(_ commandListPointer: UnsafeMutableRawPointer?, _ threadGroupCountX: UInt, _ threadGroupCountY: UInt, _ threadGroupCountZ: UInt)
-    func dispatchMeshIndirect(_ commandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: UInt, _ commandGraphicsBufferPointer: UnsafeMutableRawPointer?, _ commandBufferOffset: UInt, _ commandSizeInBytes: UInt)
+    func executeIndirect(_ commandListPointer: UnsafeMutableRawPointer?, _ maxCommandCount: UInt, _ commandGraphicsBufferPointer: UnsafeMutableRawPointer?, _ commandBufferOffset: UInt)
     func beginQuery(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int)
     func endQuery(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ index: Int)
     func resolveQueryData(_ commandListPointer: UnsafeMutableRawPointer?, _ queryBufferPointer: UnsafeMutableRawPointer?, _ destinationBufferPointer: UnsafeMutableRawPointer?, _ startIndex: Int, _ endIndex: Int)

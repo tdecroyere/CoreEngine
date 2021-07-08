@@ -19,7 +19,7 @@ namespace CoreEngine.Graphics
             this.graphicsService = graphicsService;
             this.availableIndexes = new Queue<uint>();
 
-            var heapLength = 1000ul;
+            var heapLength = 10000ul;
             var heapLabel = "ShaderResourceHeap";
 
             var nativePointer = this.graphicsService.CreateShaderResourceHeap(heapLength);
@@ -82,7 +82,7 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public void CreateShaderResourceBuffer(GraphicsBuffer buffer)
+        public void CreateShaderResourceBuffer(GraphicsBuffer buffer, bool isWriteable)
         {
             if (buffer is null)
             {
@@ -96,14 +96,14 @@ namespace CoreEngine.Graphics
 
             var index = GetIndex();
 
-            this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, index, buffer.NativePointer1);
+            this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, index, buffer.NativePointer1, isWriteable);
             buffer.ShaderResourceIndex1 = index;
 
             if (buffer.NativePointer2 != null)
             {
                 index = GetIndex();
 
-                this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, index, buffer.NativePointer2.Value);
+                this.graphicsService.CreateShaderResourceBuffer(this.shaderResourceHeap.NativePointer, index, buffer.NativePointer2.Value, isWriteable);
                 buffer.ShaderResourceIndex2 = index;
             }
         }

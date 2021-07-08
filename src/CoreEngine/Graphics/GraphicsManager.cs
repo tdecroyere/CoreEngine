@@ -419,7 +419,13 @@ namespace CoreEngine.Graphics
 
             if (heapType == GraphicsHeapType.Gpu)
             {
-                this.shaderResourceManager.CreateShaderResourceBuffer(graphicsBuffer);
+                this.shaderResourceManager.CreateShaderResourceBuffer(graphicsBuffer, isWriteable: false);
+
+                if (usage == GraphicsBufferUsage.WriteableStorage || usage == GraphicsBufferUsage.IndirectCommands)
+                {
+                    // TODO: For the moment we create an UAV view for each buffer, is it needed?
+                    this.shaderResourceManager.CreateShaderResourceBuffer(graphicsBuffer, isWriteable: true);
+                }
             }
 
             return graphicsBuffer;
@@ -1056,7 +1062,7 @@ namespace CoreEngine.Graphics
             this.cpuDrawCount++;
         }
 
-        public void DispatchMeshIndirect<T>(CommandList commandList, uint maxCommandCount, GraphicsBuffer commandGraphicsBuffer, uint commandBufferOffset) where T : struct
+        public void ExecuteIndirect(CommandList commandList, uint maxCommandCount, GraphicsBuffer commandGraphicsBuffer, uint commandBufferOffset)
         {
             if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
             {
@@ -1068,7 +1074,7 @@ namespace CoreEngine.Graphics
                 throw new ArgumentNullException(nameof(commandGraphicsBuffer));
             }
 
-            this.graphicsService.DispatchMeshIndirect(commandList.NativePointer, maxCommandCount, commandGraphicsBuffer.NativePointer, commandBufferOffset, (uint)Marshal.SizeOf<T>());
+            this.graphicsService.ExecuteIndirect(commandList.NativePointer, maxCommandCount, commandGraphicsBuffer.NativePointer, commandBufferOffset);
         }
 
         public void BeginQuery(CommandList commandList, QueryBuffer queryBuffer, int index)

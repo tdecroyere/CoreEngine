@@ -38,7 +38,7 @@ struct VulkanGraphicsHeap
 struct VulkanShaderResourceHeap
 {
     VkDescriptorPool DescriptorPool;
-    VkDescriptorSet DescriptorSets[3];
+    VkDescriptorSet DescriptorSets[4];
     VkSampler Sampler;
 };
 
@@ -137,7 +137,7 @@ class VulkanGraphicsService
         void DeleteShaderResourceHeap(void* shaderResourceHeapPointer);
         void CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer);
         void DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index);
-        void CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer);
+        void CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable);
         void DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index);
 
         void* CreateGraphicsBuffer(void* graphicsHeapPointer, unsigned long heapOffset, GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes);
@@ -188,7 +188,7 @@ class VulkanGraphicsService
         void SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
 
         void DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
-        void DispatchMeshIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes);
+        void ExecuteIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset);
 
         void BeginQuery(void* commandListPointer, void* queryBufferPointer, int index);
         void EndQuery(void* commandListPointer, void* queryBufferPointer, int index);

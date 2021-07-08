@@ -376,8 +376,9 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
 
     VkDescriptorPoolSize poolSizes[]
     {
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, length},
-        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, length },
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2500},
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2500},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2500},
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1 }
     };
 
@@ -385,17 +386,18 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
     createInfo.poolSizeCount = ARRAYSIZE(poolSizes);
     createInfo.pPoolSizes = poolSizes;
     createInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-    createInfo.maxSets = 3;
+    createInfo.maxSets = 4;
 
     vkCreateDescriptorPool(this->graphicsDevice, &createInfo, nullptr, &resourceHeap->DescriptorPool);
 
     VkDescriptorSetLayout setLayouts[] {
         GetGlobalBufferLayout(this->graphicsDevice),
 	    GetGlobalTextureLayout(this->graphicsDevice),
+        GetGlobalUavBufferLayout(this->graphicsDevice),
 	    GetGlobalSamplerLayout(this->graphicsDevice)
     };
 
-    uint32_t counts[] { length, length, 1 };
+    uint32_t counts[] { 2500, 2500, 2500, 1 };
 
     VkDescriptorSetVariableDescriptorCountAllocateInfo set_counts = {};
     set_counts.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
@@ -422,7 +424,7 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
     samplerInfo.sampler = resourceHeap->Sampler;
 
     VkWriteDescriptorSet descriptor = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    descriptor.dstSet = resourceHeap->DescriptorSets[2];
+    descriptor.dstSet = resourceHeap->DescriptorSets[3];
     descriptor.dstBinding = 0;
     descriptor.dstArrayElement = 0;
     descriptor.descriptorCount = 1;
@@ -457,6 +459,7 @@ void VulkanGraphicsService::DeleteShaderResourceHeap(void* shaderResourceHeapPoi
     vkDestroySampler(this->graphicsDevice, shaderResourceHeap->Sampler, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalBufferLayout, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalTextureLayout, nullptr);
+    vkDestroyDescriptorSetLayout(this->graphicsDevice, globalUavBufferLayout, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalSamplerLayout, nullptr);
 
     delete shaderResourceHeap;
@@ -484,7 +487,7 @@ void VulkanGraphicsService::CreateShaderResourceTexture(void* shaderResourceHeap
 
 void VulkanGraphicsService::DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index){ }
 
-void VulkanGraphicsService::CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer)
+void VulkanGraphicsService::CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable)
 { 
     VulkanShaderResourceHeap* shaderResourceHeap = (VulkanShaderResourceHeap*)shaderResourceHeapPointer;
     VulkanGraphicsBuffer* graphicsBuffer = (VulkanGraphicsBuffer*)bufferPointer;
@@ -493,15 +496,31 @@ void VulkanGraphicsService::CreateShaderResourceBuffer(void* shaderResourceHeapP
     bufferInfo.buffer = graphicsBuffer->BufferObject;
     bufferInfo.range = graphicsBuffer->SizeInBytes;
 
-    VkWriteDescriptorSet descriptor = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    descriptor.dstSet = shaderResourceHeap->DescriptorSets[0];
-    descriptor.dstBinding = 0;
-    descriptor.dstArrayElement = index;
-    descriptor.descriptorCount = 1;
-    descriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptor.pBufferInfo = &bufferInfo;
+    if (!isWriteable)
+    {
+        VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        descriptor.dstSet = shaderResourceHeap->DescriptorSets[0];
+        descriptor.dstBinding = 0;
+        descriptor.dstArrayElement = index;
+        descriptor.descriptorCount = 1;
+        descriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptor.pBufferInfo = &bufferInfo;
 
-    vkUpdateDescriptorSets(this->graphicsDevice, 1, &descriptor, 0, nullptr);
+        vkUpdateDescriptorSets(this->graphicsDevice, 1, &descriptor, 0, nullptr);
+    }
+
+    else
+    {
+        VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        descriptor.dstSet = shaderResourceHeap->DescriptorSets[2];
+        descriptor.dstBinding = 0;
+        descriptor.dstArrayElement = index;
+        descriptor.descriptorCount = 1;
+        descriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptor.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(this->graphicsDevice, 1, &descriptor, 0, nullptr);
+    }
 }
 
 void VulkanGraphicsService::DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index){ }
@@ -1133,7 +1152,12 @@ void VulkanGraphicsService::TransitionGraphicsBufferToState(void* commandListPoi
 	TransitionBufferToState(commandList, graphicsBuffer, destinationState, commandList->CommandQueue->IsCopyCommandQueue);
 }
 
-void VulkanGraphicsService::DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ){ }
+void VulkanGraphicsService::DispatchThreads(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
+{ 
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+
+    vkCmdDispatch(commandList->CommandBufferObject, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+}
 
 void VulkanGraphicsService::BeginRenderPass(void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor)
 { 
@@ -1238,7 +1262,7 @@ void VulkanGraphicsService::SetPipelineState(void* commandListPointer, void* pip
     {
         // TODO: Support compute shaders
         vkCmdBindPipeline(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineStateObject);
-        vkCmdBindDescriptorSets(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 3, this->currentResourceHeap->DescriptorSets, 0, nullptr);
+        vkCmdBindDescriptorSets(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 4, this->currentResourceHeap->DescriptorSets, 0, nullptr);
     }
 }
 
@@ -1254,16 +1278,12 @@ void VulkanGraphicsService::SetShader(void* commandListPointer, void* shaderPoin
 }
 
 void VulkanGraphicsService::SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength)
-{ 
-    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+{
+    VulkanCommandList *commandList = (VulkanCommandList *)commandListPointer;
 
-    // TODO: Disable that
-    if (commandList->IsRenderPassActive)
-    {
-        // TODO: There seems that there is a memory leak here!!!
-        // Is it a drive issue?
-        vkCmdPushConstants(commandList->CommandBufferObject, this->currentPipelineState->PipelineLayoutObject, VK_SHADER_STAGE_ALL, 0, valuesLength * 4, values);
-    }
+    // TODO: There seems that there is a memory leak here!!!
+    // Is it a drive issue?
+    vkCmdPushConstants(commandList->CommandBufferObject, this->currentPipelineState->PipelineLayoutObject, VK_SHADER_STAGE_ALL, 0, valuesLength * 4, values);
 }
 
 void VulkanGraphicsService::DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
@@ -1276,7 +1296,7 @@ void VulkanGraphicsService::DispatchMesh(void* commandListPointer, unsigned int 
     }
 }
 
-void VulkanGraphicsService::DispatchMeshIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes)
+void VulkanGraphicsService::ExecuteIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset)
 {
     VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
     VulkanGraphicsBuffer* commandGraphicsBuffer = (VulkanGraphicsBuffer*)commandGraphicsBufferPointer;

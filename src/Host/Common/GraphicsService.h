@@ -19,6 +19,7 @@ enum GraphicsServiceCommandType : int
 enum GraphicsBufferUsage : int
 {
     Storage, 
+    WriteableStorage, 
     IndirectCommands
 };
 
@@ -163,7 +164,7 @@ typedef void (*GraphicsService_SetShaderResourceHeapLabelPtr)(void* context, voi
 typedef void (*GraphicsService_DeleteShaderResourceHeapPtr)(void* context, void* shaderResourceHeapPointer);
 typedef void (*GraphicsService_CreateShaderResourceTexturePtr)(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer);
 typedef void (*GraphicsService_DeleteShaderResourceTexturePtr)(void* context, void* shaderResourceHeapPointer, unsigned int index);
-typedef void (*GraphicsService_CreateShaderResourceBufferPtr)(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer);
+typedef void (*GraphicsService_CreateShaderResourceBufferPtr)(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable);
 typedef void (*GraphicsService_DeleteShaderResourceBufferPtr)(void* context, void* shaderResourceHeapPointer, unsigned int index);
 typedef void* (*GraphicsService_CreateGraphicsBufferPtr)(void* context, void* graphicsHeapPointer, unsigned long heapOffset, enum GraphicsBufferUsage graphicsBufferUsage, int sizeInBytes);
 typedef void (*GraphicsService_SetGraphicsBufferLabelPtr)(void* context, void* graphicsBufferPointer, char* label);
@@ -202,7 +203,7 @@ typedef void (*GraphicsService_SetShaderResourceHeapPtr)(void* context, void* co
 typedef void (*GraphicsService_SetShaderPtr)(void* context, void* commandListPointer, void* shaderPointer);
 typedef void (*GraphicsService_SetShaderParameterValuesPtr)(void* context, void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
 typedef void (*GraphicsService_DispatchMeshPtr)(void* context, void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
-typedef void (*GraphicsService_DispatchMeshIndirectPtr)(void* context, void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset, unsigned int commandSizeInBytes);
+typedef void (*GraphicsService_ExecuteIndirectPtr)(void* context, void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset);
 typedef void (*GraphicsService_BeginQueryPtr)(void* context, void* commandListPointer, void* queryBufferPointer, int index);
 typedef void (*GraphicsService_EndQueryPtr)(void* context, void* commandListPointer, void* queryBufferPointer, int index);
 typedef void (*GraphicsService_ResolveQueryDataPtr)(void* context, void* commandListPointer, void* queryBufferPointer, void* destinationBufferPointer, int startIndex, int endIndex);
@@ -272,7 +273,7 @@ struct GraphicsService
     GraphicsService_SetShaderPtr GraphicsService_SetShader;
     GraphicsService_SetShaderParameterValuesPtr GraphicsService_SetShaderParameterValues;
     GraphicsService_DispatchMeshPtr GraphicsService_DispatchMesh;
-    GraphicsService_DispatchMeshIndirectPtr GraphicsService_DispatchMeshIndirect;
+    GraphicsService_ExecuteIndirectPtr GraphicsService_ExecuteIndirect;
     GraphicsService_BeginQueryPtr GraphicsService_BeginQuery;
     GraphicsService_EndQueryPtr GraphicsService_EndQuery;
     GraphicsService_ResolveQueryDataPtr GraphicsService_ResolveQueryData;

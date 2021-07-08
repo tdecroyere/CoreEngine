@@ -63,24 +63,6 @@ namespace CoreEngine.Rendering
         public BoundingBox WorldBoundingBox { get; init; }
     }
 
-    // OLD STRUCTURE: TO REMOVE
-    readonly struct ShaderGeometryPacket
-    {
-        public int VertexBufferIndex { get; init; }
-        public int IndexBufferIndex { get; init; }
-    }
-
-    readonly struct ShaderGeometryInstance
-    {
-        public int GeometryPacketIndex { get; init; }
-        public int StartIndex { get; init; }
-        public int VertexCount { get; init; }
-        public int IndexCount { get; init; }
-        public ShaderMatrix4x3 WorldMatrix { get; init; }
-        public ShaderMatrix3x3 WorldInvTransposeMatrix { get; init; }
-        public BoundingBox WorldBoundingBox { get; init; }
-    }
-
     public readonly struct DispatchMeshIndirectParam
     {
         public uint CamerasBuffer { get; init; }
@@ -113,7 +95,6 @@ namespace CoreEngine.Rendering
         private readonly GraphicsBuffer cpuMeshInstanceBuffer;
         private readonly GraphicsBuffer meshInstanceBuffer;
 
-        private readonly GraphicsBuffer cpuIndirectCommandBuffer;
         private readonly GraphicsBuffer indirectCommandBuffer;
 
         private readonly GraphicsBuffer cpuCamerasBuffer;
@@ -143,7 +124,6 @@ namespace CoreEngine.Rendering
             this.cpuMeshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "CpuMeshInstanceBuffer");
             this.meshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "MeshInstanceBuffer");
 
-            this.cpuIndirectCommandBuffer = this.graphicsManager.CreateGraphicsBuffer<DispatchMeshIndirectParam>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "CpuIndirectCommandBuffer");
             this.indirectCommandBuffer = this.graphicsManager.CreateGraphicsBuffer<DispatchMeshIndirectParam>(GraphicsHeapType.Gpu, GraphicsBufferUsage.IndirectCommands, 100000, isStatic: false, label: "IndirectCommandBuffer");
 
             this.cpuCamerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeCameras");
@@ -151,101 +131,6 @@ namespace CoreEngine.Rendering
 
             this.cpuLightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeLights");
             this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeLights");
-            
-
-            // var graphicsPipelineResourceDeclarations = new GraphicsPipelineResourceDeclaration[]
-            // {
-            //     new GraphicsPipelineTextureResourceDeclaration("MainCameraDepthBuffer", TextureFormat.Depth32Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-            //     new GraphicsPipelineTextureResourceDeclaration("OpaqueHdrRenderTarget", TextureFormat.Rgba16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-            //     new GraphicsPipelineTextureResourceDeclaration("TransparentHdrRenderTarget", TextureFormat.Rgba16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-            //     new GraphicsPipelineTextureResourceDeclaration("TransparentRevealageRenderTarget", TextureFormat.R16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-            //     new GraphicsPipelineTextureResourceDeclaration("ResolveRenderTarget", TextureFormat.Rgba16Float, TextureUsage.ShaderWrite, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
-            //     new GraphicsPipelineTextureResourceDeclaration("ToneMapRenderTarget", TextureFormat.Rgba16Float, TextureUsage.ShaderWrite, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height"))
-            // };
-
-            // var graphicsPipelineSteps = Array.Empty<GraphicsPipelineStep>();
-
-            // var graphicsPipelineSteps = new GraphicsPipelineStep[]
-            // {
-            // new ExecutePipelineStep("GenerateDepthBuffer",
-            //                         this.depthGraphicsPipeline,
-            //                         new GraphicsPipelineParameter[]
-            //                         {
-            //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer")),
-            //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer")),
-            //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer")),
-            //                             new BindingGraphicsPipelineParameter<int>("GeometryInstanceCount", new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
-            //                         }),
-            // new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
-            //                                 resourcesManager,
-            //                                 new GraphicsPipelineResourceBinding[]
-            //                                 {
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<int>(0)),
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MinMaxDepthComputeBuffer"), new ConstantPipelineParameterBinding<int>(2))
-            //                                 },
-            //                                 new GraphicsPipelineResourceBinding[]
-            //                                 {
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
-            //                                 }),
-            // new RenderIndirectCommandBufferPipelineStep("RenderOpaqueGeometry",
-            //                                             "/System/Shaders/RenderMeshInstance.shader",
-            //                                             new GraphicsPipelineResourceBinding[]
-            //                                             {
-            //                                                 new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareEqual)),
-            //                                                 new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
-            //                                             },
-            //                                             new GraphicsPipelineResourceBinding[]
-            //                                             {
-            //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new GraphicsPipelineParameterBinding<Vector4>("ClearColor"))
-            //                                             }),
-            // new RenderIndirectCommandBufferPipelineStep("RenderTransparentGeometry",
-            //                                             "/System/Shaders/RenderMeshInstanceTransparent.shader",
-            //                                             new GraphicsPipelineResourceBinding[]
-            //                                             {
-            //                                                 new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareGreater)),
-            //                                                 new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
-            //                                             },
-            //                                             new GraphicsPipelineResourceBinding[]
-            //                                             {
-            //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new ConstantPipelineParameterBinding<Vector4>(new Vector4(0, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneOne)),
-            //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(1), new ConstantPipelineParameterBinding<Vector4>(new Vector4(1, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneMinusSourceColor))
-            //                                             },
-            //                                             backfaceCulling: false),
-            // new ComputeGraphicsPipelineStep("Resolve", 
-            //                                 "/System/Shaders/ResolveCompute.shader@Resolve",
-            //                                 new GraphicsPipelineResourceBinding[]
-            //                                 {
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0)),
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(1)),
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(2))
-            //                                 }, 
-            //                                 new GraphicsPipelineResourceBinding[]
-            //                                 {
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(3))
-            //                                 }, 
-            //                                 new GraphicsPipelineParameterBinding<int>[]
-            //                                 {  
-            //                                     new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Width"),
-            //                                     new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Height")
-            //                                 }),
-            // new ComputeGraphicsPipelineStep("ToneMap", 
-            //                                 "/System/Shaders/ToneMapCompute.shader@ToneMap",
-            //                                 new GraphicsPipelineResourceBinding[]
-            //                                 {
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(0))
-            //                                 }, 
-            //                                 new GraphicsPipelineResourceBinding[]
-            //                                 {
-            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ToneMapRenderTarget"), new ConstantPipelineParameterBinding<int>(1))
-            //                                 }, 
-            //                                 new GraphicsPipelineParameterBinding<int>[]
-            //                                 {  
-            //                                     new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"),
-            //                                     new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")
-            //                                 })
-            // };
-
-            // this.graphicsPipeline = new GraphicsPipeline(this.renderManager, this.graphicsManager, resourcesManager, graphicsPipelineResourceDeclarations, graphicsPipelineSteps);
         }
 
         public void Render(Texture mainRenderTargetTexture)
@@ -348,11 +233,9 @@ namespace CoreEngine.Rendering
 
             uint currentMeshIndex = 0;
             uint currentMeshInstanceIndex = 0;
-            uint currentIndirectCommandIndex = 0;
 
             var meshList = ArrayPool<ShaderMesh>.Shared.Rent(10000);
             var meshInstanceList = ArrayPool<ShaderMeshInstance>.Shared.Rent(100000);
-            var indirectCommandList = ArrayPool<DispatchMeshIndirectParam>.Shared.Rent(100000);
             meshMapping.Clear();
 
             for (var i = 0; i < scene.MeshInstances.Count; i++)
@@ -407,25 +290,6 @@ namespace CoreEngine.Rendering
                 };
 
                 meshInstanceList[currentMeshInstanceIndex++] = shaderMeshInstance;
-                uint waveSize = 32;
-                var meshletCount = meshInstance.Mesh.MeshletCount;
-
-                var indirectCommand = new DispatchMeshIndirectParam()
-                {
-                    CamerasBuffer = this.camerasBuffer.ShaderResourceIndex,
-                    ShowMeshlets = scene.ShowMeshlets,
-                    MeshBufferIndex = this.meshBuffer.ShaderResourceIndex,
-                    MeshInstanceBufferIndex = this.meshInstanceBuffer.ShaderResourceIndex,
-                    MeshletCount = meshletCount,
-                    MeshInstanceIndex = (uint)i,
-                    ThreadGroupCount = (uint)MathF.Ceiling((float)meshletCount / waveSize),
-                    // TODO: This is a big hack for now because the dispatch mesh parameters are different between
-                    // Vulkan and Direct3D12, we should have another mechanism of defining the command structure
-                    Reserved1 = this.graphicsManager.graphicsAdapterName.Contains("Vulkan") ? 0u : 1u,
-                    Reserved2 = 1
-                };
-
-                indirectCommandList[currentIndirectCommandIndex++] = indirectCommand;
             }
 
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(this.cpuMeshBuffer, 0, meshList.AsSpan().Slice(0, (int)currentMeshIndex));
@@ -434,9 +298,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(this.cpuMeshInstanceBuffer, 0, meshInstanceList.AsSpan().Slice(0, (int)currentMeshInstanceIndex));
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(copyCommandList, this.meshInstanceBuffer, this.cpuMeshInstanceBuffer, (int)currentMeshInstanceIndex);
 
-            this.graphicsManager.CopyDataToGraphicsBuffer<DispatchMeshIndirectParam>(this.cpuIndirectCommandBuffer, 0, indirectCommandList.AsSpan().Slice(0, (int)currentIndirectCommandIndex));
-            this.graphicsManager.CopyDataToGraphicsBuffer<DispatchMeshIndirectParam>(copyCommandList, this.indirectCommandBuffer, this.cpuIndirectCommandBuffer, (int)currentIndirectCommandIndex);
-
             this.renderManager.MeshCount = (int)currentMeshIndex;
             this.renderManager.MeshInstanceCount = (int)currentMeshInstanceIndex;
 
@@ -444,7 +305,6 @@ namespace CoreEngine.Rendering
 
             ArrayPool<ShaderMesh>.Shared.Return(meshList);
             ArrayPool<ShaderMeshInstance>.Shared.Return(meshInstanceList);
-            ArrayPool<DispatchMeshIndirectParam>.Shared.Return(indirectCommandList);
         }
 
         private void ProcessCamera(CommandList copyCommandList, GraphicsScene scene)
@@ -545,6 +405,17 @@ namespace CoreEngine.Rendering
             var computeRenderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.ComputeCommandQueue, "ComputeRenderCommands");
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
             this.graphicsManager.SetShader(computeRenderCommandList, this.computeRenderCommandsShader);
+
+            this.graphicsManager.SetShaderParameterValues(computeRenderCommandList, 0, new uint[]
+            {
+                this.camerasBuffer.ShaderResourceIndex,
+                scene.ShowMeshlets,
+                this.meshBuffer.ShaderResourceIndex,
+                this.meshInstanceBuffer.ShaderResourceIndex,
+                this.indirectCommandBuffer.ShaderResourceIndex,
+                this.currentMeshInstanceCount
+            });
+
             // TODO: Dispatch 1 group for now
             this.graphicsManager.DispatchCompute(computeRenderCommandList, 1, 1, 1); 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
@@ -581,8 +452,7 @@ namespace CoreEngine.Rendering
 
             if (this.currentMeshInstanceCount > 0)
             {
-                // TODO: Replace currentMeshInstanceCount by currentIndirectCommandCount because we may pack the data later
-                this.graphicsManager.DispatchMeshIndirect<DispatchMeshIndirectParam>(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
+                this.graphicsManager.ExecuteIndirect(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
             }
 
             this.graphicsManager.EndRenderPass(renderCommandList);
@@ -611,7 +481,100 @@ namespace CoreEngine.Rendering
 }
 
 // TODO: OLD CODE
+    
+            // var graphicsPipelineResourceDeclarations = new GraphicsPipelineResourceDeclaration[]
+            // {
+            //     new GraphicsPipelineTextureResourceDeclaration("MainCameraDepthBuffer", TextureFormat.Depth32Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+            //     new GraphicsPipelineTextureResourceDeclaration("OpaqueHdrRenderTarget", TextureFormat.Rgba16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+            //     new GraphicsPipelineTextureResourceDeclaration("TransparentHdrRenderTarget", TextureFormat.Rgba16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+            //     new GraphicsPipelineTextureResourceDeclaration("TransparentRevealageRenderTarget", TextureFormat.R16Float, TextureUsage.RenderTarget, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+            //     new GraphicsPipelineTextureResourceDeclaration("ResolveRenderTarget", TextureFormat.Rgba16Float, TextureUsage.ShaderWrite, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")),
+            //     new GraphicsPipelineTextureResourceDeclaration("ToneMapRenderTarget", TextureFormat.Rgba16Float, TextureUsage.ShaderWrite, new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"), new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height"))
+            // };
 
+            // var graphicsPipelineSteps = Array.Empty<GraphicsPipelineStep>();
+
+            // var graphicsPipelineSteps = new GraphicsPipelineStep[]
+            // {
+            // new ExecutePipelineStep("GenerateDepthBuffer",
+            //                         this.depthGraphicsPipeline,
+            //                         new GraphicsPipelineParameter[]
+            //                         {
+            //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer")),
+            //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthIndirectCommandBuffer")),
+            //                             new BindingGraphicsPipelineParameter<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer", new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentDepthIndirectCommandBuffer")),
+            //                             new BindingGraphicsPipelineParameter<int>("GeometryInstanceCount", new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
+            //                         }),
+            // new ComputeMinMaxPipelineStep("ComputeMinMaxDepth",
+            //                                 resourcesManager,
+            //                                 new GraphicsPipelineResourceBinding[]
+            //                                 {
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<int>(0)),
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MinMaxDepthComputeBuffer"), new ConstantPipelineParameterBinding<int>(2))
+            //                                 },
+            //                                 new GraphicsPipelineResourceBinding[]
+            //                                 {
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("CamerasBuffer"), new ConstantPipelineParameterBinding<int>(1))
+            //                                 }),
+            // new RenderIndirectCommandBufferPipelineStep("RenderOpaqueGeometry",
+            //                                             "/System/Shaders/RenderMeshInstance.shader",
+            //                                             new GraphicsPipelineResourceBinding[]
+            //                                             {
+            //                                                 new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareEqual)),
+            //                                                 new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
+            //                                             },
+            //                                             new GraphicsPipelineResourceBinding[]
+            //                                             {
+            //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new GraphicsPipelineParameterBinding<Vector4>("ClearColor"))
+            //                                             }),
+            // new RenderIndirectCommandBufferPipelineStep("RenderTransparentGeometry",
+            //                                             "/System/Shaders/RenderMeshInstanceTransparent.shader",
+            //                                             new GraphicsPipelineResourceBinding[]
+            //                                             {
+            //                                                 new DepthGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraDepthBuffer"), new ConstantPipelineParameterBinding<DepthBufferOperation>(DepthBufferOperation.CompareGreater)),
+            //                                                 new IndirectCommandBufferGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("MainCameraTransparentIndirectCommandBuffer"), new GraphicsPipelineParameterBinding<int>("GeometryInstanceCount"))
+            //                                             },
+            //                                             new GraphicsPipelineResourceBinding[]
+            //                                             {
+            //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0), new ConstantPipelineParameterBinding<Vector4>(new Vector4(0, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneOne)),
+            //                                                 new RenderTargetGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(1), new ConstantPipelineParameterBinding<Vector4>(new Vector4(1, 0, 0, 0)), new ConstantPipelineParameterBinding<BlendOperation>(BlendOperation.AddOneMinusSourceColor))
+            //                                             },
+            //                                             backfaceCulling: false),
+            // new ComputeGraphicsPipelineStep("Resolve", 
+            //                                 "/System/Shaders/ResolveCompute.shader@Resolve",
+            //                                 new GraphicsPipelineResourceBinding[]
+            //                                 {
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("OpaqueHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(0)),
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentHdrRenderTarget"), new ConstantPipelineParameterBinding<int>(1)),
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("TransparentRevealageRenderTarget"), new ConstantPipelineParameterBinding<int>(2))
+            //                                 }, 
+            //                                 new GraphicsPipelineResourceBinding[]
+            //                                 {
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(3))
+            //                                 }, 
+            //                                 new GraphicsPipelineParameterBinding<int>[]
+            //                                 {  
+            //                                     new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Width"),
+            //                                     new GraphicsPipelineParameterBinding<int>("ResolveRenderTarget", "Height")
+            //                                 }),
+            // new ComputeGraphicsPipelineStep("ToneMap", 
+            //                                 "/System/Shaders/ToneMapCompute.shader@ToneMap",
+            //                                 new GraphicsPipelineResourceBinding[]
+            //                                 {
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ResolveRenderTarget"), new ConstantPipelineParameterBinding<int>(0))
+            //                                 }, 
+            //                                 new GraphicsPipelineResourceBinding[]
+            //                                 {
+            //                                     new ShaderGraphicsPipelineResourceBinding(new GraphicsPipelineParameterBinding<IGraphicsResource>("ToneMapRenderTarget"), new ConstantPipelineParameterBinding<int>(1))
+            //                                 }, 
+            //                                 new GraphicsPipelineParameterBinding<int>[]
+            //                                 {  
+            //                                     new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Width"),
+            //                                     new GraphicsPipelineParameterBinding<int>("MainRenderTarget", "Height")
+            //                                 })
+            // };
+
+            // this.graphicsPipeline = new GraphicsPipeline(this.renderManager, this.graphicsManager, resourcesManager, graphicsPipelineResourceDeclarations, graphicsPipelineSteps);
 // var graphicsPipelineParameters = new GraphicsPipelineParameter[]
             // {
             //     new ResourceGraphicsPipelineParameter("MainRenderTarget", mainRenderTargetTexture),

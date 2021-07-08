@@ -39,6 +39,6 @@ namespace CoreEngine.Graphics
         public readonly CommandType Type { get; }
         public readonly string Label { get; }
         public readonly Stack<CommandList> commandListFreeList { get; }
-        public readonly List<GraphicsBuffer> CurrentCopyBuffers { get; }
+        public readonly IList<GraphicsBuffer> CurrentCopyBuffers { get; }
     }
 }

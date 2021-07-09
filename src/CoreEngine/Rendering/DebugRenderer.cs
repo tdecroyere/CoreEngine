@@ -86,15 +86,15 @@ namespace CoreEngine.Rendering
         private readonly DebugPrimitive[] cubePrimitives;
         private readonly DebugPrimitive[] spherePrimitives;
 
-        private int currentLinePrimitiveCount;
-        private int currentCubePrimitiveCount;
-        private int currentSpherePrimitiveCount;
+        private uint currentLinePrimitiveCount;
+        private uint currentCubePrimitiveCount;
+        private uint currentSpherePrimitiveCount;
 
-        private int sphereVertexBufferOffset;
-        private int sphereIndexBufferOffset;
-        private int lineVertexBufferOffset;
-        private int lineIndexBufferOffset;
-        private readonly int maxPrimitiveCount = 100000;
+        private uint sphereVertexBufferOffset;
+        private uint sphereIndexBufferOffset;
+        private uint lineVertexBufferOffset;
+        private uint lineIndexBufferOffset;
+        private readonly uint maxPrimitiveCount = 100000;
 
         public DebugRenderer(GraphicsManager graphicsManager, RenderManager renderManager, ResourcesManager resourcesManager)
         {
@@ -113,8 +113,8 @@ namespace CoreEngine.Rendering
             this.cubePrimitives = new DebugPrimitive[maxPrimitiveCount];
             this.spherePrimitives = new DebugPrimitive[maxPrimitiveCount];
 
-            this.cpuPrimitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Cpu");
-            this.primitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Gpu");
+            this.cpuPrimitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, (int)maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Cpu");
+            this.primitiveBuffer = this.graphicsManager.CreateGraphicsBuffer<DebugPrimitive>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, (int)maxPrimitiveCount, isStatic: false, label: "DebugPrimitiveBuffer_Gpu");
             
             this.vertexBuffer = this.graphicsManager.CreateGraphicsBuffer<Vector3>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 120, isStatic: true, "DebugVertexBuffer_Gpu");
             this.indexBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 320, isStatic: true, "DebugIndexBuffer_Gpu");
@@ -174,8 +174,8 @@ namespace CoreEngine.Rendering
             indexBufferData[22] = 1;
             indexBufferData[23] = 5;
 
-            int currentVertexCount = 8;
-            int currentIndexCount = 24;
+            var currentVertexCount = 8u;
+            var currentIndexCount = 24u;
 
             this.sphereVertexBufferOffset = currentVertexCount;
             this.sphereIndexBufferOffset = currentIndexCount;
@@ -291,13 +291,13 @@ namespace CoreEngine.Rendering
 
         private CommandList CreateCopyCommandList()
         {
-            var tempArray = ArrayPool<DebugPrimitive>.Shared.Rent(maxPrimitiveCount);
+            var tempArray = ArrayPool<DebugPrimitive>.Shared.Rent((int)maxPrimitiveCount);
 
-            this.linePrimitives.AsSpan().Slice(0, this.currentLinePrimitiveCount).CopyTo(tempArray);
-            this.cubePrimitives.AsSpan().Slice(0, this.currentCubePrimitiveCount).CopyTo(tempArray.AsSpan().Slice(this.currentLinePrimitiveCount));
-            this.spherePrimitives.AsSpan().Slice(0, this.currentSpherePrimitiveCount).CopyTo(tempArray.AsSpan().Slice(this.currentLinePrimitiveCount + this.currentCubePrimitiveCount));
+            this.linePrimitives.AsSpan().Slice(0, (int)this.currentLinePrimitiveCount).CopyTo(tempArray);
+            this.cubePrimitives.AsSpan().Slice(0, (int)this.currentCubePrimitiveCount).CopyTo(tempArray.AsSpan().Slice((int)this.currentLinePrimitiveCount));
+            this.spherePrimitives.AsSpan().Slice(0, (int)this.currentSpherePrimitiveCount).CopyTo(tempArray.AsSpan().Slice((int)this.currentLinePrimitiveCount + (int)this.currentCubePrimitiveCount));
 
-            this.graphicsManager.CopyDataToGraphicsBuffer<DebugPrimitive>(this.cpuPrimitiveBuffer, 0, tempArray.AsSpan().Slice(0, this.currentLinePrimitiveCount + this.currentCubePrimitiveCount + this.currentSpherePrimitiveCount));
+            this.graphicsManager.CopyDataToGraphicsBuffer<DebugPrimitive>(this.cpuPrimitiveBuffer, 0, tempArray.AsSpan().Slice(0, (int)this.currentLinePrimitiveCount + (int)this.currentCubePrimitiveCount + (int)this.currentSpherePrimitiveCount));
 
             ArrayPool<DebugPrimitive>.Shared.Return(tempArray);
 

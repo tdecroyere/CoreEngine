@@ -3,7 +3,7 @@
 #include "../Common/CoreEngine.h"
 
 #define VK_USE_PLATFORM_WIN32_KHR
-#define VOLK_IMPLEMENTATION
+#define VOLK_IMPLEMENTATION 
 #include "Volk/volk.h"
 
 using namespace std;
@@ -172,7 +172,7 @@ class VulkanGraphicsService
         void SetPipelineStateLabel(void* pipelineStatePointer, char* label);
         void DeletePipelineState(void* pipelineStatePointer);
 
-        void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes);
+        void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes);
         void CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
 

@@ -1090,7 +1090,7 @@ void VulkanGraphicsService::DeletePipelineState(void* pipelineStatePointer)
     delete pipelineState;
 }
 
-void VulkanGraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes)
+void VulkanGraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes)
 { 
     VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
     VulkanGraphicsBuffer* destinationBuffer = (VulkanGraphicsBuffer*)destinationGraphicsBufferPointer;
@@ -1098,6 +1098,7 @@ void VulkanGraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, v
     
     VkBufferCopy copyRegion = {};
     copyRegion.size = sizeInBytes;
+    copyRegion.dstOffset = destinationOffsetInBytes;
 
     // TransitionBufferToState(commandList, destinationBuffer, VK_ACCESS_TRANSFER_WRITE_BIT, true);
 
@@ -1322,6 +1323,8 @@ void VulkanGraphicsService::ExecuteIndirect(void* commandListPointer, unsigned i
         generatedCommandsInfo.pStreams = streams;
         generatedCommandsInfo.streamCount = ARRAYSIZE(streams);
         generatedCommandsInfo.sequencesCount = maxCommandCount;
+        generatedCommandsInfo.sequencesCountBuffer = commandGraphicsBuffer->BufferObject;
+        generatedCommandsInfo.sequencesCountOffset = commandGraphicsBuffer->SizeInBytes - sizeof(uint32_t);
         generatedCommandsInfo.preprocessBuffer = commandGraphicsBuffer->IndirectCommandWorkingBuffer;
         generatedCommandsInfo.preprocessSize = commandGraphicsBuffer->IndirectCommandWorkingBufferSize;
         generatedCommandsInfo.preprocessOffset = 0;

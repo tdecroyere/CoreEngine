@@ -212,7 +212,7 @@ namespace CoreEngine.Rendering
 
             var graphicsBuffer = this.graphicsManager.CreateGraphicsBuffer<byte>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, (int)sizeInBytes, isStatic: true, label);
             this.graphicsManager.CopyDataToGraphicsBuffer<byte>(cpuGraphicsBuffer, 0, bufferData);
-            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, graphicsBuffer, cpuGraphicsBuffer, (int)sizeInBytes);
+            this.graphicsManager.CopyDataToGraphicsBuffer<byte>(copyCommandList, graphicsBuffer, cpuGraphicsBuffer, (uint)sizeInBytes);
 
             return graphicsBuffer;
         }
@@ -293,10 +293,12 @@ namespace CoreEngine.Rendering
             }
 
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(this.cpuMeshBuffer, 0, meshList.AsSpan().Slice(0, (int)currentMeshIndex));
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(copyCommandList, this.meshBuffer, this.cpuMeshBuffer, (int)currentMeshIndex);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMesh>(copyCommandList, this.meshBuffer, this.cpuMeshBuffer, currentMeshIndex);
 
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(this.cpuMeshInstanceBuffer, 0, meshInstanceList.AsSpan().Slice(0, (int)currentMeshInstanceIndex));
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(copyCommandList, this.meshInstanceBuffer, this.cpuMeshInstanceBuffer, (int)currentMeshInstanceIndex);
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(copyCommandList, this.meshInstanceBuffer, this.cpuMeshInstanceBuffer, currentMeshInstanceIndex);
+
+            this.graphicsManager.ResetIndirectCommandBuffer(copyCommandList, this.indirectCommandBuffer);
 
             this.renderManager.MeshCount = (int)currentMeshIndex;
             this.renderManager.MeshInstanceCount = (int)currentMeshInstanceIndex;
@@ -309,7 +311,7 @@ namespace CoreEngine.Rendering
 
         private void ProcessCamera(CommandList copyCommandList, GraphicsScene scene)
         {
-            var currentCameraIndex = 0;
+            var currentCameraIndex = 0u;
             ShaderCamera shaderCamera;
 
             if (scene.DebugCamera != null)
@@ -339,7 +341,7 @@ namespace CoreEngine.Rendering
             var cameraList = ArrayPool<ShaderCamera>.Shared.Rent(1);
             cameraList[currentCameraIndex++] = shaderCamera;
 
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(this.cpuCamerasBuffer, 0, cameraList.AsSpan().Slice(0, currentCameraIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(this.cpuCamerasBuffer, 0, cameraList.AsSpan().Slice(0, (int)currentCameraIndex));
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderCamera>(copyCommandList, this.camerasBuffer, this.cpuCamerasBuffer, currentCameraIndex);
 
             ArrayPool<ShaderCamera>.Shared.Return(cameraList);
@@ -352,7 +354,7 @@ namespace CoreEngine.Rendering
                 return;
             }
 
-            var currentLightIndex = 0;
+            var currentLightIndex = 0u;
             var lightList = ArrayPool<ShaderLight>.Shared.Rent(10000);
 
             for (var i = 0; i < scene.Lights.Count; i++)
@@ -374,10 +376,10 @@ namespace CoreEngine.Rendering
                 }
             }
 
-            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(this.cpuLightsBuffer, 0, lightList.AsSpan().Slice(0, currentLightIndex));
+            this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(this.cpuLightsBuffer, 0, lightList.AsSpan().Slice(0, (int)currentLightIndex));
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderLight>(copyCommandList, this.lightsBuffer, this.cpuLightsBuffer, currentLightIndex);
 
-            this.renderManager.LightsCount = currentLightIndex;
+            this.renderManager.LightsCount = (int)currentLightIndex;
             ArrayPool<ShaderLight>.Shared.Return(lightList);
         }
 

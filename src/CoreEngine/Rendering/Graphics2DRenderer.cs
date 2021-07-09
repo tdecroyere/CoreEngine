@@ -40,7 +40,7 @@ namespace CoreEngine.Rendering
         private readonly GraphicsBuffer rectangleSurfacesGraphicsBuffer;
         private readonly RectangleSurface[] rectangleSurfaces;
 
-        private int currentSurfaceCount;
+        private uint currentSurfaceCount;
         private Matrix4x4 projectionMatrix;
 
         public Graphics2DRenderer(RenderManager renderManager, GraphicsManager graphicsManager, ResourcesManager resourcesManager)
@@ -148,7 +148,7 @@ namespace CoreEngine.Rendering
 
         private CommandList CreateCopyCommandList()
         {
-            this.graphicsManager.CopyDataToGraphicsBuffer<RectangleSurface>(this.cpuRectangleSurfacesGraphicsBuffer, 0, this.rectangleSurfaces.AsSpan().Slice(0, this.currentSurfaceCount));
+            this.graphicsManager.CopyDataToGraphicsBuffer<RectangleSurface>(this.cpuRectangleSurfacesGraphicsBuffer, 0, this.rectangleSurfaces.AsSpan().Slice(0, (int)this.currentSurfaceCount));
 
             var commandListName = "Graphics2DRenderer_Copy";
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);

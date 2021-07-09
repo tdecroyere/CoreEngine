@@ -9,14 +9,15 @@ namespace CoreEngine.Graphics
         private readonly GraphicsManager graphicsManager;
         private bool isDisposed;
 
-        internal GraphicsBuffer(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, IntPtr nativePointer1, IntPtr? nativePointer2, int length, bool isStatic, string label)
+        internal GraphicsBuffer(GraphicsManager graphicsManager, GraphicsMemoryAllocation graphicsMemoryAllocation, GraphicsMemoryAllocation? graphicsMemoryAllocation2, IntPtr nativePointer1, IntPtr? nativePointer2, uint sizeInBytes, GraphicsBufferUsage usage, bool isStatic, string label)
         {
             this.graphicsManager = graphicsManager;
             this.NativePointer1 = nativePointer1;
             this.NativePointer2 = nativePointer2;
-            this.Length = length;
+            this.SizeInBytes = sizeInBytes;
             this.IsStatic = isStatic;
             this.ResourceType = GraphicsResourceType.Buffer;
+            this.Usage = usage;
             this.Label = label;
             this.GraphicsMemoryAllocation = graphicsMemoryAllocation;
             this.GraphicsMemoryAllocation2 = graphicsMemoryAllocation2;
@@ -62,8 +63,9 @@ namespace CoreEngine.Graphics
             get;
         }
 
-        public int Length { get; }
+        public uint SizeInBytes { get; }
 
+        public GraphicsBufferUsage Usage { get; }
         public GraphicsResourceType ResourceType { get; }
         public bool IsStatic { get; }
         public GraphicsMemoryAllocation GraphicsMemoryAllocation { get; }

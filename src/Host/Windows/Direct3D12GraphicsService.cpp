@@ -1056,7 +1056,7 @@ void Direct3D12GraphicsService::DeletePipelineState(void* pipelineStatePointer)
 	delete pipelineState;
 }
 
-void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, int sizeInBytes)
+void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes)
 { 
 	// TODO: Transition buffer to copy dest first?
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
@@ -1075,7 +1075,7 @@ void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointe
 	// 	TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
 	// }
 
-	commandList->CommandListObject->CopyBufferRegion(destinationGraphicsBuffer->BufferObject.Get(), 0, sourceGraphicsBuffer->BufferObject.Get(), 0, sizeInBytes);
+	commandList->CommandListObject->CopyBufferRegion(destinationGraphicsBuffer->BufferObject.Get(), destinationOffsetInBytes, sourceGraphicsBuffer->BufferObject.Get(), 0, sizeInBytes);
 
 	// if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
 	// {
@@ -1375,7 +1375,7 @@ void Direct3D12GraphicsService::ExecuteIndirect(void* commandListPointer, unsign
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
 	Direct3D12GraphicsBuffer* commandGraphicsBuffer = (Direct3D12GraphicsBuffer*)commandGraphicsBufferPointer;
 
-	commandList->CommandListObject->ExecuteIndirect(this->shaderBound->CommandSignature.Get(), maxCommandCount, commandGraphicsBuffer->BufferObject.Get(), commandBufferOffset, nullptr, 0);
+	commandList->CommandListObject->ExecuteIndirect(this->shaderBound->CommandSignature.Get(), maxCommandCount, commandGraphicsBuffer->BufferObject.Get(), commandBufferOffset, commandGraphicsBuffer->BufferObject.Get(), commandGraphicsBuffer->ResourceDesc.Width - sizeof(uint32_t));
 }
 
 void Direct3D12GraphicsService::BeginQuery(void* commandListPointer, void* queryBufferPointer, int index)

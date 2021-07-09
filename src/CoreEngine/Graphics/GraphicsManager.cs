@@ -26,6 +26,8 @@ namespace CoreEngine.Graphics
         internal int cpuDrawCount;
         internal int cpuDispatchCount;
 
+        private readonly GraphicsBuffer resetCounterBuffer;
+
         private List<Texture> aliasableTextures = new List<Texture>();
 
         private List<GraphicsBuffer> graphicsBuffers = new List<GraphicsBuffer>();
@@ -84,6 +86,9 @@ namespace CoreEngine.Graphics
             graphicsHeapsToDelete[0] = new List<GraphicsHeap>();
             graphicsHeapsToDelete[1] = new List<GraphicsHeap>();
 
+            this.resetCounterBuffer = CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 1, isStatic: true, "ResetCounterBuffer");
+            this.CopyDataToGraphicsBuffer<uint>(this.resetCounterBuffer, 0, new uint[] { 0 });
+
             InitResourceLoaders(resourcesManager);
         }
 
@@ -100,6 +105,7 @@ namespace CoreEngine.Graphics
                 // TODO: Do something better here!
                 this.graphicsMemoryManager.Dispose();
                 this.shaderResourceManager.Dispose();
+                this.resetCounterBuffer.Dispose();
 
                 var tmpGraphicsBuffers = new GraphicsBuffer[this.graphicsBuffers.Count];
                 this.graphicsBuffers.CopyTo(tmpGraphicsBuffers);
@@ -386,10 +392,15 @@ namespace CoreEngine.Graphics
 
         public GraphicsBuffer CreateGraphicsBuffer<T>(GraphicsHeapType heapType, GraphicsBufferUsage usage, int length, bool isStatic, string label) where T : struct
         {
-            var sizeInBytes = Marshal.SizeOf(typeof(T)) * length;
+            var sizeInBytes = (uint)Marshal.SizeOf(typeof(T)) * (uint)length;
 
-            var allocation = this.graphicsMemoryManager.AllocateBuffer(heapType, sizeInBytes);
-            var nativePointer1 = this.graphicsService.CreateGraphicsBuffer(allocation.GraphicsHeap.NativePointer, allocation.Offset, (HostServices.GraphicsBufferUsage)usage, sizeInBytes);
+            if (usage == GraphicsBufferUsage.IndirectCommands)
+            {
+                sizeInBytes += sizeof(uint);
+            }
+
+            var allocation = this.graphicsMemoryManager.AllocateBuffer(heapType, (int)sizeInBytes);
+            var nativePointer1 = this.graphicsService.CreateGraphicsBuffer(allocation.GraphicsHeap.NativePointer, allocation.Offset, (HostServices.GraphicsBufferUsage)usage, (int)sizeInBytes);
 
             if (nativePointer1 == IntPtr.Zero)
             {
@@ -403,8 +414,8 @@ namespace CoreEngine.Graphics
 
             if (!isStatic)
             {
-                allocation2 = this.graphicsMemoryManager.AllocateBuffer(heapType, sizeInBytes);
-                nativePointer2 = this.graphicsService.CreateGraphicsBuffer(allocation2.Value.GraphicsHeap.NativePointer, allocation2.Value.Offset, (HostServices.GraphicsBufferUsage)usage, sizeInBytes);
+                allocation2 = this.graphicsMemoryManager.AllocateBuffer(heapType, (int)sizeInBytes);
+                nativePointer2 = this.graphicsService.CreateGraphicsBuffer(allocation2.Value.GraphicsHeap.NativePointer, allocation2.Value.Offset, (HostServices.GraphicsBufferUsage)usage, (int)sizeInBytes);
 
                 if (nativePointer2.Value == IntPtr.Zero)
                 {
@@ -414,7 +425,7 @@ namespace CoreEngine.Graphics
                 this.graphicsService.SetGraphicsBufferLabel(nativePointer2.Value, $"{label}1");
             }
 
-            var graphicsBuffer = new GraphicsBuffer(this, allocation, allocation2, nativePointer1, nativePointer2, sizeInBytes, isStatic, label);
+            var graphicsBuffer = new GraphicsBuffer(this, allocation, allocation2, nativePointer1, nativePointer2, sizeInBytes, usage, isStatic, label);
             this.graphicsBuffers.Add(graphicsBuffer);
 
             if (heapType == GraphicsHeapType.Gpu)
@@ -445,8 +456,8 @@ namespace CoreEngine.Graphics
 
             var cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
 
-            var elementCount = graphicsBuffer.Length / Marshal.SizeOf(typeof(T));
-            var cpuSpan = new Span<T>(cpuPointer.ToPointer(), elementCount).Slice(destinationOffset);
+            var elementCount = graphicsBuffer.SizeInBytes / Marshal.SizeOf(typeof(T));
+            var cpuSpan = new Span<T>(cpuPointer.ToPointer(), (int)elementCount).Slice(destinationOffset);
             data.CopyTo(cpuSpan);
 
             this.graphicsService.ReleaseGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
@@ -466,9 +477,9 @@ namespace CoreEngine.Graphics
             
             var cpuPointer = this.graphicsService.GetGraphicsBufferCpuPointer(graphicsBuffer.NativePointer);
 
-            var elementCount = graphicsBuffer.Length / Marshal.SizeOf(typeof(T));
+            var elementCount = graphicsBuffer.SizeInBytes / Marshal.SizeOf(typeof(T));
 
-            var cpuSpan = new Span<T>(cpuPointer.ToPointer(), elementCount);
+            var cpuSpan = new Span<T>(cpuPointer.ToPointer(), (int)elementCount);
             var outputData = new T[elementCount];
             cpuSpan.CopyTo(outputData);
 
@@ -844,7 +855,22 @@ namespace CoreEngine.Graphics
             this.shaders.Remove(shader);
         }
 
-        public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, int length) where T : struct
+        public void ResetIndirectCommandBuffer(CommandList commandList, GraphicsBuffer indirectCommandBuffer)
+        {
+            if (indirectCommandBuffer is null)
+            {
+                throw new ArgumentNullException(nameof(indirectCommandBuffer));
+            }
+
+            if (indirectCommandBuffer.Usage != GraphicsBufferUsage.IndirectCommands)
+            {
+                throw new InvalidOperationException("Graphics buffer is not an indirect command buffer");
+            }
+
+            this.CopyDataToGraphicsBuffer<uint>(commandList, indirectCommandBuffer, this.resetCounterBuffer, 1, indirectCommandBuffer.SizeInBytes - sizeof(uint));
+        }
+
+        public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, uint length, uint destinationOffsetInBytes = 0) where T : struct
         {
             if (destination == null)
             {
@@ -858,7 +884,7 @@ namespace CoreEngine.Graphics
 
             // TODO: Check that the source was allocated in a cpu heap
 
-            var sizeInBytes = length * Marshal.SizeOf(typeof(T));
+            var sizeInBytes = length * (uint)Marshal.SizeOf(typeof(T));
 
             if (sizeInBytes == 0)
             {
@@ -872,8 +898,8 @@ namespace CoreEngine.Graphics
             //     commandList.CommandQueue.CurrentCopyBuffers.Add(destination);
             // }
 
-            this.graphicsService.CopyDataToGraphicsBuffer(commandList.NativePointer, destination.NativePointer, source.NativePointer, sizeInBytes);
-            this.gpuMemoryUploaded += sizeInBytes;
+            this.graphicsService.CopyDataToGraphicsBuffer(commandList.NativePointer, destination.NativePointer, source.NativePointer, sizeInBytes, destinationOffsetInBytes);
+            this.gpuMemoryUploaded += (int)sizeInBytes;
 
             // if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)
             // {
@@ -895,7 +921,7 @@ namespace CoreEngine.Graphics
             }
 
             this.graphicsService.CopyDataToTexture(commandList.NativePointer, destination.NativePointer, source.NativePointer, (GraphicsTextureFormat)destination.TextureFormat, width, height, slice, mipLevel);
-            this.gpuMemoryUploaded += source.Length;
+            this.gpuMemoryUploaded += (int)source.SizeInBytes;
         }
 
         public void CopyTexture(CommandList commandList, Texture destination, Texture source)

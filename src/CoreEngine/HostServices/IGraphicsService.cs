@@ -340,7 +340,7 @@ namespace CoreEngine.HostServices
         void SetPipelineStateLabel(IntPtr pipelineStatePointer, string label);
         void DeletePipelineState(IntPtr pipelineStatePointer);
 
-        void CopyDataToGraphicsBuffer(IntPtr commandListPointer, IntPtr destinationGraphicsBufferPointer, IntPtr sourceGraphicsBufferPointer, int length);
+        void CopyDataToGraphicsBuffer(IntPtr commandListPointer, IntPtr destinationGraphicsBufferPointer, IntPtr sourceGraphicsBufferPointer, uint sizeInBytes, uint destinationOffsetInBytes);
         void CopyDataToTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceGraphicsBufferPointer, GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(IntPtr commandListPointer, IntPtr destinationTexturePointer, IntPtr sourceTexturePointer);
 

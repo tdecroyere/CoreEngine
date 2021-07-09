@@ -201,9 +201,9 @@ function CompileWindowsHost {
     Write-Output "[93mCompiling Windows Executable...[0m"
 
     if ($Configuration -eq "Debug") {
-        cl.exe /c /nologo /DDEBUG /std:c++17 /Zi /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\Vulkan\include" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
+        cl.exe /c /nologo /DDEBUG /std:c++17 /Zi /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
     } else {
-        cl.exe /c /nologo /std:c++17 /O2 /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\Vulkan\include" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
+        cl.exe /c /nologo /std:c++17 /O2 /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
     }
 
     if (-Not $?)
@@ -223,9 +223,9 @@ function LinkWindowsHost
 
     # TODO: Copy nethost.dll to outputdir from the package folder
     if ($Configuration -eq "Debug") {
-        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib" "..\..\..\Libs\Vulkan\Lib\vulkan-1.lib"
+        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib"
     } else {
-        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib" "..\..\..\Libs\Vulkan\Lib\vulkan-1.lib"
+        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib"
     }
 
     if (-Not $?)

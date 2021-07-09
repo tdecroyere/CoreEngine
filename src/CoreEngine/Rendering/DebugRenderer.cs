@@ -54,6 +54,7 @@ namespace CoreEngine.Rendering
         {
             Matrix4x4.Invert(boundingFrustum.Matrix, out var transformMatrix);
 
+            // TODO: The frustum seems to be wrong because we use an inversed depth projection matrix
             return new DebugPrimitive(new Vector4(transformMatrix.M11, transformMatrix.M12, transformMatrix.M13, transformMatrix.M14), 
                                       new Vector4(transformMatrix.M21, transformMatrix.M22, transformMatrix.M23, transformMatrix.M24), 
                                       new Vector4(transformMatrix.M31, transformMatrix.M32, transformMatrix.M33, transformMatrix.M34), 

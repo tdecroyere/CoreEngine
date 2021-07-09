@@ -85,21 +85,21 @@ namespace CoreEngine
 
             this.BottomPlane = Plane.Normalize(new Plane(-a, -b, -c, -d));
 
-            // Near clipping plane
+            // Far clipping plane
             a = matrix.M13; 
             b = matrix.M23; 
             c = matrix.M33; 
             d = matrix.M43;
 
-            this.NearPlane = Plane.Normalize(new Plane(-a, -b, -c, -d));
+            this.FarPlane = Plane.Normalize(new Plane(-a, -b, -c, -d));
 
-            // Far clipping plane
+            // Near clipping plane
             a = matrix.M14 - matrix.M13; 
             b = matrix.M24 - matrix.M23; 
             c = matrix.M34 - matrix.M33; 
             d = matrix.M44 - matrix.M43;
 
-            this.FarPlane = Plane.Normalize(new Plane(-a, -b, -c, -d));
+            this.NearPlane  = Plane.Normalize(new Plane(-a, -b, -c, -d));
         }
 
         private static Vector3 IntersectionPoint(Plane a, Plane b, Plane c)

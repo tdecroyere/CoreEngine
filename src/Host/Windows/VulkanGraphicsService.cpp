@@ -5,15 +5,18 @@
 
 VulkanGraphicsService::VulkanGraphicsService()
 {
+    AssertIfFailed(volkInitialize());
+
     this->vulkanInstance = CreateVulkanInstance();
+    volkLoadInstance(this->vulkanInstance);
 
     this->graphicsPhysicalDevice = FindGraphicsDevice();
-    
     this->graphicsDevice = CreateDevice(this->graphicsPhysicalDevice);
+    volkLoadDevice(this->graphicsDevice);
 
-    #ifdef DEBUG
+#ifdef DEBUG
     RegisterDebugCallback();
-    #endif
+#endif
 }
 
 VulkanGraphicsService::~VulkanGraphicsService()
@@ -30,7 +33,7 @@ VulkanGraphicsService::~VulkanGraphicsService()
 
     if (this->debugCallback != nullptr)
     {
-        vkDestroyDebugReportCallback(this->vulkanInstance, this->debugCallback, nullptr);
+        vkDestroyDebugReportCallbackEXT(this->vulkanInstance, this->debugCallback, nullptr);
     }
 
     if (this->vulkanInstance != nullptr)
@@ -142,7 +145,7 @@ void VulkanGraphicsService::SetCommandQueueLabel(void* commandQueuePointer, char
         nameInfo.objectHandle = (uint64_t)commandQueue->CommandPools[i];
         nameInfo.pObjectName = label;
 
-        AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+        AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     }
     #endif
 }
@@ -276,7 +279,7 @@ void VulkanGraphicsService::SetCommandListLabel(void* commandListPointer, char* 
     nameInfo.objectHandle = (uint64_t)commandList->CommandBufferObject;
     nameInfo.pObjectName = label;
 
-    AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     #endif
 }
 
@@ -358,7 +361,7 @@ void VulkanGraphicsService::SetGraphicsHeapLabel(void* graphicsHeapPointer, char
     nameInfo.objectHandle = (uint64_t)graphicsHeap->DeviceMemory;
     nameInfo.pObjectName = label;
 
-    AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     #endif
 }
 
@@ -446,7 +449,7 @@ void VulkanGraphicsService::SetShaderResourceHeapLabel(void* shaderResourceHeapP
     nameInfo.objectHandle = (uint64_t)shaderResourceHeap->DescriptorPool;
     nameInfo.pObjectName = label;
 
-    AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     #endif
 }
 
@@ -573,7 +576,7 @@ void VulkanGraphicsService::SetGraphicsBufferLabel(void* graphicsBufferPointer, 
     nameInfo.objectHandle = (uint64_t)graphicsBuffer->BufferObject;
     nameInfo.pObjectName = label;
 
-    AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     #endif
 }
 
@@ -647,7 +650,7 @@ void VulkanGraphicsService::SetTextureLabel(void* texturePointer, char* label)
     nameInfo.objectHandle = (uint64_t)texture->TextureObject;
     nameInfo.pObjectName = label;
 
-    AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+    AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     #endif
 }
 
@@ -975,7 +978,7 @@ void VulkanGraphicsService::SetShaderLabel(void* shaderPointer, char* label)
         nameInfo.objectHandle = (uint64_t)shader->AmplificationShaderMethod;
         nameInfo.pObjectName = label;
 
-        AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+        AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     }
 
     if (shader->MeshShaderMethod != nullptr)
@@ -985,7 +988,7 @@ void VulkanGraphicsService::SetShaderLabel(void* shaderPointer, char* label)
         nameInfo.objectHandle = (uint64_t)shader->MeshShaderMethod;
         nameInfo.pObjectName = label;
 
-        AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+        AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     }
 
     if (shader->PixelShaderMethod != nullptr)
@@ -995,7 +998,7 @@ void VulkanGraphicsService::SetShaderLabel(void* shaderPointer, char* label)
         nameInfo.objectHandle = (uint64_t)shader->PixelShaderMethod;
         nameInfo.pObjectName = label;
 
-        AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+        AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     }
 
     if (shader->ComputeShaderMethod != nullptr)
@@ -1005,7 +1008,7 @@ void VulkanGraphicsService::SetShaderLabel(void* shaderPointer, char* label)
         nameInfo.objectHandle = (uint64_t)shader->ComputeShaderMethod;
         nameInfo.pObjectName = label;
 
-        AssertIfFailed(vkSetDebugUtilsObjectName(this->graphicsDevice, &nameInfo));
+        AssertIfFailed(vkSetDebugUtilsObjectNameEXT(this->graphicsDevice, &nameInfo));
     }
     #endif
 }
@@ -1036,7 +1039,7 @@ void VulkanGraphicsService::DeleteShader(void* shaderPointer)
 
     if (shader->CommandSignature != nullptr)
     {
-        vkDestroyIndirectCommandsLayout(this->graphicsDevice, shader->CommandSignature, nullptr);
+        vkDestroyIndirectCommandsLayoutNV(this->graphicsDevice, shader->CommandSignature, nullptr);
     }
 
     delete shader;
@@ -1292,7 +1295,7 @@ void VulkanGraphicsService::DispatchMesh(void* commandListPointer, unsigned int 
 
     if (commandList->IsRenderPassActive)
     {
-        vkCmdDrawMeshTasks(commandList->CommandBufferObject, threadGroupCountX, 0);
+        vkCmdDrawMeshTasksNV(commandList->CommandBufferObject, threadGroupCountX, 0);
     }
 }
 
@@ -1323,7 +1326,7 @@ void VulkanGraphicsService::ExecuteIndirect(void* commandListPointer, unsigned i
         generatedCommandsInfo.preprocessSize = commandGraphicsBuffer->IndirectCommandWorkingBufferSize;
         generatedCommandsInfo.preprocessOffset = 0;
 
-        vkCmdExecuteGeneratedCommands(commandList->CommandBufferObject, false, &generatedCommandsInfo);
+        vkCmdExecuteGeneratedCommandsNV(commandList->CommandBufferObject, false, &generatedCommandsInfo);
     }
 }
 
@@ -1535,8 +1538,6 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
     createInfo.pNext = &features;
 
     AssertIfFailed(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device));
-
-    InitVulkanFeatureFunctions(this->vulkanInstance, device);
     
     return device;
 }
@@ -1585,5 +1586,5 @@ void VulkanGraphicsService::RegisterDebugCallback()
 	createInfo.flags = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT;
 	createInfo.pfnCallback = DebugReportCallback;
 
-	AssertIfFailed(vkCreateDebugReportCallback(this->vulkanInstance, &createInfo, 0, &this->debugCallback));
+	AssertIfFailed(vkCreateDebugReportCallbackEXT(this->vulkanInstance, &createInfo, 0, &this->debugCallback));
 }

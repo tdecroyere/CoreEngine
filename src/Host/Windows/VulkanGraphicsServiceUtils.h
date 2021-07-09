@@ -2,48 +2,6 @@
 #include "WindowsCommon.h"
 #include "VulkanGraphicsService.h"
 
-PFN_vkVoidFunction GetVulkanFeatureFunction(VkInstance instance, VkDevice device, const char* name) 
-{
-	if (device != nullptr)
-	{
-		auto result = vkGetDeviceProcAddr(device, name);
-		assert(result != nullptr);
-		return result;
-	}
-
-	else
-	{
-		auto result = vkGetInstanceProcAddr(instance, name);
-		assert(result != nullptr);
-
-		return result;
-	}
-}
-
-PFN_vkCreateIndirectCommandsLayoutNV vkCreateIndirectCommandsLayout; 
-PFN_vkDestroyIndirectCommandsLayoutNV vkDestroyIndirectCommandsLayout;
-PFN_vkGetGeneratedCommandsMemoryRequirementsNV vkGetGeneratedCommandsMemoryRequirements;
-PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasks;
-PFN_vkCmdExecuteGeneratedCommandsNV vkCmdExecuteGeneratedCommands;
-PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallback;
-PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName;
-PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallback;
-
-void InitVulkanFeatureFunctions(VkInstance instance, VkDevice device)
-{
-	vkCreateIndirectCommandsLayout = (PFN_vkCreateIndirectCommandsLayoutNV)GetVulkanFeatureFunction(nullptr, device, "vkCreateIndirectCommandsLayoutNV");
-	vkDestroyIndirectCommandsLayout = (PFN_vkDestroyIndirectCommandsLayoutNV)GetVulkanFeatureFunction(nullptr, device, "vkDestroyIndirectCommandsLayoutNV");
-	vkGetGeneratedCommandsMemoryRequirements = (PFN_vkGetGeneratedCommandsMemoryRequirementsNV)GetVulkanFeatureFunction(nullptr, device, "vkGetGeneratedCommandsMemoryRequirementsNV");
-	vkCmdDrawMeshTasks = (PFN_vkCmdDrawMeshTasksNV)GetVulkanFeatureFunction(nullptr, device, "vkCmdDrawMeshTasksNV");
-	vkCmdExecuteGeneratedCommands = (PFN_vkCmdExecuteGeneratedCommandsNV)GetVulkanFeatureFunction(nullptr, device, "vkCmdExecuteGeneratedCommandsNV");
-
-#ifdef DEBUG
-	vkSetDebugUtilsObjectName = (PFN_vkSetDebugUtilsObjectNameEXT)GetVulkanFeatureFunction(nullptr, device, "vkSetDebugUtilsObjectNameEXT");
-	vkCreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)GetVulkanFeatureFunction(instance, nullptr, "vkCreateDebugReportCallbackEXT");
-	vkDestroyDebugReportCallback = (PFN_vkDestroyDebugReportCallbackEXT)GetVulkanFeatureFunction(instance, nullptr, "vkDestroyDebugReportCallbackEXT");
-#endif
-}
-
 VkFence VulkanCreateFence(VkDevice device)
 {
 	VkFenceCreateInfo createInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
@@ -127,7 +85,7 @@ VkBuffer VulkanCreateIndirectCommandWorkingBuffer(VkDevice device, VulkanShader*
 	info.indirectCommandsLayout = shader->CommandSignature;
 	
 	VkMemoryRequirements2 memoryRequirements = { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
-	vkGetGeneratedCommandsMemoryRequirements(device, &info, &memoryRequirements);
+	vkGetGeneratedCommandsMemoryRequirementsNV(device, &info, &memoryRequirements);
 
 	VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 	createInfo.size = memoryRequirements.memoryRequirements.size;
@@ -415,7 +373,7 @@ VkIndirectCommandsLayoutNV CreateIndirectPipelineLayout(VkDevice device, bool is
 	createInfo.pStreamStrides = strides;
 
 	VkIndirectCommandsLayoutNV layout = nullptr;
-	AssertIfFailed(vkCreateIndirectCommandsLayout(device, &createInfo, nullptr, &layout));
+	AssertIfFailed(vkCreateIndirectCommandsLayoutNV(device, &createInfo, nullptr, &layout));
 
 	return layout;
 }

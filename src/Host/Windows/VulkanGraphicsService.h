@@ -3,7 +3,8 @@
 #include "../Common/CoreEngine.h"
 
 #define VK_USE_PLATFORM_WIN32_KHR
-#include "vulkan.h"
+#define VOLK_IMPLEMENTATION
+#include "Volk/volk.h"
 
 using namespace std;
 

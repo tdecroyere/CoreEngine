@@ -416,8 +416,9 @@ namespace CoreEngine.Rendering
                 this.currentMeshInstanceCount
             });
 
-            // TODO: Dispatch 1 group for now
-            this.graphicsManager.DispatchCompute(computeRenderCommandList, 1, 1, 1); 
+            // TODO: Don't hardcode wave size
+            var waveSize = 32;
+            this.graphicsManager.DispatchCompute(computeRenderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1); 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
             this.graphicsManager.CommitCommandList(computeRenderCommandList);
 

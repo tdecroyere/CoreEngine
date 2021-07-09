@@ -54,7 +54,7 @@ namespace CoreEngine.Rendering.EntitySystems
             var renderWidth = renderSize.X;
             var renderHeight = renderSize.Y;
 
-            var nearPlaneDistance = 0.1f;
+            var nearPlaneDistance = 0.01f;
             var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, nearPlaneDistance);
 
             for (var i = 0; i < entityArray.Length; i++)

@@ -557,7 +557,8 @@ void* VulkanGraphicsService::CreateGraphicsBuffer(void* graphicsHeapPointer, uns
 
     if (graphicsBufferUsage == GraphicsBufferUsage::IndirectCommands)
     {
-        createInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+        // TODO: For the moment we set src to indirect command buffers because we may want to read the counters
+        createInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     }
 
     AssertIfFailed(vkCreateBuffer(this->graphicsDevice, &createInfo, nullptr, &graphicsBuffer->BufferObject));
@@ -1090,7 +1091,7 @@ void VulkanGraphicsService::DeletePipelineState(void* pipelineStatePointer)
     delete pipelineState;
 }
 
-void VulkanGraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes)
+void VulkanGraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes, unsigned int sourceOffsetInBytes)
 { 
     VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
     VulkanGraphicsBuffer* destinationBuffer = (VulkanGraphicsBuffer*)destinationGraphicsBufferPointer;
@@ -1099,6 +1100,7 @@ void VulkanGraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, v
     VkBufferCopy copyRegion = {};
     copyRegion.size = sizeInBytes;
     copyRegion.dstOffset = destinationOffsetInBytes;
+    copyRegion.srcOffset = sourceOffsetInBytes;
 
     // TransitionBufferToState(commandList, destinationBuffer, VK_ACCESS_TRANSFER_WRITE_BIT, true);
 

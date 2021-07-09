@@ -301,10 +301,10 @@ void Direct3D12GraphicsServiceDeletePipelineStateInterop(void* context, void* pi
     contextObject->DeletePipelineState(pipelineStatePointer);
 }
 
-void Direct3D12GraphicsServiceCopyDataToGraphicsBufferInterop(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes)
+void Direct3D12GraphicsServiceCopyDataToGraphicsBufferInterop(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes, unsigned int sourceOffsetInBytes)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->CopyDataToGraphicsBuffer(commandListPointer, destinationGraphicsBufferPointer, sourceGraphicsBufferPointer, sizeInBytes, destinationOffsetInBytes);
+    contextObject->CopyDataToGraphicsBuffer(commandListPointer, destinationGraphicsBufferPointer, sourceGraphicsBufferPointer, sizeInBytes, destinationOffsetInBytes, sourceOffsetInBytes);
 }
 
 void Direct3D12GraphicsServiceCopyDataToTextureInterop(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)

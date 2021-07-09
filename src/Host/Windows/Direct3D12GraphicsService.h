@@ -163,7 +163,7 @@ class Direct3D12GraphicsService
         void SetPipelineStateLabel(void* pipelineStatePointer, char* label);
         void DeletePipelineState(void* pipelineStatePointer);
 
-        void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes);
+        void CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes, unsigned int sourceOffsetInBytes);
         void CopyDataToTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
         void CopyTexture(void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
 

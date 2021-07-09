@@ -1056,7 +1056,7 @@ void Direct3D12GraphicsService::DeletePipelineState(void* pipelineStatePointer)
 	delete pipelineState;
 }
 
-void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes)
+void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes, unsigned int sourceOffsetInBytes)
 { 
 	// TODO: Transition buffer to copy dest first?
 	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
@@ -1075,7 +1075,7 @@ void Direct3D12GraphicsService::CopyDataToGraphicsBuffer(void* commandListPointe
 	// 	TransitionBufferToState(commandList, destinationGraphicsBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
 	// }
 
-	commandList->CommandListObject->CopyBufferRegion(destinationGraphicsBuffer->BufferObject.Get(), destinationOffsetInBytes, sourceGraphicsBuffer->BufferObject.Get(), 0, sizeInBytes);
+	commandList->CommandListObject->CopyBufferRegion(destinationGraphicsBuffer->BufferObject.Get(), destinationOffsetInBytes, sourceGraphicsBuffer->BufferObject.Get(), sourceOffsetInBytes, sizeInBytes);
 
 	// if (destinationGraphicsBuffer->Type == GraphicsServiceHeapType::Gpu)
 	// {

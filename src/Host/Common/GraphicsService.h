@@ -191,7 +191,7 @@ typedef void* (*GraphicsService_CreateComputePipelineStatePtr)(void* context, vo
 typedef void* (*GraphicsService_CreatePipelineStatePtr)(void* context, void* shaderPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_SetPipelineStateLabelPtr)(void* context, void* pipelineStatePointer, char* label);
 typedef void (*GraphicsService_DeletePipelineStatePtr)(void* context, void* pipelineStatePointer);
-typedef void (*GraphicsService_CopyDataToGraphicsBufferPtr)(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes);
+typedef void (*GraphicsService_CopyDataToGraphicsBufferPtr)(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes, unsigned int sourceOffsetInBytes);
 typedef void (*GraphicsService_CopyDataToTexturePtr)(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel);
 typedef void (*GraphicsService_CopyTexturePtr)(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceTexturePointer);
 typedef void (*GraphicsService_TransitionGraphicsBufferToStatePtr)(void* context, void* commandListPointer, void* graphicsBufferPointer, enum GraphicsResourceState resourceState);

@@ -51,7 +51,7 @@ public protocol GraphicsServiceProtocol {
     func createPipelineState(_ shaderPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor) -> UnsafeMutableRawPointer?
     func setPipelineStateLabel(_ pipelineStatePointer: UnsafeMutableRawPointer?, _ label: String)
     func deletePipelineState(_ pipelineStatePointer: UnsafeMutableRawPointer?)
-    func copyDataToGraphicsBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationGraphicsBufferPointer: UnsafeMutableRawPointer?, _ sourceGraphicsBufferPointer: UnsafeMutableRawPointer?, _ sizeInBytes: UInt, _ destinationOffsetInBytes: UInt)
+    func copyDataToGraphicsBuffer(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationGraphicsBufferPointer: UnsafeMutableRawPointer?, _ sourceGraphicsBufferPointer: UnsafeMutableRawPointer?, _ sizeInBytes: UInt, _ destinationOffsetInBytes: UInt, _ sourceOffsetInBytes: UInt)
     func copyDataToTexture(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationTexturePointer: UnsafeMutableRawPointer?, _ sourceGraphicsBufferPointer: UnsafeMutableRawPointer?, _ textureFormat: GraphicsTextureFormat, _ width: Int, _ height: Int, _ slice: Int, _ mipLevel: Int)
     func copyTexture(_ commandListPointer: UnsafeMutableRawPointer?, _ destinationTexturePointer: UnsafeMutableRawPointer?, _ sourceTexturePointer: UnsafeMutableRawPointer?)
     func transitionGraphicsBufferToState(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?, _ resourceState: GraphicsResourceState)

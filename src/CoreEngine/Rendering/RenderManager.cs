@@ -163,12 +163,14 @@ namespace CoreEngine.Rendering
 
         public GraphicsSceneRenderer GraphicsSceneRenderer { get; }
         public Graphics2DRenderer Graphics2DRenderer { get; }
+        internal int CulledMeshletCount { get; set; }
         internal int MeshletCount { get; set; }
         internal int TriangleCount { get; set; }
         internal int CulledGeometryInstancesCount { get; set; }
         internal Vector2 MainCameraDepth { get; set; }
         internal int MeshCount { get; set; }
         internal int MeshInstanceCount { get; set; }
+        internal int CulledMeshInstanceCount { get; set; }
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
         internal int LightsCount { get; set; }
@@ -371,11 +373,11 @@ namespace CoreEngine.Rendering
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory + this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB (Static: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}/{Utils.BytesToMegaBytes(this.graphicsManager.TotalGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}, Transient: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}/{Utils.BytesToMegaBytes(this.graphicsManager.TotalTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)})", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {Utils.BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
-            this.Graphics2DRenderer.DrawText($"    Meshlets: {this.MeshletCount.ToString("#,###", CultureInfo.InvariantCulture)} (Mesh Count: {this.MeshCount}, Instance Count: {this.MeshInstanceCount}, Triangle Count: {this.TriangleCount.ToString("#,###", CultureInfo.InvariantCulture)})", new Vector2(10, 210));
-            this.Graphics2DRenderer.DrawText($"    Materials: {this.MaterialsCount}", new Vector2(10, 250));
+            this.Graphics2DRenderer.DrawText($"    Mesh Count: {this.MeshCount}, Instance Count: {this.CulledMeshInstanceCount}/{this.MeshInstanceCount}", new Vector2(10, 210));
+            this.Graphics2DRenderer.DrawText($"    Triangle Count: {this.TriangleCount.ToString("#,##0", CultureInfo.InvariantCulture)}, Meshlet Count: {this.CulledMeshletCount.ToString("#,##0", CultureInfo.InvariantCulture)}/{this.MeshletCount.ToString("#,##0", CultureInfo.InvariantCulture)}", new Vector2(10, 250));
             this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
             this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 330));
-            this.Graphics2DRenderer.DrawText($"Gpu Pipeline: (Depth: {this.MainCameraDepth})", new Vector2(10, 370));
+            this.Graphics2DRenderer.DrawText($"Gpu Pipeline:", new Vector2(10, 370));
 
             // this.currentGpuTimings.Sort((a, b) => 
             // {

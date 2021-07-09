@@ -103,6 +103,10 @@ namespace CoreEngine.Rendering
         private readonly GraphicsBuffer cpuLightsBuffer;
         private readonly GraphicsBuffer lightsBuffer;
 
+        private readonly GraphicsBuffer cpuReadBackCounters; 
+        private readonly GraphicsBuffer cpuPipelineStatistics;
+        private readonly QueryBuffer pipelineStatistics;
+
         private uint currentMeshInstanceCount;
 
         // private GraphicsPipeline graphicsPipeline;
@@ -131,11 +135,24 @@ namespace CoreEngine.Rendering
 
             this.cpuLightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeLights");
             this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeLights");
+
+            this.cpuReadBackCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.ReadBack, GraphicsBufferUsage.Storage, 10, isStatic: false, "CpuReadbackCounters");
+            this.cpuPipelineStatistics = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, GraphicsBufferUsage.Storage, 14, isStatic: false, "CpuPipelineStatistics");
+            this.pipelineStatistics = this.graphicsManager.CreateQueryBuffer(QueryBufferType.GraphicsPipelineStats, 1, "PipelineStatistics");
         }
 
         public void Render(Texture mainRenderTargetTexture)
         {
             var scene = this.sceneQueue.WaitForNextScene();
+
+            // TODO: Find a way to do that also on Vulkan
+            var pipelineStatsData = this.graphicsManager.CopyDataFromGraphicsBuffer<ulong>(this.cpuPipelineStatistics);
+            this.renderManager.MeshletCount = (int)pipelineStatsData[11];
+            this.renderManager.CulledMeshletCount = (int)pipelineStatsData[12] / 32;
+            this.renderManager.TriangleCount = (int)pipelineStatsData[13];
+
+            var counters = this.graphicsManager.CopyDataFromGraphicsBuffer<uint>(this.cpuReadBackCounters);
+            this.renderManager.CulledMeshInstanceCount = (int)counters[0];
 
             // TODO: Move that to render pipeline
             this.debugRenderer.ClearDebugLines();
@@ -153,7 +170,7 @@ namespace CoreEngine.Rendering
             }
         }
 
-        private CommandList CopyGpuData(GraphicsScene scene)
+        private CommandList CreateCopyGpuDataCommandList(GraphicsScene scene)
         {
             if (renderManager.logFrameTime)
             {
@@ -254,9 +271,6 @@ namespace CoreEngine.Rendering
                         TriangleIndicesBuffer = LoadGraphicsBuffer(copyCommandList, mesh.FullPath, mesh.TriangleIndicesOffset, mesh.TriangleIndicesSizeInBytes, $"{Path.GetFileNameWithoutExtension(mesh.Path)}TriangleIndices"),
                         MeshletsBuffer = LoadGraphicsBuffer(copyCommandList, mesh.FullPath, mesh.MeshletsOffset, mesh.MeshletsSizeInBytes, $"{Path.GetFileNameWithoutExtension(mesh.Path)}Meshlets")
                     };
-
-                    this.renderManager.MeshletCount = (int)mesh.MeshletCount;
-                    this.renderManager.TriangleCount = (int)mesh.TriangleCount;
 
                     this.meshGraphicsResources.Add(mesh.ResourceId, localMeshGraphicsResources);
                 }
@@ -383,27 +397,8 @@ namespace CoreEngine.Rendering
             ArrayPool<ShaderLight>.Shared.Return(lightList);
         }
 
-        private void RunRenderPipeline(GraphicsScene scene, Texture mainRenderTargetTexture)
+        private CommandList CreateComputeRenderCommandList(GraphicsScene scene)
         {
-            if (mainRenderTargetTexture is null)
-            {
-                throw new ArgumentNullException(nameof(mainRenderTargetTexture));
-            }
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.BeginAction("CopyGpuData");
-            }
-
-            var copyCommandList = CopyGpuData(scene);
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-            }
-
-            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
-
             var computeRenderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.ComputeCommandQueue, "ComputeRenderCommands");
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
             this.graphicsManager.SetShader(computeRenderCommandList, this.computeRenderCommandsShader);
@@ -422,9 +417,69 @@ namespace CoreEngine.Rendering
             var waveSize = 32;
             this.graphicsManager.DispatchCompute(computeRenderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1); 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
+            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(computeRenderCommandList, this.cpuReadBackCounters, this.indirectCommandBuffer, 1, 0, this.indirectCommandBuffer.SizeInBytes - sizeof(uint)); 
             this.graphicsManager.CommitCommandList(computeRenderCommandList);
 
             this.renderManager.AddGpuTiming("ComputeRenderCommands", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+
+            return computeRenderCommandList;
+        }
+
+        private CommandList CreateRenderGeometryCommandList(Texture mainRenderTargetTexture, Texture depthBuffer)
+        {
+            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "RenderGeometry");
+
+            var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, Vector4.Zero, BlendOperation.None);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true, PrimitiveType.Triangle);
+
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+
+            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
+            this.graphicsManager.ResetQueryBuffer(this.pipelineStatistics);
+            this.graphicsManager.BeginQuery(renderCommandList, this.pipelineStatistics, 0);
+
+            // TODO: For the moment the resource states are in COMMON state
+            // We need to have an api here or somewhere else to be able to Transition to 
+            // Shader Read/write
+
+            if (this.currentMeshInstanceCount > 0)
+            {
+                this.graphicsManager.ExecuteIndirect(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
+            }
+
+            this.graphicsManager.EndQuery(renderCommandList, this.pipelineStatistics, 0);
+            this.graphicsManager.EndRenderPass(renderCommandList);
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            this.graphicsManager.ResolveQueryData(renderCommandList, this.pipelineStatistics, this.cpuPipelineStatistics, 0..1);
+
+            this.graphicsManager.CommitCommandList(renderCommandList);
+            this.renderManager.AddGpuTiming("RenderGeometry", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+
+            return renderCommandList;
+        }
+
+        private void RunRenderPipeline(GraphicsScene scene, Texture mainRenderTargetTexture)
+        {
+            if (mainRenderTargetTexture is null)
+            {
+                throw new ArgumentNullException(nameof(mainRenderTargetTexture));
+            }
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.BeginAction("CopyGpuData");
+            }
+
+            var copyCommandList = CreateCopyGpuDataCommandList(scene);
+
+            if (renderManager.logFrameTime)
+            {
+                Logger.EndAction();
+            }
+
+            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
+
+            var computeRenderCommandList = CreateComputeRenderCommandList(scene);            
             var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { computeRenderCommandList }, new Fence[] { copyFence });
 
             if (renderManager.logFrameTime)
@@ -437,35 +492,17 @@ namespace CoreEngine.Rendering
             if (renderManager.logFrameTime)
             {
                 Logger.EndAction();
+            }
+
+            var renderGeometryCommandList = CreateRenderGeometryCommandList(mainRenderTargetTexture, depthBuffer);
+
+            if (renderManager.logFrameTime)
+            {
                 Logger.BeginAction("Execute Command List");
             }
 
-            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "RenderGeometry");
-
-            var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, Vector4.Zero, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true, PrimitiveType.Triangle);
-
-            startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-
-            this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
-
-            // TODO: For the moment the resource states are in COMMON state
-            // We need to have an api here or somewhere else to be able to Transition to 
-            // Shader Read/write
-
-            if (this.currentMeshInstanceCount > 0)
-            {
-                this.graphicsManager.ExecuteIndirect(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
-            }
-
-            this.graphicsManager.EndRenderPass(renderCommandList);
-            endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-
-            this.graphicsManager.CommitCommandList(renderCommandList);
-            this.renderManager.AddGpuTiming("RenderGeometry", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
-
             // TODO: Submit render and debug command list at the same time
-            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { computeFence });
+            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderGeometryCommandList }, new Fence[] { computeFence });
 
             if (renderManager.logFrameTime)
             {

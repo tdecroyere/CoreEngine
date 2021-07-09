@@ -870,7 +870,7 @@ namespace CoreEngine.Graphics
             this.CopyDataToGraphicsBuffer<uint>(commandList, indirectCommandBuffer, this.resetCounterBuffer, 1, indirectCommandBuffer.SizeInBytes - sizeof(uint));
         }
 
-        public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, uint length, uint destinationOffsetInBytes = 0) where T : struct
+        public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, uint length, uint destinationOffsetInBytes = 0, uint sourceOffsetInBytes = 0) where T : struct
         {
             if (destination == null)
             {
@@ -898,7 +898,7 @@ namespace CoreEngine.Graphics
             //     commandList.CommandQueue.CurrentCopyBuffers.Add(destination);
             // }
 
-            this.graphicsService.CopyDataToGraphicsBuffer(commandList.NativePointer, destination.NativePointer, source.NativePointer, sizeInBytes, destinationOffsetInBytes);
+            this.graphicsService.CopyDataToGraphicsBuffer(commandList.NativePointer, destination.NativePointer, source.NativePointer, sizeInBytes, destinationOffsetInBytes, sourceOffsetInBytes);
             this.gpuMemoryUploaded += (int)sizeInBytes;
 
             // if (destination.GraphicsMemoryAllocation.GraphicsHeap.Type == GraphicsHeapType.Gpu)

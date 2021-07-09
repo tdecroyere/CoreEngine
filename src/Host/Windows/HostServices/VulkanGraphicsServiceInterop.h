@@ -301,10 +301,10 @@ void VulkanGraphicsServiceDeletePipelineStateInterop(void* context, void* pipeli
     contextObject->DeletePipelineState(pipelineStatePointer);
 }
 
-void VulkanGraphicsServiceCopyDataToGraphicsBufferInterop(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes)
+void VulkanGraphicsServiceCopyDataToGraphicsBufferInterop(void* context, void* commandListPointer, void* destinationGraphicsBufferPointer, void* sourceGraphicsBufferPointer, unsigned int sizeInBytes, unsigned int destinationOffsetInBytes, unsigned int sourceOffsetInBytes)
 {
     auto contextObject = (VulkanGraphicsService*)context;
-    contextObject->CopyDataToGraphicsBuffer(commandListPointer, destinationGraphicsBufferPointer, sourceGraphicsBufferPointer, sizeInBytes, destinationOffsetInBytes);
+    contextObject->CopyDataToGraphicsBuffer(commandListPointer, destinationGraphicsBufferPointer, sourceGraphicsBufferPointer, sizeInBytes, destinationOffsetInBytes, sourceOffsetInBytes);
 }
 
 void VulkanGraphicsServiceCopyDataToTextureInterop(void* context, void* commandListPointer, void* destinationTexturePointer, void* sourceGraphicsBufferPointer, enum GraphicsTextureFormat textureFormat, int width, int height, int slice, int mipLevel)

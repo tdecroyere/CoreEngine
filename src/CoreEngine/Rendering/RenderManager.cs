@@ -20,8 +20,6 @@ namespace CoreEngine.Rendering
             this.StartIndex = startIndex;
             this.EndIndex = endIndex;
             this.Type = type;
-            this.StartTiming = 0.0;
-            this.EndTiming = 0.0;
             this.StartTimestamp = 0;
             this.EndTimestamp = 0;
         }
@@ -32,8 +30,6 @@ namespace CoreEngine.Rendering
         public QueryBufferType Type { get; }
         public ulong StartTimestamp { get; set; }
         public ulong EndTimestamp { get; set; }
-        public double StartTiming { get; set; }
-        public double EndTiming { get; set; }
     }
 
     public class RenderManager : SystemManager, IDisposable
@@ -165,7 +161,8 @@ namespace CoreEngine.Rendering
         public Graphics2DRenderer Graphics2DRenderer { get; }
         internal int CulledMeshletCount { get; set; }
         internal int MeshletCount { get; set; }
-        internal int TriangleCount { get; set; }
+        internal ulong TriangleCount { get; set; }
+        internal ulong CulledTriangleCount { get; set; }
         internal int CulledGeometryInstancesCount { get; set; }
         internal Vector2 MainCameraDepth { get; set; }
         internal int MeshCount { get; set; }
@@ -245,7 +242,7 @@ namespace CoreEngine.Rendering
                 Logger.BeginAction($"SceneRenderer (FrameSize: {this.currentFrameSize})");
             }
 
-            this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
+            var rendererfence = this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
             
             if (logFrameTime)
             {
@@ -253,7 +250,7 @@ namespace CoreEngine.Rendering
             }
 
             DrawDebugMessages();
-            var fence = this.Graphics2DRenderer.Render(mainRenderTargetTexture);
+            var fence = this.Graphics2DRenderer.Render(mainRenderTargetTexture, rendererfence);
             PresentScreenBuffer(mainRenderTargetTexture, fence);
         }
 
@@ -311,10 +308,6 @@ namespace CoreEngine.Rendering
             this.currentGpuTimings.AddRange(this.gpuTimings);
             this.gpuTimings.Clear();
 
-            // TODO: Get the frequency only once
-            var copyQueueFrequency = this.graphicsManager.GetCommandQueueTimestampFrequency(this.CopyCommandQueue);
-            var renderQueueFrequency = this.graphicsManager.GetCommandQueueTimestampFrequency(this.RenderCommandQueue);
-
             this.graphicsManager.ResetQueryBuffer(this.globalQueryBuffer);
             this.graphicsManager.ResetQueryBuffer(this.globalCopyQueryBuffer);
 
@@ -325,14 +318,10 @@ namespace CoreEngine.Rendering
             {
                 var gpuTiming = this.currentGpuTimings[i];
 
-                var frequency = renderQueueFrequency;
-
                 if (gpuTiming.Type == QueryBufferType.CopyTimestamp)
                 {
                     gpuTiming.StartTimestamp = queryCopyData[gpuTiming.StartIndex];
                     gpuTiming.EndTimestamp = queryCopyData[gpuTiming.EndIndex];
-
-                    frequency = copyQueueFrequency;
                 }
 
                 else
@@ -340,9 +329,6 @@ namespace CoreEngine.Rendering
                     gpuTiming.StartTimestamp = queryData[gpuTiming.StartIndex];
                     gpuTiming.EndTimestamp = queryData[gpuTiming.EndIndex];
                 }
-
-                gpuTiming.StartTiming = gpuTiming.StartTimestamp / (double)frequency * 1000.0;
-                gpuTiming.EndTiming = gpuTiming.EndTimestamp / (double)frequency * 1000.0;
             }
         }
 
@@ -372,62 +358,45 @@ namespace CoreEngine.Rendering
             this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {this.currentFrameSize.X}x{this.currentFrameSize.Y} - FPS: {framePerSeconds} (Unlocked: {unlockedFramePerSeconds}) - {compilationConfiguration}", new Vector2(10, 10));
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory + this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB (Static: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}/{Utils.BytesToMegaBytes(this.graphicsManager.TotalGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}, Transient: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}/{Utils.BytesToMegaBytes(this.graphicsManager.TotalTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)})", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {Utils.BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
-            this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {frameDuration.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 170));
+            this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {Utils.FormatDurationInMs(frameDuration)}", new Vector2(10, 170));
             this.Graphics2DRenderer.DrawText($"    Mesh Count: {this.MeshCount}, Instance Count: {this.CulledMeshInstanceCount}/{this.MeshInstanceCount}", new Vector2(10, 210));
-            this.Graphics2DRenderer.DrawText($"    Triangle Count: {this.TriangleCount.ToString("#,##0", CultureInfo.InvariantCulture)}, Meshlet Count: {this.CulledMeshletCount.ToString("#,##0", CultureInfo.InvariantCulture)}/{this.MeshletCount.ToString("#,##0", CultureInfo.InvariantCulture)}", new Vector2(10, 250));
-            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 290));
-            this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 330));
-            this.Graphics2DRenderer.DrawText($"Gpu Pipeline:", new Vector2(10, 370));
+            this.Graphics2DRenderer.DrawText($"    Triangle Count: {Utils.FormatBigNumber(this.CulledTriangleCount)}/{Utils.FormatBigNumber(this.TriangleCount)}", new Vector2(10, 250));
+            this.Graphics2DRenderer.DrawText($"    Meshlet Count: {Utils.FormatBigNumber((ulong)this.CulledMeshletCount)}/{Utils.FormatBigNumber((ulong)this.MeshletCount)}", new Vector2(10, 290));
+            this.Graphics2DRenderer.DrawText($"    Textures: {this.TexturesCount}", new Vector2(10, 330));
+            this.Graphics2DRenderer.DrawText($"    Lights: {this.LightsCount}", new Vector2(10, 370));
+            this.Graphics2DRenderer.DrawText($"Gpu Pipeline:", new Vector2(10, 410));
 
-            // this.currentGpuTimings.Sort((a, b) => 
-            // {
-            //     // var result = Math.Round(a.StartTiming, 2).CompareTo(Math.Round(b.StartTiming, 2));
-            //     var result = a.StartTiming.CompareTo(b.StartTiming);
-
-            //     if (result == 0)
-            //     {
-            //         return a.Name.CompareTo(b.Name);
-            //     }
-
-            //     return result;
-            // });
-
-            var startGpuTiming = 0.0;
-            var endGpuTiming = 0.0;
-            var previousEndGpuTiming = 0.0;
+            var startGpuTimestamp = 0ul;
+            var endGpuTimestamp = 0ul;
             var gpuExecutionTime = 0.0;
+
+            // TODO: For the moment we only take the frequency of the render queue
+            // at each frame which is not good!
+            var renderQueueFrequency = this.graphicsManager.GetCommandQueueTimestampFrequency(this.RenderCommandQueue);
 
             for (var i = 0; i < this.currentGpuTimings.Count; i++)
             {
                 var gpuTiming = this.currentGpuTimings[i];
 
-                if (startGpuTiming == 0.0)
+                if (startGpuTimestamp == 0ul)
                 {
-                    startGpuTiming = gpuTiming.StartTiming;
+                    startGpuTimestamp = gpuTiming.StartTimestamp;
                 }
 
-                if (gpuTiming.EndTiming > endGpuTiming)
+                if (gpuTiming.EndTimestamp > endGpuTimestamp)
                 {
-                    endGpuTiming = gpuTiming.EndTiming;
+                    endGpuTimestamp = gpuTiming.EndTimestamp;
                 }
 
-                var duration = gpuTiming.EndTiming - gpuTiming.StartTiming;
+                var duration = (gpuTiming.EndTimestamp - gpuTiming.StartTimestamp) / (double)renderQueueFrequency * 1000.0;
+                var startTime = gpuTiming.StartTimestamp != 0 ? (gpuTiming.StartTimestamp - startGpuTimestamp) / (double)renderQueueFrequency * 1000.0 : 0;
 
-                this.Graphics2DRenderer.DrawText($"    {gpuTiming.Name}: {duration.ToString("0.00", CultureInfo.InvariantCulture)} ms ({(gpuTiming.StartTiming != 0 ? gpuTiming.StartTiming - startGpuTiming : 0).ToString("0.00", CultureInfo.InvariantCulture)} ms)", new Vector2(10, 410 + i * 40));
+                this.Graphics2DRenderer.DrawText($"    {gpuTiming.Name}: {Utils.FormatDurationInMs(duration)} ({Utils.FormatDurationInMs(startTime)})", new Vector2(10, 450 + i * 40));
 
                 gpuExecutionTime += duration;
-
-                var interval = gpuTiming.StartTiming - previousEndGpuTiming;
-
-                // if (interval < 0.0)
-                // {
-                //     gpuExecutionTime += interval;
-                // }
-
-                previousEndGpuTiming = gpuTiming.EndTiming;
             }
 
-            gpuExecutionTime = endGpuTiming - startGpuTiming;
+            gpuExecutionTime = (endGpuTimestamp - startGpuTimestamp) / (double)renderQueueFrequency * 1000.0;
             this.lastGpuDuration += gpuExecutionTime;
 
             this.Graphics2DRenderer.DrawText($"Gpu Frame Duration: {gpuExecutionTime.ToString("0.00", CultureInfo.InvariantCulture)} ms", new Vector2(10, 50));

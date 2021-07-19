@@ -382,6 +382,7 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2500},
         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2500},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2500},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2500},
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1 }
     };
 
@@ -389,7 +390,7 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
     createInfo.poolSizeCount = ARRAYSIZE(poolSizes);
     createInfo.pPoolSizes = poolSizes;
     createInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-    createInfo.maxSets = 4;
+    createInfo.maxSets = ARRAYSIZE(poolSizes);
 
     vkCreateDescriptorPool(this->graphicsDevice, &createInfo, nullptr, &resourceHeap->DescriptorPool);
 
@@ -397,10 +398,11 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
         GetGlobalBufferLayout(this->graphicsDevice),
 	    GetGlobalTextureLayout(this->graphicsDevice),
         GetGlobalUavBufferLayout(this->graphicsDevice),
+        GetGlobalUavTextureLayout(this->graphicsDevice),
 	    GetGlobalSamplerLayout(this->graphicsDevice)
     };
 
-    uint32_t counts[] { 2500, 2500, 2500, 1 };
+    uint32_t counts[] { 2500, 2500, 2500, 2500, 1 };
 
     VkDescriptorSetVariableDescriptorCountAllocateInfo set_counts = {};
     set_counts.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
@@ -427,7 +429,7 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
     samplerInfo.sampler = resourceHeap->Sampler;
 
     VkWriteDescriptorSet descriptor = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    descriptor.dstSet = resourceHeap->DescriptorSets[3];
+    descriptor.dstSet = resourceHeap->DescriptorSets[4];
     descriptor.dstBinding = 0;
     descriptor.dstArrayElement = 0;
     descriptor.descriptorCount = 1;
@@ -463,29 +465,50 @@ void VulkanGraphicsService::DeleteShaderResourceHeap(void* shaderResourceHeapPoi
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalBufferLayout, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalTextureLayout, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalUavBufferLayout, nullptr);
+    vkDestroyDescriptorSetLayout(this->graphicsDevice, globalUavTextureLayout, nullptr);
     vkDestroyDescriptorSetLayout(this->graphicsDevice, globalSamplerLayout, nullptr);
 
     delete shaderResourceHeap;
 }
 
-void VulkanGraphicsService::CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
+void VulkanGraphicsService::CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer, int isWriteable, unsigned int mipLevel)
 { 
     VulkanShaderResourceHeap* shaderResourceHeap = (VulkanShaderResourceHeap*)shaderResourceHeapPointer;
     VulkanTexture* texture = (VulkanTexture*)texturePointer;
 
+    // TODO: we need another image view for writeable textures?
     VkDescriptorImageInfo imageInfo = {};
     imageInfo.imageView = texture->ImageView;
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    VkWriteDescriptorSet descriptor = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    descriptor.dstSet = shaderResourceHeap->DescriptorSets[1];
-    descriptor.dstBinding = 0;
-    descriptor.dstArrayElement = index;
-    descriptor.descriptorCount = 1;
-    descriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    descriptor.pImageInfo = &imageInfo;
+    if (!isWriteable)
+    {
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    vkUpdateDescriptorSets(this->graphicsDevice, 1, &descriptor, 0, nullptr);
+        VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        descriptor.dstSet = shaderResourceHeap->DescriptorSets[1];
+        descriptor.dstBinding = 0;
+        descriptor.dstArrayElement = index;
+        descriptor.descriptorCount = 1;
+        descriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        descriptor.pImageInfo = &imageInfo;
+    
+        vkUpdateDescriptorSets(this->graphicsDevice, 1, &descriptor, 0, nullptr);
+    }
+
+    else
+    {
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        
+        VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        descriptor.dstSet = shaderResourceHeap->DescriptorSets[3];
+        descriptor.dstBinding = 0;
+        descriptor.dstArrayElement = index;
+        descriptor.descriptorCount = 1;
+        descriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        descriptor.pImageInfo = &imageInfo;
+    
+        vkUpdateDescriptorSets(this->graphicsDevice, 1, &descriptor, 0, nullptr);
+    }
 }
 
 void VulkanGraphicsService::DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index){ }
@@ -632,7 +655,7 @@ void* VulkanGraphicsService::CreateTexture(void* graphicsHeapPointer, unsigned l
     texture->TextureObject = CreateImage(this->graphicsDevice, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
     AssertIfFailed(vkBindImageMemory(this->graphicsDevice, texture->TextureObject, graphicsHeap->DeviceMemory, heapOffset));
 
-    texture->ImageView = CreateImageView(this->graphicsDevice, texture->TextureObject, VulkanConvertTextureFormat(textureFormat));
+    texture->ImageView = CreateImageView(this->graphicsDevice, texture->TextureObject, VulkanConvertTextureFormat(textureFormat, false));
     texture->Width = width;
     texture->Height = height;
     texture->ResourceState = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1268,7 +1291,7 @@ void VulkanGraphicsService::SetPipelineState(void* commandListPointer, void* pip
     {
         // TODO: Support compute shaders
         vkCmdBindPipeline(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineStateObject);
-        vkCmdBindDescriptorSets(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 4, this->currentResourceHeap->DescriptorSets, 0, nullptr);
+        vkCmdBindDescriptorSets(commandList->CommandBufferObject, commandList->CommandQueue->IsComputeCommandQueue ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, this->currentPipelineState->PipelineLayoutObject, 0, 5, this->currentResourceHeap->DescriptorSets, 0, nullptr);
     }
 }
 

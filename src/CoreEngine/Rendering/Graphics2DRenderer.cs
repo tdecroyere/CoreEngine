@@ -132,7 +132,7 @@ namespace CoreEngine.Rendering
             this.rectangleSurfaces[this.currentSurfaceCount++] = new RectangleSurface(worldMatrix * this.projectionMatrix, textureMinPoint, textureMaxPoint, texture.ShaderResourceIndex, isOpaque);
         }
 
-        public Fence? Render(Texture renderTargetTexture)
+        public Fence? Render(Texture renderTargetTexture, Fence previousFence)
         {
             if (this.currentSurfaceCount > 0)
             {
@@ -140,7 +140,7 @@ namespace CoreEngine.Rendering
                 var renderCommandList = CreateRenderCommandList(renderTargetTexture);
 
                 var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
-                return this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { copyFence });
+                return this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderCommandList }, new Fence[] { copyFence, previousFence });
             }
 
             return null;

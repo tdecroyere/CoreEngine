@@ -58,8 +58,6 @@ struct Direct3D12Texture
     D3D12_RESOURCE_STATES ResourceState;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT FootPrint;
     uint32_t TextureDescriptorOffset;
-    uint32_t SrvTextureDescriptorOffset;
-    uint32_t UavTextureDescriptorOffset;
     bool IsPresentTexture;
 };
 
@@ -127,7 +125,7 @@ class Direct3D12GraphicsService
         void* CreateShaderResourceHeap(unsigned long length);
         void SetShaderResourceHeapLabel(void* shaderResourceHeapPointer, char* label);
         void DeleteShaderResourceHeap(void* shaderResourceHeapPointer);
-        void CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer);
+        void CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer, int isWriteable, unsigned int mipLevel);
         void DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index);
         void CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable);
         void DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index);

@@ -555,7 +555,23 @@ namespace CoreEngine.Graphics
 
             if (heapType == GraphicsHeapType.Gpu || heapType == GraphicsHeapType.TransientGpu)
             {
-                this.shaderResourceManager.CreateShaderResourceTexture(texture);
+                this.shaderResourceManager.CreateShaderResourceTexture(texture, isWriteable: false, mipLevel: 0, out var shaderResourceIndex1, out var shaderResourceIndex2);
+                texture.ShaderResourceIndex1 = shaderResourceIndex1;
+                texture.ShaderResourceIndex2 = shaderResourceIndex2;
+
+                if (usage == TextureUsage.ShaderWrite)
+                {
+                    for (var i = 0; i < mipLevels; i++)
+                    {
+                        this.shaderResourceManager.CreateShaderResourceTexture(texture, isWriteable: true, (uint)i, out shaderResourceIndex1, out shaderResourceIndex2);
+                        texture.WriteableShaderResourceIndex1[i] = shaderResourceIndex1;
+
+                        if (!texture.IsStatic && shaderResourceIndex2 != null)
+                        {
+                            texture.WriteableShaderResourceIndex2[i] = shaderResourceIndex2.Value;
+                        }
+                    }
+                }
             }
             
             if (allocation.IsAliasable)

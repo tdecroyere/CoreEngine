@@ -39,7 +39,7 @@ struct VulkanGraphicsHeap
 struct VulkanShaderResourceHeap
 {
     VkDescriptorPool DescriptorPool;
-    VkDescriptorSet DescriptorSets[4];
+    VkDescriptorSet DescriptorSets[5];
     VkSampler Sampler;
 };
 
@@ -136,7 +136,7 @@ class VulkanGraphicsService
         void* CreateShaderResourceHeap(unsigned long length);
         void SetShaderResourceHeapLabel(void* shaderResourceHeapPointer, char* label);
         void DeleteShaderResourceHeap(void* shaderResourceHeapPointer);
-        void CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer);
+        void CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer, int isWriteable, unsigned int mipLevel);
         void DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index);
         void CreateShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable);
         void DeleteShaderResourceBuffer(void* shaderResourceHeapPointer, unsigned int index);

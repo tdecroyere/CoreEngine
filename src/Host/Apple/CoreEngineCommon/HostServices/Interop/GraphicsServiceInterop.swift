@@ -106,9 +106,9 @@ func GraphicsService_deleteShaderResourceHeapInterop(context: UnsafeMutableRawPo
     contextObject.deleteShaderResourceHeap(shaderResourceHeapPointer)
 }
 
-func GraphicsService_createShaderResourceTextureInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt32, _ texturePointer: UnsafeMutableRawPointer?) {
+func GraphicsService_createShaderResourceTextureInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt32, _ texturePointer: UnsafeMutableRawPointer?, _ isWriteable: Int32, _ mipLevel: UInt32) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
-    contextObject.createShaderResourceTexture(shaderResourceHeapPointer, UInt(index), texturePointer)
+    contextObject.createShaderResourceTexture(shaderResourceHeapPointer, UInt(index), texturePointer, Bool(isWriteable == 1), UInt(mipLevel))
 }
 
 func GraphicsService_deleteShaderResourceTextureInterop(context: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt32) {

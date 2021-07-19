@@ -68,7 +68,10 @@ DXGI_FORMAT ConvertTextureFormat(GraphicsTextureFormat textureFormat, bool noSrg
 	
 		case GraphicsTextureFormat::Depth32Float:
 			return DXGI_FORMAT_D32_FLOAT;
-	
+
+		case GraphicsTextureFormat::R32Float:
+			return DXGI_FORMAT_R32_FLOAT;
+
 		case GraphicsTextureFormat::Rgba16Float:
 			return DXGI_FORMAT_R16G16B16A16_FLOAT;
 	
@@ -119,10 +122,8 @@ DXGI_FORMAT ConvertSRVTextureFormat(DXGI_FORMAT textureFormat)
 
 D3D12_RESOURCE_DESC CreateTextureResourceDescription(enum GraphicsTextureFormat textureFormat, enum GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount)
 {
-	// TODO: Support mip levels
-	
 	D3D12_RESOURCE_DESC textureDesc = {};
-	textureDesc.MipLevels = 1;//mipLevels;
+	textureDesc.MipLevels = mipLevels;
 	textureDesc.Format = ConvertTextureFormat(textureFormat);
 	textureDesc.Width = width;
 	textureDesc.Height = height;

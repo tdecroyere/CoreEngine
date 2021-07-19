@@ -87,6 +87,7 @@ namespace CoreEngine.Rendering
         private readonly GraphicsSceneQueue sceneQueue;
 
         private readonly Shader computeRenderCommandsShader;
+        private readonly Shader computeGenerateDepthPyramid;
         private readonly Shader renderMeshInstanceShader;
 
         private readonly GraphicsBuffer cpuMeshBuffer;
@@ -120,6 +121,7 @@ namespace CoreEngine.Rendering
             this.sceneQueue = sceneQueue;
 
             this.computeRenderCommandsShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeRenderCommands.shader");
+            this.computeGenerateDepthPyramid = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeGenerateDepthPyramid.shader");
             this.renderMeshInstanceShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
 
             this.cpuMeshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "CpuMeshBuffer");
@@ -141,7 +143,7 @@ namespace CoreEngine.Rendering
             this.pipelineStatistics = this.graphicsManager.CreateQueryBuffer(QueryBufferType.GraphicsPipelineStats, 1, "PipelineStatistics");
         }
 
-        public void Render(Texture mainRenderTargetTexture)
+        public Fence Render(Texture mainRenderTargetTexture)
         {
             var scene = this.sceneQueue.WaitForNextScene();
 
@@ -149,7 +151,7 @@ namespace CoreEngine.Rendering
             var pipelineStatsData = this.graphicsManager.CopyDataFromGraphicsBuffer<ulong>(this.cpuPipelineStatistics);
             this.renderManager.MeshletCount = (int)pipelineStatsData[11];
             this.renderManager.CulledMeshletCount = (int)pipelineStatsData[12] / 32;
-            this.renderManager.TriangleCount = (int)pipelineStatsData[13];
+            this.renderManager.CulledTriangleCount = pipelineStatsData[13];
 
             var counters = this.graphicsManager.CopyDataFromGraphicsBuffer<uint>(this.cpuReadBackCounters);
             this.renderManager.CulledMeshInstanceCount = (int)counters[0];
@@ -162,12 +164,14 @@ namespace CoreEngine.Rendering
                 Logger.BeginAction("RunPipeline");
             }
 
-            RunRenderPipeline(scene, mainRenderTargetTexture);
+            var fence = RunRenderPipeline(scene, mainRenderTargetTexture);
 
             if (this.renderManager.logFrameTime)
             {
                 Logger.EndAction();
             }
+
+            return fence;
         }
 
         private CommandList CreateCopyGpuDataCommandList(GraphicsScene scene)
@@ -246,6 +250,7 @@ namespace CoreEngine.Rendering
                 this.currentCpuGraphicsBuffers[i].Dispose();
             }
 
+            this.renderManager.TriangleCount = 0;
             this.currentCpuGraphicsBuffers.Clear();
 
             uint currentMeshIndex = 0;
@@ -293,6 +298,7 @@ namespace CoreEngine.Rendering
                 }
 
                 var meshIndex = meshMapping[mesh.ResourceId];
+                this.renderManager.TriangleCount += mesh.TriangleCount;
 
                 var shaderMeshInstance = new ShaderMeshInstance()
                 {
@@ -417,6 +423,8 @@ namespace CoreEngine.Rendering
             var waveSize = 32;
             this.graphicsManager.DispatchCompute(computeRenderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1); 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
+
+            // TODO: We normaly need an UAV Barrier here because we are on the same queue!
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(computeRenderCommandList, this.cpuReadBackCounters, this.indirectCommandBuffer, 1, 0, this.indirectCommandBuffer.SizeInBytes - sizeof(uint)); 
             this.graphicsManager.CommitCommandList(computeRenderCommandList);
 
@@ -457,8 +465,32 @@ namespace CoreEngine.Rendering
 
             return renderCommandList;
         }
+        
+        private CommandList CreateDepthPyramidCommandList(Texture depthPyramidBuffer, Texture depthBuffer)
+        {
+            var commandList = this.graphicsManager.CreateCommandList(this.renderManager.ComputeCommandQueue, "GenerateDepthPyramid");
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
+            this.graphicsManager.SetShader(commandList, this.computeGenerateDepthPyramid);
 
-        private void RunRenderPipeline(GraphicsScene scene, Texture mainRenderTargetTexture)
+            this.graphicsManager.SetShaderParameterValues(commandList, 0, new uint[]
+            {
+                depthBuffer.ShaderResourceIndex,
+                depthPyramidBuffer.GetWriteableShaderResourceIndex(0)
+            });
+
+            this.graphicsManager.DispatchCompute(commandList, (uint)MathF.Ceiling((float)depthPyramidBuffer.Width / 8), (uint)MathF.Ceiling((float)depthPyramidBuffer.Height / 8), 1); 
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
+
+            // TODO: We normaly need an UAV Barrier here because we are on the same queue!
+            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(commandList, this.cpuReadBackCounters, this.indirectCommandBuffer, 1, 0, this.indirectCommandBuffer.SizeInBytes - sizeof(uint)); 
+            this.graphicsManager.CommitCommandList(commandList);
+
+            this.renderManager.AddGpuTiming("GenerateDepthPyramid", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+
+            return commandList;
+        }
+
+        private Fence RunRenderPipeline(GraphicsScene scene, Texture mainRenderTargetTexture)
         {
             if (mainRenderTargetTexture is null)
             {
@@ -467,34 +499,32 @@ namespace CoreEngine.Rendering
 
             if (renderManager.logFrameTime)
             {
-                Logger.BeginAction("CopyGpuData");
-            }
-
-            var copyCommandList = CreateCopyGpuDataCommandList(scene);
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-            }
-
-            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
-
-            var computeRenderCommandList = CreateComputeRenderCommandList(scene);            
-            var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { computeRenderCommandList }, new Fence[] { copyFence });
-
-            if (renderManager.logFrameTime)
-            {
                 Logger.BeginAction("Create Depth Buffer");
             }
 
-            var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
+            using var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
+
+            // TODO: Store that to so that we can reuse this texture in the next frame
+            // For this texture because we will write to different mip levels in a CS, we may need
+            // different shader resource index
+            // Example: depthPyramidBuffer.GetWriteableShaderResourceIndex(mipLevel);
+            // TODO: It seems we have some bug sometimes in D3D12 when resizing quickly the window
+            // maybe it is due to the transient memory management?
+
+            var depthPyramidBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, mainRenderTargetTexture.Width / 2, mainRenderTargetTexture.Height / 2, 1, 3, 1, isStatic: true, "DepthPyramid");
 
             if (renderManager.logFrameTime)
             {
                 Logger.EndAction();
             }
-
+         
+            var copyCommandList = CreateCopyGpuDataCommandList(scene);
+            var computeRenderCommandList = CreateComputeRenderCommandList(scene);            
             var renderGeometryCommandList = CreateRenderGeometryCommandList(mainRenderTargetTexture, depthBuffer);
+            var depthPyramidCommandList = CreateDepthPyramidCommandList(depthPyramidBuffer, depthBuffer);
+
+            var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
+            var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { computeRenderCommandList }, new Fence[] { copyFence });
 
             if (renderManager.logFrameTime)
             {
@@ -502,7 +532,7 @@ namespace CoreEngine.Rendering
             }
 
             // TODO: Submit render and debug command list at the same time
-            this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderGeometryCommandList }, new Fence[] { computeFence });
+            var renderFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderGeometryCommandList }, new Fence[] { computeFence });
 
             if (renderManager.logFrameTime)
             {
@@ -516,6 +546,11 @@ namespace CoreEngine.Rendering
             {
                 Logger.EndAction();
             }
+
+            var generateDepthPyramidFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList }, new Fence[] { renderFence });
+            this.renderManager.Graphics2DRenderer.DrawRectangleTexture(new Vector2(500, 400), depthPyramidBuffer);
+
+            return generateDepthPyramidFence;
         }
     }
 }

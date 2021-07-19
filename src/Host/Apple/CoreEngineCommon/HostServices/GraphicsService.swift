@@ -22,7 +22,7 @@ public protocol GraphicsServiceProtocol {
     func createShaderResourceHeap(_ length: UInt) -> UnsafeMutableRawPointer?
     func setShaderResourceHeapLabel(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ label: String)
     func deleteShaderResourceHeap(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?)
-    func createShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ texturePointer: UnsafeMutableRawPointer?)
+    func createShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ texturePointer: UnsafeMutableRawPointer?, _ isWriteable: Bool, _ mipLevel: UInt)
     func deleteShaderResourceTexture(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)
     func createShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt, _ bufferPointer: UnsafeMutableRawPointer?, _ isWriteable: Bool)
     func deleteShaderResourceBuffer(_ shaderResourceHeapPointer: UnsafeMutableRawPointer?, _ index: UInt)

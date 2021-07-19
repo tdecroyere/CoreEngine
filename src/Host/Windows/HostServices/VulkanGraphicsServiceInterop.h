@@ -127,10 +127,10 @@ void VulkanGraphicsServiceDeleteShaderResourceHeapInterop(void* context, void* s
     contextObject->DeleteShaderResourceHeap(shaderResourceHeapPointer);
 }
 
-void VulkanGraphicsServiceCreateShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
+void VulkanGraphicsServiceCreateShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer, int isWriteable, unsigned int mipLevel)
 {
     auto contextObject = (VulkanGraphicsService*)context;
-    contextObject->CreateShaderResourceTexture(shaderResourceHeapPointer, index, texturePointer);
+    contextObject->CreateShaderResourceTexture(shaderResourceHeapPointer, index, texturePointer, isWriteable, mipLevel);
 }
 
 void VulkanGraphicsServiceDeleteShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index)

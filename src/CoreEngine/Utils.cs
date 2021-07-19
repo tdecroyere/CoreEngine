@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Numerics;
 
 namespace CoreEngine
@@ -24,6 +25,42 @@ namespace CoreEngine
         public static ulong GigaBytesToBytes(ulong value)
         {
             return value * 1024 * 1024 * 1024;
+        }
+
+        public static string FormatBigNumber(ulong number)
+        {
+            if (number == 0)
+            {
+                return "0";
+            }
+
+            int mag = (int)(Math.Floor(Math.Log10(number)) / 3); // Truncates to 6, divides to 2
+            double divisor = Math.Pow(10, mag * 3);
+
+            double shortNumber = number / divisor;
+
+            string suffix = string.Empty;
+            switch (mag)
+            {
+                case 0:
+                    suffix = string.Empty;
+                    break;
+                case 1:
+                    suffix = "k";
+                    break;
+                case 2:
+                    suffix = "M";
+                    break;
+                case 3:
+                    suffix = "G";
+                    break;
+            }
+            return shortNumber.ToString("N1", CultureInfo.InvariantCulture) + " " + suffix;
+        }
+
+        public static string FormatDurationInMs(double duration)
+        {
+            return $"{duration.ToString("0.00", CultureInfo.InvariantCulture)} ms";
         }
 
         public static string[] GetCommandLineArguments()

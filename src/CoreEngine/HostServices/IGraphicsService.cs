@@ -45,7 +45,8 @@ namespace CoreEngine.HostServices
         BC6,
         BC7Srgb,
         Rgba32Float,
-        Rgba16Unorm
+        Rgba16Unorm,
+        R32Float
     }
 
     public enum GraphicsTextureUsage
@@ -300,7 +301,7 @@ namespace CoreEngine.HostServices
         IntPtr CreateShaderResourceHeap(ulong length);
         void SetShaderResourceHeapLabel(IntPtr shaderResourceHeapPointer, string label);
         void DeleteShaderResourceHeap(IntPtr shaderResourceHeapPointer);
-        void CreateShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index, IntPtr texturePointer);
+        void CreateShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index, IntPtr texturePointer, bool isWriteable, uint mipLevel);
         void DeleteShaderResourceTexture(IntPtr shaderResourceHeapPointer, uint index);
         void CreateShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index, IntPtr bufferPointer, bool isWriteable);
         void DeleteShaderResourceBuffer(IntPtr shaderResourceHeapPointer, uint index);

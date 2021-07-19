@@ -26,6 +26,8 @@ namespace CoreEngine.Graphics
             this.IsStatic = isStatic;
             this.IsLoaded = true;
             this.Label = label;
+            this.WriteableShaderResourceIndex1 = new uint[mipLevels];
+            this.WriteableShaderResourceIndex2 = new uint[mipLevels];
         }
 
         internal Texture(GraphicsManager graphicsManager, int width, int height, uint resourceId, string path, string label) : base(resourceId, path)
@@ -38,6 +40,8 @@ namespace CoreEngine.Graphics
             this.ResourceType = GraphicsResourceType.Texture;
             this.IsStatic = true;
             this.Label = label;
+            this.WriteableShaderResourceIndex1 = new uint[0];
+            this.WriteableShaderResourceIndex2 = new uint[0];
         }
 
         public void Dispose()
@@ -109,8 +113,25 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public uint ShaderResourceIndex1 { get; internal set;}
-        public uint? ShaderResourceIndex2 { get; internal set;}
+        public uint ShaderResourceIndex1 { get; internal set; }
+        public uint? ShaderResourceIndex2 { get; internal set; }
+
+        public uint GetWriteableShaderResourceIndex(uint mipLevel)
+        {
+            // TODO: Check for errors
+
+            var result = this.WriteableShaderResourceIndex1[mipLevel];
+
+            if (!IsStatic && this.WriteableShaderResourceIndex2[mipLevel] != 0 && ((this.graphicsManager.CurrentFrameNumber % 2) == 1))
+            {
+                result = this.WriteableShaderResourceIndex2[mipLevel];
+            }
+
+            return result;
+        }
+
+        public uint[] WriteableShaderResourceIndex1 { get; internal set; }
+        public uint[] WriteableShaderResourceIndex2 { get; internal set; }
 
         public string Label
         {

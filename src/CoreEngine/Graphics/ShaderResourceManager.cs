@@ -42,7 +42,7 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public void CreateShaderResourceTexture(Texture texture)
+        public void CreateShaderResourceTexture(Texture texture, bool isWriteable, uint mipLevel, out uint shaderResourceIndex1, out uint? shaderResourceIndex2)
         {
             if (texture is null)
             {
@@ -51,19 +51,22 @@ namespace CoreEngine.Graphics
 
             if (texture.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.Gpu && texture.GraphicsMemoryAllocation.GraphicsHeap.Type != GraphicsHeapType.TransientGpu)
             {
+                shaderResourceIndex1 = 0;
+                shaderResourceIndex2 = 0;
                 return;
             }
 
             var index = GetIndex();
 
-            this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, index, texture.NativePointer1);
-            texture.ShaderResourceIndex1 = index;
+            this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, index, texture.NativePointer1, isWriteable: isWriteable, mipLevel: mipLevel);
+            shaderResourceIndex1 = index;
+            shaderResourceIndex2 = null;
 
             if (texture.NativePointer2 != null)
             {
                 index = GetIndex();
-                this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, index, texture.NativePointer2.Value);
-                texture.ShaderResourceIndex2 = index;
+                this.graphicsService.CreateShaderResourceTexture(this.shaderResourceHeap.NativePointer, index, texture.NativePointer2.Value, isWriteable: isWriteable, mipLevel: mipLevel);
+                shaderResourceIndex2 = index;
             }
         }
 
@@ -79,6 +82,19 @@ namespace CoreEngine.Graphics
             if (texture.ShaderResourceIndex2 != null)
             {
                 this.availableIndexes.Enqueue(texture.ShaderResourceIndex2.Value);
+            }
+
+            if (texture.Usage == TextureUsage.ShaderWrite)
+            {
+                for (var i = 0; i < texture.MipLevels; i++)
+                {
+                    this.availableIndexes.Enqueue(texture.WriteableShaderResourceIndex1[i]);
+
+                    if (!texture.IsStatic && texture.ShaderResourceIndex2 != null)
+                    {
+                        this.availableIndexes.Enqueue(texture.WriteableShaderResourceIndex2[i]);
+                    }
+                }
             }
         }
 

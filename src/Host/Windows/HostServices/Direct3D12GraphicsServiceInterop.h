@@ -127,10 +127,10 @@ void Direct3D12GraphicsServiceDeleteShaderResourceHeapInterop(void* context, voi
     contextObject->DeleteShaderResourceHeap(shaderResourceHeapPointer);
 }
 
-void Direct3D12GraphicsServiceCreateShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
+void Direct3D12GraphicsServiceCreateShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer, int isWriteable, unsigned int mipLevel)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
-    contextObject->CreateShaderResourceTexture(shaderResourceHeapPointer, index, texturePointer);
+    contextObject->CreateShaderResourceTexture(shaderResourceHeapPointer, index, texturePointer, isWriteable, mipLevel);
 }
 
 void Direct3D12GraphicsServiceDeleteShaderResourceTextureInterop(void* context, void* shaderResourceHeapPointer, unsigned int index)

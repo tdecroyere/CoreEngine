@@ -263,7 +263,6 @@ void Direct3D12GraphicsService::CommitCommandList(void* commandListPointer)
 
 void* Direct3D12GraphicsService::CreateGraphicsHeap(enum GraphicsServiceHeapType type, unsigned long sizeInBytes)
 {
-	// Create cpu heap
 	D3D12_HEAP_DESC heapDescriptor = {};
 
 	if (type == GraphicsServiceHeapType::Upload)
@@ -342,26 +341,44 @@ void Direct3D12GraphicsService::DeleteShaderResourceHeap(void* shaderResourceHea
 	delete descriptorHeap;
 }
 
-void Direct3D12GraphicsService::CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer)
+void Direct3D12GraphicsService::CreateShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index, void* texturePointer, int isWriteable, unsigned int mipLevel)
 {
 	// TODO: Create also RTV and DSV when appropriate so that we can remove the other global heaps
 
 	// TODO: To remove when SM6.6 is stable
 	int textureOffset = 2500;
+	int uavOffset = 5000;
+	int uavTextureOffset = 7500;
 
 	Direct3D12ShaderResourceHeap* descriptorHeap = (Direct3D12ShaderResourceHeap*)shaderResourceHeapPointer;
 	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = ConvertSRVTextureFormat(texture->ResourceDesc.Format);
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = 1;//mipLevels;
+	if (isWriteable == 0)
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = ConvertSRVTextureFormat(texture->ResourceDesc.Format);
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = texture->ResourceDesc.MipLevels;
 
-	auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
-	descriptorHandle.ptr += (textureOffset + index) * descriptorHeap->HandleSize;
+		auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
+		descriptorHandle.ptr += (textureOffset + index) * descriptorHeap->HandleSize;
 
-	this->graphicsDevice->CreateShaderResourceView(texture->TextureObject.Get(), &srvDesc, descriptorHandle);
+		this->graphicsDevice->CreateShaderResourceView(texture->TextureObject.Get(), &srvDesc, descriptorHandle);
+	}
+
+	else
+	{
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.Format = ConvertSRVTextureFormat(texture->ResourceDesc.Format);
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		uavDesc.Texture2D.MipSlice = mipLevel;
+
+		auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
+		descriptorHandle.ptr += (uavTextureOffset + index) * descriptorHeap->HandleSize;
+
+		this->graphicsDevice->CreateUnorderedAccessView(texture->TextureObject.Get(), nullptr, &uavDesc, descriptorHandle);
+	}
 }
 
 void Direct3D12GraphicsService::DeleteShaderResourceTexture(void* shaderResourceHeapPointer, unsigned int index)
@@ -493,7 +510,6 @@ void* Direct3D12GraphicsService::CreateTexture(void* graphicsHeapPointer, unsign
 	Direct3D12Texture* textureStruct = new Direct3D12Texture();
 	Direct3D12GraphicsHeap* graphicsHeap = (Direct3D12GraphicsHeap*)graphicsHeapPointer;
 
-	// TODO: Support mip levels
 	auto textureDesc = CreateTextureResourceDescription(textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
 	textureStruct->ResourceDesc = textureDesc;
 
@@ -559,22 +575,6 @@ void* Direct3D12GraphicsService::CreateTexture(void* graphicsHeapPointer, unsign
 		textureStruct->TextureDescriptorOffset = this->currentGlobalRtvDescriptorOffset;
 		this->currentGlobalRtvDescriptorOffset += this->globalRtvDescriptorHandleSize;
 	}
-
-	// else if (usage == GraphicsTextureUsage::ShaderWrite)
-	// {
-	// 	// UAV View
-	// 	D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
-	// 	uavDesc.Format = ConvertTextureFormat(textureFormat);
-	// 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	// 	uavDesc.Texture2D.MipSlice = 0;
-
-	// 	globalDescriptorHeapHandle = this->globalDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	// 	globalDescriptorHeapHandle.ptr += this->currentGlobalDescriptorOffset;
-
-	// 	this->graphicsDevice->CreateUnorderedAccessView(gpuTexture.Get(), nullptr, &uavDesc, globalDescriptorHeapHandle);
-	// 	textureStruct->UavTextureDescriptorOffset = this->currentGlobalDescriptorOffset;
-	// 	this->currentGlobalDescriptorOffset += this->globalDescriptorHandleSize;
-	// }
 
 	return textureStruct;
 }
@@ -1317,6 +1317,9 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
 			commandList->CommandListObject->SetGraphicsRootDescriptorTable(3, texturesHandle);
 
+			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
+			commandList->CommandListObject->SetGraphicsRootDescriptorTable(4, texturesHandle);
+			
 			currentDescriptorHeap = nullptr;
 		}
 
@@ -1331,6 +1334,9 @@ void Direct3D12GraphicsService::SetShader(void* commandListPointer, void* shader
 
 			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
 			commandList->CommandListObject->SetComputeRootDescriptorTable(3, texturesHandle);
+
+			texturesHandle.ptr += (2500 * currentDescriptorHeap->HandleSize);
+			commandList->CommandListObject->SetComputeRootDescriptorTable(4, texturesHandle);
 
 			currentDescriptorHeap = nullptr;
 		}
@@ -1530,6 +1536,9 @@ bool Direct3D12GraphicsService::CreateDevice(const ComPtr<IDXGIFactory4> dxgiFac
 
 bool Direct3D12GraphicsService::CreateHeaps()
 {
+	// TODO: Create glopal heaps associated with the shader resource heap with the same size
+	// Then if the texture usage allows it, allocate a descriptor with the same index in those heaps
+
 	// Create global RTV Descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc = {};
 	rtvDescriptorHeapDesc.NumDescriptors = 100000; //TODO: Change that

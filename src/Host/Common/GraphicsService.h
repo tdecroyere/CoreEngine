@@ -38,7 +38,8 @@ enum GraphicsTextureFormat : int
     BC6, 
     BC7Srgb, 
     Rgba32Float, 
-    Rgba16Unorm
+    Rgba16Unorm, 
+    R32Float
 };
 
 enum GraphicsTextureUsage : int
@@ -162,7 +163,7 @@ typedef void (*GraphicsService_DeleteGraphicsHeapPtr)(void* context, void* graph
 typedef void* (*GraphicsService_CreateShaderResourceHeapPtr)(void* context, unsigned long length);
 typedef void (*GraphicsService_SetShaderResourceHeapLabelPtr)(void* context, void* shaderResourceHeapPointer, char* label);
 typedef void (*GraphicsService_DeleteShaderResourceHeapPtr)(void* context, void* shaderResourceHeapPointer);
-typedef void (*GraphicsService_CreateShaderResourceTexturePtr)(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer);
+typedef void (*GraphicsService_CreateShaderResourceTexturePtr)(void* context, void* shaderResourceHeapPointer, unsigned int index, void* texturePointer, int isWriteable, unsigned int mipLevel);
 typedef void (*GraphicsService_DeleteShaderResourceTexturePtr)(void* context, void* shaderResourceHeapPointer, unsigned int index);
 typedef void (*GraphicsService_CreateShaderResourceBufferPtr)(void* context, void* shaderResourceHeapPointer, unsigned int index, void* bufferPointer, int isWriteable);
 typedef void (*GraphicsService_DeleteShaderResourceBufferPtr)(void* context, void* shaderResourceHeapPointer, unsigned int index);

@@ -38,6 +38,9 @@ VkFormat VulkanConvertTextureFormat(GraphicsTextureFormat textureFormat, bool no
 	
 		case GraphicsTextureFormat::Depth32Float:
 			return VK_FORMAT_D32_SFLOAT;
+		
+		case GraphicsTextureFormat::R32Float:
+			return VK_FORMAT_R32_SFLOAT;
 	
 		case GraphicsTextureFormat::Rgba16Float:
 			return VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -113,7 +116,7 @@ VkImage CreateImage(VkDevice device, enum GraphicsTextureFormat textureFormat, e
 {
 	VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     createInfo.imageType = VK_IMAGE_TYPE_2D;
-    createInfo.format = VulkanConvertTextureFormat(textureFormat);
+    createInfo.format = VulkanConvertTextureFormat(textureFormat, false);
     createInfo.extent.width = width;
     createInfo.extent.height = height;
     createInfo.extent.depth = 1;
@@ -135,6 +138,11 @@ VkImage CreateImage(VkDevice device, enum GraphicsTextureFormat textureFormat, e
     else if (usage == GraphicsTextureUsage::RenderTarget)
     {
         createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    }
+	
+	else if (usage == GraphicsTextureUsage::ShaderWrite)
+    {
+        createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
     }
 
 	VkImage image = nullptr;
@@ -299,6 +307,18 @@ VkDescriptorSetLayout GetGlobalUavBufferLayout(VkDevice device)
 	return globalUavBufferLayout;
 }
 
+VkDescriptorSetLayout globalUavTextureLayout = nullptr;
+
+VkDescriptorSetLayout GetGlobalUavTextureLayout(VkDevice device)
+{
+	if (globalUavTextureLayout == nullptr)
+	{
+		globalUavTextureLayout = CreateDescriptorSetLayout(device, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2500);
+	}
+
+	return globalUavTextureLayout;
+}
+
 VkDescriptorSetLayout globalSamplerLayout = nullptr;
 
 VkDescriptorSetLayout GetGlobalSamplerLayout(VkDevice device)
@@ -319,6 +339,7 @@ VkPipelineLayout CreateGraphicsPipelineLayout(VkDevice device, uint32_t paramete
 		GetGlobalBufferLayout(device),
 		GetGlobalTextureLayout(device),
 		GetGlobalUavBufferLayout(device),
+		GetGlobalUavTextureLayout(device),
 		GetGlobalSamplerLayout(device)
 	};
 

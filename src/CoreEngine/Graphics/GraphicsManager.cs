@@ -1078,6 +1078,26 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetShaderParameterValues(commandList.NativePointer, slot, values);
         }
 
+        public void SetTextureBarrier(CommandList commandList, Texture texture)
+        {
+            if (texture is null)
+            {
+                throw new ArgumentNullException(nameof(texture));
+            }
+
+            this.graphicsService.SetTextureBarrier(commandList.NativePointer, texture.NativePointer);
+        }
+
+        public void SetGraphicsBufferBarrier(CommandList commandList, GraphicsBuffer graphicsBuffer)
+        {
+            if (graphicsBuffer is null)
+            {
+                throw new ArgumentNullException(nameof(graphicsBuffer));
+            }
+
+            this.graphicsService.SetGraphicsBufferBarrier(commandList.NativePointer, graphicsBuffer.NativePointer);
+        }
+
         public void DispatchMesh(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
             if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)

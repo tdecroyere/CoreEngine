@@ -349,6 +349,18 @@ void Direct3D12GraphicsServiceSetPipelineStateInterop(void* context, void* comma
     contextObject->SetPipelineState(commandListPointer, pipelineStatePointer);
 }
 
+void Direct3D12GraphicsServiceSetTextureBarrierInterop(void* context, void* commandListPointer, void* texturePointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetTextureBarrier(commandListPointer, texturePointer);
+}
+
+void Direct3D12GraphicsServiceSetGraphicsBufferBarrierInterop(void* context, void* commandListPointer, void* graphicsBufferPointer)
+{
+    auto contextObject = (Direct3D12GraphicsService*)context;
+    contextObject->SetGraphicsBufferBarrier(commandListPointer, graphicsBufferPointer);
+}
+
 void Direct3D12GraphicsServiceSetShaderResourceHeapInterop(void* context, void* commandListPointer, void* shaderResourceHeapPointer)
 {
     auto contextObject = (Direct3D12GraphicsService*)context;
@@ -458,6 +470,8 @@ void InitDirect3D12GraphicsService(const Direct3D12GraphicsService* context, Gra
     service->GraphicsService_BeginRenderPass = Direct3D12GraphicsServiceBeginRenderPassInterop;
     service->GraphicsService_EndRenderPass = Direct3D12GraphicsServiceEndRenderPassInterop;
     service->GraphicsService_SetPipelineState = Direct3D12GraphicsServiceSetPipelineStateInterop;
+    service->GraphicsService_SetTextureBarrier = Direct3D12GraphicsServiceSetTextureBarrierInterop;
+    service->GraphicsService_SetGraphicsBufferBarrier = Direct3D12GraphicsServiceSetGraphicsBufferBarrierInterop;
     service->GraphicsService_SetShaderResourceHeap = Direct3D12GraphicsServiceSetShaderResourceHeapInterop;
     service->GraphicsService_SetShader = Direct3D12GraphicsServiceSetShaderInterop;
     service->GraphicsService_SetShaderParameterValues = Direct3D12GraphicsServiceSetShaderParameterValuesInterop;

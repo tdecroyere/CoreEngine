@@ -166,6 +166,17 @@ D3D12_RESOURCE_BARRIER CreateTransitionResourceBarrier(ID3D12Resource* resource,
 	return resourceBarrier;
 }
 
+void Direct3D12SetUavBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource)
+{
+	D3D12_RESOURCE_BARRIER resourceBarrier = {};
+
+	resourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	resourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	resourceBarrier.UAV.pResource = resource;
+
+	commandList->ResourceBarrier(1, &resourceBarrier);
+}
+
 D3D12_RENDER_TARGET_BLEND_DESC InitBlendState(GraphicsBlendOperation blendOperation)
 {
 	switch (blendOperation)

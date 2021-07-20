@@ -200,6 +200,8 @@ typedef void (*GraphicsService_DispatchThreadsPtr)(void* context, void* commandL
 typedef void (*GraphicsService_BeginRenderPassPtr)(void* context, void* commandListPointer, struct GraphicsRenderPassDescriptor renderPassDescriptor);
 typedef void (*GraphicsService_EndRenderPassPtr)(void* context, void* commandListPointer);
 typedef void (*GraphicsService_SetPipelineStatePtr)(void* context, void* commandListPointer, void* pipelineStatePointer);
+typedef void (*GraphicsService_SetTextureBarrierPtr)(void* context, void* commandListPointer, void* texturePointer);
+typedef void (*GraphicsService_SetGraphicsBufferBarrierPtr)(void* context, void* commandListPointer, void* graphicsBufferPointer);
 typedef void (*GraphicsService_SetShaderResourceHeapPtr)(void* context, void* commandListPointer, void* shaderResourceHeapPointer);
 typedef void (*GraphicsService_SetShaderPtr)(void* context, void* commandListPointer, void* shaderPointer);
 typedef void (*GraphicsService_SetShaderParameterValuesPtr)(void* context, void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
@@ -270,6 +272,8 @@ struct GraphicsService
     GraphicsService_BeginRenderPassPtr GraphicsService_BeginRenderPass;
     GraphicsService_EndRenderPassPtr GraphicsService_EndRenderPass;
     GraphicsService_SetPipelineStatePtr GraphicsService_SetPipelineState;
+    GraphicsService_SetTextureBarrierPtr GraphicsService_SetTextureBarrier;
+    GraphicsService_SetGraphicsBufferBarrierPtr GraphicsService_SetGraphicsBufferBarrier;
     GraphicsService_SetShaderResourceHeapPtr GraphicsService_SetShaderResourceHeap;
     GraphicsService_SetShaderPtr GraphicsService_SetShader;
     GraphicsService_SetShaderParameterValuesPtr GraphicsService_SetShaderParameterValues;

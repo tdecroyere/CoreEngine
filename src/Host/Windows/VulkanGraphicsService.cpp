@@ -476,12 +476,11 @@ void VulkanGraphicsService::CreateShaderResourceTexture(void* shaderResourceHeap
     VulkanShaderResourceHeap* shaderResourceHeap = (VulkanShaderResourceHeap*)shaderResourceHeapPointer;
     VulkanTexture* texture = (VulkanTexture*)texturePointer;
 
-    // TODO: we need another image view for writeable textures?
     VkDescriptorImageInfo imageInfo = {};
-    imageInfo.imageView = texture->ImageView;
 
     if (!isWriteable)
     {
+        imageInfo.imageView = texture->ImageView;
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -497,6 +496,9 @@ void VulkanGraphicsService::CreateShaderResourceTexture(void* shaderResourceHeap
 
     else
     {
+        assert(mipLevel < texture->ImageViews.size());
+
+        imageInfo.imageView = texture->ImageViews[mipLevel];
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         
         VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -655,11 +657,17 @@ void* VulkanGraphicsService::CreateTexture(void* graphicsHeapPointer, unsigned l
     texture->TextureObject = CreateImage(this->graphicsDevice, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount);
     AssertIfFailed(vkBindImageMemory(this->graphicsDevice, texture->TextureObject, graphicsHeap->DeviceMemory, heapOffset));
 
-    texture->ImageView = CreateImageView(this->graphicsDevice, texture->TextureObject, VulkanConvertTextureFormat(textureFormat, false));
     texture->Width = width;
     texture->Height = height;
     texture->ResourceState = VK_IMAGE_LAYOUT_UNDEFINED;
     texture->Format = VulkanConvertTextureFormat(textureFormat);
+
+    texture->ImageView = CreateImageView(this->graphicsDevice, texture->TextureObject, VulkanConvertTextureFormat(textureFormat, false), 0, mipLevels);
+
+    for (uint32_t i = 0; i < mipLevels; i++)
+    {
+        texture->ImageViews.push_back(CreateImageView(this->graphicsDevice, texture->TextureObject, VulkanConvertTextureFormat(textureFormat, false), i, 1));
+    }
 
     return texture;
 }
@@ -681,7 +689,13 @@ void VulkanGraphicsService::SetTextureLabel(void* texturePointer, char* label)
 void VulkanGraphicsService::DeleteTexture(void* texturePointer)
 { 
     VulkanTexture* texture = (VulkanTexture*)texturePointer;
+
     vkDestroyImageView(this->graphicsDevice, texture->ImageView, nullptr);
+    
+    for (uint32_t i = 0; i < texture->ImageViews.size(); i++)
+    {
+        vkDestroyImageView(this->graphicsDevice, texture->ImageViews[i], nullptr);
+    }
 
     if (!texture->IsPresentTexture)
     {
@@ -749,7 +763,7 @@ void* VulkanGraphicsService::CreateSwapChain(void* windowPointer, void* commandQ
         VulkanTexture* backBufferTexture = new VulkanTexture();
         backBufferTexture->TextureObject = swapchainImages[i];
         backBufferTexture->IsPresentTexture = true;
-        backBufferTexture->ImageView = CreateImageView(this->graphicsDevice, swapchainImages[i], VulkanConvertTextureFormat(textureFormat));
+        backBufferTexture->ImageView = CreateImageView(this->graphicsDevice, swapchainImages[i], VulkanConvertTextureFormat(textureFormat), 0, 1);
         backBufferTexture->Width = width;
         backBufferTexture->Height = height;
         backBufferTexture->ResourceState = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -827,7 +841,7 @@ void VulkanGraphicsService::ResizeSwapChain(void* swapChainPointer, int width, i
         VulkanTexture* backBufferTexture = new VulkanTexture();
         backBufferTexture->TextureObject = swapchainImages[i];
         backBufferTexture->IsPresentTexture = true;
-        backBufferTexture->ImageView = CreateImageView(this->graphicsDevice, swapchainImages[i], oldFormat);
+        backBufferTexture->ImageView = CreateImageView(this->graphicsDevice, swapchainImages[i], oldFormat, 0, 1);
         backBufferTexture->Width = width;
         backBufferTexture->Height = height;
         backBufferTexture->ResourceState = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1308,11 +1322,31 @@ void VulkanGraphicsService::SetShader(void* commandListPointer, void* shaderPoin
 
 void VulkanGraphicsService::SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength)
 {
-    VulkanCommandList *commandList = (VulkanCommandList *)commandListPointer;
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
 
     // TODO: There seems that there is a memory leak here!!!
     // Is it a drive issue?
     vkCmdPushConstants(commandList->CommandBufferObject, this->currentPipelineState->PipelineLayoutObject, VK_SHADER_STAGE_ALL, 0, valuesLength * 4, values);
+}
+
+void VulkanGraphicsService::SetTextureBarrier(void* commandListPointer, void* texturePointer)
+{
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+    VulkanTexture* texture = (VulkanTexture*)texturePointer;
+
+    // TODO: For the moment we only support UAV barriers in compute shaders without transition
+    auto barrier = CreateImageTransitionBarrier(texture->TextureObject, texture->ResourceState, texture->ResourceState, texture->Format == VK_FORMAT_D32_SFLOAT);
+    vkCmdPipelineBarrier(commandList->CommandBufferObject, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &barrier);
+}
+
+void VulkanGraphicsService::SetGraphicsBufferBarrier(void* commandListPointer, void* graphicsBufferPointer)
+{
+    VulkanCommandList* commandList = (VulkanCommandList*)commandListPointer;
+    VulkanGraphicsBuffer* graphicsBuffer = (VulkanGraphicsBuffer*)graphicsBufferPointer;
+
+    // TODO: For the moment we only support UAV barriers in compute shaders without transition
+    auto barrier = CreateBufferTransitionBarrier(graphicsBuffer->BufferObject, graphicsBuffer->SizeInBytes, graphicsBuffer->ResourceAccess, graphicsBuffer->ResourceAccess);
+    vkCmdPipelineBarrier(commandList->CommandBufferObject, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &barrier, 0, 0);
 }
 
 void VulkanGraphicsService::DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
@@ -1536,6 +1570,7 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
         VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME,
+        VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
         VK_NV_MESH_SHADER_EXTENSION_NAME,
         VK_NV_DEVICE_GENERATED_COMMANDS_EXTENSION_NAME
     };
@@ -1546,6 +1581,10 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
     VkPhysicalDeviceMeshShaderFeaturesNV meshFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV };
     meshFeatures.meshShader = true;
     meshFeatures.taskShader = true;
+
+    VkPhysicalDeviceSynchronization2FeaturesKHR sync2Features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR };
+    sync2Features.synchronization2 = true;
+    sync2Features.pNext = &meshFeatures;
 
     VkPhysicalDeviceVulkan12Features features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
     features.timelineSemaphore = true;
@@ -1561,7 +1600,8 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
     #ifdef DEBUG
     features.bufferDeviceAddressCaptureReplay = true;
     #endif
-    features.pNext = &meshFeatures;
+
+    features.pNext = &sync2Features;
 
     createInfo.pNext = &features;
 

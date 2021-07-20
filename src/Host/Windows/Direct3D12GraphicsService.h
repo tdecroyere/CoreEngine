@@ -177,6 +177,9 @@ class Direct3D12GraphicsService
         void SetShader(void* commandListPointer, void* shaderPointer);
         void SetShaderParameterValues(void* commandListPointer, unsigned int slot, unsigned int* values, int valuesLength);
 
+        void SetTextureBarrier(void* commandListPointer, void* texturePointer);
+        void SetGraphicsBufferBarrier(void* commandListPointer, void* graphicsBufferPointer);
+
         void DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ);
         void ExecuteIndirect(void* commandListPointer, unsigned int maxCommandCount, void* commandGraphicsBufferPointer, unsigned int commandBufferOffset);
 

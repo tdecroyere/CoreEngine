@@ -59,6 +59,8 @@ public protocol GraphicsServiceProtocol {
     func beginRenderPass(_ commandListPointer: UnsafeMutableRawPointer?, _ renderPassDescriptor: GraphicsRenderPassDescriptor)
     func endRenderPass(_ commandListPointer: UnsafeMutableRawPointer?)
     func setPipelineState(_ commandListPointer: UnsafeMutableRawPointer?, _ pipelineStatePointer: UnsafeMutableRawPointer?)
+    func setTextureBarrier(_ commandListPointer: UnsafeMutableRawPointer?, _ texturePointer: UnsafeMutableRawPointer?)
+    func setGraphicsBufferBarrier(_ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?)
     func setShaderResourceHeap(_ commandListPointer: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?)
     func setShader(_ commandListPointer: UnsafeMutableRawPointer?, _ shaderPointer: UnsafeMutableRawPointer?)
     func setShaderParameterValues(_ commandListPointer: UnsafeMutableRawPointer?, _ slot: UInt, _ values: [UInt32])

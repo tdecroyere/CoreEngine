@@ -1360,6 +1360,22 @@ void Direct3D12GraphicsService::SetShaderParameterValues(void* commandListPointe
 	}
 }
 
+void Direct3D12GraphicsService::SetTextureBarrier(void* commandListPointer, void* texturePointer)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12Texture* texture = (Direct3D12Texture*)texturePointer;
+
+	Direct3D12SetUavBarrier(commandList->CommandListObject.Get(), texture->TextureObject.Get());
+}
+
+void Direct3D12GraphicsService::SetGraphicsBufferBarrier(void* commandListPointer, void* graphicsBufferPointer)
+{
+	Direct3D12CommandList* commandList = (Direct3D12CommandList*)commandListPointer;
+	Direct3D12GraphicsBuffer* graphicsBuffer = (Direct3D12GraphicsBuffer*)graphicsBufferPointer;
+
+	Direct3D12SetUavBarrier(commandList->CommandListObject.Get(), graphicsBuffer->BufferObject.Get());
+}
+
 void Direct3D12GraphicsService::DispatchMesh(void* commandListPointer, unsigned int threadGroupCountX, unsigned int threadGroupCountY, unsigned int threadGroupCountZ)
 {
 	if (!this->shaderBound)

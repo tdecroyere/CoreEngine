@@ -151,14 +151,15 @@ VkImage CreateImage(VkDevice device, enum GraphicsTextureFormat textureFormat, e
 	return image;
 }
 
-VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat textureFormat)
+VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat textureFormat, uint32_t mipLevel, uint32_t mipLevels)
 {
 	VkImageViewCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	createInfo.image = image;
 	createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	createInfo.format = textureFormat;
 	createInfo.subresourceRange.aspectMask = (textureFormat != VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;
-	createInfo.subresourceRange.levelCount = 1;
+	createInfo.subresourceRange.baseMipLevel = mipLevel;
+	createInfo.subresourceRange.levelCount = mipLevels;
 	createInfo.subresourceRange.layerCount = 1;
 
 	VkImageView view = nullptr;

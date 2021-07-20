@@ -360,6 +360,10 @@ namespace CoreEngine.HostServices
 
         void SetPipelineState(IntPtr commandListPointer, IntPtr pipelineStatePointer);
 
+        // TODO: Do a method to group de barriers in one call
+        void SetTextureBarrier(IntPtr commandListPointer, IntPtr texturePointer);
+        void SetGraphicsBufferBarrier(IntPtr commandListPointer, IntPtr graphicsBufferPointer);
+
         // TODO: Add resource barrier management
         
         // TODO: Add a raytrace command list

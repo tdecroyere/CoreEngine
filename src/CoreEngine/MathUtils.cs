@@ -99,5 +99,19 @@ namespace CoreEngine
                                  0, 0, 1, 0,
                                  translationVector.X, translationVector.Y, translationVector.Z, 1);
 		}
+
+        public static uint ComputeTextureMipLevels(uint width, uint height)
+        {
+            var result = 0u;
+
+            while (width > 1 || height > 1)
+            {
+                result++;
+                width /= 2;
+                height /= 2;
+            }
+
+            return result;
+        }
     }
 }

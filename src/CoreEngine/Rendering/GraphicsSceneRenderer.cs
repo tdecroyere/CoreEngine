@@ -472,17 +472,29 @@ namespace CoreEngine.Rendering
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
             this.graphicsManager.SetShader(commandList, this.computeGenerateDepthPyramid);
 
-            this.graphicsManager.SetShaderParameterValues(commandList, 0, new uint[]
+            var currentWidth = depthPyramidBuffer.Width;
+            var currentHeight = depthPyramidBuffer.Height;
+
+            for (var i = 0; i < depthPyramidBuffer.MipLevels; i++)
             {
-                depthBuffer.ShaderResourceIndex,
-                depthPyramidBuffer.GetWriteableShaderResourceIndex(0)
-            });
+                if (i > 0)
+                {
+                    this.graphicsManager.SetTextureBarrier(commandList, depthPyramidBuffer);
+                }
 
-            this.graphicsManager.DispatchCompute(commandList, (uint)MathF.Ceiling((float)depthPyramidBuffer.Width / 8), (uint)MathF.Ceiling((float)depthPyramidBuffer.Height / 8), 1); 
+                this.graphicsManager.SetShaderParameterValues(commandList, 0, new uint[]
+                {
+                    i == 0 ? depthBuffer.ShaderResourceIndex : depthPyramidBuffer.GetWriteableShaderResourceIndex((uint)i - 1),
+                    depthPyramidBuffer.GetWriteableShaderResourceIndex((uint)i),
+                    i == 0 ? 1u : 0u
+                });
+
+                this.graphicsManager.DispatchCompute(commandList, (uint)MathF.Ceiling((float)currentWidth / 8), (uint)MathF.Ceiling((float)currentHeight / 8), 1);
+                currentWidth /= 2;
+                currentHeight /= 2;
+            }
+
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
-
-            // TODO: We normaly need an UAV Barrier here because we are on the same queue!
-            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(commandList, this.cpuReadBackCounters, this.indirectCommandBuffer, 1, 0, this.indirectCommandBuffer.SizeInBytes - sizeof(uint)); 
             this.graphicsManager.CommitCommandList(commandList);
 
             this.renderManager.AddGpuTiming("GenerateDepthPyramid", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
@@ -505,13 +517,9 @@ namespace CoreEngine.Rendering
             using var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
 
             // TODO: Store that to so that we can reuse this texture in the next frame
-            // For this texture because we will write to different mip levels in a CS, we may need
-            // different shader resource index
-            // Example: depthPyramidBuffer.GetWriteableShaderResourceIndex(mipLevel);
-            // TODO: It seems we have some bug sometimes in D3D12 when resizing quickly the window
-            // maybe it is due to the transient memory management?
 
-            var depthPyramidBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, mainRenderTargetTexture.Width / 2, mainRenderTargetTexture.Height / 2, 1, 3, 1, isStatic: true, "DepthPyramid");
+            var depthPyramidMipLevels = MathUtils.ComputeTextureMipLevels((uint)mainRenderTargetTexture.Width / 2, (uint)mainRenderTargetTexture.Height / 2);
+            var depthPyramidBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, mainRenderTargetTexture.Width / 2, mainRenderTargetTexture.Height / 2, 1, (int)depthPyramidMipLevels, 1, isStatic: true, "DepthPyramid");
 
             if (renderManager.logFrameTime)
             {
@@ -548,7 +556,12 @@ namespace CoreEngine.Rendering
             }
 
             var generateDepthPyramidFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList }, new Fence[] { renderFence });
-            this.renderManager.Graphics2DRenderer.DrawRectangleTexture(new Vector2(500, 400), depthPyramidBuffer);
+            var surfaceWidth = 500;
+            var surfaceHeight = 400;
+            var surfacePositionX = mainRenderTargetTexture.Width - surfaceWidth - 10;
+            var surfacePositionY = 10;
+
+            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(surfacePositionX, surfacePositionY), new Vector2(surfacePositionX + surfaceWidth, surfacePositionY + surfaceHeight), depthPyramidBuffer, isOpaque: true);
 
             return generateDepthPyramidFence;
         }

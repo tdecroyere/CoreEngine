@@ -291,6 +291,16 @@ func GraphicsService_setPipelineStateInterop(context: UnsafeMutableRawPointer?, 
     contextObject.setPipelineState(commandListPointer, pipelineStatePointer)
 }
 
+func GraphicsService_setTextureBarrierInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ texturePointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setTextureBarrier(commandListPointer, texturePointer)
+}
+
+func GraphicsService_setGraphicsBufferBarrierInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ graphicsBufferPointer: UnsafeMutableRawPointer?) {
+    let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
+    contextObject.setGraphicsBufferBarrier(commandListPointer, graphicsBufferPointer)
+}
+
 func GraphicsService_setShaderResourceHeapInterop(context: UnsafeMutableRawPointer?, _ commandListPointer: UnsafeMutableRawPointer?, _ shaderResourceHeapPointer: UnsafeMutableRawPointer?) {
     let contextObject = Unmanaged<MetalGraphicsService>.fromOpaque(context!).takeUnretainedValue()
     contextObject.setShaderResourceHeap(commandListPointer, shaderResourceHeapPointer)
@@ -391,6 +401,8 @@ func initGraphicsService(_ context: MetalGraphicsService, _ service: inout Graph
     service.GraphicsService_BeginRenderPass = GraphicsService_beginRenderPassInterop
     service.GraphicsService_EndRenderPass = GraphicsService_endRenderPassInterop
     service.GraphicsService_SetPipelineState = GraphicsService_setPipelineStateInterop
+    service.GraphicsService_SetTextureBarrier = GraphicsService_setTextureBarrierInterop
+    service.GraphicsService_SetGraphicsBufferBarrier = GraphicsService_setGraphicsBufferBarrierInterop
     service.GraphicsService_SetShaderResourceHeap = GraphicsService_setShaderResourceHeapInterop
     service.GraphicsService_SetShader = GraphicsService_setShaderInterop
     service.GraphicsService_SetShaderParameterValues = GraphicsService_setShaderParameterValuesInterop

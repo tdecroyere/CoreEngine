@@ -349,6 +349,18 @@ void VulkanGraphicsServiceSetPipelineStateInterop(void* context, void* commandLi
     contextObject->SetPipelineState(commandListPointer, pipelineStatePointer);
 }
 
+void VulkanGraphicsServiceSetTextureBarrierInterop(void* context, void* commandListPointer, void* texturePointer)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    contextObject->SetTextureBarrier(commandListPointer, texturePointer);
+}
+
+void VulkanGraphicsServiceSetGraphicsBufferBarrierInterop(void* context, void* commandListPointer, void* graphicsBufferPointer)
+{
+    auto contextObject = (VulkanGraphicsService*)context;
+    contextObject->SetGraphicsBufferBarrier(commandListPointer, graphicsBufferPointer);
+}
+
 void VulkanGraphicsServiceSetShaderResourceHeapInterop(void* context, void* commandListPointer, void* shaderResourceHeapPointer)
 {
     auto contextObject = (VulkanGraphicsService*)context;
@@ -458,6 +470,8 @@ void InitVulkanGraphicsService(const VulkanGraphicsService* context, GraphicsSer
     service->GraphicsService_BeginRenderPass = VulkanGraphicsServiceBeginRenderPassInterop;
     service->GraphicsService_EndRenderPass = VulkanGraphicsServiceEndRenderPassInterop;
     service->GraphicsService_SetPipelineState = VulkanGraphicsServiceSetPipelineStateInterop;
+    service->GraphicsService_SetTextureBarrier = VulkanGraphicsServiceSetTextureBarrierInterop;
+    service->GraphicsService_SetGraphicsBufferBarrier = VulkanGraphicsServiceSetGraphicsBufferBarrierInterop;
     service->GraphicsService_SetShaderResourceHeap = VulkanGraphicsServiceSetShaderResourceHeapInterop;
     service->GraphicsService_SetShader = VulkanGraphicsServiceSetShaderInterop;
     service->GraphicsService_SetShaderParameterValues = VulkanGraphicsServiceSetShaderParameterValuesInterop;

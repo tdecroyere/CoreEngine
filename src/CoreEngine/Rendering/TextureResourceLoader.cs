@@ -11,10 +11,11 @@ namespace CoreEngine.Rendering
     {
         private readonly GraphicsManager graphicsManager;
         private readonly RenderManager renderManager;
+        private readonly ShaderResourceManager shaderResourceManager;
 
         private Texture emptyTexture;
 
-        public TextureResourceLoader(ResourcesManager resourcesManager, RenderManager renderManager, GraphicsManager graphicsManager) : base(resourcesManager)
+        public TextureResourceLoader(ResourcesManager resourcesManager, RenderManager renderManager, GraphicsManager graphicsManager, ShaderResourceManager shaderResourceManager) : base(resourcesManager)
         {
             if (graphicsManager == null)
             {
@@ -23,6 +24,7 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager = graphicsManager;
             this.renderManager = renderManager;
+            this.shaderResourceManager = shaderResourceManager;
 
             // TODO: Remove the responsability of the loader to create empty resources
             Logger.BeginAction("Create Empty Texture");
@@ -51,7 +53,7 @@ namespace CoreEngine.Rendering
 
         public override Resource CreateEmptyResource(uint resourceId, string path)
         {
-            var texture = new Texture(this.graphicsManager, 256, 256, resourceId, path, $"{Path.GetFileNameWithoutExtension(path)}Texture");
+            var texture = new Texture(this.graphicsManager, this.shaderResourceManager, 256, 256, resourceId, path, $"{Path.GetFileNameWithoutExtension(path)}Texture");
             texture.NativePointer1 = this.emptyTexture.NativePointer1;
             return texture;
         }

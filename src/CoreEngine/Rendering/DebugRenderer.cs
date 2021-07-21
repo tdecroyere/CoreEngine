@@ -326,19 +326,19 @@ namespace CoreEngine.Rendering
             if (this.currentLinePrimitiveCount > 0)
             {
                 this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentLinePrimitiveCount, 0, (uint)this.lineVertexBufferOffset, (uint)this.lineIndexBufferOffset / 2, 32, 2, 1, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex, 1 });
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentLinePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
+                this.graphicsManager.DispatchMesh(renderCommandList, MathUtils.ComputeGroupThreads(this.currentLinePrimitiveCount, maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
             if (this.currentCubePrimitiveCount > 0)
             {
                 this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentCubePrimitiveCount, (uint)this.currentLinePrimitiveCount, 0, 0, 2, 8, 12, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex, 1 });
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentCubePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
+                this.graphicsManager.DispatchMesh(renderCommandList, MathUtils.ComputeGroupThreads(this.currentCubePrimitiveCount, maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
             if (this.currentSpherePrimitiveCount > 0)
             {
                 this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSpherePrimitiveCount, (uint)this.currentLinePrimitiveCount + (uint)this.currentCubePrimitiveCount, (uint)this.sphereVertexBufferOffset, (uint)this.sphereIndexBufferOffset / 2, 1, 96, 96, this.primitiveBuffer.ShaderResourceIndex, cameraBuffer.ShaderResourceIndex, this.vertexBuffer.ShaderResourceIndex, this.indexBuffer.ShaderResourceIndex, 3 });
-                this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSpherePrimitiveCount / maxPrimitiveCountPerThreadGroup), 1, 1);
+                this.graphicsManager.DispatchMesh(renderCommandList, MathUtils.ComputeGroupThreads(this.currentSpherePrimitiveCount, maxPrimitiveCountPerThreadGroup), 1, 1);
             }
 
             this.graphicsManager.EndRenderPass(renderCommandList);

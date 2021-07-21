@@ -418,10 +418,14 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
     vkAllocateDescriptorSets(this->graphicsDevice, &allocateInfo, resourceHeap->DescriptorSets);
 
     // TODO: Don't allocate the sampler like that
+    // TODO: Try to use the static samplers of vulkan that can be attached to the pipeline state
+    // TODO: Get the static sampler info from the shader binary file
     VkSamplerCreateInfo samplerCreateInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
     samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
     samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
+    samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
     AssertIfFailed(vkCreateSampler(this->graphicsDevice, &samplerCreateInfo, nullptr, &resourceHeap->Sampler));
 
@@ -480,7 +484,7 @@ void VulkanGraphicsService::CreateShaderResourceTexture(void* shaderResourceHeap
 
     if (!isWriteable)
     {
-        imageInfo.imageView = texture->ImageView;
+        imageInfo.imageView = mipLevel == 0 ? texture->ImageView : texture->ImageViews[mipLevel];
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -1592,6 +1596,9 @@ VkDevice VulkanGraphicsService::CreateDevice(VkPhysicalDevice physicalDevice)
     features.descriptorIndexing = true;
     features.descriptorBindingVariableDescriptorCount = true;
     features.descriptorBindingPartiallyBound = true;
+    features.descriptorBindingSampledImageUpdateAfterBind = true;
+    features.descriptorBindingStorageBufferUpdateAfterBind = true;
+    features.descriptorBindingStorageImageUpdateAfterBind = true;
     features.shaderSampledImageArrayNonUniformIndexing = true;
     features.separateDepthStencilLayouts = true;
     features.hostQueryReset = true;

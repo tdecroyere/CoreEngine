@@ -107,11 +107,16 @@ namespace CoreEngine
             while (width > 1 || height > 1)
             {
                 result++;
-                width /= 2;
-                height /= 2;
+                width >>= 1;
+                height >>= 1;
             }
 
             return result;
+        }
+
+        public static uint ComputeGroupThreads(uint threadCount, uint localThreadCount)
+        {
+            return (threadCount + localThreadCount - 1) / localThreadCount;
         }
     }
 }

@@ -246,7 +246,7 @@ VkRenderPass CreateRenderPass(VkDevice device, struct GraphicsRenderPassDescript
 VkDescriptorSetLayout CreateDescriptorSetLayout(VkDevice device, VkDescriptorType descriptorType, uint32_t descriptorCount, bool isPushDescriptor = false)
 {
 	VkDescriptorBindingFlags flags = {};
-	flags = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+	flags = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
 	VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags{};
 	binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;

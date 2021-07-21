@@ -84,6 +84,20 @@ namespace CoreEngine.Graphics
                 this.availableIndexes.Enqueue(texture.ShaderResourceIndex2.Value);
             }
 
+            for (var i = 0; i < texture.MipLevels; i++)
+            {
+                // TODO: Those tests are really bad
+                if (texture.ShaderResourceIndexes1[i] != 0)
+                {
+                    this.availableIndexes.Enqueue(texture.ShaderResourceIndexes1[i]);
+                }
+
+                if (!texture.IsStatic && texture.ShaderResourceIndex2 != null && texture.ShaderResourceIndexes2[i] != 0)
+                {
+                    this.availableIndexes.Enqueue(texture.ShaderResourceIndexes2[i]);
+                }
+            }
+
             if (texture.Usage == TextureUsage.ShaderWrite)
             {
                 for (var i = 0; i < texture.MipLevels; i++)

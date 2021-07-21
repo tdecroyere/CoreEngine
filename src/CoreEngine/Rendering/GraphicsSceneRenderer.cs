@@ -420,11 +420,11 @@ namespace CoreEngine.Rendering
             });
 
             // TODO: Don't hardcode wave size
-            var waveSize = 32;
-            this.graphicsManager.DispatchCompute(computeRenderCommandList, (uint)MathF.Ceiling((float)this.currentMeshInstanceCount / waveSize), 1, 1); 
+            var waveSize = 32u;
+            this.graphicsManager.DispatchCompute(computeRenderCommandList, MathUtils.ComputeGroupThreads(this.currentMeshInstanceCount, waveSize), 1, 1); 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
 
-            // TODO: We normaly need an UAV Barrier here because we are on the same queue!
+            this.graphicsManager.SetGraphicsBufferBarrier(computeRenderCommandList, this.indirectCommandBuffer);
             this.graphicsManager.CopyDataToGraphicsBuffer<uint>(computeRenderCommandList, this.cpuReadBackCounters, this.indirectCommandBuffer, 1, 0, this.indirectCommandBuffer.SizeInBytes - sizeof(uint)); 
             this.graphicsManager.CommitCommandList(computeRenderCommandList);
 
@@ -445,10 +445,6 @@ namespace CoreEngine.Rendering
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
             this.graphicsManager.ResetQueryBuffer(this.pipelineStatistics);
             this.graphicsManager.BeginQuery(renderCommandList, this.pipelineStatistics, 0);
-
-            // TODO: For the moment the resource states are in COMMON state
-            // We need to have an api here or somewhere else to be able to Transition to 
-            // Shader Read/write
 
             if (this.currentMeshInstanceCount > 0)
             {
@@ -484,14 +480,16 @@ namespace CoreEngine.Rendering
 
                 this.graphicsManager.SetShaderParameterValues(commandList, 0, new uint[]
                 {
-                    i == 0 ? depthBuffer.ShaderResourceIndex : depthPyramidBuffer.GetWriteableShaderResourceIndex((uint)i - 1),
+                    i == 0 ? depthBuffer.ShaderResourceIndex : depthPyramidBuffer.GetShaderResourceIndex((uint)i - 1),
                     depthPyramidBuffer.GetWriteableShaderResourceIndex((uint)i),
-                    i == 0 ? 1u : 0u
+                    (uint)currentWidth,
+                    (uint)currentHeight
                 });
 
-                this.graphicsManager.DispatchCompute(commandList, (uint)MathF.Ceiling((float)currentWidth / 8), (uint)MathF.Ceiling((float)currentHeight / 8), 1);
-                currentWidth /= 2;
-                currentHeight /= 2;
+                this.graphicsManager.DispatchCompute(commandList, MathUtils.ComputeGroupThreads((uint)currentWidth, 8), MathUtils.ComputeGroupThreads((uint)currentHeight, 8), 1);  
+
+                currentWidth = (int)MathF.Max(1, currentWidth >> 1);
+                currentHeight = (int)MathF.Max(1, currentHeight >> 1);
             }
 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
@@ -556,6 +554,7 @@ namespace CoreEngine.Rendering
             }
 
             var generateDepthPyramidFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList }, new Fence[] { renderFence });
+            
             var surfaceWidth = 500;
             var surfaceHeight = 400;
             var surfacePositionX = mainRenderTargetTexture.Width - surfaceWidth - 10;

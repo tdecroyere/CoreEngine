@@ -177,7 +177,7 @@ namespace CoreEngine.Rendering
 
             this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSurfaceCount, this.rectangleSurfacesGraphicsBuffer.ShaderResourceIndex });
 
-            this.graphicsManager.DispatchMesh(renderCommandList, (uint)MathF.Ceiling((float)this.currentSurfaceCount / maxSurfaceCountPerThreadGroup), 1, 1);
+            this.graphicsManager.DispatchMesh(renderCommandList, MathUtils.ComputeGroupThreads(this.currentSurfaceCount, maxSurfaceCountPerThreadGroup), 1, 1);
 
             this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);

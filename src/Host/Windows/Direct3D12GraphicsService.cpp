@@ -359,7 +359,8 @@ void Direct3D12GraphicsService::CreateShaderResourceTexture(void* shaderResource
 		srvDesc.Format = ConvertSRVTextureFormat(texture->ResourceDesc.Format);
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Texture2D.MipLevels = texture->ResourceDesc.MipLevels;
+		srvDesc.Texture2D.MostDetailedMip = mipLevel;
+		srvDesc.Texture2D.MipLevels = mipLevel == 0 ? texture->ResourceDesc.MipLevels : 1;
 
 		auto descriptorHandle = descriptorHeap->HeapObject->GetCPUDescriptorHandleForHeapStart();
 		descriptorHandle.ptr += (textureOffset + index) * descriptorHeap->HandleSize;

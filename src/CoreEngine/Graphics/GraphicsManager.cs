@@ -16,7 +16,7 @@ namespace CoreEngine.Graphics
     {
         private readonly IGraphicsService graphicsService;
         private readonly GraphicsMemoryManager graphicsMemoryManager;
-        private readonly ShaderResourceManager shaderResourceManager;
+        internal readonly ShaderResourceManager shaderResourceManager;
 
         private readonly bool logResourceAllocationInfos;
 
@@ -550,9 +550,10 @@ namespace CoreEngine.Graphics
                 this.graphicsService.SetTextureLabel(nativePointer2.Value, $"{label}1");
             }
 
-            var texture = new Texture(this, allocation, allocation2, nativePointer1, nativePointer2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
+            var texture = new Texture(this, this.shaderResourceManager, allocation, allocation2, nativePointer1, nativePointer2, textureFormat, usage, width, height, faceCount, mipLevels, multisampleCount, isStatic, label);
             this.textures.Add(texture);
 
+            // TODO: Don't create the shader resources at once but only on demand?
             if (heapType == GraphicsHeapType.Gpu || heapType == GraphicsHeapType.TransientGpu)
             {
                 this.shaderResourceManager.CreateShaderResourceTexture(texture, isWriteable: false, mipLevel: 0, out var shaderResourceIndex1, out var shaderResourceIndex2);
@@ -724,7 +725,7 @@ namespace CoreEngine.Graphics
             }
 
             var textureNativePointer = this.graphicsService.GetSwapChainBackBufferTexture(swapChain.NativePointer);
-            return new Texture(this, new GraphicsMemoryAllocation(), null, textureNativePointer, null, swapChain.TextureFormat, TextureUsage.RenderTarget, swapChain.Width, swapChain.Height, 1, 1, 1, isStatic: true, "BackBuffer");
+            return new Texture(this, this.shaderResourceManager, new GraphicsMemoryAllocation(), null, textureNativePointer, null, swapChain.TextureFormat, TextureUsage.RenderTarget, swapChain.Width, swapChain.Height, 1, 1, 1, isStatic: true, "BackBuffer");
         }
 
         public Fence PresentSwapChain(SwapChain swapChain)

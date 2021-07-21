@@ -407,7 +407,7 @@ namespace CoreEngine.Rendering
 
         private void InitResourceLoaders(ResourcesManager resourcesManager)
         {
-            resourcesManager.AddResourceLoader(new TextureResourceLoader(resourcesManager, this, this.graphicsManager));
+            resourcesManager.AddResourceLoader(new TextureResourceLoader(resourcesManager, this, this.graphicsManager, this.graphicsManager.shaderResourceManager));
             resourcesManager.AddResourceLoader(new FontResourceLoader(resourcesManager, this, this.graphicsManager));
             resourcesManager.AddResourceLoader(new MaterialResourceLoader(resourcesManager, this, this.graphicsManager));
             resourcesManager.AddResourceLoader(new MeshResourceLoader(resourcesManager));

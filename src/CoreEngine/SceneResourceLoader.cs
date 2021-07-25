@@ -213,6 +213,37 @@ namespace CoreEngine
                                     propertyInfo.SetValue(component, value);
                                 }
 
+                                else if (floatArrayLength == 16)
+                                {
+                                    var value = new Matrix4x4();
+
+                                    value.M11 = floatArrayValue[0];
+                                    value.M12 = floatArrayValue[1];
+                                    value.M13 = floatArrayValue[2];
+                                    value.M14 = floatArrayValue[3];
+
+                                    value.M21 = floatArrayValue[4];
+                                    value.M22 = floatArrayValue[5];
+                                    value.M23 = floatArrayValue[6];
+                                    value.M24 = floatArrayValue[7];
+
+                                    value.M31 = floatArrayValue[8];
+                                    value.M32 = floatArrayValue[9];
+                                    value.M33 = floatArrayValue[10];
+                                    value.M34 = floatArrayValue[11];
+
+                                    value.M41 = floatArrayValue[12];
+                                    value.M42 = floatArrayValue[13];
+                                    value.M43 = floatArrayValue[14];
+                                    value.M44 = floatArrayValue[15];
+
+                                    propertyInfo.SetValue(component, value);
+
+                                    // TODO: This is a hack
+                                    var hasChangeProperty = componentType!.GetProperty("HasChanged");
+                                    hasChangeProperty!.SetValue(component, 1u);
+                                }
+
                                 else
                                 {
                                     Logger.WriteMessage("Unknown array float type");

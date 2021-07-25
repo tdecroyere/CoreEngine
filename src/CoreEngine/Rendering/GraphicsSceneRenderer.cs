@@ -507,22 +507,14 @@ namespace CoreEngine.Rendering
                 throw new ArgumentNullException(nameof(mainRenderTargetTexture));
             }
 
-            if (renderManager.logFrameTime)
-            {
-                Logger.BeginAction("Create Depth Buffer");
-            }
-
             using var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
 
             // TODO: Store that to so that we can reuse this texture in the next frame
+            var depthPyramidWidth = MathUtils.FindLowerPowerOf2((uint)mainRenderTargetTexture.Width);
+            var depthPyramidHeight = MathUtils.FindLowerPowerOf2((uint)mainRenderTargetTexture.Height);
 
-            var depthPyramidMipLevels = MathUtils.ComputeTextureMipLevels((uint)mainRenderTargetTexture.Width / 2, (uint)mainRenderTargetTexture.Height / 2);
-            var depthPyramidBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, mainRenderTargetTexture.Width / 2, mainRenderTargetTexture.Height / 2, 1, (int)depthPyramidMipLevels, 1, isStatic: true, "DepthPyramid");
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-            }
+            var depthPyramidMipLevels = MathUtils.ComputeTextureMipLevels(depthPyramidWidth, depthPyramidHeight);
+            var depthPyramidBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, (int)depthPyramidWidth, (int)depthPyramidHeight, 1, (int)depthPyramidMipLevels, 1, isStatic: true, "DepthPyramid");
          
             var copyCommandList = CreateCopyGpuDataCommandList(scene);
             var computeRenderCommandList = CreateComputeRenderCommandList(scene);            
@@ -531,32 +523,27 @@ namespace CoreEngine.Rendering
 
             var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
             var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { computeRenderCommandList }, new Fence[] { copyFence });
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.BeginAction("Execute Command List");
-            }
-
             // TODO: Submit render and debug command list at the same time
             var renderFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderGeometryCommandList }, new Fence[] { computeFence });
-
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-                Logger.BeginAction("DebugRenderer");
-            }
+            var generateDepthPyramidFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList }, new Fence[] { renderFence });
 
             this.debugRenderer.Render(this.camerasBuffer, mainRenderTargetTexture, depthBuffer);
 
-            if (renderManager.logFrameTime)
-            {
-                Logger.EndAction();
-            }
-
-            var generateDepthPyramidFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList }, new Fence[] { renderFence });
+            var projectedBoundingBox = BoundingBox.CreateTransformed2D(scene.MeshInstances[0].WorldBoundingBox, scene.Cameras[0].ViewMatrix * scene.Cameras[0].ProjectionMatrix);
+            var screenSize = new Vector2(mainRenderTargetTexture.Width, mainRenderTargetTexture.Height);
             
-            var surfaceWidth = 500;
-            var surfaceHeight = 400;
+            var projectedMinPoint = projectedBoundingBox.MinPoint * new Vector2(0.5f, 0.5f) + new Vector2(0.5f, 0.5f);
+            var projectedMaxPoint = projectedBoundingBox.MaxPoint * new Vector2(0.5f, 0.5f) + new Vector2(0.5f, 0.5f);
+
+            var tmpProjectedMinPoint = projectedMinPoint;
+
+            projectedMinPoint = new Vector2(projectedMinPoint.X, 1.0f - projectedMaxPoint.Y) * screenSize;
+            projectedMaxPoint = new Vector2(projectedMaxPoint.X, 1.0f - tmpProjectedMinPoint.Y) * screenSize;
+
+            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(projectedMinPoint, projectedMaxPoint, new Vector4(0, 1, 0, 1));
+
+            var surfaceWidth = 512;
+            var surfaceHeight = 512;
             var surfacePositionX = mainRenderTargetTexture.Width - surfaceWidth - 10;
             var surfacePositionY = 10;
 

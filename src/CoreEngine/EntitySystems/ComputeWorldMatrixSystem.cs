@@ -25,17 +25,21 @@ namespace CoreEngine.EntitySystems
             {
                 ref var tranformComponent = ref transformArray[i];
 
-                // TODO: Only update world matrix when transform component has been changed
-                var scale = Matrix4x4.CreateScale(tranformComponent.Scale);
-                var rotationX = MathUtils .DegreesToRad(tranformComponent.RotationX);
-                var rotationY = MathUtils.DegreesToRad(tranformComponent.RotationY);
-                var rotationZ = MathUtils.DegreesToRad(tranformComponent.RotationZ);
-                var translation = MathUtils.CreateTranslation(tranformComponent.Position);
+                // TODO: This is a hack
+                if (tranformComponent.HasChanged == 0)
+                {
+                    // TODO: Only update world matrix when transform component has been changed
+                    var scale = Matrix4x4.CreateScale(tranformComponent.Scale);
+                    var rotationX = MathUtils.DegreesToRad(tranformComponent.RotationX);
+                    var rotationY = MathUtils.DegreesToRad(tranformComponent.RotationY);
+                    var rotationZ = MathUtils.DegreesToRad(tranformComponent.RotationZ);
+                    var translation = MathUtils.CreateTranslation(tranformComponent.Position);
 
-                var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
+                    var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
 
-                tranformComponent.RotationQuaternion = rotationQuaternion;
-                tranformComponent.WorldMatrix = Matrix4x4.Transform(scale, tranformComponent.RotationQuaternion) * translation;
+                    tranformComponent.RotationQuaternion = rotationQuaternion;
+                    tranformComponent.WorldMatrix = Matrix4x4.Transform(scale, tranformComponent.RotationQuaternion) * translation;
+                }
             }
         }
     }

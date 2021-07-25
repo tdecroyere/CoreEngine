@@ -19,6 +19,15 @@ namespace CoreEngine.Rendering
             this.IsOpaque = (uint)(isOpaque ? 1 : 0);
         }
 
+        public RectangleSurface(Matrix4x4 worldViewProjMatrix, Vector4 color)
+        {
+            this.WorldViewProjMatrix = worldViewProjMatrix;
+            this.TextureMinPoint = new Vector2(color.X, color.Y);
+            this.TextureMaxPoint = new Vector2(color.Z, color.W);
+            this.TextureIndex = 0;
+            this.IsOpaque = 2;
+        }
+
         public readonly ShaderMatrix4x4 WorldViewProjMatrix { get; }
         public readonly Vector2 TextureMinPoint { get; }
         public readonly Vector2 TextureMaxPoint { get; }
@@ -112,6 +121,15 @@ namespace CoreEngine.Rendering
         public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, bool isOpaque = false)
         {
             DrawRectangleSurface(minPoint, maxPoint, texture, Vector2.Zero, new Vector2(1, 1), isOpaque);
+        }
+
+        public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Vector4 color)
+        {
+            var size = maxPoint - minPoint;
+            var worldMatrix = Matrix4x4.CreateScale(new Vector3(size, 0)) * Matrix4x4.CreateTranslation(new Vector3(minPoint, 0));
+
+            // TODO: Move the matrix mul into an amplification shader?
+            this.rectangleSurfaces[this.currentSurfaceCount++] = new RectangleSurface(worldMatrix * this.projectionMatrix, color);
         }
 
         public void DrawRectangleSurface(Vector2 minPoint, Vector2 maxPoint, Texture texture, Vector2 textureMinPoint, Vector2 textureMaxPoint, bool isOpaque)

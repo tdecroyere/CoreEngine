@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Numerics;
 
 namespace CoreEngine
@@ -11,7 +12,7 @@ namespace CoreEngine
 			this.MaxPoint = maxPoint;
 		}
 
-        public BoundingBox(Vector3[] points)
+        public BoundingBox(ReadOnlySpan<Vector3> points)
         {
             if (points == null)
             {
@@ -97,7 +98,7 @@ namespace CoreEngine
             return new BoundingBox(minPoint, maxPoint);
 		}
 
-        public static BoundingBox CreateMerged(BoundingBox original, BoundingBox additional) 
+        public static BoundingBox CreateMerged(in BoundingBox original, in BoundingBox additional) 
         {
             var minX = MathF.Min(original.MinPoint.X, additional.MinPoint.X);
             var minY = MathF.Min(original.MinPoint.Y, additional.MinPoint.Y);
@@ -113,9 +114,9 @@ namespace CoreEngine
             return new BoundingBox(minPoint, maxPoint);
         }
 
-        public static BoundingBox CreateTransformed(BoundingBox boundingBox, Matrix4x4 matrix)
+        public static BoundingBox CreateTransformed(in BoundingBox boundingBox, Matrix4x4 matrix)
         {
-            var pointList = new Vector3[8];
+            var pointList = ArrayPool<Vector3>.Shared.Rent(8);
 
             pointList[0] = Vector3.Transform(boundingBox.MinPoint + new Vector3(0, 0, 0), matrix);
             pointList[1] = Vector3.Transform(boundingBox.MinPoint + new Vector3(boundingBox.XSize, 0, 0), matrix);
@@ -126,7 +127,85 @@ namespace CoreEngine
             pointList[6] = Vector3.Transform(boundingBox.MinPoint + new Vector3(0, boundingBox.YSize, boundingBox.ZSize), matrix);
             pointList[7] = Vector3.Transform(boundingBox.MinPoint + new Vector3(boundingBox.XSize, boundingBox.YSize, boundingBox.ZSize), matrix);
 
-            return new BoundingBox(pointList);
+            var result = new BoundingBox(pointList.AsSpan(0, 8));
+            ArrayPool<Vector3>.Shared.Return(pointList);
+
+            return result;
+        }
+
+        public static BoundingBox2D CreateTransformed2D(in BoundingBox boundingBox, Matrix4x4 matrix)
+        {
+            var pointList = ArrayPool<Vector2>.Shared.Rent(8);
+            var currentPointIndex = 0;
+
+            var sourcePoint = boundingBox.MinPoint + new Vector3(0, 0, 0);
+            var point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            sourcePoint = boundingBox.MinPoint + new Vector3(boundingBox.XSize, 0, 0);
+            point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            sourcePoint = boundingBox.MinPoint + new Vector3(0, boundingBox.YSize, 0);
+            point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            sourcePoint = boundingBox.MinPoint + new Vector3(boundingBox.XSize, boundingBox.YSize, 0);
+            point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            sourcePoint = boundingBox.MinPoint + new Vector3(0, 0, boundingBox.ZSize);
+            point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            sourcePoint = boundingBox.MinPoint + new Vector3(boundingBox.XSize, 0, boundingBox.ZSize);
+            point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            sourcePoint = boundingBox.MinPoint + new Vector3(0, boundingBox.YSize, boundingBox.ZSize);
+            point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+            
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            sourcePoint = boundingBox.MinPoint + new Vector3(boundingBox.XSize, boundingBox.YSize, boundingBox.ZSize);
+            point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+
+            if (point.Z / point.W > 0.0f)
+            {
+                pointList[currentPointIndex++] = new Vector2(point.X, point.Y) / point.W;
+            }
+
+            var result = new BoundingBox2D(pointList.AsSpan(0, currentPointIndex));
+            ArrayPool<Vector2>.Shared.Return(pointList);
+
+            return result;
         }
 
         public override string ToString()

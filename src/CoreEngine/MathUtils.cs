@@ -118,5 +118,17 @@ namespace CoreEngine
         {
             return (threadCount + localThreadCount - 1) / localThreadCount;
         }
+
+        public static uint FindLowerPowerOf2(uint value)
+        {
+            var result = 1u;
+
+            while (result < value)
+            {
+                result <<= 1;
+            }
+
+            return result >> 1;
+        }
     }
 }

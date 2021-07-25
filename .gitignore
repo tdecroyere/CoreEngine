@@ -11,6 +11,8 @@ samples/**/san-miguel.obj
 samples/**/bunny.obj
 samples/**/kitten.obj
 samples/**/Minun.obj
+samples/**/MoanaIsland
+samples/**/MoanaIsland.cescene
 
 *.generated.cs
 

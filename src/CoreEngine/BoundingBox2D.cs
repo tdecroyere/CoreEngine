@@ -4,6 +4,7 @@ using System.Numerics;
 
 namespace CoreEngine
 {
+    // TODO: Replace that with Unit tests and use Vector2.Min/Max
     public readonly struct BoundingBox2D
     {
 		public BoundingBox2D(Vector2 minPoint, Vector2 maxPoint)
@@ -26,11 +27,11 @@ namespace CoreEngine
             {
                 var point = points[i];
 
-                var minX = (point.X < this.MinPoint.X) ? point.X : this.MinPoint.X;
-                var minY = (point.Y < this.MinPoint.Y) ? point.Y : this.MinPoint.Y;
+                var minX = MathF.Min(point.X, this.MinPoint.X);
+                var minY = MathF.Min(point.Y, this.MinPoint.Y);
 
-                var maxX = (point.X > this.MaxPoint.X) ? point.X : this.MaxPoint.X;
-                var maxY = (point.Y > this.MaxPoint.Y) ? point.Y : this.MaxPoint.Y;
+                var maxX = MathF.Max(point.X, this.MaxPoint.X);
+                var maxY = MathF.Max(point.Y, this.MaxPoint.Y);
         
                 this.MinPoint = new Vector2(minX, minY);
                 this.MaxPoint = new Vector2(maxX, maxY);
@@ -74,11 +75,11 @@ namespace CoreEngine
 
         public static BoundingBox2D AddPoint(in BoundingBox2D boundingBox, Vector2 point)
 		{
-			float minX = (point.X < boundingBox.MinPoint.X) ? point.X : boundingBox.MinPoint.X;
-			float minY = (point.Y < boundingBox.MinPoint.Y) ? point.Y : boundingBox.MinPoint.Y;
+			float minX = MathF.Min(point.X, boundingBox.MinPoint.X);
+			float minY = MathF.Min(point.Y, boundingBox.MinPoint.Y);
 
-			float maxX = (point.X > boundingBox.MaxPoint.X) ? point.X : boundingBox.MaxPoint.X;
-			float maxY = (point.Y > boundingBox.MaxPoint.Y) ? point.Y : boundingBox.MaxPoint.Y;
+			float maxX = MathF.Max(point.X, boundingBox.MaxPoint.X);
+			float maxY = MathF.Max(point.Y, boundingBox.MaxPoint.Y);
 	
 			var minPoint = new Vector2(minX, minY);
 			var maxPoint = new Vector2(maxX, maxY);

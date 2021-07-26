@@ -4,6 +4,7 @@ using System.Numerics;
 
 namespace CoreEngine
 {
+    // TODO: Replace that with Unit tests and use Vector3.Min/Max
     public readonly struct BoundingBox
     {
 		public BoundingBox(Vector3 minPoint, Vector3 maxPoint)
@@ -113,6 +114,19 @@ namespace CoreEngine
 
             return new BoundingBox(minPoint, maxPoint);
         }
+
+        // TODO: Use offsets in the transform function
+        private static readonly Vector3[] BoundingBoxOffsets = new Vector3[]
+        {
+            new Vector3(0, 0, 0),
+            new Vector3(1, 0, 0),
+            new Vector3(0, 1, 0),
+            new Vector3(1, 1, 0),
+            new Vector3(0, 0, 1),
+            new Vector3(1, 0, 1),
+            new Vector3(0, 1, 1),
+            new Vector3(1, 1, 1)
+        };
 
         public static BoundingBox CreateTransformed(in BoundingBox boundingBox, Matrix4x4 matrix)
         {

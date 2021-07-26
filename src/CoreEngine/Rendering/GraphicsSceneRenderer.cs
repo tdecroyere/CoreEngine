@@ -95,8 +95,11 @@ namespace CoreEngine.Rendering
 
         private readonly GraphicsBuffer cpuMeshInstanceBuffer;
         private readonly GraphicsBuffer meshInstanceBuffer;
+        private readonly GraphicsBuffer meshInstanceVisibilityBuffer;
 
+        // TODO: Merge the icb into one buffer
         private readonly GraphicsBuffer indirectCommandBuffer;
+        private readonly GraphicsBuffer postIndirectCommandBuffer;
 
         private readonly GraphicsBuffer cpuCamerasBuffer;
         private readonly GraphicsBuffer camerasBuffer;
@@ -108,6 +111,7 @@ namespace CoreEngine.Rendering
         private readonly GraphicsBuffer cpuPipelineStatistics;
         private readonly QueryBuffer pipelineStatistics;
 
+        private bool isFirstRun = true;
         private uint currentMeshInstanceCount;
 
         // private GraphicsPipeline graphicsPipeline;
@@ -130,7 +134,11 @@ namespace CoreEngine.Rendering
             this.cpuMeshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "CpuMeshInstanceBuffer");
             this.meshInstanceBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMeshInstance>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 100000, isStatic: false, label: "MeshInstanceBuffer");
 
+            // TODO: Be careful that the index of the visibility buffer may not be in sync with the mesh instances
+            this.meshInstanceVisibilityBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Gpu, GraphicsBufferUsage.WriteableStorage, 100000, isStatic: true, label: "MeshInstanceVisibilityBuffer");
+
             this.indirectCommandBuffer = this.graphicsManager.CreateGraphicsBuffer<DispatchMeshIndirectParam>(GraphicsHeapType.Gpu, GraphicsBufferUsage.IndirectCommands, 100000, isStatic: false, label: "IndirectCommandBuffer");
+            this.postIndirectCommandBuffer = this.graphicsManager.CreateGraphicsBuffer<DispatchMeshIndirectParam>(GraphicsHeapType.Gpu, GraphicsBufferUsage.IndirectCommands, 100000, isStatic: false, label: "PostIndirectCommandBuffer");
 
             this.cpuCamerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeCameras");
             this.camerasBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderCamera>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeCameras");
@@ -139,13 +147,14 @@ namespace CoreEngine.Rendering
             this.lightsBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderLight>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "ComputeLights");
 
             this.cpuReadBackCounters = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.ReadBack, GraphicsBufferUsage.Storage, 10, isStatic: false, "CpuReadbackCounters");
-            this.cpuPipelineStatistics = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, GraphicsBufferUsage.Storage, 14, isStatic: false, "CpuPipelineStatistics");
-            this.pipelineStatistics = this.graphicsManager.CreateQueryBuffer(QueryBufferType.GraphicsPipelineStats, 1, "PipelineStatistics");
+            this.cpuPipelineStatistics = this.graphicsManager.CreateGraphicsBuffer<ulong>(GraphicsHeapType.ReadBack, GraphicsBufferUsage.Storage, 2 * 14, isStatic: false, "CpuPipelineStatistics");
+            this.pipelineStatistics = this.graphicsManager.CreateQueryBuffer(QueryBufferType.GraphicsPipelineStats, 2, "PipelineStatistics");
         }
 
         public Fence Render(Texture mainRenderTargetTexture)
         {
             var scene = this.sceneQueue.WaitForNextScene();
+            this.renderManager.OcclusionEnabled = scene.IsOcclusionCullingEnabled == 1u;
 
             // TODO: Find a way to do that also on Vulkan
             var pipelineStatsData = this.graphicsManager.CopyDataFromGraphicsBuffer<ulong>(this.cpuPipelineStatistics);
@@ -154,7 +163,7 @@ namespace CoreEngine.Rendering
             this.renderManager.CulledTriangleCount = pipelineStatsData[13];
 
             var counters = this.graphicsManager.CopyDataFromGraphicsBuffer<uint>(this.cpuReadBackCounters);
-            this.renderManager.CulledMeshInstanceCount = (int)counters[0];
+            this.renderManager.CulledMeshInstanceCount = (int)counters[0] + (int)counters[1];
 
             // TODO: Move that to render pipeline
             this.debugRenderer.ClearDebugLines();
@@ -185,6 +194,16 @@ namespace CoreEngine.Rendering
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
+
+            if (this.isFirstRun)
+            {
+                using var cpuMeshInstanceVisibilityBuffer = this.graphicsManager.CreateGraphicsBuffer<uint>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 100000, isStatic: true, label: "CpuMeshInstanceVisibilityBuffer");
+                var visibilityBufferArray = new uint[100000];
+                Array.Fill<uint>(visibilityBufferArray, 0);
+                this.graphicsManager.CopyDataToGraphicsBuffer<uint>(cpuMeshInstanceVisibilityBuffer, 0, visibilityBufferArray);
+                this.graphicsManager.CopyDataToGraphicsBuffer<uint>(copyCommandList, this.meshInstanceVisibilityBuffer, cpuMeshInstanceVisibilityBuffer, 100000);
+                this.isFirstRun = false;
+            }
 
             ProcessGeometry(copyCommandList, scene);
             ProcessCamera(copyCommandList, scene);
@@ -319,6 +338,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.CopyDataToGraphicsBuffer<ShaderMeshInstance>(copyCommandList, this.meshInstanceBuffer, this.cpuMeshInstanceBuffer, currentMeshInstanceIndex);
 
             this.graphicsManager.ResetIndirectCommandBuffer(copyCommandList, this.indirectCommandBuffer);
+            this.graphicsManager.ResetIndirectCommandBuffer(copyCommandList, this.postIndirectCommandBuffer);
 
             this.renderManager.MeshCount = (int)currentMeshIndex;
             this.renderManager.MeshInstanceCount = (int)currentMeshInstanceIndex;
@@ -403,9 +423,14 @@ namespace CoreEngine.Rendering
             ArrayPool<ShaderLight>.Shared.Return(lightList);
         }
 
-        private CommandList CreateComputeRenderCommandList(GraphicsScene scene)
+        private CommandList CreateComputeRenderCommandList(GraphicsScene scene, Texture? depthPyramidBuffer = null)
         {
-            var computeRenderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.ComputeCommandQueue, "ComputeRenderCommands");
+            var isPostPass = depthPyramidBuffer != null;
+
+            var commandListName = isPostPass ? "PostComputeRenderCommands" : "ComputeRenderCommands";
+            var indirectCommandBuffer = isPostPass ? this.postIndirectCommandBuffer : this.indirectCommandBuffer;
+
+            var computeRenderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.ComputeCommandQueue, commandListName);
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
             this.graphicsManager.SetShader(computeRenderCommandList, this.computeRenderCommandsShader);
 
@@ -415,8 +440,11 @@ namespace CoreEngine.Rendering
                 scene.ShowMeshlets,
                 this.meshBuffer.ShaderResourceIndex,
                 this.meshInstanceBuffer.ShaderResourceIndex,
-                this.indirectCommandBuffer.ShaderResourceIndex,
-                this.currentMeshInstanceCount
+                this.meshInstanceVisibilityBuffer.ShaderResourceIndex,
+                indirectCommandBuffer.ShaderResourceIndex,
+                this.currentMeshInstanceCount,
+                isPostPass ? 1u : 0u,
+                scene.IsOcclusionCullingEnabled
             });
 
             // TODO: Don't hardcode wave size
@@ -424,40 +452,49 @@ namespace CoreEngine.Rendering
             this.graphicsManager.DispatchCompute(computeRenderCommandList, MathUtils.ComputeGroupThreads(this.currentMeshInstanceCount, waveSize), 1, 1); 
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(computeRenderCommandList);
 
-            this.graphicsManager.SetGraphicsBufferBarrier(computeRenderCommandList, this.indirectCommandBuffer);
-            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(computeRenderCommandList, this.cpuReadBackCounters, this.indirectCommandBuffer, 1, 0, this.indirectCommandBuffer.SizeInBytes - sizeof(uint)); 
+            this.graphicsManager.SetGraphicsBufferBarrier(computeRenderCommandList, indirectCommandBuffer);
+            this.graphicsManager.CopyDataToGraphicsBuffer<uint>(computeRenderCommandList, this.cpuReadBackCounters, indirectCommandBuffer, 1, isPostPass ? 1u * sizeof(uint) : 0u, indirectCommandBuffer.SizeInBytes - sizeof(uint)); 
             this.graphicsManager.CommitCommandList(computeRenderCommandList);
 
-            this.renderManager.AddGpuTiming("ComputeRenderCommands", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+            this.renderManager.AddGpuTiming(commandListName, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
             return computeRenderCommandList;
         }
 
-        private CommandList CreateRenderGeometryCommandList(Texture mainRenderTargetTexture, Texture depthBuffer)
+        private CommandList CreateRenderGeometryCommandList(Texture mainRenderTargetTexture, Texture depthBuffer, Texture? depthPyramidBuffer = null)
         {
-            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, "RenderGeometry");
+            var isPostPass = depthPyramidBuffer != null;
 
-            var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, Vector4.Zero, BlendOperation.None);
-            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, DepthBufferOperation.ClearWrite, backfaceCulling: true, PrimitiveType.Triangle);
+            var commandListName = isPostPass ? "PostRenderGeometry" : "RenderGeometry";
+            var indirectCommandBuffer = isPostPass ? this.postIndirectCommandBuffer : this.indirectCommandBuffer;
+
+            var renderCommandList = this.graphicsManager.CreateCommandList(this.renderManager.RenderCommandQueue, commandListName);
+
+            var renderTarget = new RenderTargetDescriptor(mainRenderTargetTexture, isPostPass ? null : Vector4.Zero, BlendOperation.None);
+            var renderPassDescriptor = new RenderPassDescriptor(renderTarget, depthBuffer, isPostPass ? DepthBufferOperation.Write : DepthBufferOperation.ClearWrite, backfaceCulling: true, PrimitiveType.Triangle);
 
             var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
 
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.renderMeshInstanceShader);
             this.graphicsManager.ResetQueryBuffer(this.pipelineStatistics);
-            this.graphicsManager.BeginQuery(renderCommandList, this.pipelineStatistics, 0);
+            this.graphicsManager.BeginQuery(renderCommandList, this.pipelineStatistics, isPostPass ? 1 : 0);
 
             if (this.currentMeshInstanceCount > 0)
             {
-                this.graphicsManager.ExecuteIndirect(renderCommandList, this.currentMeshInstanceCount, this.indirectCommandBuffer, 0);
+                this.graphicsManager.ExecuteIndirect(renderCommandList, this.currentMeshInstanceCount, indirectCommandBuffer, 0);
             }
 
-            this.graphicsManager.EndQuery(renderCommandList, this.pipelineStatistics, 0);
+            this.graphicsManager.EndQuery(renderCommandList, this.pipelineStatistics, isPostPass ? 1 : 0);
             this.graphicsManager.EndRenderPass(renderCommandList);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
-            this.graphicsManager.ResolveQueryData(renderCommandList, this.pipelineStatistics, this.cpuPipelineStatistics, 0..1);
+
+            if (isPostPass)
+            {
+                this.graphicsManager.ResolveQueryData(renderCommandList, this.pipelineStatistics, this.cpuPipelineStatistics, 0..2);
+            }
 
             this.graphicsManager.CommitCommandList(renderCommandList);
-            this.renderManager.AddGpuTiming("RenderGeometry", QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
+            this.renderManager.AddGpuTiming(commandListName, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
 
             return renderCommandList;
         }
@@ -517,30 +554,32 @@ namespace CoreEngine.Rendering
             var depthPyramidBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, (int)depthPyramidWidth, (int)depthPyramidHeight, 1, (int)depthPyramidMipLevels, 1, isStatic: true, "DepthPyramid");
          
             var copyCommandList = CreateCopyGpuDataCommandList(scene);
-            var computeRenderCommandList = CreateComputeRenderCommandList(scene);            
+            
+            var computeRenderCommandList = CreateComputeRenderCommandList(scene);
             var renderGeometryCommandList = CreateRenderGeometryCommandList(mainRenderTargetTexture, depthBuffer);
+
             var depthPyramidCommandList = CreateDepthPyramidCommandList(depthPyramidBuffer, depthBuffer);
 
+            var postComputeRenderCommandList = CreateComputeRenderCommandList(scene, depthPyramidBuffer);
+            var postRenderGeometryCommandList = CreateRenderGeometryCommandList(mainRenderTargetTexture, depthBuffer, depthPyramidBuffer);
+
             var copyFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.CopyCommandQueue, new CommandList[] { copyCommandList });
+
             var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { computeRenderCommandList }, new Fence[] { copyFence });
-            // TODO: Submit render and debug command list at the same time
             var renderFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderGeometryCommandList }, new Fence[] { computeFence });
+
             var generateDepthPyramidFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList }, new Fence[] { renderFence });
 
+            var postComputeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { postComputeRenderCommandList }, new Fence[] { generateDepthPyramidFence });
+            var postRenderFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { postRenderGeometryCommandList }, new Fence[] { postComputeFence });
+
+            // TODO: Submit render and debug command list at the same time
             this.debugRenderer.Render(this.camerasBuffer, mainRenderTargetTexture, depthBuffer);
 
-            var projectedBoundingBox = BoundingBox.CreateTransformed2D(scene.MeshInstances[0].WorldBoundingBox, scene.Cameras[0].ViewMatrix * scene.Cameras[0].ProjectionMatrix);
-            var screenSize = new Vector2(mainRenderTargetTexture.Width, mainRenderTargetTexture.Height);
-            
-            var projectedMinPoint = projectedBoundingBox.MinPoint * new Vector2(0.5f, 0.5f) + new Vector2(0.5f, 0.5f);
-            var projectedMaxPoint = projectedBoundingBox.MaxPoint * new Vector2(0.5f, 0.5f) + new Vector2(0.5f, 0.5f);
+            var projectedBoundingBox = CreateOptimizedTransformed2D(scene.MeshInstances[0].WorldBoundingBox, scene.Cameras[0].ViewMatrix * scene.Cameras[0].ProjectionMatrix);
 
-            var tmpProjectedMinPoint = projectedMinPoint;
-
-            projectedMinPoint = new Vector2(projectedMinPoint.X, 1.0f - projectedMaxPoint.Y) * screenSize;
-            projectedMaxPoint = new Vector2(projectedMaxPoint.X, 1.0f - tmpProjectedMinPoint.Y) * screenSize;
-
-            this.renderManager.Graphics2DRenderer.DrawRectangleSurface(projectedMinPoint, projectedMaxPoint, new Vector4(0, 1, 0, 1));
+            var renderTargetSize = new Vector2(mainRenderTargetTexture.Width, mainRenderTargetTexture.Height);
+            //this.renderManager.Graphics2DRenderer.DrawRectangleSurface(projectedBoundingBox.MinPoint * renderTargetSize, projectedBoundingBox.MaxPoint * renderTargetSize, new Vector4(0, 1, 0, 1));
 
             var surfaceWidth = 512;
             var surfaceHeight = 512;
@@ -549,7 +588,46 @@ namespace CoreEngine.Rendering
 
             this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(surfacePositionX, surfacePositionY), new Vector2(surfacePositionX + surfaceWidth, surfacePositionY + surfaceHeight), depthPyramidBuffer, isOpaque: true);
 
-            return generateDepthPyramidFence;
+            return postRenderFence;
+        }
+
+        private static readonly Vector3[] BoundingBoxOffsets = new Vector3[]
+        {
+            new Vector3(0, 0, 0),
+            new Vector3(1, 0, 0),
+            new Vector3(0, 1, 0),
+            new Vector3(1, 1, 0),
+            new Vector3(0, 0, 1),
+            new Vector3(1, 0, 1),
+            new Vector3(0, 1, 1),
+            new Vector3(1, 1, 1)
+        };
+
+        private static BoundingBox2D CreateOptimizedTransformed2D(in BoundingBox boundingBox, Matrix4x4 worldViewProjMatrix)
+        {
+            var offsetMatrix = new Matrix4x4(0.5f, 0.0f, 0.0f, 0.0f,
+                                             0.0f, -0.5f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 0.0f,
+                                             0.5f, 0.5f, 0.0f, 1.0f);
+
+            var matrix = worldViewProjMatrix * offsetMatrix;
+            var boundingBoxSize = boundingBox.MaxPoint - boundingBox.MinPoint;
+
+            var minPoint = new Vector2(float.MaxValue, float.MaxValue);
+            var maxPoint = new Vector2(float.MinValue, float.MinValue);
+
+            for (var i = 0; i < 8; i++)
+            {
+                var sourcePoint = boundingBox.MinPoint + BoundingBoxOffsets[i] * boundingBoxSize;
+
+                var point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
+                point /= point.W;
+
+                minPoint = (point.Z > 0.0f) ? Vector2.Min(new Vector2(point.X, point.Y), minPoint) : minPoint;
+                maxPoint = (point.Z > 0.0f) ? Vector2.Max(new Vector2(point.X, point.Y), maxPoint) : maxPoint;
+            }
+
+            return new BoundingBox2D(minPoint, maxPoint);
         }
     }
 }

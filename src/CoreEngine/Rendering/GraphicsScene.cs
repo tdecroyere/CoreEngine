@@ -22,6 +22,7 @@ namespace CoreEngine.Rendering
         public Camera ActiveCamera { get; set; }
         public Camera? DebugCamera { get; set; }
         public uint ShowMeshlets { get; set; }
+        public uint IsOcclusionCullingEnabled { get; set; }
 
         public void CleanItems()
         {
@@ -75,6 +76,7 @@ namespace CoreEngine.Rendering
             }
 
             result.ShowMeshlets = this.ShowMeshlets;
+            result.IsOcclusionCullingEnabled = this.IsOcclusionCullingEnabled;
 
             return result;
         }

@@ -38,6 +38,7 @@ namespace CoreEngine.Rendering.EntitySystems
                 var sceneComponent = sceneArray[i];
 
                 sceneManager.CurrentScene.ShowMeshlets = sceneComponent.ShowMeshlets;
+                sceneManager.CurrentScene.IsOcclusionCullingEnabled = sceneComponent.IsOcclusionCullingEnabled;
 
                 if (sceneComponent.ActiveCamera != null)
                 {

@@ -36,6 +36,7 @@ namespace CoreEngine.Samples.SceneViewer
             var changeCamera = this.inputsManager.InputsState.Keyboard.Space.Value == 0.0f && this.inputsManager.InputsState.Keyboard.Space.TransitionCount > 0;
             var changePlayer = this.inputsManager.InputsState.Keyboard.F1.Value == 0.0f && this.inputsManager.InputsState.Keyboard.F1.TransitionCount > 0;
             var changeMeshletView = this.inputsManager.InputsState.Keyboard.F2.Value == 0.0f && this.inputsManager.InputsState.Keyboard.F2.TransitionCount > 0;
+            var changeOcclusionCulling = this.inputsManager.InputsState.Keyboard.F3.Value == 0.0f && this.inputsManager.InputsState.Keyboard.F3.TransitionCount > 0;
 
             var entityArray = this.GetEntityArray();
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
@@ -145,6 +146,15 @@ namespace CoreEngine.Samples.SceneViewer
             {
                 var temp = sceneComponent.Value;
                 temp.ShowMeshlets = (uint)(temp.ShowMeshlets == 0 ? 1 : 0);
+                sceneComponent = temp;
+
+                entityManager.SetComponentData(sceneEntity.Value, sceneComponent.Value);
+            }
+
+            if (changeOcclusionCulling && sceneEntity.HasValue&& sceneComponent.HasValue)
+            {
+                var temp = sceneComponent.Value;
+                temp.IsOcclusionCullingEnabled = (uint)(temp.IsOcclusionCullingEnabled == 0 ? 1 : 0);
                 sceneComponent = temp;
 
                 entityManager.SetComponentData(sceneEntity.Value, sceneComponent.Value);

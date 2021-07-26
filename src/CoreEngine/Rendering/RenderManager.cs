@@ -171,6 +171,7 @@ namespace CoreEngine.Rendering
         internal int MaterialsCount { get; set; }
         internal int TexturesCount { get; set; }
         internal int LightsCount { get; set; }
+        internal bool OcclusionEnabled { get; set; }
 
         public Vector2 GetRenderSize()
         {
@@ -355,7 +356,7 @@ namespace CoreEngine.Rendering
                 this.lastGpuDuration = 0.0;
             }
 
-            this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {this.currentFrameSize.X}x{this.currentFrameSize.Y} - FPS: {framePerSeconds} (Unlocked: {unlockedFramePerSeconds}) - {compilationConfiguration}", new Vector2(10, 10));
+            this.Graphics2DRenderer.DrawText($"{this.graphicsManager.graphicsAdapterName} - {this.currentFrameSize.X}x{this.currentFrameSize.Y} - FPS: {framePerSeconds} (Unlocked: {unlockedFramePerSeconds}) - {compilationConfiguration} (OcclusionEnabled: {this.OcclusionEnabled})", new Vector2(10, 10));
             this.Graphics2DRenderer.DrawText($"    Allocated Memory: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory + this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)} MB (Static: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}/{Utils.BytesToMegaBytes(this.graphicsManager.TotalGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}, Transient: {Utils.BytesToMegaBytes(this.graphicsManager.AllocatedTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)}/{Utils.BytesToMegaBytes(this.graphicsManager.TotalTransientGpuMemory).ToString("0.00", CultureInfo.InvariantCulture)})", new Vector2(10, 90));
             this.Graphics2DRenderer.DrawText($"    Memory Bandwidth: {Utils.BytesToMegaBytes((ulong)this.gpuMemoryUploadedPerSeconds).ToString("0.00", CultureInfo.InvariantCulture)} MB/s", new Vector2(10, 130));
             this.Graphics2DRenderer.DrawText($"Cpu Frame Duration: {Utils.FormatDurationInMs(frameDuration)}", new Vector2(10, 170));

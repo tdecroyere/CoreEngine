@@ -27,6 +27,7 @@ InputsState WindowsInputsService::GetInputsState()
 	this->inputState.Keyboard.Space.TransitionCount = 0;
 	this->inputState.Keyboard.F1.TransitionCount = 0;
 	this->inputState.Keyboard.F2.TransitionCount = 0;
+	this->inputState.Keyboard.F3.TransitionCount = 0;
 		
 	return output;
 }

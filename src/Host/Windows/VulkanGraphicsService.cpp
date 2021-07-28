@@ -427,6 +427,10 @@ void* VulkanGraphicsService::CreateShaderResourceHeap(unsigned long length)
     samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
+    // TODO: Use that for the min reduction samplers
+    // This will be done when parsing from the shader root signature
+    VkSamplerReductionModeCreateInfo redutionCreateInfo = {};
+
     AssertIfFailed(vkCreateSampler(this->graphicsDevice, &samplerCreateInfo, nullptr, &resourceHeap->Sampler));
 
     VkDescriptorImageInfo samplerInfo = {};

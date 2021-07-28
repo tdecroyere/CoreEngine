@@ -137,6 +137,8 @@ namespace CoreEngine.Tools.Compiler
                 if (compilation != null)
                 {
                     Logger.BeginAction($"Recompiling project {project.Name}...");
+
+                    // TODO: Add a parameter to compile in release or debug
                     compilation = compilation.WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, 
                                                             optimizationLevel: OptimizationLevel.Debug));
 

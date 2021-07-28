@@ -90,6 +90,9 @@ namespace CoreEngine.Rendering
         private readonly Shader computeGenerateDepthPyramid;
         private readonly Shader renderMeshInstanceShader;
 
+        private Texture depthBuffer;
+        private Texture depthPyramidBuffer;
+
         private readonly GraphicsBuffer cpuMeshBuffer;
         private readonly GraphicsBuffer meshBuffer;
 
@@ -116,8 +119,13 @@ namespace CoreEngine.Rendering
 
         // private GraphicsPipeline graphicsPipeline;
 
-        public GraphicsSceneRenderer(RenderManager renderManager, GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager)
+        public GraphicsSceneRenderer(RenderManager renderManager, GraphicsManager graphicsManager, GraphicsSceneQueue sceneQueue, ResourcesManager resourcesManager, Texture mainRenderTarget)
         {
+            if (mainRenderTarget is null)
+            {
+                throw new ArgumentNullException(nameof(mainRenderTarget));
+            }
+
             this.graphicsManager = graphicsManager ?? throw new ArgumentNullException(nameof(graphicsManager));
             this.renderManager = renderManager ?? throw new ArgumentNullException(nameof(renderManager));
 
@@ -127,6 +135,9 @@ namespace CoreEngine.Rendering
             this.computeRenderCommandsShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeRenderCommands.shader");
             this.computeGenerateDepthPyramid = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeGenerateDepthPyramid.shader");
             this.renderMeshInstanceShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/RenderMeshInstance.shader");
+
+            this.depthBuffer = CreateDepthBuffer(mainRenderTarget.Width, mainRenderTarget.Height);
+            this.depthPyramidBuffer = CreateDepthPyramidBuffer(mainRenderTarget.Width, mainRenderTarget.Height);
 
             this.cpuMeshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Upload, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "CpuMeshBuffer");
             this.meshBuffer = this.graphicsManager.CreateGraphicsBuffer<ShaderMesh>(GraphicsHeapType.Gpu, GraphicsBufferUsage.Storage, 10000, isStatic: false, label: "MeshBuffer");
@@ -151,16 +162,44 @@ namespace CoreEngine.Rendering
             this.pipelineStatistics = this.graphicsManager.CreateQueryBuffer(QueryBufferType.GraphicsPipelineStats, 2, "PipelineStatistics");
         }
 
+        private Texture CreateDepthBuffer(int width, int height)
+        {
+            return this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, width, height, 1, 1, 1, isStatic: true, "DepthBuffer");
+        }
+
+        private Texture CreateDepthPyramidBuffer(int width, int height)
+        {
+            var depthPyramidWidth = MathUtils.FindLowerPowerOf2((uint)width);
+            var depthPyramidHeight = MathUtils.FindLowerPowerOf2((uint)height);
+
+            var depthPyramidMipLevels = MathUtils.ComputeTextureMipLevels(depthPyramidWidth, depthPyramidHeight);
+            return this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, (int)depthPyramidWidth, (int)depthPyramidHeight, 1, (int)depthPyramidMipLevels, 1, isStatic: true, "DepthPyramid");
+        }
+
         public Fence Render(Texture mainRenderTargetTexture)
         {
+            if (mainRenderTargetTexture is null)
+            {
+                throw new ArgumentNullException(nameof(mainRenderTargetTexture));
+            }
+
+            if (this.depthBuffer.Width != mainRenderTargetTexture.Width || this.depthBuffer.Height != mainRenderTargetTexture.Height)
+            {
+                this.depthBuffer.Dispose();
+                this.depthBuffer = CreateDepthBuffer(mainRenderTargetTexture.Width, mainRenderTargetTexture.Height);
+
+                this.depthPyramidBuffer.Dispose();
+                this.depthPyramidBuffer = CreateDepthPyramidBuffer(mainRenderTargetTexture.Width, mainRenderTargetTexture.Height);
+            }
+
             var scene = this.sceneQueue.WaitForNextScene();
             this.renderManager.OcclusionEnabled = scene.IsOcclusionCullingEnabled == 1u;
 
             // TODO: Find a way to do that also on Vulkan
             var pipelineStatsData = this.graphicsManager.CopyDataFromGraphicsBuffer<ulong>(this.cpuPipelineStatistics);
-            this.renderManager.MeshletCount = (int)pipelineStatsData[11];
-            this.renderManager.CulledMeshletCount = (int)pipelineStatsData[12] / 32;
-            this.renderManager.CulledTriangleCount = pipelineStatsData[13];
+            this.renderManager.MeshletCount = (int)pipelineStatsData[11] + (int)pipelineStatsData[25];
+            this.renderManager.CulledMeshletCount = ((int)pipelineStatsData[12] + (int)pipelineStatsData[26]) / 32;
+            this.renderManager.CulledTriangleCount = pipelineStatsData[13] + pipelineStatsData[27];
 
             var counters = this.graphicsManager.CopyDataFromGraphicsBuffer<uint>(this.cpuReadBackCounters);
             this.renderManager.CulledMeshInstanceCount = (int)counters[0] + (int)counters[1];
@@ -444,7 +483,10 @@ namespace CoreEngine.Rendering
                 indirectCommandBuffer.ShaderResourceIndex,
                 this.currentMeshInstanceCount,
                 isPostPass ? 1u : 0u,
-                scene.IsOcclusionCullingEnabled
+                scene.IsOcclusionCullingEnabled,
+                isPostPass ? depthPyramidBuffer!.ShaderResourceIndex : 0u,
+                isPostPass ? (uint)depthPyramidBuffer!.Width : 0u,
+                isPostPass ? (uint)depthPyramidBuffer!.Height : 0u
             });
 
             // TODO: Don't hardcode wave size
@@ -529,6 +571,7 @@ namespace CoreEngine.Rendering
                 currentHeight = (int)MathF.Max(1, currentHeight >> 1);
             }
 
+            this.graphicsManager.SetTextureBarrier(commandList, depthPyramidBuffer);
             var endQueryIndex = this.renderManager.InsertQueryTimestamp(commandList);
             this.graphicsManager.CommitCommandList(commandList);
 
@@ -544,15 +587,6 @@ namespace CoreEngine.Rendering
                 throw new ArgumentNullException(nameof(mainRenderTargetTexture));
             }
 
-            using var depthBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Depth32Float, TextureUsage.RenderTarget, mainRenderTargetTexture.Width, mainRenderTargetTexture.Height, 1, 1, 1, isStatic: true, "DepthBuffer");
-
-            // TODO: Store that to so that we can reuse this texture in the next frame
-            var depthPyramidWidth = MathUtils.FindLowerPowerOf2((uint)mainRenderTargetTexture.Width);
-            var depthPyramidHeight = MathUtils.FindLowerPowerOf2((uint)mainRenderTargetTexture.Height);
-
-            var depthPyramidMipLevels = MathUtils.ComputeTextureMipLevels(depthPyramidWidth, depthPyramidHeight);
-            var depthPyramidBuffer = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.R32Float, TextureUsage.ShaderWrite, (int)depthPyramidWidth, (int)depthPyramidHeight, 1, (int)depthPyramidMipLevels, 1, isStatic: true, "DepthPyramid");
-         
             var copyCommandList = CreateCopyGpuDataCommandList(scene);
             
             var computeRenderCommandList = CreateComputeRenderCommandList(scene);
@@ -568,18 +602,26 @@ namespace CoreEngine.Rendering
             var computeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { computeRenderCommandList }, new Fence[] { copyFence });
             var renderFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { renderGeometryCommandList }, new Fence[] { computeFence });
 
-            var generateDepthPyramidFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList }, new Fence[] { renderFence });
-
-            var postComputeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { postComputeRenderCommandList }, new Fence[] { generateDepthPyramidFence });
+            var postComputeFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.ComputeCommandQueue, new CommandList[] { depthPyramidCommandList, postComputeRenderCommandList }, new Fence[] { renderFence });
             var postRenderFence = this.graphicsManager.ExecuteCommandLists(this.renderManager.RenderCommandQueue, new CommandList[] { postRenderGeometryCommandList }, new Fence[] { postComputeFence });
 
             // TODO: Submit render and debug command list at the same time
             this.debugRenderer.Render(this.camerasBuffer, mainRenderTargetTexture, depthBuffer);
 
-            var projectedBoundingBox = CreateOptimizedTransformed2D(scene.MeshInstances[0].WorldBoundingBox, scene.Cameras[0].ViewMatrix * scene.Cameras[0].ProjectionMatrix);
+            /*
+            for (var i = 0; i < this.currentMeshInstanceCount; i++)
+            {
+                var projectionResult = CreateOptimizedTransformed2D(scene.MeshInstances[i].WorldBoundingBox, scene.Cameras[0].ViewMatrix * scene.Cameras[0].ProjectionMatrix, out var projectedBoundingBox);
 
-            var renderTargetSize = new Vector2(mainRenderTargetTexture.Width, mainRenderTargetTexture.Height);
-            //this.renderManager.Graphics2DRenderer.DrawRectangleSurface(projectedBoundingBox.MinPoint * renderTargetSize, projectedBoundingBox.MaxPoint * renderTargetSize, new Vector4(0, 1, 0, 1));
+                if (projectionResult)
+                {
+                    var renderTargetSize = new Vector2(mainRenderTargetTexture.Width, mainRenderTargetTexture.Height);
+
+                    var hashResult = HashValue((uint)i);
+                    var meshletColor = new Vector3((float)(hashResult & 255), (float)((hashResult >> 8) & 255), (float)((hashResult >> 16) & 255)) / 255.0f;
+                    this.renderManager.Graphics2DRenderer.DrawRectangleSurface(projectedBoundingBox.MinPoint * renderTargetSize, projectedBoundingBox.MaxPoint * renderTargetSize, new Vector4(meshletColor, 0.75f));
+                }
+            }*/
 
             var surfaceWidth = 512;
             var surfaceHeight = 512;
@@ -589,6 +631,18 @@ namespace CoreEngine.Rendering
             this.renderManager.Graphics2DRenderer.DrawRectangleSurface(new Vector2(surfacePositionX, surfacePositionY), new Vector2(surfacePositionX + surfaceWidth, surfacePositionY + surfaceHeight), depthPyramidBuffer, isOpaque: true);
 
             return postRenderFence;
+        }
+        
+        private static uint HashValue(uint a)
+        {
+            a = (a+0x7ed55d16) + (a<<12);
+            a = (a^0xc761c23c) ^ (a>>19);
+            a = (a+0x165667b1) + (a<<5);
+            a = (a+0xd3a2646c) ^ (a<<9);
+            a = (a+0xfd7046c5) + (a<<3);
+            a = (a^0xb55a4f09) ^ (a>>16);
+
+            return a;
         }
 
         private static readonly Vector3[] BoundingBoxOffsets = new Vector3[]
@@ -603,7 +657,7 @@ namespace CoreEngine.Rendering
             new Vector3(1, 1, 1)
         };
 
-        private static BoundingBox2D CreateOptimizedTransformed2D(in BoundingBox boundingBox, Matrix4x4 worldViewProjMatrix)
+        private static bool CreateOptimizedTransformed2D(in BoundingBox boundingBox, Matrix4x4 worldViewProjMatrix, out BoundingBox2D result)
         {
             var offsetMatrix = new Matrix4x4(0.5f, 0.0f, 0.0f, 0.0f,
                                              0.0f, -0.5f, 0.0f, 0.0f,
@@ -616,6 +670,8 @@ namespace CoreEngine.Rendering
             var minPoint = new Vector2(float.MaxValue, float.MaxValue);
             var maxPoint = new Vector2(float.MinValue, float.MinValue);
 
+            var depth = 0.0f;
+
             for (var i = 0; i < 8; i++)
             {
                 var sourcePoint = boundingBox.MinPoint + BoundingBoxOffsets[i] * boundingBoxSize;
@@ -623,11 +679,20 @@ namespace CoreEngine.Rendering
                 var point = Vector4.Transform(new Vector4(sourcePoint, 1.0f), matrix);
                 point /= point.W;
 
+                if (point.Z <= 0.0f)
+                {
+                    result = new BoundingBox2D();
+                    return false;
+                }
+
                 minPoint = (point.Z > 0.0f) ? Vector2.Min(new Vector2(point.X, point.Y), minPoint) : minPoint;
                 maxPoint = (point.Z > 0.0f) ? Vector2.Max(new Vector2(point.X, point.Y), maxPoint) : maxPoint;
+
+                depth = MathF.Max(point.Z, depth);
             }
 
-            return new BoundingBox2D(minPoint, maxPoint);
+            result = new BoundingBox2D(minPoint, maxPoint);
+            return true;
         }
     }
 }

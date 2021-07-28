@@ -191,6 +191,16 @@ D3D12_RENDER_TARGET_BLEND_DESC InitBlendState(GraphicsBlendOperation blendOperat
 				D3D12_COLOR_WRITE_ENABLE_ALL,
 			};
 
+		case GraphicsBlendOperation::AddOneOne:
+			return {
+				true,
+				false,
+				D3D12_BLEND_ONE, D3D12_BLEND_ONE, D3D12_BLEND_OP_ADD,
+				D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+				D3D12_LOGIC_OP_NOOP,
+				D3D12_COLOR_WRITE_ENABLE_ALL,
+			};
+
 		default:
 			return {
 				false,

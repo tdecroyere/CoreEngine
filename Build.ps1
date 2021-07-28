@@ -182,7 +182,7 @@ function PreCompileHeader {
         if ($Configuration -eq "Debug") {
             cl.exe /c /nologo /DDEBUG /std:c++17 /Zi /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /Yc /FpWindowsCommon.pch "..\..\..\WindowsCommon.cpp"
         } else {
-            cl.exe /c /nologo /std:c++17 /O2 /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /Yc /FpWindowsCommon.pch "..\..\..\WindowsCommon.cpp"
+            cl.exe /c /nologo /std:c++17 /O2 /Zi /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /Yc /FpWindowsCommon.pch "..\..\..\WindowsCommon.cpp"
         }
 
         if(-Not $?) {
@@ -203,7 +203,7 @@ function CompileWindowsHost {
     if ($Configuration -eq "Debug") {
         cl.exe /c /nologo /DDEBUG /std:c++17 /Zi /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
     } else {
-        cl.exe /c /nologo /std:c++17 /O2 /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
+        cl.exe /c /nologo /std:c++17 /O2 /Zi /diagnostics:caret /EHsc /I"..\..\packages\$DirectX12Version\build\native\include" /I"..\..\..\Libs\" /Yu"WindowsCommon.h" /FpWindowsCommon.PCH /TP /Tp"..\..\..\main.compilationunit"
     }
 
     if (-Not $?)
@@ -225,7 +225,7 @@ function LinkWindowsHost
     if ($Configuration -eq "Debug") {
         link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib"
     } else {
-        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib"
+        link.exe "main.obj" "WindowsCommon.obj" /OUT:"..\..\..\..\..\..\build\temp\CoreEngine.exe" /PDB:"..\..\..\..\..\..\build\temp\CoreEngineHost.pdb" /SUBSYSTEM:WINDOWS /DEBUG /MAP /OPT:ref /INCREMENTAL:NO /WINMD:NO /NOLOGO D3DCompiler.lib d3d12.lib dxgi.lib dxguid.lib uuid.lib libcmt.lib libvcruntimed.lib libucrtd.lib kernel32.lib user32.lib gdi32.lib ole32.lib advapi32.lib Winmm.lib "..\..\packages\runtime.win-x64.Microsoft.NETCore.DotNetAppHost.6.0.0-preview.4.21253.7\runtimes\win-x64\native\nethost.lib"
     }
 
     if (-Not $?)

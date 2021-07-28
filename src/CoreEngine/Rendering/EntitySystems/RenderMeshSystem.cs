@@ -44,27 +44,15 @@ namespace CoreEngine.Rendering.EntitySystems
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                var entity = entityArray[i];
                 ref var transformComponent = ref transformArray[i];
                 ref var meshComponent = ref meshArray[i];
-                Material? material = null;
-
-                // if (entityManager.HasComponent<MaterialComponent>(entity))
-                // {
-                //     var materialComponent = entityManager.GetComponentData<MaterialComponent>(entity);
-
-                //     if (materialComponent.MaterialResourceId != 0)
-                //     {
-                //         material = this.resourcesManager.GetResourceById<Material>(materialComponent.MaterialResourceId);
-                //     }
-                // }
 
                 if (meshComponent.MeshResourceId != 0)
                 {
                     if (!currentScene.MeshInstances.Contains(meshComponent.MeshInstance))
                     {
                         var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
-                        var meshInstance = new MeshInstance(mesh, material, transformComponent.WorldMatrix, false);
+                        var meshInstance = new MeshInstance(mesh, null, transformComponent.WorldMatrix, false);
                         meshInstance.Scale = transformComponent.Scale.X; // TODO: Support only uniform scale for the moment
                         meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
                     }

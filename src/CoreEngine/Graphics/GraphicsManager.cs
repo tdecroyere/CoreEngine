@@ -588,7 +588,7 @@ namespace CoreEngine.Graphics
             this.texturesToDelete[this.CurrentFrameNumber % 2].Add(texture);
         }
 
-        private void DeleteTexture(Texture texture)
+        public void DeleteTexture(Texture texture)
         {
             if (texture == null)
             {

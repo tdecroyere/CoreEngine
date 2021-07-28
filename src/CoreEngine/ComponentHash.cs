@@ -39,13 +39,7 @@ namespace CoreEngine
             {
                 if (this.hash.Length == other.hash.Length)
                 {
-                    for (var i = 0; i < this.hash.Length; i++)
-                    {
-                        if (this.hash.Span[i] != other.hash.Span[i])
-                        {
-                            return this.hash.Span[i].CompareTo(other.hash.Span[i]);
-                        }
-                    }
+                    return this.hash.Span.SequenceCompareTo(other.hash.Span);
                 }
 
                 else
@@ -69,7 +63,12 @@ namespace CoreEngine
 
         public bool Equals(ComponentHash? other)
         {
-            return this.CompareTo(other) == 0;
+            if (other is null)
+            {
+                return false;
+            }
+
+            return this.hash.Span.SequenceEqual(other.hash.Span);
         }
 
         public override int GetHashCode()

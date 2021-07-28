@@ -314,10 +314,12 @@ namespace CoreEngine.HostServices
         IntPtr GetGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer);
         void ReleaseGraphicsBufferCpuPointer(IntPtr graphicsBufferPointer);
 
-        // TODO: Move make aliasable into a separate method
+        // TODO: Remove aliasing flag, we will handle aliasing later properly
         IntPtr CreateTexture(IntPtr graphicsHeapPointer, ulong heapOffset, bool isAliasable, GraphicsTextureFormat textureFormat, GraphicsTextureUsage usage, int width, int height, int faceCount, int mipLevels, int multisampleCount);
         void SetTextureLabel(IntPtr texturePointer, string label);
         void DeleteTexture(IntPtr texturePointer);
+
+        // TODO: Add Sample object create/update/delete
 
         IntPtr CreateSwapChain(IntPtr windowPointer, IntPtr commandQueuePointer, int width, int height, GraphicsTextureFormat textureFormat);
         void DeleteSwapChain(IntPtr swapChainPointer);
@@ -326,7 +328,6 @@ namespace CoreEngine.HostServices
         ulong PresentSwapChain(IntPtr swapChainPointer);
         void WaitForSwapChainOnCpu(IntPtr swapChainPointer);
 
-        // TODO: Do we need a reset function?
         IntPtr CreateQueryBuffer(GraphicsQueryBufferType queryBufferType, int length);
         void ResetQueryBuffer(IntPtr queryBufferPointer);
         void SetQueryBufferLabel(IntPtr queryBufferPointer, string label);
@@ -364,8 +365,6 @@ namespace CoreEngine.HostServices
         void SetTextureBarrier(IntPtr commandListPointer, IntPtr texturePointer);
         void SetGraphicsBufferBarrier(IntPtr commandListPointer, IntPtr graphicsBufferPointer);
 
-        // TODO: Add resource barrier management
-        
         // TODO: Add a raytrace command list
 
         // TODO: This function should be removed. Only pipeline states can be set 

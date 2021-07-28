@@ -66,6 +66,8 @@ namespace CoreEngine.Rendering
         private SwapChain swapChain;
         private CommandQueue presentQueue;
 
+        private Texture mainRenderTarget;
+
         private Fence? presentFence;
 
         // TODO: Each Render Manager should use their own Graphics Manager
@@ -92,6 +94,7 @@ namespace CoreEngine.Rendering
             this.currentWindowRenderSize = nativeUIManager.GetWindowRenderSize(this.window);
 
             this.swapChain = graphicsManager.CreateSwapChain(window, this.presentQueue, (int)this.currentWindowRenderSize.X, (int)this.currentWindowRenderSize.Y, TextureFormat.Bgra8UnormSrgb);
+            this.mainRenderTarget = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentWindowRenderSize.X, (int)this.currentWindowRenderSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
             InitResourceLoaders(resourcesManager);
 
@@ -103,7 +106,7 @@ namespace CoreEngine.Rendering
             this.currentFrameSize = GetRenderSize();
             this.computeDirectTransferShader = resourcesManager.LoadResourceAsync<Shader>("/System/Shaders/ComputeDirectTransfer.shader");
 
-            this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, this.graphicsManager, graphicsSceneQueue, resourcesManager);
+            this.GraphicsSceneRenderer = new GraphicsSceneRenderer(this, this.graphicsManager, graphicsSceneQueue, resourcesManager, mainRenderTarget);
             this.Graphics2DRenderer = new Graphics2DRenderer(this, this.graphicsManager, resourcesManager);
             
             // TODO: TESTS: TO REMOVE
@@ -231,19 +234,19 @@ namespace CoreEngine.Rendering
             {
                 this.currentWindowRenderSize = windowRenderSize;
                 graphicsManager.ResizeSwapChain(this.swapChain, (int)windowRenderSize.X, (int)windowRenderSize.Y);
+
+                this.mainRenderTarget.Dispose();
+                this.mainRenderTarget = this.graphicsManager.CreateTexture(GraphicsHeapType.Gpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)windowRenderSize.X, (int)windowRenderSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
             }
             
             this.currentFrameSize = GetRenderSize();
-
-            // TODO: Resize the swap chain
-            using var mainRenderTargetTexture = this.graphicsManager.CreateTexture(GraphicsHeapType.TransientGpu, TextureFormat.Rgba16Float, TextureUsage.RenderTarget, (int)this.currentFrameSize.X, (int)this.currentFrameSize.Y, 1, 1, 1, isStatic: true, label: "MainRenderTarget");
 
             if (logFrameTime)
             {
                 Logger.BeginAction($"SceneRenderer (FrameSize: {this.currentFrameSize})");
             }
 
-            var rendererfence = this.GraphicsSceneRenderer.Render(mainRenderTargetTexture);
+            var rendererfence = this.GraphicsSceneRenderer.Render(this.mainRenderTarget);
             
             if (logFrameTime)
             {
@@ -251,8 +254,8 @@ namespace CoreEngine.Rendering
             }
 
             DrawDebugMessages();
-            var fence = this.Graphics2DRenderer.Render(mainRenderTargetTexture, rendererfence);
-            PresentScreenBuffer(mainRenderTargetTexture, fence);
+            var fence = this.Graphics2DRenderer.Render(this.mainRenderTarget, rendererfence);
+            PresentScreenBuffer(this.mainRenderTarget, fence);
         }
 
         private void PresentScreenBuffer(Texture mainRenderTargetTexture, Fence? fenceToWait)

@@ -10,6 +10,9 @@ namespace CoreEngine.Samples.SceneViewer
     public class ManageActiveCameraSystem : EntitySystem
     {
         private readonly InputsManager inputsManager;
+        private Entity? sceneEntity;
+        private SceneComponent? sceneComponent;
+        private bool isFirstRun = true;
 
         public ManageActiveCameraSystem(InputsManager inputsManager)
         {
@@ -42,15 +45,16 @@ namespace CoreEngine.Samples.SceneViewer
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
             var playerArray = this.GetComponentDataArray<PlayerComponent>();
 
-            Entity? sceneEntity = null;
-            SceneComponent? sceneComponent = null;
-
-            var sceneEntities = entityManager.GetEntitiesByComponentType<SceneComponent>();
-
-            if (sceneEntities.Length > 0)
+            if (this.isFirstRun)
             {
-                sceneEntity = sceneEntities[0];
-                sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
+                var sceneEntities = entityManager.GetEntitiesByComponentType<SceneComponent>();
+
+                if (sceneEntities.Length > 0)
+                {
+                    sceneEntity = sceneEntities[0];
+                    sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
+                }
+                this.isFirstRun = false;
             }
 
             if (changeCamera)

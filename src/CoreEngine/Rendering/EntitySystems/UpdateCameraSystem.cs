@@ -39,17 +39,6 @@ namespace CoreEngine.Rendering.EntitySystems
             var transformArray = this.GetComponentDataArray<TransformComponent>();
             var cameraArray = this.GetComponentDataArray<CameraComponent>();
 
-            Entity? sceneEntity;
-            SceneComponent? sceneComponent;
-
-            var sceneEntities = entityManager.GetEntitiesByComponentType<SceneComponent>();
-
-            if (!sceneEntities.IsEmpty)
-            {
-                sceneEntity = sceneEntities[0];
-                sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
-            }
-
             var renderSize = this.graphicsManager.GetRenderSize();
             var renderWidth = renderSize.X;
             var renderHeight = renderSize.Y;
@@ -59,7 +48,6 @@ namespace CoreEngine.Rendering.EntitySystems
 
             for (var i = 0; i < entityArray.Length; i++)
             {
-                var entity = entityArray[i];
                 ref var transformComponent = ref transformArray[i];
                 ref var cameraComponent = ref cameraArray[i];
 

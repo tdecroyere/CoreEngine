@@ -54,7 +54,7 @@ namespace CoreEngine.Collections
                         var offset = (index - currentStartIndex) * elementSize;
                         var dataSpan = this.memoryList[i].Span.Slice(offset, this.elementSize);
 
-                        return ref MemoryMarshal.Cast<byte, T>(dataSpan)[0];
+                        return ref MemoryMarshal.AsRef<T>(dataSpan);
                     }
                 }
 

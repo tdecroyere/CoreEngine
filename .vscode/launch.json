@@ -32,7 +32,7 @@
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            "args": ["..\\..\\samples\\SceneViewer TestBigMesh"],
+            "args": ["..\\..\\samples\\SceneViewer"],
             "stopAtEntry": false,
             "externalConsole": false,
             "osx": {

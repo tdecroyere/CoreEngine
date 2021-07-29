@@ -361,7 +361,7 @@ namespace CoreEngine.Graphics
                 return new CommandList(commandList.NativePointer, commandQueue.Type, commandQueue, label);
             }
 
-            Logger.WriteMessage("Creating Command List");
+            Logger.WriteMessage($"Creating Command List for {commandQueue.Label}");
 
             var nativePointer = graphicsService.CreateCommandList(commandQueue.NativePointer);
 

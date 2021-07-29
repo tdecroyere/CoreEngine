@@ -28,7 +28,7 @@ namespace CoreEngine.Rendering
             this.IsOpaque = 2;
         }
 
-        public readonly ShaderMatrix4x4 WorldViewProjMatrix { get; }
+        public readonly Matrix4x4 WorldViewProjMatrix { get; }
         public readonly Vector2 TextureMinPoint { get; }
         public readonly Vector2 TextureMaxPoint { get; }
         public readonly uint TextureIndex { get; }

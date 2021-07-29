@@ -10,12 +10,12 @@ namespace CoreEngine.Rendering.EntitySystems
 {
     public class RenderMeshSystem : EntitySystem
     {
-        private readonly GraphicsSceneManager sceneManager;
+        private readonly GraphicsSceneRenderer sceneRenderer;
         private readonly ResourcesManager resourcesManager;
 
-        public RenderMeshSystem(GraphicsSceneManager sceneManager, ResourcesManager resourceManager)
+        public RenderMeshSystem(GraphicsSceneRenderer sceneRenderer, ResourcesManager resourceManager)
         {
-            this.sceneManager = sceneManager;
+            this.sceneRenderer = sceneRenderer;
             this.resourcesManager = resourceManager;
         }
 
@@ -40,8 +40,6 @@ namespace CoreEngine.Rendering.EntitySystems
             var transformArray = this.GetComponentDataArray<TransformComponent>();
             var meshArray = this.GetComponentDataArray<MeshComponent>();
 
-            var currentScene = sceneManager.CurrentScene;
-
             for (var i = 0; i < entityArray.Length; i++)
             {
                 ref var transformComponent = ref transformArray[i];
@@ -49,19 +47,28 @@ namespace CoreEngine.Rendering.EntitySystems
 
                 if (meshComponent.MeshResourceId != 0)
                 {
-                    if (!currentScene.MeshInstances.Contains(meshComponent.MeshInstance))
+                    if (meshComponent.MeshInstanceId.HasValue)
                     {
-                        var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
-                        var meshInstance = new MeshInstance(mesh, null, transformComponent.WorldMatrix, false);
-                        meshInstance.Scale = transformComponent.Scale.X; // TODO: Support only uniform scale for the moment
-                        meshComponent.MeshInstance = currentScene.MeshInstances.Add(meshInstance);
+                        // TODO: Detect if transform component has changed
+                        //if (transformComponent.HasChanged == 0)
+                        //{
+                         //   sceneRenderer.RenderMesh(meshComponent.MeshInstanceId.Value);
+                        //}
+
+                        //else
+                        //{
+                            sceneRenderer.RenderMesh(meshComponent.MeshInstanceId.Value, transformComponent.WorldMatrix, transformComponent.Scale.X);
+                        //}
                     }
 
                     else
                     {
-                        var meshInstance = currentScene.MeshInstances[meshComponent.MeshInstance];
-                        meshInstance.Scale = transformComponent.Scale.X;
-                        meshInstance.WorldMatrix = transformComponent.WorldMatrix;
+                        var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
+
+                        // TODO: This code is not thread safe!
+                        // TODO: We Support only uniform scale for the moment
+                        var meshInstanceId = sceneRenderer.RenderMesh(mesh, transformComponent.WorldMatrix, transformComponent.Scale.X);
+                        meshComponent.MeshInstanceId = meshInstanceId;
                     }
                 }
             }

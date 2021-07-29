@@ -37,6 +37,7 @@ namespace CoreEngine.EntitySystems
 
                     var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(rotationY, rotationX, rotationZ);
 
+                    // TODO: Split the transform componenent in 2 to separate the world matrix
                     tranformComponent.RotationQuaternion = rotationQuaternion;
                     tranformComponent.WorldMatrix = Matrix4x4.Transform(scale, tranformComponent.RotationQuaternion) * translation;
                 }

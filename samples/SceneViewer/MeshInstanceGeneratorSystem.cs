@@ -53,6 +53,7 @@ namespace CoreEngine.Samples.SceneViewer
                     ref var meshInstanceGeneratorComponent = ref meshInstanceGeneratorArray[i];
 
                     var componentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent>();
+                    var animateComponentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent, AutomaticMovementComponent>();
                     var dimensions = new Vector3(20, 20, 20);
                     var random = new Random();
 
@@ -77,7 +78,9 @@ namespace CoreEngine.Samples.SceneViewer
                                 scale /= 30.0f;
                             }
 
-                            var entity = entityManager.CreateEntity(componentLayout);
+                            var entityComponentLayout = (i == 0) ? animateComponentLayout : componentLayout;
+
+                            var entity = entityManager.CreateEntity(entityComponentLayout);
                             entityManager.SetComponentData(entity, new MeshComponent { MeshResourceId = mesh.ResourceId });
                             entityManager.SetComponentData(entity, new TransformComponent { Position = position, Scale = new Vector3(scale, scale, scale), RotationX = rotationX, RotationY = rotationY, WorldMatrix = Matrix4x4.Identity });
                         }

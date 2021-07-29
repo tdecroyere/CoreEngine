@@ -184,17 +184,14 @@ unsigned long Direct3D12GraphicsService::ExecuteCommandLists(void* commandQueueP
 		AssertIfFailed(commandQueue->CommandQueueObject->Wait(commandQueueToWait->Fence.Get(), fenceToWait.Value));
 	}
 
-	// TODO: We need to free that memory somehow
-	ID3D12CommandList** commandListsToExecute = new ID3D12CommandList*[commandListsLength];
+	vector<ID3D12CommandList*> commandListsToExecute = vector<ID3D12CommandList*>(commandListsLength);
 
 	for (int i = 0; i < commandListsLength; i++)
 	{
 		commandListsToExecute[i] = ((Direct3D12CommandList*)commandLists[i])->CommandListObject.Get();
 	}
 
-	commandQueue->CommandQueueObject->ExecuteCommandLists(commandListsLength, commandListsToExecute);
-
-	delete commandListsToExecute;
+	commandQueue->CommandQueueObject->ExecuteCommandLists(commandListsLength, commandListsToExecute.data());
 
 	// TODO: Switch to an atomic increment here for multi threading
 	auto fenceValue = commandQueue->FenceValue;

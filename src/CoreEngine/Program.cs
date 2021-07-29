@@ -62,6 +62,7 @@ public static class Program
         systemManagerContainer.RegisterSystemManager(graphicsManager);
         systemManagerContainer.RegisterSystemManager(renderManager);
         systemManagerContainer.RegisterSystemManager(renderManager.Graphics2DRenderer);
+        systemManagerContainer.RegisterSystemManager(renderManager.GraphicsSceneRenderer);
         systemManagerContainer.RegisterSystemManager(inputsManager);
         systemManagerContainer.RegisterSystemManager(pluginManager);
 

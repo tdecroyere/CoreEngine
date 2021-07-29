@@ -20,7 +20,6 @@ namespace CoreEngine.Rendering
             this.CurrentScene.CleanItems();
 
             UpdateCameraBoundingFrustum();
-            UpdateMeshWorldBoundingBox();
 
             this.sceneQueue.EnqueueScene(this.CurrentScene);
             this.CurrentScene.ResetItemsStatus();
@@ -35,19 +34,6 @@ namespace CoreEngine.Rendering
                 if (camera.IsDirty)
                 {
                     camera.BoundingFrustum = new BoundingFrustum(camera.ViewMatrix * camera.ProjectionMatrix);
-                }
-            }
-        }
-
-        private void UpdateMeshWorldBoundingBox()
-        {
-            for (var i = 0; i < this.CurrentScene.MeshInstances.Count; i++)
-            {
-                var meshInstance = this.CurrentScene.MeshInstances[i];
-
-                if (meshInstance.IsDirty)
-                {
-                    meshInstance.WorldBoundingBox = BoundingBox.CreateTransformed(meshInstance.Mesh.BoundingBox, meshInstance.WorldMatrix);
                 }
             }
         }

@@ -8,7 +8,7 @@ namespace CoreEngine.Graphics
         ulong TotalMemory { get; }
 
         GraphicsMemoryAllocation AllocateMemory(int sizeInBytes, ulong alignment);
-        void FreeMemory(GraphicsMemoryAllocation allocation);
+        void FreeMemory(in GraphicsMemoryAllocation allocation);
         void Reset(uint frameNumber);
     }
 }

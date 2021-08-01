@@ -1,22 +1,12 @@
-﻿using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using CoreEngine;
-using CoreEngine.Diagnostics;
-using CoreEngine.Graphics;
+﻿using CoreEngine.Graphics;
 using CoreEngine.HostServices;
 using CoreEngine.Inputs;
 using CoreEngine.Rendering;
-using CoreEngine.Resources;
 using CoreEngine.UI.Native;
-using CoreEngine.Components;
-using CoreEngine.Rendering.Components;
-
-[assembly: InternalsVisibleTo("CoreEngine.UnitTests")]
 
 public static class Program
 {
+    #pragma warning disable EPS05 
     [UnmanagedCallersOnly(EntryPoint = "main")]
     public static void Main(HostPlatform hostPlatform)
     {
@@ -124,4 +114,5 @@ public static class Program
 
         Logger.WriteMessage("Exiting");
     }
+    #pragma warning restore EPS05 
 }

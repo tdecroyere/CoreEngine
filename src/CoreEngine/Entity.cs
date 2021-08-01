@@ -1,39 +1,21 @@
-using System;
+namespace CoreEngine;
 
-namespace CoreEngine
+public readonly record struct Entity : IEquatable<Entity>
 {
-    public readonly struct Entity : IEquatable<Entity>
+    public Entity(uint id)
     {
-        public Entity(uint id)
-        {
-            this.EntityId = id;
-        }
+        this.EntityId = id;
+    }
 
-        public readonly uint EntityId { get; }
+    public readonly uint EntityId { get; init; }
 
-        public override bool Equals(Object? obj) 
-        {
-            return obj is Entity && this == (Entity)obj;
-        }
+    public bool Equals(Entity other)
+    {
+        return this.EntityId == other.EntityId;
+    }
 
-        public bool Equals(Entity other)
-        {
-            return this == other;
-        }
-
-        public override int GetHashCode() 
-        {
-            return this.EntityId.GetHashCode();
-        }
-
-        public static bool operator ==(Entity entity1, Entity entity2) 
-        {
-            return entity1.EntityId == entity2.EntityId;
-        }
-
-        public static bool operator !=(Entity entity1, Entity entity2) 
-        {
-            return !(entity1 == entity2);
-        }
+    public override int GetHashCode()
+    {
+        return this.EntityId.GetHashCode();
     }
 }

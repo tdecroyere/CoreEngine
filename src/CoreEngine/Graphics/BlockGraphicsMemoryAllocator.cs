@@ -99,7 +99,7 @@ namespace CoreEngine.Graphics
             throw new InvalidOperationException("Not enough memory");
         }
 
-        public void FreeMemory(GraphicsMemoryAllocation allocation)
+        public void FreeMemory(in GraphicsMemoryAllocation allocation)
         {
             //this.AllocatedMemory -= (ulong)allocation.SizeInBytes;
         }

@@ -1,11 +1,7 @@
-using System;
-using System.Buffers;
-using System.Numerics;
-
 namespace CoreEngine
 {
     // TODO: Replace that with Unit tests and use Vector2.Min/Max
-    public readonly struct BoundingBox2D
+    public readonly record struct BoundingBox2D
     {
 		public BoundingBox2D(Vector2 minPoint, Vector2 maxPoint)
 		{

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using CoreEngine.Diagnostics;
-
 namespace CoreEngine
 {
     public class EntitySystemManagerEntry
@@ -101,6 +97,8 @@ namespace CoreEngine
                     {
                         registeredSystem.ComponentHashs.Value.Span[j] = systemDefinition.Parameters[j].ComponentHash;
                     }
+
+                    registeredSystem.EntitySystem.Setup(entityManager);
                 }
 
                 var entitySystem = registeredSystem.EntitySystem;
@@ -108,20 +106,8 @@ namespace CoreEngine
 
                 if (entitySystem != null && componentHashs.HasValue)
                 {
-                    // Logger.BeginAction($"Processing System: {registeredSystem.SystemDefinition!.Name}");
-
-                    // Logger.BeginAction("GetEntitySystemData");
-                    var entitySystemData = entityManager.GetEntitySystemData(componentHashs.Value.Span);
-                    // Logger.EndAction();
-
-                    // Logger.BeginAction("SetEntitySystemData");
-                    entitySystem.SetEntitySystemData(entitySystemData);
-                    // Logger.EndAction();
-
-                    // Logger.BeginAction("Process");
+                    entityManager.FillEntitySystemData(entitySystem.entitySystemData, componentHashs.Value.Span);
                     entitySystem.Process(entityManager, deltaTime);
-                    // Logger.EndAction();
-                    // Logger.EndAction();
                 }
             }
 

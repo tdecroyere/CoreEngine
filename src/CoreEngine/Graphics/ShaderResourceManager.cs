@@ -158,7 +158,7 @@ namespace CoreEngine.Graphics
             }
         }
 
-        public void SetShaderResourceHeap(CommandList commandList)
+        public void SetShaderResourceHeap(in CommandList commandList)
         {
             this.graphicsService.SetShaderResourceHeap(commandList.NativePointer, this.shaderResourceHeap.NativePointer);
         }

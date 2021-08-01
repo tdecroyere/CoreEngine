@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <TargetFramework>net6.0</TargetFramework>
     <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618;CS8610;CS8601</WarningsAsErrors>

@@ -19,12 +19,12 @@ namespace CoreEngine.UI.Native
             return new Window(nativePointer, title, width, height);
         }
 
-        public void SetWindowTitle(Window window, string title)
+        public void SetWindowTitle(in Window window, string title)
         {
             this.nativeUIService.SetWindowTitle(window.NativePointer, title);
         }
 
-        public Vector2 GetWindowRenderSize(Window window)
+        public Vector2 GetWindowRenderSize(in Window window)
         {
             return this.nativeUIService.GetWindowRenderSize(window.NativePointer);
         }

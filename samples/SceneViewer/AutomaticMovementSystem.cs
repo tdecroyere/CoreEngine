@@ -33,26 +33,35 @@ namespace CoreEngine.Samples.SceneViewer
 
             absoluteTime += deltaTime;
 
-            var entityArray = this.GetEntityArray();
-            var transformArray = this.GetComponentDataArray<TransformComponent>();
-            var autoMovementArray = this.GetComponentDataArray<AutomaticMovementComponent>();
+            var memoryChunks = this.GetMemoryChunks();
 
-            for (var i = 0; i < entityArray.Length; i++)
+            Parallel.For(0, memoryChunks.Length, (i) =>
+            //for (var i = 0; i < memoryChunks.Length; i++)
             {
-                ref var transformComponent = ref transformArray[i];
-                ref var autoMovementComponent = ref autoMovementArray[i];
+                var memoryChunk = memoryChunks.Span[i];
+                var random = new Random();
 
-                if (autoMovementComponent.OriginalPosition == Vector3.Zero)
+                var transformArray = GetComponentArray<TransformComponent>(memoryChunk);
+                var autoMovementArray = GetComponentArray<AutomaticMovementComponent>(memoryChunk); 
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    autoMovementComponent.OriginalPosition = transformComponent.Position;
+                    ref var transformComponent = ref transformArray[j];
+                    ref var autoMovementComponent = ref autoMovementArray[j];
+
+                    if (autoMovementComponent.OriginalPosition == Vector3.Zero)
+                    {
+                        autoMovementComponent.OriginalPosition = transformComponent.Position;
+                        autoMovementComponent.RandomValues = new Vector3((float)random.NextDouble() * 2.0f - 1.0f, (float)random.NextDouble() * 2.0f - 1.0f, (float)random.NextDouble() * 2.0f - 1.0f);
+                    }
+
+                    var sin = MathF.Sin(absoluteTime * autoMovementComponent.Speed);
+                    var halfSin = MathF.Sin(absoluteTime * autoMovementComponent.Speed * 0.5f);
+                    var cos = MathF.Cos(absoluteTime * autoMovementComponent.Speed);
+
+                    transformComponent.Position = autoMovementComponent.OriginalPosition + autoMovementComponent.Radius * new Vector3(sin, cos, halfSin) * autoMovementComponent.RandomValues;
                 }
-
-                var sin = MathF.Sin(absoluteTime * autoMovementComponent.Speed);
-                var halfSin = MathF.Sin(absoluteTime * autoMovementComponent.Speed * 0.5f);
-                var cos = MathF.Cos(absoluteTime * autoMovementComponent.Speed);
-
-                transformComponent.Position = autoMovementComponent.OriginalPosition + autoMovementComponent.Radius * new Vector3(sin, cos, halfSin);
-            }
+            });
         }
     }
 }

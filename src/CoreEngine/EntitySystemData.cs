@@ -1,14 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using CoreEngine.Collections;
-
 namespace CoreEngine
 {
     internal class EntitySystemData
     {
-        // TODO: Use array pool to reuse memory?
-        public EntitySystemArray<Entity> EntityArray { get; } = new EntitySystemArray<Entity>(Marshal.SizeOf<Entity>());
-        public IDictionary<ComponentHash, EntitySystemArray<byte>> ComponentsData { get; } = new Dictionary<ComponentHash, EntitySystemArray<byte>>();
+        public EntitySystemData()
+        {
+            // TODO: Find a way to properly allocate memory here in the queries
+            this.WorkingMemoryChunks = new ComponentStorageMemoryChunk[10000];
+        }
+
+        internal ComponentStorageMemoryChunk[] WorkingMemoryChunks { get; set; }
+        public ReadOnlyMemory<ComponentStorageMemoryChunk>? MemoryChunks { get; set; }
     }
 }

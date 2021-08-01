@@ -226,7 +226,7 @@ namespace CoreEngine.UnitTests
         }
 
         [Fact]
-        public void GetEntitySystemData_MultipleEntitiesOneComponentType_HaveCorrectValue()
+        public void FillEntitySystemData_MultipleEntitiesOneComponentType_HaveCorrectValue()
         {
             // Arrange
             var entityManager = new EntityManager();
@@ -236,11 +236,13 @@ namespace CoreEngine.UnitTests
             entityManager.CreateEntity(componentLayout2);
             entityManager.CreateEntity(componentLayout);
 
+            var entitySystemData = new EntitySystemData();
+
             // Act
-            var entitySystemData = entityManager.GetEntitySystemData(new ComponentHash[] { new TestComponent().GetComponentHash() });
+            entityManager.FillEntitySystemData(entitySystemData, new ComponentHash[] { new TestComponent().GetComponentHash() });
 
             // Assert
-            Assert.Equal(2, entitySystemData.EntityArray.Length);
+            Assert.Equal(1, entitySystemData.MemoryChunks.Value.Length);
         }
     }
 }

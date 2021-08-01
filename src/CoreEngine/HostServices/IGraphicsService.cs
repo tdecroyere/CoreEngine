@@ -264,6 +264,7 @@ namespace CoreEngine.HostServices
         }
     }
 
+    #pragma warning disable EPS05 
     // TODO: Make all method thread safe!
     // TODO: Can we pass readonly structs as references or pointers with the in keyword?
     // TODO: Review int parameters (can they be converted to uint?)
@@ -382,4 +383,5 @@ namespace CoreEngine.HostServices
         void EndQuery(IntPtr commandListPointer, IntPtr queryBufferPointer, int index);
         void ResolveQueryData(IntPtr commandListPointer, IntPtr queryBufferPointer, IntPtr destinationBufferPointer, int startIndex, int endIndex);
     }
+    #pragma warning restore EPS05 
 }

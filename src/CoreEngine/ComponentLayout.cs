@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Runtime.InteropServices;
-
 namespace CoreEngine
 {
     public class ComponentLayout : IEquatable<ComponentLayout>
@@ -25,7 +20,7 @@ namespace CoreEngine
         {
             if (this.IsReadOnly)
             {
-                throw new InvalidOperationException("The component layout cannot be changed after an entity has been create from it.");
+                throw new InvalidOperationException("The component layout cannot be changed after an entity has been created from it.");
             }
 
             for (var i = 0; i < this.Components.Count; i++)
@@ -36,7 +31,7 @@ namespace CoreEngine
                 }
             }
 
-            ComputeComponentLayoutHashCodeAndSort(componentHash, out var index);
+            var index = ComputeComponentLayoutHashCodeAndSort(componentHash);
 
             this.Components.Insert(index, new ComponentLayoutItem(componentHash, this.SizeInBytes, componentSize, initialData));
             this.SizeInBytes += componentSize;
@@ -129,9 +124,9 @@ namespace CoreEngine
             return this.LayoutHash.ToString();
         }
 
-        private void ComputeComponentLayoutHashCodeAndSort(ComponentHash componentHash, out int index)
+        private int ComputeComponentLayoutHashCodeAndSort(ComponentHash componentHash)
         {
-            index = this.Components.Count;
+            var index = this.Components.Count;
 
             for (var i = 0; i < this.Components.Count; i++)
             {
@@ -140,6 +135,8 @@ namespace CoreEngine
                     index = i;
                 }
             }
+
+            return index;
         }
     }
 }

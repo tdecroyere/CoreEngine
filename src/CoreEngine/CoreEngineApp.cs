@@ -1,5 +1,3 @@
-using System;
-
 namespace CoreEngine
 {
     public abstract class CoreEngineApp

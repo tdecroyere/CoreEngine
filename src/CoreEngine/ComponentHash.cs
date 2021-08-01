@@ -1,18 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace CoreEngine
 {
     // TODO: Store the data in a continuous storage?
-    public class ComponentHash : IEquatable<ComponentHash>, IComparable<ComponentHash>
+    public readonly record struct ComponentHash : IEquatable<ComponentHash>, IComparable<ComponentHash>
     {
-        private readonly ReadOnlyMemory<byte> hash;
-
-        public ComponentHash()
-        {
-            this.hash = Array.Empty<byte>();
-        }
+        private readonly byte[] hash;
 
         public ComponentHash(byte[] hash)
         {
@@ -27,48 +18,25 @@ namespace CoreEngine
 
             for (var i = 0; i < hashList.Length; i++)
             {
-                list.AddRange(hashList[i].hash.Span.ToArray());
+                list.AddRange(hashList[i].hash);
             }
 
-            this.hash = new ReadOnlyMemory<byte>(list.ToArray());
+            this.hash = list.ToArray();
         }
 
-        public int CompareTo(ComponentHash? other)
+        public int CompareTo(ComponentHash other)
         {
-            if (other is not null)
+            if (this.hash.Length == other.hash.Length)
             {
-                if (this.hash.Length == other.hash.Length)
-                {
-                    return this.hash.Span.SequenceCompareTo(other.hash.Span);
-                }
-
-                else
-                {
-                    return this.hash.Length.CompareTo(other.hash.Length);
-                }
+                return this.hash.AsSpan().SequenceCompareTo(other.hash);
             }
 
-            return 0;
+            return this.hash.Length.CompareTo(other.hash.Length);
         }
 
-        public override bool Equals(object? obj)
+        public bool Equals(ComponentHash other)
         {
-            if (obj is ComponentHash other)
-            {
-                return Equals(other);
-            }
-
-            return base.Equals(obj);
-        }
-
-        public bool Equals(ComponentHash? other)
-        {
-            if (other is null)
-            {
-                return false;
-            }
-
-            return this.hash.Span.SequenceEqual(other.hash.Span);
+            return this.hash.AsSpan().SequenceEqual(other.hash);
         }
 
         public override int GetHashCode()
@@ -77,7 +45,7 @@ namespace CoreEngine
 
             for (var i = 0; i < this.hash.Length; i++)
             {
-                hash ^= this.hash.Span[i];
+                hash ^= this.hash[i];
             }
 
             return hash;
@@ -89,7 +57,7 @@ namespace CoreEngine
 
             for (var i = 0; i < this.hash.Length; i++)
             {
-                stringBuilder.Append($"{this.hash.Span[i]:X2}");
+                stringBuilder.Append($"{this.hash[i]:X2}");
                 if ((i % 4) == 3) stringBuilder.Append(' ');
             }
 
@@ -98,66 +66,26 @@ namespace CoreEngine
 
         public byte[] ToArray()
         {
-            return this.hash.ToArray();
-        }
-
-        public static bool operator ==(ComponentHash layout1, ComponentHash layout2) 
-        {
-            if (layout1 is null || layout2 is null)
-            {
-                return false;
-            }
-
-            return layout1.Equals(layout2);
-        }
-
-        public static bool operator !=(ComponentHash layout1, ComponentHash layout2) 
-        {
-            if (layout1 is null || layout2 is null)
-            {
-                return false;
-            }
-
-            return !layout1.Equals(layout2);
+            return this.hash;
         }
 
         public static bool operator <(ComponentHash layout1, ComponentHash layout2) 
         {
-            if (layout1 is null || layout2 is null)
-            {
-                return false;
-            }
-
             return layout1.CompareTo(layout2) < 0;
         }
 
         public static bool operator <=(ComponentHash layout1, ComponentHash layout2) 
         {
-            if (layout1 is null || layout2 is null)
-            {
-                return false;
-            }
-
             return layout1.CompareTo(layout2) <= 0;
         }
 
         public static bool operator >(ComponentHash layout1, ComponentHash layout2) 
         {
-            if (layout1 is null || layout2 is null)
-            {
-                return false;
-            }
-
             return layout1.CompareTo(layout2) > 0;
         }
 
         public static bool operator >=(ComponentHash layout1, ComponentHash layout2) 
         {
-            if (layout1 is null || layout2 is null)
-            {
-                return false;
-            }
-
             return layout1.CompareTo(layout2) >= 0;
         }
     }

@@ -8,6 +8,7 @@ namespace CoreEngine.Samples.SceneViewer
         public float Radius { get; set; }
         public float Speed { get; set; }
         public Vector3 OriginalPosition { get; set; }
+        public Vector3 RandomValues { get; set; }
 
         public void SetDefaultValues()
         {

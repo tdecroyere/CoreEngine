@@ -1,5 +1,3 @@
-using CoreEngine.Resources;
-
 namespace CoreEngine
 {
     public class Scene : Resource

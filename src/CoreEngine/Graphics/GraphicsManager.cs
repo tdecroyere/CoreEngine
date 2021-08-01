@@ -218,7 +218,7 @@ namespace CoreEngine.Graphics
             return new CommandQueue(this, nativePointer, queueType, label);
         }
 
-        internal void DeleteCommandQueue(CommandQueue commandQueue)
+        internal void DeleteCommandQueue(in CommandQueue commandQueue)
         {
             if (logResourceAllocationInfos)
             {
@@ -228,22 +228,22 @@ namespace CoreEngine.Graphics
             this.graphicsService.DeleteCommandQueue(commandQueue.NativePointer);
         }
 
-        public void ResetCommandQueue(CommandQueue commandQueue)
+        public void ResetCommandQueue(in CommandQueue commandQueue)
         {
             this.graphicsService.ResetCommandQueue(commandQueue.NativePointer);
         }
 
-        public ulong GetCommandQueueTimestampFrequency(CommandQueue commandQueue)
+        public ulong GetCommandQueueTimestampFrequency(in CommandQueue commandQueue)
         {
             return this.graphicsService.GetCommandQueueTimestampFrequency(commandQueue.NativePointer);
         }
 
-        public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists)
+        public Fence ExecuteCommandLists(in CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists)
         {
-            return ExecuteCommandLists(commandQueue, commandLists, Array.Empty<Fence>());
+            return ExecuteCommandLists(in commandQueue, commandLists, Array.Empty<Fence>());
         }
 
-        public Fence ExecuteCommandLists(CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, ReadOnlySpan<Fence> fencesToWait)
+        public Fence ExecuteCommandLists(in CommandQueue commandQueue, ReadOnlySpan<CommandList> commandLists, ReadOnlySpan<Fence> fencesToWait)
         {
             // TODO: This code is not thread safe!
             // TODO: Refactor that code!
@@ -342,12 +342,12 @@ namespace CoreEngine.Graphics
             return new Fence(commandQueue, fenceValue);
         }
 
-        public void WaitForCommandQueueOnCpu(Fence fenceToWait)
+        public void WaitForCommandQueueOnCpu(in Fence fenceToWait)
         {
             this.graphicsService.WaitForCommandQueueOnCpu(new GraphicsFence(fenceToWait));
         }
 
-        public CommandList CreateCommandList(CommandQueue commandQueue, string label)
+        public CommandList CreateCommandList(in CommandQueue commandQueue, string label)
         {
             // TODO: This code is not thread safe!
             var freeList = commandQueue.commandListFreeList;
@@ -375,7 +375,7 @@ namespace CoreEngine.Graphics
             return new CommandList(nativePointer, commandQueue.Type, commandQueue, label);
         }
 
-        internal void DeleteCommandList(CommandList commandList)
+        internal void DeleteCommandList(in CommandList commandList)
         {
             if (logResourceAllocationInfos)
             {
@@ -385,7 +385,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.DeleteCommandList(commandList.NativePointer);
         }
 
-        public void CommitCommandList(CommandList commandList)
+        public void CommitCommandList(in CommandList commandList)
         {
             this.graphicsService.CommitCommandList(commandList.NativePointer);            
         }
@@ -622,7 +622,7 @@ namespace CoreEngine.Graphics
             this.textures.Remove(texture);
         }
 
-        public SwapChain CreateSwapChain(Window window, CommandQueue commandQueue, int width, int height, TextureFormat textureFormat)
+        public SwapChain CreateSwapChain(in Window window, in CommandQueue commandQueue, int width, int height, TextureFormat textureFormat)
         {
             if (commandQueue.Type != CommandType.Present)
             {
@@ -681,7 +681,7 @@ namespace CoreEngine.Graphics
             return graphicsHeap;
         }
 
-        public void DeleteGraphicsHeap(GraphicsHeap graphicsHeap)
+        public void DeleteGraphicsHeap(in GraphicsHeap graphicsHeap)
         {
             if (logResourceAllocationInfos)
             {
@@ -694,7 +694,7 @@ namespace CoreEngine.Graphics
             this.graphicsHeaps.Remove(graphicsHeap);
         }
 
-        internal void ScheduleDeleteGraphicsHeap(GraphicsHeap graphicsHeap)
+        internal void ScheduleDeleteGraphicsHeap(in GraphicsHeap graphicsHeap)
         {
             this.graphicsHeapsToDelete[this.CurrentFrameNumber % 2].Add(graphicsHeap);
         }
@@ -825,12 +825,12 @@ namespace CoreEngine.Graphics
             return shader;
         }
 
-        internal void ScheduleDeletePipelineState(PipelineState pipelineState)
+        internal void ScheduleDeletePipelineState(in PipelineState pipelineState)
         {
             this.pipelineStatesToDelete[this.CurrentFrameNumber % 2].Add(pipelineState);
         }
 
-        private void DeletePipelineState(PipelineState pipelineState)
+        private void DeletePipelineState(in PipelineState pipelineState)
         {
             if (logResourceAllocationInfos)
             {
@@ -847,7 +847,7 @@ namespace CoreEngine.Graphics
         {
             foreach (var pipelineState in shader.PipelineStates.Values)
             {
-                this.ScheduleDeletePipelineState(pipelineState);
+                this.ScheduleDeletePipelineState(in pipelineState);
             }
 
             if (shader.ComputePipelineState != null)
@@ -872,7 +872,7 @@ namespace CoreEngine.Graphics
             this.shaders.Remove(shader);
         }
 
-        public void ResetIndirectCommandBuffer(CommandList commandList, GraphicsBuffer indirectCommandBuffer)
+        public void ResetIndirectCommandBuffer(in CommandList commandList, GraphicsBuffer indirectCommandBuffer)
         {
             if (indirectCommandBuffer is null)
             {
@@ -887,7 +887,7 @@ namespace CoreEngine.Graphics
             this.CopyDataToGraphicsBuffer<uint>(commandList, indirectCommandBuffer, this.resetCounterBuffer, 1, indirectCommandBuffer.SizeInBytes - sizeof(uint));
         }
 
-        public void CopyDataToGraphicsBuffer<T>(CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, uint length, uint destinationOffsetInBytes = 0, uint sourceOffsetInBytes = 0) where T : struct
+        public void CopyDataToGraphicsBuffer<T>(in CommandList commandList, GraphicsBuffer destination, GraphicsBuffer source, uint length, uint destinationOffsetInBytes = 0, uint sourceOffsetInBytes = 0) where T : struct
         {
             if (destination == null)
             {
@@ -924,7 +924,7 @@ namespace CoreEngine.Graphics
             // }
         }
 
-        public void CopyDataToTexture<T>(CommandList commandList, Texture destination, GraphicsBuffer source, int width, int height, int slice, int mipLevel) where T : struct
+        public void CopyDataToTexture<T>(in CommandList commandList, Texture destination, GraphicsBuffer source, int width, int height, int slice, int mipLevel) where T : struct
         {
             // TODO: Check that the source was allocated in a cpu heap
             if (destination == null)
@@ -941,7 +941,7 @@ namespace CoreEngine.Graphics
             this.gpuMemoryUploaded += (int)source.SizeInBytes;
         }
 
-        public void CopyTexture(CommandList commandList, Texture destination, Texture source)
+        public void CopyTexture(in CommandList commandList, Texture destination, Texture source)
         {
             if (destination == null)
             {
@@ -956,12 +956,12 @@ namespace CoreEngine.Graphics
             this.graphicsService.CopyTexture(commandList.NativePointer, destination.NativePointer, source.NativePointer);
         }
 
-        public void SetShader(CommandList commandList, Shader shader)
+        public void SetShader(in CommandList commandList, Shader shader)
         {
             SetShader(commandList, shader, null);
         }
 
-        public void DispatchCompute(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        public void DispatchCompute(in CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
             if (commandList.Type != CommandType.Compute)
             {
@@ -988,19 +988,22 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Add checks to all render functins to see if a render pass has been started
-        public void BeginRenderPass(CommandList commandList, RenderPassDescriptor renderPassDescriptor, Shader shader)
+        public void BeginRenderPass(in CommandList commandList, in RenderPassDescriptor renderPassDescriptor, Shader shader)
         {
             if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
             {
                 throw new InvalidOperationException("The specified command list is not a render command list.");
             }
 
+            // TODO: To Refactor
             var graphicsRenderPassDescriptor = new GraphicsRenderPassDescriptor(renderPassDescriptor);
-            SetShader(commandList, shader, graphicsRenderPassDescriptor);
+            var nullableGraphicsRenderPassDescriptor = (GraphicsRenderPassDescriptor?)graphicsRenderPassDescriptor;
+            
+            SetShader(in commandList, shader, in nullableGraphicsRenderPassDescriptor);
             graphicsService.BeginRenderPass(commandList.NativePointer, graphicsRenderPassDescriptor);
         }
 
-        public void EndRenderPass(CommandList commandList)
+        public void EndRenderPass(in CommandList commandList)
         {
             if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
             {
@@ -1010,7 +1013,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.EndRenderPass(commandList.NativePointer);
         }
 
-        private void SetShader(CommandList commandList, Shader shader, GraphicsRenderPassDescriptor? renderPassDescriptor)
+        private void SetShader(in CommandList commandList, Shader shader, in GraphicsRenderPassDescriptor? renderPassDescriptor)
         {
             if (shader == null)
             {
@@ -1022,7 +1025,7 @@ namespace CoreEngine.Graphics
                 return;
             }
 
-            this.shaderResourceManager.SetShaderResourceHeap(commandList);
+            this.shaderResourceManager.SetShaderResourceHeap(in commandList);
             this.graphicsService.SetShader(commandList.NativePointer, shader.NativePointer);
 
             if (renderPassDescriptor != null && !shader.PipelineStates.ContainsKey(renderPassDescriptor.Value))
@@ -1074,12 +1077,12 @@ namespace CoreEngine.Graphics
         }
 
         // TODO: Do another overload to be able to specify a struct of uint instead?
-        public void SetShaderParameterValues(CommandList commandList, uint slot, ReadOnlySpan<uint> values)
+        public void SetShaderParameterValues(in CommandList commandList, uint slot, ReadOnlySpan<uint> values)
         {
             this.graphicsService.SetShaderParameterValues(commandList.NativePointer, slot, values);
         }
 
-        public void SetTextureBarrier(CommandList commandList, Texture texture)
+        public void SetTextureBarrier(in CommandList commandList, Texture texture)
         {
             if (texture is null)
             {
@@ -1089,7 +1092,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetTextureBarrier(commandList.NativePointer, texture.NativePointer);
         }
 
-        public void SetGraphicsBufferBarrier(CommandList commandList, GraphicsBuffer graphicsBuffer)
+        public void SetGraphicsBufferBarrier(in CommandList commandList, GraphicsBuffer graphicsBuffer)
         {
             if (graphicsBuffer is null)
             {
@@ -1099,7 +1102,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.SetGraphicsBufferBarrier(commandList.NativePointer, graphicsBuffer.NativePointer);
         }
 
-        public void DispatchMesh(CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
+        public void DispatchMesh(in CommandList commandList, uint threadGroupCountX, uint threadGroupCountY, uint threadGroupCountZ)
         {
             if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
             {
@@ -1125,7 +1128,7 @@ namespace CoreEngine.Graphics
             this.cpuDrawCount++;
         }
 
-        public void ExecuteIndirect(CommandList commandList, uint maxCommandCount, GraphicsBuffer commandGraphicsBuffer, uint commandBufferOffset)
+        public void ExecuteIndirect(in CommandList commandList, uint maxCommandCount, GraphicsBuffer commandGraphicsBuffer, uint commandBufferOffset)
         {
             if (commandList.Type != CommandType.Render && commandList.Type != CommandType.Present)
             {
@@ -1140,7 +1143,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.ExecuteIndirect(commandList.NativePointer, maxCommandCount, commandGraphicsBuffer.NativePointer, commandBufferOffset);
         }
 
-        public void BeginQuery(CommandList commandList, QueryBuffer queryBuffer, int index)
+        public void BeginQuery(in CommandList commandList, QueryBuffer queryBuffer, int index)
         {
             if (queryBuffer == null)
             {
@@ -1150,7 +1153,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.BeginQuery(commandList.NativePointer, queryBuffer.NativePointer, index);
         }
 
-        public void EndQuery(CommandList commandList, QueryBuffer queryBuffer, int index)
+        public void EndQuery(in CommandList commandList, QueryBuffer queryBuffer, int index)
         {
             if (queryBuffer == null)
             {
@@ -1160,7 +1163,7 @@ namespace CoreEngine.Graphics
             this.graphicsService.EndQuery(commandList.NativePointer, queryBuffer.NativePointer, index);
         }
 
-        public void ResolveQueryData(CommandList commandList, QueryBuffer queryBuffer, GraphicsBuffer destinationBuffer, Range range)
+        public void ResolveQueryData(in CommandList commandList, QueryBuffer queryBuffer, GraphicsBuffer destinationBuffer, Range range)
         {
             if (queryBuffer == null)
             {

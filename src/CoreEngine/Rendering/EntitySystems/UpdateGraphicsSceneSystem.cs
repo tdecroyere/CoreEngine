@@ -30,36 +30,43 @@ namespace CoreEngine.Rendering.EntitySystems
             {
                 return;
             }
-            
-            var sceneArray = this.GetComponentDataArray<SceneComponent>();
-           
-            for (var i = 0; i < sceneArray.Length; i++)
+
+            var memoryChunks = this.GetMemoryChunks();
+
+            for (var i = 0; i < memoryChunks.Length; i++)
             {
-                var sceneComponent = sceneArray[i];
+                var memoryChunk = memoryChunks.Span[i];
 
-                sceneManager.CurrentScene.ShowMeshlets = sceneComponent.ShowMeshlets;
-                sceneManager.CurrentScene.IsOcclusionCullingEnabled = sceneComponent.IsOcclusionCullingEnabled;
+                var sceneArray = GetComponentArray<SceneComponent>(memoryChunk);
 
-                if (sceneComponent.ActiveCamera != null)
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.ActiveCamera.Value);
-                    var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
-                    
-                    sceneManager.CurrentScene.ActiveCamera = camera;
+                    var sceneComponent = sceneArray[j];
+
+                    sceneManager.CurrentScene.ShowMeshlets = sceneComponent.ShowMeshlets;
+                    sceneManager.CurrentScene.IsOcclusionCullingEnabled = sceneComponent.IsOcclusionCullingEnabled;
+
+                    if (sceneComponent.ActiveCamera != null)
+                    {
+                        var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.ActiveCamera.Value);
+                        var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
+
+                        sceneManager.CurrentScene.ActiveCamera = camera;
+                    }
+
+                    if (sceneComponent.DebugCamera != null)
+                    {
+                        var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.DebugCamera.Value);
+                        var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
+
+                        sceneManager.CurrentScene.DebugCamera = camera;
+                    }
+
+                    else
+                    {
+                        sceneManager.CurrentScene.DebugCamera = null;
+                    }
                 }
-
-                if (sceneComponent.DebugCamera != null)
-                {
-                    var cameraComponent = entityManager.GetComponentData<CameraComponent>(sceneComponent.DebugCamera.Value);
-                    var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
-                    
-                    sceneManager.CurrentScene.DebugCamera = camera;
-                }
-
-                else
-                {
-                    sceneManager.CurrentScene.DebugCamera = null;
-                }                    
             }
         }
     }

@@ -2,7 +2,7 @@ using System;
 
 namespace CoreEngine.UI.Native
 {
-    public readonly struct Window
+    public readonly record struct Window
     {
         public Window(IntPtr nativePointer, string title, int width, int height)
         {

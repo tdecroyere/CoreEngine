@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace CoreEngine.HostServices.Interop
 {
-    public unsafe struct InputsService : IInputsService
+    public unsafe readonly struct InputsService : IInputsService
     {
         private IntPtr context { get; }
 

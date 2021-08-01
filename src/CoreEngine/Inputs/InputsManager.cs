@@ -24,7 +24,7 @@ namespace CoreEngine.Inputs
             private set;
         }
 
-        public void AssociateWindow(Window window)
+        public void AssociateWindow(in Window window)
         {
             this.inputsService.AssociateWindow(window.NativePointer);
         }

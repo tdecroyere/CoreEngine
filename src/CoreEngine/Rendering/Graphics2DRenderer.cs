@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-using CoreEngine.Diagnostics;
 using CoreEngine.Graphics;
-using CoreEngine.Resources;
 
 namespace CoreEngine.Rendering
 {
@@ -150,7 +145,7 @@ namespace CoreEngine.Rendering
             this.rectangleSurfaces[this.currentSurfaceCount++] = new RectangleSurface(worldMatrix * this.projectionMatrix, textureMinPoint, textureMaxPoint, texture.ShaderResourceIndex, isOpaque);
         }
 
-        public Fence? Render(Texture renderTargetTexture, Fence previousFence)
+        public Fence? Render(Texture renderTargetTexture, in Fence previousFence)
         {
             if (this.currentSurfaceCount > 0)
             {
@@ -171,9 +166,9 @@ namespace CoreEngine.Rendering
             var commandListName = "Graphics2DRenderer_Copy";
             var copyCommandList = this.graphicsManager.CreateCommandList(this.renderManager.CopyCommandQueue, commandListName);
 
-            var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
+            var startCopyQueryIndex = this.renderManager.InsertQueryTimestamp(in copyCommandList);
             this.graphicsManager.CopyDataToGraphicsBuffer<RectangleSurface>(copyCommandList, this.rectangleSurfacesGraphicsBuffer, this.cpuRectangleSurfacesGraphicsBuffer, this.currentSurfaceCount);
-            var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(copyCommandList);
+            var endCopyQueryIndex = this.renderManager.InsertQueryTimestamp(in copyCommandList);
 
             this.graphicsManager.CommitCommandList(copyCommandList);
             this.renderManager.AddGpuTiming(commandListName, QueryBufferType.CopyTimestamp, startCopyQueryIndex, endCopyQueryIndex);
@@ -190,7 +185,7 @@ namespace CoreEngine.Rendering
             // var renderTarget = new RenderTargetDescriptor(renderTargetTexture, Vector4.Zero, BlendOperation.AlphaBlending);
             var renderPassDescriptor = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, backfaceCulling: true, PrimitiveType.Triangle);
 
-            var startQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            var startQueryIndex = this.renderManager.InsertQueryTimestamp(in renderCommandList);
             this.graphicsManager.BeginRenderPass(renderCommandList, renderPassDescriptor, this.shader);
 
             this.graphicsManager.SetShaderParameterValues(renderCommandList, 0, new uint[] { (uint)this.currentSurfaceCount, this.rectangleSurfacesGraphicsBuffer.ShaderResourceIndex });
@@ -198,7 +193,7 @@ namespace CoreEngine.Rendering
             this.graphicsManager.DispatchMesh(renderCommandList, MathUtils.ComputeGroupThreads(this.currentSurfaceCount, maxSurfaceCountPerThreadGroup), 1, 1);
 
             this.graphicsManager.EndRenderPass(renderCommandList);
-            var endQueryIndex = this.renderManager.InsertQueryTimestamp(renderCommandList);
+            var endQueryIndex = this.renderManager.InsertQueryTimestamp(in renderCommandList);
             this.graphicsManager.CommitCommandList(renderCommandList);
             this.renderManager.AddGpuTiming(commandListName, QueryBufferType.Timestamp, startQueryIndex, endQueryIndex);
             return renderCommandList;

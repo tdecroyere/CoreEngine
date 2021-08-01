@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Numerics;
-
 namespace CoreEngine
 {
     public static class Utils
@@ -15,6 +10,11 @@ namespace CoreEngine
         public static float BytesToMegaBytes(ulong value)
         {
             return (float)value / 1024.0f / 1024.0f;
+        }
+
+        public static ulong KiloBytesToBytes(ulong value)
+        {
+            return value * 1024;
         }
 
         public static ulong MegaBytesToBytes(ulong value)

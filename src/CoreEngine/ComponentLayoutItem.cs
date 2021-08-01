@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Runtime.InteropServices;
-
 namespace CoreEngine
 {
-    public readonly struct ComponentLayoutItem
+    public readonly record struct ComponentLayoutItem
     {
         internal ComponentLayoutItem(ComponentHash hash, int offset, int sizeInBytes, ReadOnlyMemory<byte>? defaultData)
         {

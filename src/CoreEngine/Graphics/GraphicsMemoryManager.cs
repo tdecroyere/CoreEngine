@@ -84,7 +84,7 @@ namespace CoreEngine.Graphics
             return this.globalGpuMemoryAllocator.AllocateMemory(allocationInfos.SizeInBytes, (ulong)allocationInfos.Alignment);
         }
 
-        public void FreeAllocation(GraphicsMemoryAllocation allocation)
+        public void FreeAllocation(in GraphicsMemoryAllocation allocation)
         {
             var memoryAllocator = this.globalGpuMemoryAllocator;
 
@@ -103,7 +103,7 @@ namespace CoreEngine.Graphics
                 memoryAllocator = this.globalTransientGpuMemoryAllocator;
             }
 
-            memoryAllocator.FreeMemory(allocation);
+            memoryAllocator.FreeMemory(in allocation);
 
             //this.AllocatedGpuMemory -= (ulong)allocation.SizeInBytes;
 

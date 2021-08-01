@@ -181,7 +181,7 @@ namespace CoreEngine.Rendering
             return new Vector2(this.swapChain.Width, this.swapChain.Height);
         }
 
-        public int InsertQueryTimestamp(CommandList commandList)
+        public int InsertQueryTimestamp(in CommandList commandList)
         {
             if (commandList.Type == CommandType.Copy)
             {
@@ -255,10 +255,10 @@ namespace CoreEngine.Rendering
 
             DrawDebugMessages();
             var fence = this.Graphics2DRenderer.Render(this.mainRenderTarget, rendererfence);
-            PresentScreenBuffer(this.mainRenderTarget, fence);
+            PresentScreenBuffer(this.mainRenderTarget, in fence);
         }
 
-        private void PresentScreenBuffer(Texture mainRenderTargetTexture, Fence? fenceToWait)
+        private void PresentScreenBuffer(Texture mainRenderTargetTexture, in Fence? fenceToWait)
         {
             if (logFrameTime)
             {
@@ -276,10 +276,10 @@ namespace CoreEngine.Rendering
             var renderTarget = new RenderTargetDescriptor(backBufferTexture, null, BlendOperation.None);
             var renderPassDescriptor2 = new RenderPassDescriptor(renderTarget, null, DepthBufferOperation.None, true, PrimitiveType.Triangle);
             this.graphicsManager.BeginRenderPass(presentCommandList, renderPassDescriptor2, this.computeDirectTransferShader);
-            var startQueryIndex = InsertQueryTimestamp(presentCommandList);
+            var startQueryIndex = InsertQueryTimestamp(in presentCommandList);
             this.graphicsManager.SetShaderParameterValues(presentCommandList, 0, new uint[] { mainRenderTargetTexture.ShaderResourceIndex });
             this.graphicsManager.DispatchMesh(presentCommandList, 1, 1, 1);
-            var endQueryIndex = InsertQueryTimestamp(presentCommandList);
+            var endQueryIndex = InsertQueryTimestamp(in presentCommandList);
             this.graphicsManager.EndRenderPass(presentCommandList);
             this.graphicsManager.ResolveQueryData(presentCommandList, this.globalQueryBuffer, this.globalCpuQueryBuffer, 0..this.currentQueryIndex);
             this.graphicsManager.CommitCommandList(presentCommandList);

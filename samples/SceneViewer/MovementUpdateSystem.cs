@@ -21,42 +21,48 @@ namespace CoreEngine.Samples.SceneViewer
             var friction = -75.0f;
             var deltaTimePow2 = deltaTime * deltaTime;
 
-            var entityArray = this.GetEntityArray();
-            var playerArray = this.GetComponentDataArray<PlayerComponent>();
-            var transformArray = this.GetComponentDataArray<TransformComponent>();
+            var memoryChunks = this.GetMemoryChunks();
 
-            for (var i = 0; i < entityArray.Length; i++)
+            for (var i = 0; i < memoryChunks.Length; i++)
             {
-                var playerComponent = playerArray[i];
+                var memoryChunk = memoryChunks.Span[i];
 
-	            var rotationAcceleration = playerComponent.RotationVector * playerComponent.RotationAcceleration;
+                var transformArray = GetComponentArray<TransformComponent>(memoryChunk);
+                var playerArray = GetComponentArray<PlayerComponent>(memoryChunk); 
 
-                // Add friction to the player
-                // TODO: It seems we need to implement ODE equations here
-                rotationAcceleration += friction * playerComponent.RotationVelocity;
-
-                var movementAcceleration = playerComponent.MovementVector * playerComponent.MovementAcceleration;
-
-                // Add friction to the player
-                // TODO: It seems we need to implement ODE equations here
-                movementAcceleration += friction * playerComponent.MovementVelocity;
-
-	            var rotationDelta = 0.5f * rotationAcceleration * deltaTimePow2 + playerComponent.RotationVelocity * deltaTime;
-	            playerArray[i].RotationVelocity = rotationAcceleration * deltaTime + playerComponent.RotationVelocity;
-
-                var movementDelta = 0.5f * movementAcceleration * deltaTimePow2 + playerComponent.MovementVelocity * deltaTime;
-	            playerArray[i].MovementVelocity = movementAcceleration * deltaTime + playerComponent.MovementVelocity;
-
-                if (rotationDelta.LengthSquared() > 0)
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    transformArray[i].RotationX += rotationDelta.X;
-                    transformArray[i].RotationY += rotationDelta.Y;
-                }
+                    var playerComponent = playerArray[j];
 
-                if (movementDelta.LengthSquared() > 0.0f)
-                {
-                    var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(MathUtils.DegreesToRad(transformArray[i].RotationY), MathUtils.DegreesToRad(transformArray[i].RotationX), 0.0f);
-                    transformArray[i].Position += Vector3.Transform(new Vector3(movementDelta.X, 0.0f, movementDelta.Y), rotationQuaternion);
+                    var rotationAcceleration = playerComponent.RotationVector * playerComponent.RotationAcceleration;
+
+                    // Add friction to the player
+                    // TODO: It seems we need to implement ODE equations here
+                    rotationAcceleration += friction * playerComponent.RotationVelocity;
+
+                    var movementAcceleration = playerComponent.MovementVector * playerComponent.MovementAcceleration;
+
+                    // Add friction to the player
+                    // TODO: It seems we need to implement ODE equations here
+                    movementAcceleration += friction * playerComponent.MovementVelocity;
+
+                    var rotationDelta = 0.5f * rotationAcceleration * deltaTimePow2 + playerComponent.RotationVelocity * deltaTime;
+                    playerArray[j].RotationVelocity = rotationAcceleration * deltaTime + playerComponent.RotationVelocity;
+
+                    var movementDelta = 0.5f * movementAcceleration * deltaTimePow2 + playerComponent.MovementVelocity * deltaTime;
+                    playerArray[j].MovementVelocity = movementAcceleration * deltaTime + playerComponent.MovementVelocity;
+
+                    if (rotationDelta.LengthSquared() > 0)
+                    {
+                        transformArray[j].RotationX += rotationDelta.X;
+                        transformArray[j].RotationY += rotationDelta.Y;
+                    }
+
+                    if (movementDelta.LengthSquared() > 0.0f)
+                    {
+                        var rotationQuaternion = Quaternion.CreateFromYawPitchRoll(MathUtils.DegreesToRad(transformArray[j].RotationY), MathUtils.DegreesToRad(transformArray[j].RotationX), 0.0f);
+                        transformArray[j].Position += Vector3.Transform(new Vector3(movementDelta.X, 0.0f, movementDelta.Y), rotationQuaternion);
+                    }
                 }
             }
         }

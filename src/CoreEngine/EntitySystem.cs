@@ -1,50 +1,44 @@
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using CoreEngine.Collections;
-
 namespace CoreEngine
 {
     public abstract class EntitySystem
     {
-        private EntitySystemData? entitySystemData;
+        internal EntitySystemData entitySystemData = new EntitySystemData();
 
         public abstract EntitySystemDefinition BuildDefinition();
         
-        public abstract void Process(EntityManager entityManager, float deltaTime);
-
-        protected EntitySystemArray<Entity> GetEntityArray()
+        public virtual void Setup(EntityManager entityManager)
         {
-            if (entitySystemData != null)
-            {
-                return entitySystemData.EntityArray;
-            }
-
-            throw new InvalidOperationException("Entity system data was never set.");
         }
 
-        protected EntitySystemArray<T> GetComponentDataArray<T>() where T : struct, IComponentData
+        public virtual void Process(EntityManager entityManager, float deltaTime)
         {
-            // TODO: Check system registered definitions
-
-            if (entitySystemData != null)
-            {
-                var componentTypeHashCode = new T().GetComponentHash();
-
-                if (!this.entitySystemData.ComponentsData.ContainsKey(componentTypeHashCode))
-                {
-                    throw new ArgumentException("The type passed is not registered by the system.");
-                }
-
-                return new EntitySystemArray<T>(this.entitySystemData.ComponentsData[componentTypeHashCode]);
-            }
-
-            throw new InvalidOperationException("Entity system data was never set.");
         }
 
-        internal void SetEntitySystemData(EntitySystemData entitySystemData)
+        // TODO: Move that code to the query class?
+        protected ReadOnlyMemory<ComponentStorageMemoryChunk> GetMemoryChunks()
         {
-            this.entitySystemData = entitySystemData;
+            if (this.entitySystemData == null || this.entitySystemData.MemoryChunks == null)
+            {
+                return new ReadOnlyMemory<ComponentStorageMemoryChunk>();
+            }
+
+            return this.entitySystemData.MemoryChunks.Value;
+        }
+        
+        protected Span<T> GetComponentArray<T>(ComponentStorageMemoryChunk memoryChunk) where T : struct, IComponentData
+        {
+            var componentHash = new T().GetComponentHash();
+
+            var componentOffset = memoryChunk.ComponentLayout.FindComponentOffset(componentHash);
+            var componentSize = memoryChunk.ComponentLayout.FindComponentSizeInBytes(componentHash);
+            var componentMemoryOffset = EntityManager.ComputeDataChunkComponentOffset(memoryChunk, componentOffset!.Value, componentSize, 0);
+
+            return MemoryMarshal.Cast<byte, T>(memoryChunk.Storage.Span.Slice(componentMemoryOffset, memoryChunk.EntityCount * componentSize));
+        }
+
+        protected Span<Entity> GetEntityArray(ComponentStorageMemoryChunk memoryChunk)
+        {
+            return MemoryMarshal.Cast<byte, Entity>(memoryChunk.Storage.Span.Slice(0, memoryChunk.EntityCount * Marshal.SizeOf<Entity>()));
         }
     }
 }

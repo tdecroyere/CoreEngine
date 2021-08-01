@@ -32,17 +32,23 @@ namespace CoreEngine.Samples.SceneViewer
                 return;
             }
 
-            var entityArray = this.GetEntityArray();
-            var playerArray = this.GetComponentDataArray<PlayerComponent>();
+            var memoryChunks = this.GetMemoryChunks();
 
-            for (var i = 0; i < entityArray.Length; i++)
+            for (var i = 0; i < memoryChunks.Length; i++)
             {
-                ref var playerComponent = ref playerArray[i];
+                var memoryChunk = memoryChunks.Span[i];
 
-                if (playerComponent.IsActive)
+                var playerArray = GetComponentArray<PlayerComponent>(memoryChunk);
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    playerComponent.MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
-                    playerComponent.RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
+                    ref var playerComponent = ref playerArray[j];
+
+                    if (playerComponent.IsActive)
+                    {
+                        playerComponent.MovementVector = new Vector3(this.inputsManager.GetMovementVector(), 0.0f);
+                        playerComponent.RotationVector = new Vector3(this.inputsManager.GetRotationVector(), 0.0f);
+                    }
                 }
             }
         }

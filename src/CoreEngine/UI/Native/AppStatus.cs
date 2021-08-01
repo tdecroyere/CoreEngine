@@ -2,7 +2,7 @@ using CoreEngine.HostServices;
 
 namespace CoreEngine.UI.Native
 {
-    public struct AppStatus
+    public readonly record struct AppStatus
     {
         public AppStatus(NativeAppStatus nativeAppStatus)
         {

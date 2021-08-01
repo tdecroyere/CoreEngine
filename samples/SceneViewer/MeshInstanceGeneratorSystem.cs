@@ -28,6 +28,11 @@ namespace CoreEngine.Samples.SceneViewer
             return definition;
         }
 
+        public override void Setup(EntityManager entityManager)
+        {
+
+        }
+
         public override void Process(EntityManager entityManager, float deltaTime)
         {
             if (entityManager == null)
@@ -39,27 +44,30 @@ namespace CoreEngine.Samples.SceneViewer
             {
                 this.isFirstTimeRun = false;
 
-                var entityArray = this.GetEntityArray();
-                
-                for (var i = 0; i < entityArray.Length; i++)
+                var memoryChunks = this.GetMemoryChunks();
+
+                for (var i = 0; i < memoryChunks.Length; i++)
                 {
-                    var meshes = new Mesh[]
+                    var memoryChunk = memoryChunks.Span[i];
+
+                    var meshInstanceGeneratorArray = GetComponentArray<MeshInstanceGeneratorComponent>(memoryChunk);
+
+                    for (var j = 0; j < memoryChunk.EntityCount; j++)
                     {
-                        this.resourcesManager.LoadResourceAsync<Mesh>("/Data/kitten.mesh"),
-                        this.resourcesManager.LoadResourceAsync<Mesh>("/Data/teapot.mesh")
-                    };
+                        var meshes = new Mesh[]
+                        {
+                            this.resourcesManager.LoadResourceAsync<Mesh>("/Data/kitten.mesh"),
+                            this.resourcesManager.LoadResourceAsync<Mesh>("/Data/teapot.mesh")
+                        };
 
-                    var meshInstanceGeneratorArray = this.GetComponentDataArray<MeshInstanceGeneratorComponent>();
-                    ref var meshInstanceGeneratorComponent = ref meshInstanceGeneratorArray[i];
+                        ref var meshInstanceGeneratorComponent = ref meshInstanceGeneratorArray[j];
 
-                    var componentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent>();
-                    var animateComponentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent, AutomaticMovementComponent>();
-                    var dimensions = new Vector3(20, 20, 20);
-                    var random = new Random();
+                        var componentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent>();
+                        var animateComponentLayout = entityManager.CreateComponentLayout<MeshComponent, TransformComponent, AutomaticMovementComponent>();
+                        var dimensions = new Vector3(30, 30, 30);
+                        var random = new Random();
 
-                    for (var j = 0; j < meshInstanceGeneratorComponent.MeshInstanceCountWidth; j++)
-                    {
-                        for (var k = 0; k < meshInstanceGeneratorComponent.MeshInstanceCountWidth; k++)
+                        for (var k = 0; k < meshInstanceGeneratorComponent.MeshInstanceCountWidth * meshInstanceGeneratorComponent.MeshInstanceCountWidth; k++)
                         {
                             var meshIndex = random.Next() % meshes.Length;
                             var mesh = meshes[meshIndex];
@@ -78,7 +86,7 @@ namespace CoreEngine.Samples.SceneViewer
                                 scale /= 30.0f;
                             }
 
-                            var entityComponentLayout = (i == 0) ? animateComponentLayout : componentLayout;
+                            var entityComponentLayout = (k < 100_000) ? animateComponentLayout : componentLayout;
 
                             var entity = entityManager.CreateEntity(entityComponentLayout);
                             entityManager.SetComponentData(entity, new MeshComponent { MeshResourceId = mesh.ResourceId });

@@ -35,10 +35,6 @@ namespace CoreEngine.Rendering.EntitySystems
                 return;
             }
             
-            var entityArray = this.GetEntityArray();
-            var transformArray = this.GetComponentDataArray<TransformComponent>();
-            var cameraArray = this.GetComponentDataArray<CameraComponent>();
-
             var renderSize = this.graphicsManager.GetRenderSize();
             var renderWidth = renderSize.X;
             var renderHeight = renderSize.Y;
@@ -46,37 +42,47 @@ namespace CoreEngine.Rendering.EntitySystems
             var nearPlaneDistance = 0.01f;
             var projectionMatrix = MathUtils.CreatePerspectiveFieldOfViewMatrix(MathUtils.DegreesToRad(54.43f), renderWidth / renderHeight, nearPlaneDistance);
 
-            for (var i = 0; i < entityArray.Length; i++)
+            var memoryChunks = this.GetMemoryChunks();
+
+            for (var i = 0; i < memoryChunks.Length; i++)
             {
-                ref var transformComponent = ref transformArray[i];
-                ref var cameraComponent = ref cameraArray[i];
+                var memoryChunk = memoryChunks.Span[i];
 
-                if (cameraArray[i].EyePosition != Vector3.Zero || cameraArray[i].LookAtPosition != Vector3.Zero)
+                var transformArray = GetComponentArray<TransformComponent>(memoryChunk);
+                var cameraArray = GetComponentArray<CameraComponent>(memoryChunk); 
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    SetupCamera(ref cameraComponent, ref transformComponent);
-                }
+                    ref var transformComponent = ref transformArray[j];
+                    ref var cameraComponent = ref cameraArray[j];
 
-                var cameraPosition = transformComponent.Position;
-                var target = Vector3.Transform(new Vector3(0, 0, 1), transformComponent.RotationQuaternion) + cameraPosition;
+                    if (cameraArray[i].EyePosition != Vector3.Zero || cameraArray[i].LookAtPosition != Vector3.Zero)
+                    {
+                        SetupCamera(ref cameraComponent, ref transformComponent);
+                    }
 
-                var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
-                
-                if (!sceneManager.CurrentScene.Cameras.Contains(cameraComponent.Camera))
-                {
-                    var camera = new Camera(cameraPosition, target, nearPlaneDistance, viewMatrix, projectionMatrix, viewMatrix * projectionMatrix);
-                    cameraComponent.Camera = sceneManager.CurrentScene.Cameras.Add(camera);
-                }
+                    var cameraPosition = transformComponent.Position;
+                    var target = Vector3.Transform(new Vector3(0, 0, 1), transformComponent.RotationQuaternion) + cameraPosition;
 
-                else
-                {
-                    var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
+                    var viewMatrix = MathUtils.CreateLookAtMatrix(cameraPosition, target, new Vector3(0, 1, 0));
 
-                    camera.WorldPosition = cameraPosition;
-                    camera.TargetPosition = target;
-                    camera.NearPlaneDistance = nearPlaneDistance;
-                    camera.ViewMatrix = viewMatrix;
-                    camera.ProjectionMatrix = projectionMatrix;
-                    camera.ViewProjectionMatrix = viewMatrix * projectionMatrix;
+                    if (!sceneManager.CurrentScene.Cameras.Contains(cameraComponent.Camera))
+                    {
+                        var camera = new Camera(cameraPosition, target, nearPlaneDistance, viewMatrix, projectionMatrix, viewMatrix * projectionMatrix);
+                        cameraComponent.Camera = sceneManager.CurrentScene.Cameras.Add(camera);
+                    }
+
+                    else
+                    {
+                        var camera = sceneManager.CurrentScene.Cameras[cameraComponent.Camera];
+
+                        camera.WorldPosition = cameraPosition;
+                        camera.TargetPosition = target;
+                        camera.NearPlaneDistance = nearPlaneDistance;
+                        camera.ViewMatrix = viewMatrix;
+                        camera.ProjectionMatrix = projectionMatrix;
+                        camera.ViewProjectionMatrix = viewMatrix * projectionMatrix;
+                    }
                 }
             }
         }

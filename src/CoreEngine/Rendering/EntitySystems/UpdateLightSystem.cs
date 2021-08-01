@@ -9,12 +9,10 @@ namespace CoreEngine.Rendering.EntitySystems
 {
     public class UpdateLightSystem : EntitySystem
     {
-        private readonly GraphicsManager graphicsManager;
         private readonly GraphicsSceneManager sceneManager;
 
-        public UpdateLightSystem(GraphicsManager graphicsManager, GraphicsSceneManager sceneManager)
+        public UpdateLightSystem(GraphicsSceneManager sceneManager)
         {
-            this.graphicsManager = graphicsManager;
             this.sceneManager = sceneManager;
         }
 
@@ -23,7 +21,7 @@ namespace CoreEngine.Rendering.EntitySystems
             var definition = new EntitySystemDefinition("Update Light System");
 
             definition.Parameters.Add(new EntitySystemParameter<TransformComponent>(isReadOnly: true));
-            definition.Parameters.Add(new EntitySystemParameter<LightComponent>(isReadOnly: true));
+            definition.Parameters.Add(new EntitySystemParameter<LightComponent>());
 
             return definition;
         }
@@ -34,30 +32,35 @@ namespace CoreEngine.Rendering.EntitySystems
             {
                 return;
             }
-            
-            var entityArray = this.GetEntityArray();
-            var transformArray = this.GetComponentDataArray<TransformComponent>();
-            var lightArray = this.GetComponentDataArray<LightComponent>();
 
-            for (var i = 0; i < entityArray.Length; i++)
+            var memoryChunks = this.GetMemoryChunks();
+
+            for (var i = 0; i < memoryChunks.Length; i++)
             {
-                var entity = entityArray[i];
-                ref var transformComponent = ref transformArray[i];
-                ref var lightComponent = ref lightArray[i];
+                var memoryChunk = memoryChunks.Span[i];
 
-                if (!sceneManager.CurrentScene.Lights.Contains(lightComponent.Light))
+                var transformArray = GetComponentArray<TransformComponent>(memoryChunk);
+                var lightArray = GetComponentArray<LightComponent>(memoryChunk); 
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    var light = new Light(transformComponent.Position, lightComponent.Color, (LightType)lightComponent.LightType);
-                    lightComponent.Light = sceneManager.CurrentScene.Lights.Add(light);
-                }
+                    var transformComponent = transformArray[j];
+                    ref var lightComponent = ref lightArray[j];
 
-                else
-                {
-                    var light = sceneManager.CurrentScene.Lights[lightComponent.Light];
+                    if (!sceneManager.CurrentScene.Lights.Contains(lightComponent.Light))
+                    {
+                        var light = new Light(transformComponent.Position, lightComponent.Color, (LightType)lightComponent.LightType);
+                        lightComponent.Light = sceneManager.CurrentScene.Lights.Add(light);
+                    }
 
-                    light.WorldPosition = transformComponent.Position;
-                    light.Color = lightComponent.Color;
-                    //light.LightType = (LightType)lightComponent.LightType;
+                    else
+                    {
+                        var light = sceneManager.CurrentScene.Lights[lightComponent.Light];
+
+                        light.WorldPosition = transformComponent.Position;
+                        light.Color = lightComponent.Color;
+                        //light.LightType = (LightType)lightComponent.LightType;
+                    }
                 }
             }
         }

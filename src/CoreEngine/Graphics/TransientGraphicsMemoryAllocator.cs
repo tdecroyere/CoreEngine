@@ -54,7 +54,7 @@ namespace CoreEngine.Graphics
             return allocation;
         }
 
-        public void FreeMemory(GraphicsMemoryAllocation allocation)
+        public void FreeMemory(in GraphicsMemoryAllocation allocation)
         {
 
         }

@@ -41,9 +41,11 @@ namespace CoreEngine.Samples.SceneViewer
             var changeMeshletView = this.inputsManager.InputsState.Keyboard.F2.Value == 0.0f && this.inputsManager.InputsState.Keyboard.F2.TransitionCount > 0;
             var changeOcclusionCulling = this.inputsManager.InputsState.Keyboard.F3.Value == 0.0f && this.inputsManager.InputsState.Keyboard.F3.TransitionCount > 0;
 
-            var entityArray = this.GetEntityArray();
-            var cameraArray = this.GetComponentDataArray<CameraComponent>();
-            var playerArray = this.GetComponentDataArray<PlayerComponent>();
+            var memoryChunks = GetMemoryChunks();
+
+            var entityArray = GetEntityArray(memoryChunks.Span[0]);
+            var cameraArray = GetComponentArray<CameraComponent>(memoryChunks.Span[0]);
+            var playerArray = GetComponentArray<PlayerComponent>(memoryChunks.Span[0]);
 
             if (this.isFirstRun)
             {
@@ -54,6 +56,7 @@ namespace CoreEngine.Samples.SceneViewer
                     sceneEntity = sceneEntities[0];
                     sceneComponent = entityManager.GetComponentData<SceneComponent>(sceneEntity.Value);
                 }
+
                 this.isFirstRun = false;
             }
 

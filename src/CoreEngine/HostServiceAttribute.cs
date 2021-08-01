@@ -1,5 +1,3 @@
-using System;
-
 namespace CoreEngine
 {
     [AttributeUsage(AttributeTargets.Interface)]

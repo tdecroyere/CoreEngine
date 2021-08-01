@@ -1,8 +1,6 @@
-using System.Numerics;
-
 namespace CoreEngine
 {
-    public readonly struct BoundingSphere
+    public readonly record struct BoundingSphere
     {
         public BoundingSphere(Vector3 center, float radius)
         {

@@ -1,6 +1,3 @@
-using System;
-using System.Numerics;
-
 namespace CoreEngine
 {
     public class BoundingFrustum

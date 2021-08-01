@@ -9,6 +9,7 @@ namespace CoreEngine.UnitTests
         {
         }
 
+        public bool SetupCalled { get; private set; }
         public bool ProcessCalled { get; private set; }
         public int ProcessEntityCount { get; private set; }
         public int ProcessComponentCount { get; private set; }
@@ -21,11 +22,26 @@ namespace CoreEngine.UnitTests
             return definition;
         }
 
+        public override void Setup(EntityManager entityManager)
+        {
+            this.SetupCalled = true;
+        }
+
         public override void Process(EntityManager entityManager, float deltaTime)
         {
             this.ProcessCalled = true;
-            this.ProcessEntityCount = this.GetEntityArray().Length;
-            this.ProcessComponentCount = this.GetComponentDataArray<TestComponent>().Length;
+            
+            var memoryChunks = GetMemoryChunks();
+
+            if (memoryChunks.Length == 0)
+            {
+                return;
+            }
+
+            var memoryChunk = memoryChunks.Span[0];
+
+            this.ProcessEntityCount = GetEntityArray(memoryChunk).Length;
+            this.ProcessComponentCount = GetComponentArray<TestComponent>(memoryChunk).Length;
         }
     }
     
@@ -53,6 +69,24 @@ namespace CoreEngine.UnitTests
 
             // Act / Assert
             Assert.Throws<ArgumentException>(() => entitySystemManager.RegisterEntitySystem<TestSystem>());
+        }
+
+        [Fact]
+        public void Process_SystemRegistered_SystemSetupCalled()
+        {
+            // Arrange
+            var entityManager = new EntityManager();
+            var container = new SystemManagerContainer();
+            container.RegisterSystemManager(new PluginManager());
+
+            var entitySystemManager = new EntitySystemManager();
+            entitySystemManager.RegisterEntitySystem<TestSystem>();
+
+            // Act
+            entitySystemManager.Process(container, entityManager, 0.0f);
+
+            // Assert
+            Assert.True(((TestSystem)entitySystemManager.RegisteredSystems[0].EntitySystem!).SetupCalled);
         }
 
         [Fact]

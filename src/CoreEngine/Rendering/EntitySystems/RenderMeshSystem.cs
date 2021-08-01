@@ -1,10 +1,5 @@
-using System;
-using System.Numerics;
-using CoreEngine.Collections;
 using CoreEngine.Components;
-using CoreEngine.Diagnostics;
 using CoreEngine.Rendering.Components;
-using CoreEngine.Resources;
 
 namespace CoreEngine.Rendering.EntitySystems
 {
@@ -35,43 +30,51 @@ namespace CoreEngine.Rendering.EntitySystems
             {
                 throw new ArgumentNullException(nameof(entityManager));
             }
-            
-            var entityArray = this.GetEntityArray();
-            var transformArray = this.GetComponentDataArray<TransformComponent>();
-            var meshArray = this.GetComponentDataArray<MeshComponent>();
 
-            for (var i = 0; i < entityArray.Length; i++)
+            var memoryChunks = this.GetMemoryChunks();
+
+            // TODO: Make renderMesh thread safe so we can parallelise the loop
+            Parallel.For(0, memoryChunks.Length, (i) =>
+            //for (var i = 0; i < memoryChunks.Length; i++)
             {
-                ref var transformComponent = ref transformArray[i];
-                ref var meshComponent = ref meshArray[i];
+                var memoryChunk = memoryChunks.Span[i];
 
-                if (meshComponent.MeshResourceId != 0)
+                var transformArray = GetComponentArray<TransformComponent>(memoryChunk);
+                var meshArray = GetComponentArray<MeshComponent>(memoryChunk); 
+
+                for (var j = 0; j < memoryChunk.EntityCount; j++)
                 {
-                    if (meshComponent.MeshInstanceId.HasValue)
-                    {
-                        // TODO: Detect if transform component has changed
-                        //if (transformComponent.HasChanged == 0)
-                        //{
-                         //   sceneRenderer.RenderMesh(meshComponent.MeshInstanceId.Value);
-                        //}
+                    ref var transformComponent = ref transformArray[j];
+                    ref var meshComponent = ref meshArray[j];
 
-                        //else
-                        //{
+                    // TODO: Use nullable here
+                    if (meshComponent.MeshResourceId != 0)
+                    {
+                        if (meshComponent.MeshInstanceId.HasValue)
+                        {
+                            // TODO: Detect if transform component has changed
+                            //if (transformComponent.HasChanged == 0)
+                            //{
+                            //sceneRenderer.RenderMesh(meshComponent.MeshInstanceId.Value);
+                            //}
+                            //else
+                            //{
                             sceneRenderer.RenderMesh(meshComponent.MeshInstanceId.Value, transformComponent.WorldMatrix, transformComponent.Scale.X);
-                        //}
-                    }
+                            //}
+                        }
 
-                    else
-                    {
-                        var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
+                        else
+                        {
+                            var mesh = this.resourcesManager.GetResourceById<Mesh>(meshComponent.MeshResourceId);
 
-                        // TODO: This code is not thread safe!
-                        // TODO: We Support only uniform scale for the moment
-                        var meshInstanceId = sceneRenderer.RenderMesh(mesh, transformComponent.WorldMatrix, transformComponent.Scale.X);
-                        meshComponent.MeshInstanceId = meshInstanceId;
+                            // TODO: This code is not thread safe!
+                            // TODO: We Support only uniform scale for the moment
+                            var meshInstanceId = sceneRenderer.RenderMesh(mesh, transformComponent.WorldMatrix, transformComponent.Scale.X);
+                            meshComponent.MeshInstanceId = meshInstanceId;
+                        }
                     }
                 }
-            }
+            });
         }
     }
 }

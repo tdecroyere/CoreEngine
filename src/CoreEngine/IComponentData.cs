@@ -1,5 +1,3 @@
-using System;
-
 namespace CoreEngine
 {
     public interface IComponentData
@@ -9,6 +7,7 @@ namespace CoreEngine
             
         }
 
+        // TODO: Use the new C# static method interfaces
         ComponentHash GetComponentHash() => throw new NotImplementedException();
     }
 }
